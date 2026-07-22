@@ -1124,6 +1124,7 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
                               bool is_continuation_row) {
     if (in_extra)
         return;
+    ic_term_mark_prompt_start(env, row > 0 || is_continuation_row);
     const bool line_numbers_active = line_numbers_enabled(env);
     const bool row_uses_prompt_text = (row == 0 && !eb->replace_prompt_line_with_number);
     const bool row_uses_line_numbers =
@@ -1184,6 +1185,7 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
         bbcode_print(env->bbcode, (row == 0 ? env->prompt_marker : env->cprompt_marker));
     }
     bbcode_style_close(env->bbcode, NULL);
+    ic_term_mark_input_start(env);
 }
 
 static ssize_t edit_decode_codepoint(const char* text, ssize_t len, ssize_t offset,
@@ -1448,6 +1450,7 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         // write line ending
         if (row < info->last_row) {
             if (is_wrap && tty_is_utf8(info->env->tty)) {
+                ic_term_mark_prompt_start(info->env, true);
 #ifndef __APPLE__
                 bbcode_print(info->env->bbcode,
                              "[ic-diminish]\xE2\x86\x90[/]");  // left arrow
@@ -1455,6 +1458,7 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
                 bbcode_print(info->env->bbcode,
                              "[ic-diminish]\xE2\x86\xB5[/]");  // return symbol
 #endif
+                ic_term_mark_input_start(info->env);
             }
             if (!should_attempt_inline_right) {
                 term_clear_to_end_of_line(term);

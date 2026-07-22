@@ -167,7 +167,9 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->mouse_reporting_status_line_enabled = true;  // show indicator line when mouse is active
     env->inline_right_prompt_follows_cursor = false;  // keep right prompt anchored at row 0
     env->bracketed_paste_enabled = false;
-    env->typeahead_enabled = false;  // callers opt in for interactive shell sessions
+    env->typeahead_enabled = false;                // callers opt in for interactive shell sessions
+    env->terminal_region_marking_enabled = false;  // callers opt in to OSC 133 shell integration
+    env->terminal_region_state = 0;
 
     if (env->tty == NULL || env->term == NULL || env->completions == NULL || env->history == NULL ||
         env->bbcode == NULL || env->typeahead_input_buffer == NULL ||

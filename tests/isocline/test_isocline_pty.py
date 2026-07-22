@@ -197,6 +197,43 @@ def assert_prompt_guard_case(binary: str, scenario: str, expect_marker: bool) ->
     assert_prompt_guard_marker(scenario, output_text, expect_marker)
 
 
+def assert_region_markers(output_text: str, expect_secondary_prompt: bool) -> None:
+    prompt_start = "\x1b]133;A\x1b\\"
+    secondary_start = "\x1b]133;A;k=s\x1b\\"
+    input_start = "\x1b]133;B\x1b\\"
+    output_start = "\x1b]133;C\x1b\\"
+    output_end = "\x1b]133;D;7\x1b\\"
+
+    command_start_index = output_text.find(output_start)
+    command_end_index = output_text.find(output_end, command_start_index + 1)
+    output_text_index = output_text.find("region-output", command_start_index + 1)
+    input_start_index = output_text.rfind(input_start, 0, command_start_index)
+    prompt_start_index = output_text.rfind(prompt_start, 0, input_start_index)
+
+    if min(
+        prompt_start_index,
+        input_start_index,
+        command_start_index,
+        output_text_index,
+        command_end_index,
+    ) < 0:
+        raise AssertionError(f"missing OSC 133 region marker: output={output_text!r}")
+    if not (
+        prompt_start_index
+        < input_start_index
+        < command_start_index
+        < output_text_index
+        < command_end_index
+    ):
+        raise AssertionError(f"OSC 133 markers are out of order: output={output_text!r}")
+
+    secondary_index = output_text.find(secondary_start)
+    if expect_secondary_prompt and secondary_index < 0:
+        raise AssertionError(f"missing OSC 133 secondary-prompt marker: output={output_text!r}")
+    if not expect_secondary_prompt and secondary_index >= 0:
+        raise AssertionError(f"unexpected OSC 133 secondary-prompt marker: output={output_text!r}")
+
+
 def assert_last_prompt_suffix(
     scenario: str, output_text: str, expected_suffix: str
 ) -> None:
@@ -813,6 +850,26 @@ def main() -> int:
         raise AssertionError(
             f"multiline_ctrl_j_insert_newline expected 'a\\nb', got {multiline_ctrl_j!r}"
         )
+
+    region_result, region_output = run_case(
+        binary, "region_marking", b"ok\r", capture_output=True
+    )
+    if region_result != "ok":
+        raise AssertionError(f"region_marking expected 'ok', got {region_result!r}")
+    assert_region_markers(region_output, expect_secondary_prompt=False)
+
+    multiline_region_result, multiline_region_output = run_case(
+        binary,
+        "region_marking_multiline",
+        b"a\x0ab\r",
+        capture_output=True,
+    )
+    if multiline_region_result != "a\nb":
+        raise AssertionError(
+            "region_marking_multiline expected 'a\\nb', "
+            f"got {multiline_region_result!r}"
+        )
+    assert_region_markers(multiline_region_output, expect_secondary_prompt=True)
 
     multiline_backslash = run_case(
         binary, "multiline_backslash_continuation", b"echo \\\rhi\r"

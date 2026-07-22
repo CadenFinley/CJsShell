@@ -137,6 +137,8 @@ struct ic_env_s {
     bool inline_right_prompt_follows_cursor;           // right prompt tracks cursor row
     bool bracketed_paste_enabled;                      // bracketed paste mode active
     bool typeahead_enabled;                            // capture pending stdin for next readline
+    bool terminal_region_marking_enabled;              // emit OSC 133 semantic regions
+    uint8_t terminal_region_state;                     // current OSC 133 lifecycle state
     size_t multiline_start_line_count;  // prefill multiline prompts with this many lines
     long hint_delay;                    // delay before displaying a hint in milliseconds
 

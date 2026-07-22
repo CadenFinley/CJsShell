@@ -278,11 +278,14 @@ static int run_case(const char* scenario) {
         return run_history_probe_case(scenario);
     }
 
+    const bool region_marking = (strcmp(scenario, "region_marking") == 0 ||
+                                 strcmp(scenario, "region_marking_multiline") == 0);
     bool multiline_mode = (strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
                            strcmp(scenario, "multiline_backslash_continuation") == 0 ||
                            strcmp(scenario, "multiline_initial_ctrl_j") == 0 ||
                            strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0 ||
                            strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0 ||
+                           strcmp(scenario, "region_marking_multiline") == 0 ||
                            strcmp(scenario, "completion_many_menu_multiline_replacement") == 0);
     ic_enable_multiline(multiline_mode);
     ic_enable_hint(false);
@@ -496,7 +499,8 @@ static int run_case(const char* scenario) {
         ic_history_add("cp alpha.txt beta.txt");
         ic_history_add("mv gamma.txt \"delta dir\"");
     } else if (strcmp(scenario, "insert_backspace") == 0 || strcmp(scenario, "ctrl_c") == 0 ||
-               strcmp(scenario, "ctrl_d_empty") == 0 ||
+               strcmp(scenario, "ctrl_d_empty") == 0 || strcmp(scenario, "region_marking") == 0 ||
+               strcmp(scenario, "region_marking_multiline") == 0 ||
                strcmp(scenario, "ctrl_w_delete_word") == 0 ||
                strcmp(scenario, "backspace_twice_typed") == 0 ||
                strcmp(scenario, "ctrl_w_then_type") == 0 ||
@@ -574,6 +578,7 @@ static int run_case(const char* scenario) {
         ic_set_prompt_marker((prompt_marker != NULL ? prompt_marker : "> "),
                              continuation_prompt_marker);
     }
+    (void)ic_enable_terminal_region_marking(region_marking);
 
     char* line = NULL;
     if (history_interactive_triplet) {
@@ -613,6 +618,12 @@ static int run_case(const char* scenario) {
     }
     if (line == NULL) {
         return 3;
+    }
+
+    if (region_marking) {
+        ic_mark_command_start();
+        ic_term_write("region-output");
+        ic_mark_command_finished(7);
     }
 
     emit_result(line);

@@ -50,4 +50,10 @@ ic_private const char* ic_env_get_command_palette_prompt(ic_env_t* env);
 // Shared prompt rendering helpers
 ic_private void ic_emit_continuation_indent(ic_env_t* env, const char* prompt_text);
 
+// OSC 133 semantic terminal region helpers. These are no-ops unless the public
+// terminal-region-marking option is enabled for an interactive terminal.
+ic_private void ic_term_mark_prompt_start(ic_env_t* env, bool continuation_line);
+ic_private void ic_term_mark_input_start(ic_env_t* env);
+ic_private void ic_term_abort_input_region(ic_env_t* env);
+
 #endif  // IC_INTERNAL_ENV_H

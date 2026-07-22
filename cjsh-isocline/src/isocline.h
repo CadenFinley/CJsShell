@@ -1184,6 +1184,25 @@ void ic_term_done(void);
 /// (happens automatically on newline characters ('\n') as well).
 void ic_term_flush(void);
 
+/// Enable or disable OSC 133 semantic marking for prompt, input, and command-output regions.
+/// The option is disabled by default and emits nothing for non-interactive terminals.
+/// Prompt/input boundaries are emitted automatically by readline. The embedding shell should
+/// call ic_mark_command_start() before execution and ic_mark_command_finished() afterward.
+/// Returns the previous setting.
+bool ic_enable_terminal_region_marking(bool enable);
+
+/// Returns whether OSC 133 semantic terminal-region marking is enabled.
+bool ic_terminal_region_marking_is_enabled(void);
+
+/// Mark the end of editable command input and the beginning of command output.
+/// This is a no-op when terminal-region marking is disabled or output is non-interactive.
+void ic_mark_command_start(void);
+
+/// Mark the end of command output and report its exit status.
+/// Exit statuses outside the portable 0-255 range are clamped before emission.
+/// This is a no-op when no semantic input/output region is active.
+void ic_mark_command_finished(int exit_status);
+
 /// Write a string to the console (and process CSI escape sequences).
 void ic_term_write(const char* s);
 

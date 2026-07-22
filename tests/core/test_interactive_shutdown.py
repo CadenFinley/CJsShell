@@ -212,6 +212,50 @@ def run_exit_status_command(binary: str) -> None:
             raise AssertionError(f"interactive exit returned {return_code}, expected 37")
 
 
+def run_terminal_region_marking(binary: str) -> None:
+    with InteractiveSession(binary, "terminal region marking") as session:
+        session.pump(duration_s=0.6)
+        session.write(b"false\r")
+        session.pump(duration_s=0.8)
+        session.assert_running()
+
+        prompt_start = b"\x1b]133;A\x1b\\"
+        input_start = b"\x1b]133;B\x1b\\"
+        output_start = b"\x1b]133;C\x1b\\"
+        output_end = b"\x1b]133;D;1\x1b\\"
+
+        command_start_index = session.output.find(output_start)
+        command_end_index = session.output.find(output_end, command_start_index + 1)
+        input_start_index = session.output.rfind(input_start, 0, command_start_index)
+        prompt_start_index = session.output.rfind(prompt_start, 0, input_start_index)
+
+        if min(
+            prompt_start_index,
+            input_start_index,
+            command_start_index,
+            command_end_index,
+        ) < 0:
+            raise AssertionError(
+                f"missing OSC 133 marker in interactive output: {bytes(session.output)!r}"
+            )
+        if not (
+            prompt_start_index
+            < input_start_index
+            < command_start_index
+            < command_end_index
+        ):
+            raise AssertionError(
+                f"OSC 133 markers are out of order: {bytes(session.output)!r}"
+            )
+
+        session.write(b"exit 0\r")
+        return_code = session.wait_for_exit(timeout_s=3.0)
+        if return_code != 0:
+            raise AssertionError(
+                f"exit after terminal-region probe returned {return_code}, expected 0"
+            )
+
+
 def run_interrupt_then_exit(binary: str) -> None:
     with InteractiveSession(binary, "ctrl-c interrupt") as session:
         session.pump(duration_s=0.6)
@@ -288,6 +332,7 @@ def main(argv: list[str]) -> int:
         [
             ("ctrl-d exits", lambda: run_ctrl_d_exits(binary)),
             ("exit status command", lambda: run_exit_status_command(binary)),
+            ("terminal region marking", lambda: run_terminal_region_marking(binary)),
             ("ctrl-c then exit", lambda: run_interrupt_then_exit(binary)),
             ("ctrl-c queued exit", lambda: run_interrupt_with_queued_exit(binary)),
             ("sigterm at prompt", lambda: run_sigterm_at_prompt(binary)),

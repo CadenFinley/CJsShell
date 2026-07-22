@@ -36,6 +36,101 @@
 
 #include "common.h"
 #include "env.h"
+#include "env_internal.h"
+
+typedef enum ic_terminal_region_state_e {
+    IC_TERMINAL_REGION_NONE = 0,
+    IC_TERMINAL_REGION_INPUT = 1,
+    IC_TERMINAL_REGION_OUTPUT = 2,
+} ic_terminal_region_state_t;
+
+static bool terminal_region_marking_available(const ic_env_t* env) {
+    return (env != NULL && env->terminal_region_marking_enabled && env->term != NULL &&
+            term_is_interactive(env->term));
+}
+
+static void terminal_region_write(ic_env_t* env, const char* sequence, bool flush) {
+    if (!terminal_region_marking_available(env) || sequence == NULL) {
+        return;
+    }
+    term_write(env->term, sequence);
+    if (flush) {
+        term_flush(env->term);
+    }
+}
+
+ic_private void ic_term_mark_prompt_start(ic_env_t* env, bool continuation_line) {
+    terminal_region_write(env, (continuation_line ? "\x1b]133;A;k=s\x1b\\" : "\x1b]133;A\x1b\\"),
+                          false);
+}
+
+ic_private void ic_term_mark_input_start(ic_env_t* env) {
+    if (!terminal_region_marking_available(env)) {
+        return;
+    }
+    term_write(env->term, "\x1b]133;B\x1b\\");
+    env->terminal_region_state = IC_TERMINAL_REGION_INPUT;
+}
+
+ic_private void ic_term_abort_input_region(ic_env_t* env) {
+    if (!terminal_region_marking_available(env) ||
+        env->terminal_region_state != IC_TERMINAL_REGION_INPUT) {
+        return;
+    }
+    term_write(env->term, "\x1b]133;D\x1b\\");
+    term_flush(env->term);
+    env->terminal_region_state = IC_TERMINAL_REGION_NONE;
+}
+
+ic_public bool ic_enable_terminal_region_marking(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL) {
+        return false;
+    }
+    bool previous = env->terminal_region_marking_enabled;
+    if (!enable && previous && env->terminal_region_state != IC_TERMINAL_REGION_NONE &&
+        env->term != NULL && term_is_interactive(env->term)) {
+        term_write(env->term, "\x1b]133;D\x1b\\");
+        term_flush(env->term);
+    }
+    env->terminal_region_marking_enabled = enable;
+    if (!enable) {
+        env->terminal_region_state = IC_TERMINAL_REGION_NONE;
+    }
+    return previous;
+}
+
+ic_public bool ic_terminal_region_marking_is_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    return (env != NULL && env->terminal_region_marking_enabled);
+}
+
+ic_public void ic_mark_command_start(void) {
+    ic_env_t* env = ic_get_env();
+    if (!terminal_region_marking_available(env) ||
+        env->terminal_region_state == IC_TERMINAL_REGION_OUTPUT) {
+        return;
+    }
+    term_write(env->term, "\x1b]133;C\x1b\\");
+    term_flush(env->term);
+    env->terminal_region_state = IC_TERMINAL_REGION_OUTPUT;
+}
+
+ic_public void ic_mark_command_finished(int exit_status) {
+    ic_env_t* env = ic_get_env();
+    if (!terminal_region_marking_available(env) ||
+        env->terminal_region_state == IC_TERMINAL_REGION_NONE) {
+        return;
+    }
+    if (exit_status < 0) {
+        exit_status = 0;
+    } else if (exit_status > 255) {
+        exit_status = 255;
+    }
+    term_writef(env->term, "\x1b]133;D;%d\x1b\\", exit_status);
+    term_flush(env->term);
+    env->terminal_region_state = IC_TERMINAL_REGION_NONE;
+}
 
 ic_public void ic_term_init(void) {
     ic_env_t* env = ic_get_env();

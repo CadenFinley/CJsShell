@@ -94,10 +94,15 @@ bool typeahead_capture_allowed(void*) {
     return !JobManager::instance().foreground_job_reads_stdin();
 }
 
-bool process_command_line(const std::string& command) {
+struct CommandProcessResult {
+    bool exit_requested;
+    int exit_status;
+};
+
+CommandProcessResult process_command_line(const std::string& command) {
     // this condition theoretically should never be hit due to earlier checks, but just in case
     if (command.empty()) {
-        return cjsh_env::exit_requested();
+        return {cjsh_env::exit_requested(), 0};
     }
 
     // tracking for exit commands
@@ -115,7 +120,7 @@ bool process_command_line(const std::string& command) {
                          expansion_result.error_message,
                          {"Review your history expansion syntax or disable '!' expansions."}});
             pipeline_status_utils::set_last_status_env(1);
-            return cjsh_env::exit_requested();
+            return {cjsh_env::exit_requested(), 1};
         }
 
         if (expansion_result.was_expanded) {
@@ -173,7 +178,7 @@ bool process_command_line(const std::string& command) {
     // handle typeahead that happened while command was executing
     (void)ic_typeahead_capture_available_input();
 
-    return cjsh_env::exit_requested();
+    return {cjsh_env::exit_requested(), exit_code};
 }
 
 void update_job_management() {
@@ -513,6 +518,7 @@ void initialize_isocline() {
     ic_set_status_message_callback(status_line::create_below_syntax_message, nullptr);
     ic_set_check_for_continuation_or_return_callback(continuation_or_return_callback, nullptr);
     ic_set_typeahead_capture_allowed_callback(typeahead_capture_allowed, nullptr);
+    (void)ic_enable_terminal_region_marking(true);
     if (!config::status_line_enabled) {
         (void)ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
     }
@@ -555,16 +561,20 @@ void main_process_loop() {
         command_to_run = std::move(*next_command);
 
         // handle the command from the user
-        bool exit_requested = process_command_line(command_to_run);
-        if (exit_requested || cjsh_env::exit_requested()) {
-            break;
-        }
+        ic_mark_command_start();
+        CommandProcessResult command_result = process_command_line(command_to_run);
 
         // handle styling configuration
-        if (config::newline_after_execution && command_to_run != "clear" &&
+        if (!command_result.exit_requested && !cjsh_env::exit_requested() &&
+            config::newline_after_execution && command_to_run != "clear" &&
             !last_prompt_started_with_newline) {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);
+        }
+
+        ic_mark_command_finished(command_result.exit_status);
+        if (command_result.exit_requested || cjsh_env::exit_requested()) {
+            break;
         }
     }
 
