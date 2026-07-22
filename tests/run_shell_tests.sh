@@ -97,6 +97,16 @@ ISOCLINE_PTY_TEST_SCRIPT="$SCRIPT_DIR/isocline/test_isocline_pty.py"
 BUILD_SYSTEM_TEST_SCRIPT="$SCRIPT_DIR/build_system/test_build_system.py"
 INTERACTIVE_SHUTDOWN_TEST_SCRIPT="$SCRIPT_DIR/core/test_interactive_shutdown.py"
 FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT="$SCRIPT_DIR/core/test_function_pipeline_job_control.py"
+if [ -f "$CJSH_DIR/fg_terminal_race_injector.dylib" ]; then
+    DEFAULT_FG_TERMINAL_RACE_INJECTOR="$CJSH_DIR/fg_terminal_race_injector.dylib"
+elif [ -f "$CJSH_DIR/fg_terminal_race_injector.so" ]; then
+    DEFAULT_FG_TERMINAL_RACE_INJECTOR="$CJSH_DIR/fg_terminal_race_injector.so"
+elif [ -f "$SCRIPT_DIR/../build/release/fg_terminal_race_injector.dylib" ]; then
+    DEFAULT_FG_TERMINAL_RACE_INJECTOR="$SCRIPT_DIR/../build/release/fg_terminal_race_injector.dylib"
+else
+    DEFAULT_FG_TERMINAL_RACE_INJECTOR="$SCRIPT_DIR/../build/release/fg_terminal_race_injector.so"
+fi
+FG_TERMINAL_RACE_INJECTOR="${FG_TERMINAL_RACE_INJECTOR:-$DEFAULT_FG_TERMINAL_RACE_INJECTOR}"
 
 
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ] || [ -n "$CONTINUOUS_INTEGRATION" ]; then
@@ -534,15 +544,16 @@ else
     report_skipped_suite "test_interactive_shutdown" "script not found at $INTERACTIVE_SHUTDOWN_TEST_SCRIPT"
 fi
 
-if [ -f "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" ]; then
+if [ -f "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" ] &&
+    [ -f "$FG_TERMINAL_RACE_INJECTOR" ]; then
     if command -v python3 >/dev/null 2>&1; then
-        run_external_suite "test_function_pipeline_job_control" "status" "binary" python3 "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" "$CJSH"
+        run_external_suite "test_function_pipeline_job_control" "status" "binary" python3 "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" "$CJSH" "$FG_TERMINAL_RACE_INJECTOR"
         FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT=$?
     else
         report_skipped_suite "test_function_pipeline_job_control" "python3 not found"
     fi
 else
-    report_skipped_suite "test_function_pipeline_job_control" "script not found at $FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT"
+    report_skipped_suite "test_function_pipeline_job_control" "script or race injector not found"
 fi
 
 OVERALL_STATUS=0

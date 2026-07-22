@@ -219,6 +219,130 @@ def run_noninteractive_terminal_ownership_case(binary: str) -> JobControlResult:
     return JobControlResult(return_code, cleaned, timed_out)
 
 
+def run_controlling_terminal_case(
+    binary: str, command: str, extra_env: dict[str, str] | None = None
+) -> JobControlResult:
+    pid, master_fd = pty.fork()
+    if pid == 0:
+        child_env = os.environ.copy()
+        if extra_env is not None:
+            child_env.update(extra_env)
+        os.execve(
+            binary,
+            [
+                binary,
+                "--no-source",
+                "--no-titleline",
+                "--minimal",
+                "-i",
+                "-c",
+                command,
+            ],
+            child_env,
+        )
+
+    os.set_blocking(master_fd, False)
+    output = bytearray()
+    wait_status: int | None = None
+    timed_out = False
+
+    try:
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            try:
+                chunk = os.read(master_fd, 4096)
+            except BlockingIOError:
+                chunk = b""
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    chunk = b""
+                else:
+                    raise
+
+            if chunk:
+                output.extend(chunk)
+
+            waited_pid, status = os.waitpid(pid, os.WNOHANG)
+            if waited_pid == pid:
+                wait_status = status
+                break
+            time.sleep(0.01)
+
+        if wait_status is None:
+            timed_out = True
+            os.kill(pid, signal.SIGKILL)
+            _, wait_status = os.waitpid(pid, 0)
+
+        while True:
+            try:
+                chunk = os.read(master_fd, 4096)
+            except BlockingIOError:
+                break
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    break
+                raise
+            if not chunk:
+                break
+            output.extend(chunk)
+    finally:
+        os.close(master_fd)
+
+    return_code = (
+        None if wait_status is None else os.waitstatus_to_exitcode(wait_status)
+    )
+    cleaned = sanitize_output(output.decode(errors="replace"))
+    return JobControlResult(return_code, cleaned, timed_out)
+
+
+def run_injected_foreground_race_case(
+    binary: str, injector: str
+) -> tuple[JobControlResult, bool]:
+    unique_suffix = f"{os.getpid()}-{time.monotonic_ns()}"
+    target_file = f"/tmp/cjsh-fg-race-target-{unique_suffix}"
+    arm_file = f"/tmp/cjsh-fg-race-arm-{unique_suffix}"
+    result_file = f"/tmp/cjsh-fg-race-result-{unique_suffix}"
+    paths = (target_file, arm_file, result_file)
+
+    preload_variable = (
+        "DYLD_INSERT_LIBRARIES" if sys.platform == "darwin" else "LD_PRELOAD"
+    )
+    existing_preload = os.environ.get(preload_variable, "")
+    preload_value = injector
+    if existing_preload:
+        preload_value += os.pathsep + existing_preload
+
+    env = {
+        preload_variable: preload_value,
+        "CJSH_TEST_FG_RACE_TARGET_FILE": target_file,
+        "CJSH_TEST_FG_RACE_ARM_FILE": arm_file,
+        "CJSH_TEST_FG_RACE_RESULT_FILE": result_file,
+    }
+
+    for path in paths:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+
+    try:
+        result = run_controlling_terminal_case(
+            binary,
+            f"sh -c 'echo $$ > {target_file}; kill -TSTP $$; sleep 30'; "
+            f"touch {arm_file}; fg; fg_status=$?; jobs; exit $fg_status",
+            env,
+        )
+        injection_triggered = os.path.exists(result_file)
+    finally:
+        for path in paths:
+            try:
+                os.unlink(path)
+            except FileNotFoundError:
+                pass
+
+    return result, injection_triggered
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
@@ -245,8 +369,12 @@ def run_checks(checks: list[tuple[str, Callable[[], None]]], suite_name: str) ->
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 1:
-        print("usage: test_function_pipeline_job_control.py <cjsh_binary>", file=sys.stderr)
+    if len(argv) != 2:
+        print(
+            "usage: test_function_pipeline_job_control.py <cjsh_binary> "
+            "<fg_race_injector>",
+            file=sys.stderr,
+        )
         return 2
 
     try:
@@ -265,6 +393,30 @@ def main(argv: list[str]) -> int:
         )
         foreground_exit_result = run_job_control_case(argv[0], "sh -c 'exit 42'")
         ownership_result = run_noninteractive_terminal_ownership_case(argv[0])
+        resumed_termination_result = run_controlling_terminal_case(
+            argv[0], "sh -c 'kill -TSTP $$; kill -INT $$'; fg"
+        )
+        termination_marker = f"/tmp/cjsh-fg-termination-{os.getpid()}"
+        try:
+            os.unlink(termination_marker)
+        except FileNotFoundError:
+            pass
+        try:
+            externally_terminated_result = run_controlling_terminal_case(
+                argv[0],
+                "sh -c 'target=$$; "
+                f"(while [ ! -e {termination_marker} ]; do sleep 0.01; done; "
+                "kill -TERM $target) & kill -TSTP $$'; "
+                f"jobs -l; touch {termination_marker}; sleep 0.1; fg",
+            )
+        finally:
+            try:
+                os.unlink(termination_marker)
+            except FileNotFoundError:
+                pass
+        injected_race_result, injection_triggered = run_injected_foreground_race_case(
+            argv[0], argv[1]
+        )
     except Exception as exc:
         message = f"{type(exc).__name__}: {exc}".replace("\n", "\n    ")
         print(
@@ -325,8 +477,7 @@ def main(argv: list[str]) -> int:
             lambda: require(
                 "Abort (SIGABRT)" in abort_result.output
                 and abort_result.output.count("SIGABRT") == 1,
-                "SIGABRT diagnostic was missing or duplicated:\n"
-                f"{abort_result.output}",
+                f"SIGABRT diagnostic was missing or duplicated:\n{abort_result.output}",
             ),
         ),
         (
@@ -391,6 +542,44 @@ def main(argv: list[str]) -> int:
                 "foreground exit was reported as a background job:\n"
                 f"return_code={foreground_exit_result.return_code}\n"
                 f"{foreground_exit_result.output}",
+            ),
+        ),
+        (
+            "resumed foreground job reports signal termination",
+            lambda: require(
+                not resumed_termination_result.timed_out
+                and resumed_termination_result.return_code == 128 + signal.SIGINT
+                and resumed_termination_result.output.count("SIGINT") == 1,
+                "stopped job terminated after fg was not reported exactly once:\n"
+                f"return_code={resumed_termination_result.return_code}\n"
+                f"{resumed_termination_result.output}",
+            ),
+        ),
+        (
+            "externally terminated stopped job is not handed the terminal",
+            lambda: require(
+                not externally_terminated_result.timed_out
+                and externally_terminated_result.output.count("SIGTERM") == 1
+                and "tcsetpgrp" not in externally_terminated_result.output,
+                "fg attempted terminal handoff for an externally terminated job:\n"
+                f"return_code={externally_terminated_result.return_code}\n"
+                f"{externally_terminated_result.output}",
+            ),
+        ),
+        (
+            "fg recovers when termination races with terminal handoff",
+            lambda: require(
+                injection_triggered
+                and not injected_race_result.timed_out
+                and injected_race_result.return_code == 128 + signal.SIGTERM
+                and injected_race_result.output.count("SIGTERM") == 1
+                and "tcsetpgrp" not in injected_race_result.output
+                and "killpg" not in injected_race_result.output
+                and "No jobs" in injected_race_result.output,
+                "fg did not recover cleanly from termination during terminal handoff:\n"
+                f"injection_triggered={injection_triggered}\n"
+                f"return_code={injected_race_result.return_code}\n"
+                f"{injected_race_result.output}",
             ),
         ),
     ]

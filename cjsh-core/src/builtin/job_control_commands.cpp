@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <csignal>
 #include <iomanip>
 #include <iostream>
@@ -94,6 +95,8 @@ int bg_command(const std::vector<std::string>& args) {
 
     job->state.store(JobState::RUNNING, std::memory_order_relaxed);
     job->stop_notified.store(false, std::memory_order_relaxed);
+    job->background.store(true, std::memory_order_relaxed);
+    job->notified = false;
     std::cout << "[" << job_id << "]+ " << job->display_command() << " &" << '\n';
 
     return 0;
@@ -113,15 +116,19 @@ int fg_command(const std::vector<std::string>& args) {
     auto job = resolved_job->job;
     int job_id = resolved_job->job_id;
 
-    if (isatty(STDIN_FILENO) != 0) {
-        if (tcsetpgrp(STDIN_FILENO, job->pgid) < 0) {
-            print_error_errno({ErrorType::RUNTIME_ERROR, "fg", "tcsetpgrp", {}});
-            return 1;
+    auto consume_completed_job = [&]() -> std::optional<int> {
+        const JobState state = job->state.load(std::memory_order_relaxed);
+        if (state != JobState::DONE && state != JobState::TERMINATED) {
+            return std::nullopt;
         }
-    }
 
-    const JobState current_state = job->state.load(std::memory_order_relaxed);
-    if (current_state == JobState::DONE || current_state == JobState::TERMINATED) {
+        job_manager.notify_job_finished(job);
+        const int exit_status = job->exit_status;
+        job_manager.remove_job(job_id);
+        return exit_status;
+    };
+
+    if (consume_completed_job().has_value()) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      std::to_string(job_id),
                      "job has already completed",
@@ -129,17 +136,49 @@ int fg_command(const std::vector<std::string>& args) {
         return 1;
     }
 
+    bool terminal_control_acquired = false;
+    auto restore_terminal_control = [&]() {
+        if (!terminal_control_acquired) {
+            return;
+        }
+        (void)tcsetpgrp(STDIN_FILENO, getpgrp());
+        terminal_control_acquired = false;
+    };
+
+    if (isatty(STDIN_FILENO) != 0) {
+        if (tcsetpgrp(STDIN_FILENO, job->pgid) < 0) {
+            const int tcsetpgrp_error = errno;
+            job_manager.update_job_statuses();
+            if (auto exit_status = consume_completed_job()) {
+                return *exit_status;
+            }
+            errno = tcsetpgrp_error;
+            print_error_errno({ErrorType::RUNTIME_ERROR, "fg", "tcsetpgrp", {}});
+            return 1;
+        }
+        terminal_control_acquired = true;
+    }
+
     if (g_shell && g_shell->shell_exec) {
         g_shell->shell_exec->set_job_output_forwarding(job->pgid, true);
     }
 
     if (killpg(job->pgid, SIGCONT) < 0) {
+        const int killpg_error = errno;
+        restore_terminal_control();
+        job_manager.update_job_statuses();
+        if (auto exit_status = consume_completed_job()) {
+            return *exit_status;
+        }
+        errno = killpg_error;
         print_error_errno({ErrorType::RUNTIME_ERROR, "fg", "killpg", {}});
         return 1;
     }
 
     job->state.store(JobState::RUNNING, std::memory_order_relaxed);
     job->stop_notified.store(false, std::memory_order_relaxed);
+    job->background.store(false, std::memory_order_relaxed);
+    job->notified = false;
     job_manager.set_current_job(job_id);
 
     std::cout << job->display_command() << '\n';
@@ -149,9 +188,7 @@ int fg_command(const std::vector<std::string>& args) {
         waitpid(pid, &status, WUNTRACED);
     }
 
-    if (isatty(STDIN_FILENO) != 0) {
-        tcsetpgrp(STDIN_FILENO, getpgrp());
-    }
+    restore_terminal_control();
 
     const auto wait_info = wait_status_utils::decode(status);
     if (wait_info.disposition == wait_status_utils::WaitDisposition::Exited) {
@@ -164,8 +201,12 @@ int fg_command(const std::vector<std::string>& args) {
         return 128 + wait_info.code;
     }
     if (wait_info.disposition == wait_status_utils::WaitDisposition::Signaled) {
+        job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
+        job->termination_signal = wait_info.code;
+        job->exit_status = wait_status_utils::to_exit_code(status);
+        job_manager.notify_job_finished(job);
         job_manager.remove_job(job_id);
-        return wait_status_utils::to_exit_code(status);
+        return job->exit_status;
     }
 
     return 0;
@@ -260,7 +301,9 @@ int jobs_command(const std::vector<std::string>& args) {
         std::cout << std::setw(12) << std::left << state_str << " " << job->display_command()
                   << '\n';
 
-        job->notified = true;
+        if (state == JobState::DONE || state == JobState::TERMINATED) {
+            job->notified = true;
+        }
     }
 
     return 0;

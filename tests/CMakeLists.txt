@@ -36,6 +36,20 @@ target_link_libraries(isocline_behavior_tests PRIVATE cjsh_isocline)
 add_executable(isocline_pty_driver "${CMAKE_CURRENT_SOURCE_DIR}/isocline/isocline_pty_driver.c")
 target_link_libraries(isocline_pty_driver PRIVATE cjsh_isocline Threads::Threads)
 
+if(UNIX)
+    add_library(
+        fg_terminal_race_injector
+        SHARED
+        "${CMAKE_CURRENT_SOURCE_DIR}/core/fg_terminal_race_injector.c"
+    )
+    set_target_properties(
+        fg_terminal_race_injector
+        PROPERTIES
+            PREFIX ""
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+endif()
+
 add_executable(
     completion_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/completions/test_completions.cpp"
@@ -78,4 +92,14 @@ if(Python3_Interpreter_FOUND)
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_interactive_shutdown.py"
                 $<TARGET_FILE:cjsh>
     )
+
+    if(TARGET fg_terminal_race_injector)
+        add_test(
+            NAME function_pipeline_job_control_tests
+            COMMAND
+                "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/core/test_function_pipeline_job_control.py"
+                $<TARGET_FILE:cjsh> $<TARGET_FILE:fg_terminal_race_injector>
+        )
+    endif()
 endif()
