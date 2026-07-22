@@ -1933,8 +1933,7 @@ When you type an opening brace, the closing brace is automatically inserted (ena
 </span></code></pre></div><p></p>
 <p><strong>History File:</strong>
 History is stored at <code>~/.cache/cjsh/history.txt</code>. Each entry is prefixed by a metadata line in the
-form <code># &lt;unix_timestamp&gt; &lt;exit_code&gt;</code>, where an exit code of <code>-1</code> indicates that the status was not
-recorded (for example, when entries are injected programmatically).</p>
+form <code># timestamp=&lt;unix_timestamp&gt; frequency=&lt;count&gt; code=&lt;exit_status&gt; ms=&lt;elapsed_ms&gt;</code>.</p>
 <p><strong>Duplicate Handling:</strong>
 By default, duplicate entries are not stored in history to keep it clean and relevant.</p>
 <h3 id="history-expansion">History Expansion</h3>
