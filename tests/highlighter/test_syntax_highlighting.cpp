@@ -1450,40 +1450,82 @@ static bool test_existing_file_argument_highlighting(void) {
     output << "test";
     output.close();
 
-    const std::string input = "cat " + filename;
-    attrbuf_t* attrs = highlight_input(input, test_name);
-    if (attrs == nullptr) {
-        std::error_code remove_error;
-        std::filesystem::remove(file_path, remove_error);
-        return false;
-    }
+    const std::string inputs[] = {"cat " + filename, "cat ./" + filename};
+    bool ok = true;
+    for (const auto& input : inputs) {
+        attrbuf_t* attrs = highlight_input(input, test_name);
+        if (attrs == nullptr) {
+            ok = false;
+            break;
+        }
 
-    ic_env_t* env = ensure_env(test_name);
-    if (env == nullptr) {
+        ic_env_t* env = ensure_env(test_name);
+        if (env == nullptr) {
+            attrbuf_free(attrs);
+            ok = false;
+            break;
+        }
+
+        const size_t argument_pos = input.find(' ') + 1;
+        const size_t argument_length = input.size() - argument_pos;
+        ok = expect_style_range(attrs, env->bbcode, argument_pos, argument_length,
+                                "cjsh-file-argument", test_name,
+                                "existing file argument should be highlighted as file argument");
         attrbuf_free(attrs);
-        std::error_code remove_error;
-        std::filesystem::remove(file_path, remove_error);
-        return false;
+        if (!ok) {
+            break;
+        }
     }
-
-    size_t file_pos = input.find(filename);
-    if (file_pos == std::string::npos) {
-        log_failure(test_name, "failed to locate file argument token");
-        attrbuf_free(attrs);
-        std::error_code remove_error;
-        std::filesystem::remove(file_path, remove_error);
-        return false;
-    }
-
-    bool ok = expect_style_range(attrs, env->bbcode, file_pos, filename.size(),
-                                 "cjsh-file-argument", test_name,
-                                 "existing file argument should be highlighted as file argument");
-
-    attrbuf_free(attrs);
 
     std::error_code remove_error;
     std::filesystem::remove(file_path, remove_error);
 
+    return ok;
+}
+
+static bool test_existing_directory_argument_highlighting(void) {
+    const char* test_name = "existing_directory_argument_highlighting";
+    const std::string dirname = ".cjsh_directory_argument_highlight_test";
+    const std::filesystem::path directory_path = std::filesystem::current_path() / dirname;
+
+    std::error_code filesystem_error;
+    if (!std::filesystem::create_directory(directory_path, filesystem_error) || filesystem_error) {
+        log_failure(test_name, "failed to create temporary test directory");
+        return false;
+    }
+
+    const std::string inputs[] = {"cat " + dirname, "cat ./" + dirname, "cd " + dirname, "cd ~",
+                                  "cd -"};
+    bool ok = true;
+    for (const auto& input : inputs) {
+        attrbuf_t* attrs = highlight_input(input, test_name);
+        if (attrs == nullptr) {
+            ok = false;
+            break;
+        }
+
+        ic_env_t* env = ensure_env(test_name);
+        if (env == nullptr) {
+            attrbuf_free(attrs);
+            ok = false;
+            break;
+        }
+
+        const size_t argument_pos = input.find(' ') + 1;
+        const size_t argument_length = input.size() - argument_pos;
+        ok = expect_style_range(attrs, env->bbcode, argument_pos, argument_length,
+                                "cjsh-path-exists", test_name,
+                                "existing directory should be highlighted as a valid path") &&
+             expect_not_style_range(attrs, env->bbcode, argument_pos, argument_length,
+                                    "cjsh-file-argument", test_name,
+                                    "existing directory should not be highlighted as a file");
+        attrbuf_free(attrs);
+        if (!ok) {
+            break;
+        }
+    }
+
+    std::filesystem::remove(directory_path, filesystem_error);
     return ok;
 }
 
@@ -1547,6 +1589,7 @@ static const test_case_t kTests[] = {
     {"subshell_tokens_known_to_validator", test_subshell_tokens_known_to_validator},
     {"c_style_for_header_command_boundary", test_c_style_for_header_command_boundary},
     {"existing_file_argument_highlighting", test_existing_file_argument_highlighting},
+    {"existing_directory_argument_highlighting", test_existing_directory_argument_highlighting},
 };
 
 int main(void) {

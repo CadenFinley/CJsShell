@@ -54,9 +54,15 @@ bool is_opening_grouping_delimiter_token(const std::string& token) {
     return token == "(" || token == "{";
 }
 
-bool argument_resolves_to_existing_path(const std::string& token) {
+enum class ExistingPathType {
+    None,
+    RegularFile,
+    Other
+};
+
+ExistingPathType classify_existing_path_argument(const std::string& token) {
     if (token.empty() || token == "-") {
-        return false;
+        return ExistingPathType::None;
     }
 
     const std::string cwd = cjsh_filesystem::safe_current_directory();
@@ -64,7 +70,15 @@ bool argument_resolves_to_existing_path(const std::string& token) {
         (g_shell != nullptr) ? g_shell->get_previous_directory() : "";
     const std::string path_to_check =
         cjsh_filesystem::resolve_shell_token_path(token, cwd, previous_directory);
-    return std::filesystem::exists(path_to_check);
+    std::error_code status_error;
+    const std::filesystem::file_status status =
+        std::filesystem::status(path_to_check, status_error);
+    if (status_error || !std::filesystem::exists(status)) {
+        return ExistingPathType::None;
+    }
+
+    return std::filesystem::is_regular_file(status) ? ExistingPathType::RegularFile
+                                                    : ExistingPathType::Other;
 }
 
 bool has_nearby_split_merge_candidate(const std::string& first_token,
@@ -354,27 +368,31 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                 }
             } else if (is_cd_command && (arg == "~" || arg == "-")) {
                 ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                             static_cast<long>(arg_length), "cjsh-file-argument");
+                             static_cast<long>(arg_length), "cjsh-path-exists");
             } else if (is_glob_pattern(arg)) {
                 ic_highlight(henv, static_cast<long>(absolute_arg_start),
                              static_cast<long>(arg_length), "cjsh-glob-pattern");
             } else if (is_cd_command || command_analysis::token_has_explicit_path_hint(arg)) {
-                std::string cwd = cjsh_filesystem::safe_current_directory();
-                std::string previous_directory =
-                    (g_shell != nullptr) ? g_shell->get_previous_directory() : "";
-                std::string path_to_check =
-                    cjsh_filesystem::resolve_shell_token_path(arg, cwd, previous_directory);
-
-                if (std::filesystem::exists(path_to_check)) {
+                const ExistingPathType path_type = classify_existing_path_argument(arg);
+                if (path_type == ExistingPathType::RegularFile) {
                     ic_highlight(henv, static_cast<long>(absolute_arg_start),
                                  static_cast<long>(arg_length), "cjsh-file-argument");
+                } else if (path_type == ExistingPathType::Other) {
+                    ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                 static_cast<long>(arg_length), "cjsh-path-exists");
                 } else {
                     ic_highlight(henv, static_cast<long>(absolute_arg_start),
                                  static_cast<long>(arg_length), "cjsh-path-not-exists");
                 }
-            } else if (argument_resolves_to_existing_path(arg)) {
-                ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                             static_cast<long>(arg_length), "cjsh-file-argument");
+            } else {
+                const ExistingPathType path_type = classify_existing_path_argument(arg);
+                if (path_type == ExistingPathType::RegularFile) {
+                    ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                 static_cast<long>(arg_length), "cjsh-file-argument");
+                } else if (path_type == ExistingPathType::Other) {
+                    ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                 static_cast<long>(arg_length), "cjsh-path-exists");
+                }
             }
         }
 
