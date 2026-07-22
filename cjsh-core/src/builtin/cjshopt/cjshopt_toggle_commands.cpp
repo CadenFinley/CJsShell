@@ -1282,9 +1282,10 @@ int status_line_callback_command(const std::vector<std::string>& args) {
 
 int mouse_clicking_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: mouse-clicking <disabled|simple|smart|status>",
+        "Usage: mouse-clicking <all-off|off|simple|smart|status>",
         "Examples:",
-        "  mouse-clicking disabled  Never capture mouse events",
+        "  mouse-clicking all-off   Never capture mouse events, including in menus",
+        "  mouse-clicking off       Capture mouse events only in expanded/interactive menus",
         "  mouse-clicking simple    Start with mouse capture enabled; toggle manually",
         "  mouse-clicking smart     Start enabled with automatic suspend/resume",
         "  mouse-clicking status    Show the current mode"};
@@ -1292,7 +1293,9 @@ int mouse_clicking_command(const std::vector<std::string>& args) {
     const auto describe_mode = [](ic_mouse_clicking_mode_t mode) -> const char* {
         switch (mode) {
             case IC_MOUSE_CLICKING_DISABLED:
-                return "never captures mouse events";
+                return "all mouse clicking disabled";
+            case IC_MOUSE_CLICKING_MENU_ONLY:
+                return "editing capture off; expanded/interactive menus only";
             case IC_MOUSE_CLICKING_SIMPLE:
                 return "manual toggle only";
             case IC_MOUSE_CLICKING_SMART:
@@ -1305,7 +1308,9 @@ int mouse_clicking_command(const std::vector<std::string>& args) {
     const auto canonical_mode_token = [](ic_mouse_clicking_mode_t mode) -> const char* {
         switch (mode) {
             case IC_MOUSE_CLICKING_DISABLED:
-                return "disabled";
+                return "all-off";
+            case IC_MOUSE_CLICKING_MENU_ONLY:
+                return "off";
             case IC_MOUSE_CLICKING_SIMPLE:
                 return "simple";
             case IC_MOUSE_CLICKING_SMART:
@@ -1317,9 +1322,12 @@ int mouse_clicking_command(const std::vector<std::string>& args) {
 
     const auto parse_mode =
         [](const std::string& normalized) -> std::optional<ic_mouse_clicking_mode_t> {
-        if (matches_token(normalized,
-                          {"disabled", "off", "disable", "none", "false", "0", "--disable"})) {
+        if (matches_token(normalized, {"all-off", "alloff", "disabled", "none"})) {
             return IC_MOUSE_CLICKING_DISABLED;
+        }
+        if (matches_token(normalized,
+                          {"off", "disable", "false", "0", "--disable", "menu-only", "menus"})) {
+            return IC_MOUSE_CLICKING_MENU_ONLY;
         }
         if (matches_token(normalized,
                           {"simple", "on", "enable", "enabled", "true", "1", "--enable"})) {

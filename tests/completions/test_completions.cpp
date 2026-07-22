@@ -999,8 +999,12 @@ static bool test_builtin_docs(void) {
     const auto* mouse_mode_doc =
         builtin_completions::lookup_builtin_command_doc("cjshopt-mouse-clicking");
     EXPECT_TRUE(mouse_mode_doc != nullptr, test_name, "cjshopt-mouse-clicking doc should exist");
+    EXPECT_TRUE(has_entry(mouse_mode_doc, "all-off", builtin_completions::EntryKind::Subcommand),
+                test_name, "mouse-clicking should include all-off mode");
+    EXPECT_TRUE(has_entry(mouse_mode_doc, "off", builtin_completions::EntryKind::Subcommand),
+                test_name, "mouse-clicking should include menu-only off mode");
     EXPECT_TRUE(has_entry(mouse_mode_doc, "disabled", builtin_completions::EntryKind::Subcommand),
-                test_name, "mouse-clicking should include disabled mode");
+                test_name, "mouse-clicking should retain the disabled alias");
     EXPECT_TRUE(has_entry(mouse_mode_doc, "simple", builtin_completions::EntryKind::Subcommand),
                 test_name, "mouse-clicking should include simple mode");
     EXPECT_TRUE(has_entry(mouse_mode_doc, "smart", builtin_completions::EntryKind::Subcommand),

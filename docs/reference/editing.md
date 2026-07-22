@@ -335,8 +335,8 @@ CJ's Shell can use terminal mouse reporting for cursor placement and menu naviga
 
 **Persistent defaults:**
 ```bash
-# Enable mouse clicking by default for new prompts
-cjshopt mouse-clicking on|off|status
+# Configure prompt and menu mouse capture
+cjshopt mouse-clicking all-off|off|simple|smart|status
 
 # Show or hide the mouse status indicator line
 cjshopt mouse-clicking-status-line on|off|status
@@ -346,11 +346,15 @@ cjshopt completion-click-accept on|off|status
 ```
 
 **Behavior:**
+- `off` is the default mode
 - In the editor buffer, left-click moves the cursor to the clicked position
+- In `off` mode, editing remains under terminal control while interactive menus temporarily capture
+  clicks and wheel events; collapsed completion lists remain non-clickable and `all-off` prevents
+  capture everywhere
 - In `smart` mode, starting a selection in the prompt/gutter or status rows suspends mouse capture
   so the terminal can highlight text; keyboard or focus-in input resumes capture
-- In collapsed completion menus, click selection follows the prompt-level mouse toggle
-- In expanded completion menus and history search, click selection and wheel scrolling are enabled while the menu is open
+- Expanded completion, history, and command-palette menus temporarily capture mouse events in every
+  mode except `all-off`
 - Completion click acceptance follows `cjshopt completion-click-accept` (disabled by default)
 
 ### Fish-Style Abbreviations

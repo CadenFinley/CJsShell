@@ -1814,8 +1814,16 @@ static bool test_mouse_reporting_option_toggles(void) {
 
     EXPECT_TRUE(ic_get_mouse_clicking_mode() == IC_MOUSE_CLICKING_DISABLED,
                 "mouse mode getter should mirror disabled state");
-    EXPECT_TRUE(ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_SIMPLE) == IC_MOUSE_CLICKING_DISABLED,
-                "mouse mode setter should report previous disabled mode");
+    EXPECT_TRUE(
+        ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_MENU_ONLY) == IC_MOUSE_CLICKING_DISABLED,
+        "mouse mode setter should report previous all-off mode");
+    EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_MENU_ONLY,
+                "mouse mode setter should store menu-only mode");
+    EXPECT_FALSE(env->mouse_reporting_enabled_by_default,
+                 "menu-only mode should keep editing capture off");
+
+    EXPECT_TRUE(ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_SIMPLE) == IC_MOUSE_CLICKING_MENU_ONLY,
+                "mouse mode setter should report previous menu-only mode");
     EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_SIMPLE,
                 "mouse mode setter should store simple mode");
     EXPECT_TRUE(env->mouse_reporting_enabled_by_default,
@@ -1859,6 +1867,15 @@ static bool test_mouse_reporting_option_toggles(void) {
     EXPECT_TRUE(env->mouse_reporting_enabled_by_default,
                 "legacy enable should turn startup mouse capture back on");
 
+    env->mouse_reporting_mode = IC_MOUSE_CLICKING_MENU_ONLY;
+    env->mouse_reporting_enabled_by_default = false;
+    EXPECT_FALSE(ic_enable_mouse_clicking(true),
+                 "legacy enable should report previous menu-only editing state");
+    EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_SIMPLE,
+                "legacy enable should lift menu-only mode to simple mode");
+    EXPECT_TRUE(env->mouse_reporting_enabled_by_default,
+                "legacy enable should activate editing capture from menu-only mode");
+
     env->mouse_reporting_status_line_enabled = true;
     EXPECT_TRUE(ic_enable_mouse_reporting_status_line(false),
                 "mouse status-line toggle should report previous enabled state");
@@ -1869,6 +1886,18 @@ static bool test_mouse_reporting_option_toggles(void) {
     EXPECT_TRUE(env->mouse_reporting_status_line_enabled,
                 "mouse status-line toggle should restore the indicator line");
 
+    return true;
+}
+
+static bool test_mouse_reporting_defaults(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_MENU_ONLY,
+                "mouse clicking should default to menu-only off mode");
+    EXPECT_FALSE(env->mouse_reporting_enabled_by_default,
+                 "menu-only default should leave editing capture disabled");
     return true;
 }
 
@@ -3904,6 +3933,7 @@ typedef struct test_case_s {
 } test_case_t;
 
 static const test_case_t kTests[] = {
+    {"mouse_reporting_defaults", test_mouse_reporting_defaults},
     {"readline_disposition_name_mappings", test_readline_disposition_name_mappings},
     {"multiline_toggle", test_multiline_toggle},
     {"line_number_modes", test_line_number_modes},

@@ -2762,14 +2762,20 @@ static ic_mouse_clicking_mode_t edit_normalize_mouse_mode(ic_mouse_clicking_mode
         case IC_MOUSE_CLICKING_DISABLED:
         case IC_MOUSE_CLICKING_SIMPLE:
         case IC_MOUSE_CLICKING_SMART:
+        case IC_MOUSE_CLICKING_MENU_ONLY:
             return mode;
         default:
             return IC_MOUSE_CLICKING_SMART;
     }
 }
 
-static bool edit_mouse_mode_supports_capture(ic_mouse_clicking_mode_t mode) {
-    return (edit_normalize_mouse_mode(mode) != IC_MOUSE_CLICKING_DISABLED);
+static bool edit_mouse_mode_supports_editing_capture(ic_mouse_clicking_mode_t mode) {
+    const ic_mouse_clicking_mode_t normalized = edit_normalize_mouse_mode(mode);
+    return (normalized == IC_MOUSE_CLICKING_SIMPLE || normalized == IC_MOUSE_CLICKING_SMART);
+}
+
+static bool edit_mouse_mode_is_menu_only(ic_mouse_clicking_mode_t mode) {
+    return (edit_normalize_mouse_mode(mode) == IC_MOUSE_CLICKING_MENU_ONLY);
 }
 
 static bool edit_mouse_capture_should_be_enabled(const editor_t* eb) {
@@ -2777,7 +2783,7 @@ static bool edit_mouse_capture_should_be_enabled(const editor_t* eb) {
         return false;
     }
 
-    if (!edit_mouse_mode_supports_capture(eb->mouse_reporting_mode) ||
+    if (!edit_mouse_mode_supports_editing_capture(eb->mouse_reporting_mode) ||
         !eb->mouse_reporting_manual_enabled) {
         return false;
     }
@@ -2887,7 +2893,7 @@ static void edit_set_mouse_manual_enabled(ic_env_t* env, editor_t* eb, bool enab
         return;
     }
 
-    if (!edit_mouse_mode_supports_capture(eb->mouse_reporting_mode)) {
+    if (!edit_mouse_mode_supports_editing_capture(eb->mouse_reporting_mode)) {
         enabled = false;
     }
 
@@ -3098,7 +3104,7 @@ static void edit_toggle_mouse_reporting(ic_env_t* env, editor_t* eb) {
         return;
     }
 
-    if (!edit_mouse_mode_supports_capture(eb->mouse_reporting_mode)) {
+    if (!edit_mouse_mode_supports_editing_capture(eb->mouse_reporting_mode)) {
         return;
     }
 
@@ -3134,7 +3140,7 @@ static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool
 
     eb->mouse_reporting_mode = edit_normalize_mouse_mode(mode);
     eb->mouse_reporting_manual_enabled =
-        (default_enabled && edit_mouse_mode_supports_capture(eb->mouse_reporting_mode));
+        (default_enabled && edit_mouse_mode_supports_editing_capture(eb->mouse_reporting_mode));
     eb->mouse_reporting_auto_suspended = false;
     eb->mouse_terminal_selection_suspended = false;
     edit_apply_mouse_reporting_policy(env, eb);
@@ -3146,11 +3152,17 @@ static bool edit_enable_menu_mouse_scroll(ic_env_t* env) {
         return false;
     }
 
-    if (!edit_mouse_capture_should_be_enabled(env->current_editor)) {
+    editor_t* eb = env->current_editor;
+    if (edit_normalize_mouse_mode(eb->mouse_reporting_mode) == IC_MOUSE_CLICKING_DISABLED) {
         return false;
     }
 
-    return edit_enable_mouse_tracking(env, env->current_editor);
+    if (!edit_mouse_mode_is_menu_only(eb->mouse_reporting_mode) &&
+        !edit_mouse_capture_should_be_enabled(eb)) {
+        return false;
+    }
+
+    return edit_enable_mouse_tracking(env, eb);
 }
 
 static void edit_disable_menu_mouse_scroll(ic_env_t* env, bool enabled) {

@@ -632,6 +632,7 @@ static ic_mouse_clicking_mode_t ic_normalize_mouse_clicking_mode(ic_mouse_clicki
         case IC_MOUSE_CLICKING_DISABLED:
         case IC_MOUSE_CLICKING_SIMPLE:
         case IC_MOUSE_CLICKING_SMART:
+        case IC_MOUSE_CLICKING_MENU_ONLY:
             return mode;
         default:
             return IC_MOUSE_CLICKING_SMART;
@@ -646,7 +647,8 @@ ic_public ic_mouse_clicking_mode_t ic_set_mouse_clicking_mode(ic_mouse_clicking_
     ic_mouse_clicking_mode_t prev = env->mouse_reporting_mode;
     env->mouse_reporting_mode = ic_normalize_mouse_clicking_mode(mode);
     env->mouse_reporting_enabled_by_default =
-        (env->mouse_reporting_mode != IC_MOUSE_CLICKING_DISABLED);
+        (env->mouse_reporting_mode == IC_MOUSE_CLICKING_SIMPLE ||
+         env->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART);
     return prev;
 }
 
@@ -663,7 +665,8 @@ ic_public bool ic_enable_mouse_clicking(bool enable) {
         return false;
     bool prev = env->mouse_reporting_enabled_by_default;
     env->mouse_reporting_enabled_by_default = enable;
-    if (enable && env->mouse_reporting_mode == IC_MOUSE_CLICKING_DISABLED) {
+    if (enable && (env->mouse_reporting_mode == IC_MOUSE_CLICKING_DISABLED ||
+                   env->mouse_reporting_mode == IC_MOUSE_CLICKING_MENU_ONLY)) {
         env->mouse_reporting_mode = IC_MOUSE_CLICKING_SIMPLE;
     }
     return prev;

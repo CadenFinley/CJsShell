@@ -160,10 +160,11 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->singleline_only = false;         // multiline (inverted: false = enabled)
     env->multiline_start_line_count = 1;  // preallocated prompt lines when multiline is on
     env->last_readline_disposition = IC_READLINE_DISPOSITION_ERROR;
-    env->status_hint_mode = IC_STATUS_HINT_NORMAL;             // default to legacy behavior
-    env->mouse_reporting_mode = IC_MOUSE_CLICKING_DISABLED;    // keep mouse capture off by default
+    env->status_hint_mode = IC_STATUS_HINT_NORMAL;  // default to legacy behavior
+    env->mouse_reporting_mode =
+        IC_MOUSE_CLICKING_MENU_ONLY;  // capture only inside menus by default
     env->history_search_sort = IC_HISTORY_SEARCH_SORT_RECENT;  // newest history entries first
-    env->mouse_reporting_enabled_by_default = false;  // start sessions with mouse capture off
+    env->mouse_reporting_enabled_by_default = false;  // start editing sessions with capture off
     env->mouse_reporting_status_line_enabled = true;  // show indicator line when mouse is active
     env->inline_right_prompt_follows_cursor = false;  // keep right prompt anchored at row 0
     env->bracketed_paste_enabled = false;

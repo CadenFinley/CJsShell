@@ -60,9 +60,10 @@ See [Prompt Markup and Styling](../themes/thedetails.md) for the full markup ref
   non-standard.
 - **Key binding profiles** – Vi/Emacs modes plus user-defined command bindings using
   `cjshopt keybind` and `cjshopt keybind ext`.
-- **Mouse-assisted editing** – `F2` toggles mouse clicking for the current prompt, and
-  `cjshopt mouse-clicking` / `cjshopt mouse-clicking-status-line` set defaults for new prompts and
-  status-line indicators. Clicking to move the cursor or pick menu entries is beyond POSIX scope.
+- **Mouse-assisted editing** – `cjshopt mouse-clicking` distinguishes hard-disabled `all-off`,
+  expanded/interactive-menu-only `off`, and prompt-enabled `simple`/`smart` modes;
+  `cjshopt mouse-clicking-status-line` controls the status indicator. Clicking to move the cursor or
+  pick menu entries is beyond POSIX scope.
 - **Fish-style abbreviations** – `abbr` and `unabbr` provide inline text expansions, a feature not
   present in POSIX shells.
 

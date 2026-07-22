@@ -62,10 +62,11 @@ Powered by the embedded [isocline](https://github.com/cadenfinley/isocline) edit
     history search menu.
 - **Custom key bindings** – Emacs and Vi profiles plus fine-grained overrides via
     `cjshopt keybind` (including command-driven bindings through `cjsh-widget`).
-- **Mouse-aware editing** – Toggle mouse clicking with `F2` for the current prompt or set the
-    default for new prompts with `cjshopt mouse-clicking`. Clicks can reposition the cursor and
-    select completion/history entries, the mouse wheel scrolls expanded menus, and
-    `cjshopt completion-click-accept` controls whether clicks accept completion entries.
+- **Mouse-aware editing** – Configure capture with `cjshopt mouse-clicking`: `all-off` disables it
+    everywhere, `off` limits it to expanded/interactive menus, and `simple`/`smart` also support
+    prompt cursor placement. Collapsed completions are not clickable in `off`; clicks can select
+    expanded completion/history entries, and `cjshopt completion-click-accept` controls whether
+    clicks accept completion entries.
 - **Typeahead capture** – Keystrokes entered while a command runs are buffered and replayed when the prompt returns so you never lose input.
 - **Abbreviations** – `abbr`/`unabbr` provide fish-style expansions for frequently typed snippets.
 

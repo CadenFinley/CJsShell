@@ -1309,6 +1309,64 @@ def main() -> int:
             f"{mouse_default_click!r}"
         )
 
+    mouse_enable_sequence = "\x1b[?1000h\x1b[?1006h"
+    mouse_disable_sequence = "\x1b[?1000l\x1b[?1006l"
+
+    menu_off_collapsed_result, menu_off_collapsed_output = run_case(
+        binary,
+        "completion_many_menu_off",
+        b"s\t" + mouse_click_completion_collapsed_second + b"\r\r",
+        capture_output=True,
+    )
+    if menu_off_collapsed_result != "s01":
+        raise AssertionError(
+            "menu-only off mode should ignore collapsed completion clicks, got "
+            f"{menu_off_collapsed_result!r}"
+        )
+    if mouse_enable_sequence in menu_off_collapsed_output:
+        raise AssertionError(
+            "menu-only off mode must not capture mouse events for collapsed completions: "
+            f"output={menu_off_collapsed_output!r}"
+        )
+
+    menu_off_expanded_result, menu_off_expanded_output = run_case(
+        binary,
+        "completion_many_menu_off",
+        b"s\t\x0a" + mouse_click_completion_expanded_second + b"\r",
+        capture_output=True,
+    )
+    if menu_off_expanded_result != "s02":
+        raise AssertionError(
+            "menu-only off mode should allow expanded completion clicks, got "
+            f"{menu_off_expanded_result!r}"
+        )
+    menu_enable_index = menu_off_expanded_output.find(mouse_enable_sequence)
+    menu_disable_index = menu_off_expanded_output.find(
+        mouse_disable_sequence, menu_enable_index + len(mouse_enable_sequence)
+    )
+    if min(menu_enable_index, menu_disable_index) < 0 or menu_disable_index < menu_enable_index:
+        raise AssertionError(
+            "expanded menu-only off mode should acquire and release terminal mouse tracking: "
+            f"output={menu_off_expanded_output!r}"
+        )
+
+    all_off_result, all_off_output = run_case(
+        binary,
+        "completion_many_menu_all_off",
+        b"s\t" + mouse_click_completion_collapsed_second + b"\r\r",
+        capture_output=True,
+    )
+    if all_off_result != "s01":
+        raise AssertionError(
+            "all-off mode should ignore completion-menu mouse clicks, got "
+            f"{all_off_result!r}"
+        )
+    if mouse_enable_sequence in all_off_output:
+        raise AssertionError(
+            "all-off mode must not acquire terminal mouse tracking: "
+            f"output={all_off_output!r}"
+        )
+
     mouse_hidden_result, mouse_hidden_output = run_case(
         binary,
         "insert_backspace_mouse_default_on_hidden_status",
@@ -1356,6 +1414,24 @@ def main() -> int:
         raise AssertionError(
             "history_search_scroll with mouse toggle expected 'history beta', got "
             f"{hist_scroll_toggle!r}"
+        )
+
+    hist_menu_off = run_case(
+        binary, "history_search_menu_off", b"\x12" + mouse_wheel_down + b"\r"
+    )
+    if hist_menu_off != "history alpha":
+        raise AssertionError(
+            "menu-only off mode should enable history-menu wheel input, got "
+            f"{hist_menu_off!r}"
+        )
+
+    hist_all_off = run_case(
+        binary, "history_search_all_off", b"\x12" + mouse_wheel_down + b"\r"
+    )
+    if hist_all_off != "history beta":
+        raise AssertionError(
+            "all-off mode should ignore history-menu wheel input, got "
+            f"{hist_all_off!r}"
         )
 
     hist_click = run_case(

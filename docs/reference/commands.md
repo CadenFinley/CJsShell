@@ -704,7 +704,7 @@ Available subcommands:
 - `status-line` - Toggle the entire status row beneath the prompt
 - `status-reporting` - Toggle cjsh validation output in the status row
 - `status-line-callback` - Run a shell function that supplies custom status-line text
-- `mouse-clicking` - Configure whether new prompts start with mouse clicking enabled
+- `mouse-clicking` - Configure mouse capture for prompt editing and interactive menus
 - `mouse-clicking-status-line` - Show or hide the mouse-clicking status indicator text
 - `auto-tab` - Configure automatic tab completion
 - `prompt-newline` - Force a blank line after each command
@@ -1299,26 +1299,30 @@ Use `cjshopt status-reporting off` if you want only your callback text without c
 
 #### mouse-clicking
 
-Set whether new prompts begin with mouse clicking enabled. This controls prompt-level click
-handling (for example, clicking to reposition the cursor in the active input buffer).
+Configure mouse capture separately for prompt editing and interactive menus.
+The default is `off`, which leaves ordinary prompt interaction to the terminal while retaining
+mouse support inside expanded completion, history, and command-palette menus. Collapsed completion
+lists remain under terminal control and their items are not clickable in this mode.
 
 ```bash
-cjshopt mouse-clicking <disabled|simple|smart|status>
+cjshopt mouse-clicking <all-off|off|simple|smart|status>
 ```
 
 Examples:
 
 ```bash
-cjshopt mouse-clicking disabled # Never capture mouse events
-cjshopt mouse-clicking simple   # Capture mouse events until manually toggled
-cjshopt mouse-clicking smart    # Auto-suspend for terminal selection and resume for editing
-cjshopt mouse-clicking status   # Show the current setting
+cjshopt mouse-clicking all-off # Never capture mouse events, including inside menus
+cjshopt mouse-clicking off     # Keep editing native; capture only in expanded/interactive menus
+cjshopt mouse-clicking simple  # Capture mouse events until manually toggled
+cjshopt mouse-clicking smart   # Auto-suspend for terminal selection and resume for editing
+cjshopt mouse-clicking status  # Show the current setting
 ```
 
 `F2` (or any key bound to `toggle-mouse-reporting`) still toggles mouse clicking for the current
-prompt at runtime. In `smart` mode, wheel input and selections started above the editor, in the
-prompt or continuation gutter, or on status/helper rows suspend capture. Keyboard or focus-in input
-resumes it.
+prompt at runtime in `simple` and `smart` modes. In `smart` mode, wheel input and selections started
+above the editor, in the prompt or continuation gutter, or on status/helper rows suspend capture.
+Keyboard or focus-in input resumes it. `disabled` remains an alias for `all-off`; `menu-only` and
+`menus` are aliases for `off`.
 
 #### mouse-clicking-status-line
 

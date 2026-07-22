@@ -126,15 +126,20 @@ cjshopt hint-delay <milliseconds|status>
 **Configure:** `cjshopt status-reporting on|off|status` (leave the status line visible but mute cjsh’s validation/error summaries)
 
 ### Mouse Clicking
-**Status:** Disabled by default for new prompts (`F2` toggles it for the current prompt)  
+**Status:** `off` by default: prompt editing stays native while menus temporarily capture the mouse
+
 **Configure:**
 
 ```bash
-cjshopt mouse-clicking on|off|status
+cjshopt mouse-clicking all-off|off|simple|smart|status
 cjshopt mouse-clicking-status-line on|off|status
 ```
 
-When enabled, you can click to reposition the cursor in the editor, click entries in completion/history menus, and use the mouse wheel in expanded menus. `mouse-clicking-status-line` only controls whether the `Mouse clicking is enabled` indicator is shown.
+Use `all-off` to prevent mouse capture everywhere, or `off` to leave prompt editing under terminal
+control while allowing completion/history menus to capture clicks and wheel events temporarily.
+Collapsed completion lists remain non-clickable until expanded. `simple` and `smart` also enable
+click-to-position editing. `mouse-clicking-status-line` only controls whether the `Mouse clicking
+is enabled` indicator is shown.
 
 ### Visible Whitespace Markers
 **Status:** Disabled  

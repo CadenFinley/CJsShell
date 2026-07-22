@@ -391,6 +391,8 @@ static int run_case(const char* scenario) {
         (void)ic_set_hint_delay(0);
         ic_set_default_completer(pty_completion_dispatcher, NULL);
     } else if (strcmp(scenario, "completion_many_menu") == 0 ||
+               strcmp(scenario, "completion_many_menu_off") == 0 ||
+               strcmp(scenario, "completion_many_menu_all_off") == 0 ||
                strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0 ||
                strcmp(scenario, "completion_many_menu_mouse_default_on") == 0 ||
                strcmp(scenario, "completion_many_menu_multiline") == 0 ||
@@ -404,7 +406,11 @@ static int run_case(const char* scenario) {
             g_completion_mode = COMPLETION_MODE_MANY;
         }
         ic_set_default_completer(pty_completion_dispatcher, NULL);
-        if (strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0) {
+        if (strcmp(scenario, "completion_many_menu_off") == 0) {
+            ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_MENU_ONLY);
+        } else if (strcmp(scenario, "completion_many_menu_all_off") == 0) {
+            ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_DISABLED);
+        } else if (strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0) {
             if (!ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING)) {
                 return 6;
             }
@@ -414,9 +420,17 @@ static int run_case(const char* scenario) {
         } else if (strcmp(scenario, "completion_many_menu_mouse_default_on") == 0) {
             ic_enable_mouse_clicking(true);
         }
-    } else if (strcmp(scenario, "history_search_scroll") == 0) {
+    } else if (strcmp(scenario, "history_search_scroll") == 0 ||
+               strcmp(scenario, "history_search_menu_off") == 0 ||
+               strcmp(scenario, "history_search_all_off") == 0) {
         initial_input = "history";
-        ic_enable_mouse_clicking(true);
+        if (strcmp(scenario, "history_search_menu_off") == 0) {
+            ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_MENU_ONLY);
+        } else if (strcmp(scenario, "history_search_all_off") == 0) {
+            ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_DISABLED);
+        } else {
+            ic_enable_mouse_clicking(true);
+        }
         ic_history_clear();
         ic_history_add("history alpha");
         ic_history_add("history beta");

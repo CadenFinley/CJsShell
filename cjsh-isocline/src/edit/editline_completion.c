@@ -836,7 +836,7 @@ again:
         }
 
         const bool menu_mouse_click_enabled =
-            (expanded_mode ? menu_mouse_scroll_enabled : eb->mouse_reporting_enabled);
+            (menu_mouse_scroll_enabled || eb->mouse_reporting_enabled);
         char mouse_suffix[EDIT_STATUS_HINT_BUFFER_LEN];
         mouse_suffix[0] = '\0';
         if (menu_mouse_click_enabled) {
@@ -895,7 +895,8 @@ read_key:
     code_t key_no_mods = KEY_NO_MODS(c);
 
     if (key_no_mods == KEY_EVENT_MOUSE_OTHER) {
-        const bool click_selection_enabled = (expanded_mode || eb->mouse_reporting_enabled);
+        const bool click_selection_enabled =
+            (menu_mouse_scroll_enabled || eb->mouse_reporting_enabled);
         if (click_selection_enabled) {
             bool accept_selection = false;
             if (completion_menu_mouse_select(env, eb, expanded_mode, grid_mode, grid_columns,
@@ -1081,9 +1082,13 @@ read_key:
         goto again;
     } else {
         if (edit_key_is_mouse_toggle_binding(env, c)) {
-            edit_toggle_mouse_reporting(env, eb);
-            if (expanded_mode) {
+            if (edit_mouse_mode_supports_editing_capture(eb->mouse_reporting_mode)) {
+                edit_disable_menu_mouse_scroll(env, menu_mouse_scroll_enabled);
                 menu_mouse_scroll_enabled = false;
+                edit_toggle_mouse_reporting(env, eb);
+                if (expanded_mode) {
+                    menu_mouse_scroll_enabled = edit_enable_menu_mouse_scroll(env);
+                }
             }
             c = 0;
             goto again;

@@ -223,15 +223,18 @@ ic_status_hint_mode_t ic_set_status_hint_mode(ic_status_hint_mode_t mode);
 ic_status_hint_mode_t ic_get_status_hint_mode(void);
 
 /// Mouse capture behavior for readline sessions.
-/// - `IC_MOUSE_CLICKING_DISABLED`: never capture mouse events.
+/// - `IC_MOUSE_CLICKING_DISABLED`: never capture mouse events, including in menus.
 /// - `IC_MOUSE_CLICKING_SIMPLE`: start with mouse capture enabled; only manual toggle changes it.
 /// - `IC_MOUSE_CLICKING_SMART`: start enabled and auto-suspend on wheel input or selection starts
 ///   above the editor, in prompt/gutter cells, or in status/helper rows; then auto-resume on
 ///   keyboard/focus-in input.
+/// - `IC_MOUSE_CLICKING_MENU_ONLY`: leave editing capture off and acquire it only while an
+///   expanded completion, history, or command-palette menu is open.
 typedef enum ic_mouse_clicking_mode_e {
     IC_MOUSE_CLICKING_DISABLED = 0,
     IC_MOUSE_CLICKING_SIMPLE,
     IC_MOUSE_CLICKING_SMART,
+    IC_MOUSE_CLICKING_MENU_ONLY,
 } ic_mouse_clicking_mode_t;
 
 /// Set mouse capture mode. Invalid values normalize to `IC_MOUSE_CLICKING_SMART`.

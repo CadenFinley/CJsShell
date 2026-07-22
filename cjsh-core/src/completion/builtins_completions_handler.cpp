@@ -595,7 +595,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("status-reporting", "Mute cjsh status messages"),
              make_subcommand("status-line-callback",
                              "Run a shell function to publish status-line text"),
-             make_subcommand("mouse-clicking", "Configure mouse capture mode for new prompts"),
+             make_subcommand("mouse-clicking", "Configure prompt and menu mouse capture"),
              make_subcommand("mouse-clicking-status-line",
                              "Toggle the mouse-clicking status indicator line"),
              make_subcommand("auto-tab", "Toggle automatic tab completion"),
@@ -766,11 +766,12 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                 {make_subcommand("off", "Disable custom status-line callback output"),
                  make_subcommand("status", "Show current callback setting")});
         add_doc("cjshopt-mouse-clicking", "",
-                {make_subcommand("disabled", "Never capture mouse events"),
+                {make_subcommand("all-off", "Never capture mouse events, including in menus"),
+                 make_subcommand("off", "Capture only in expanded/interactive menus"),
                  make_subcommand("simple", "Enable mouse capture with manual toggles"),
                  make_subcommand("smart", "Enable auto suspend/resume mouse handling"),
                  make_subcommand("on", "Alias for simple mode"),
-                 make_subcommand("off", "Alias for disabled mode"),
+                 make_subcommand("disabled", "Alias for all-off mode"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-mouse-clicking-status-line", "",
                 {make_subcommand("on", "Show the mouse-clicking status indicator"),
