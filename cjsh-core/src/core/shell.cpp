@@ -202,8 +202,7 @@ int Shell::execute(const std::string& script, bool skip_validation) {
     }
 
     // convert command into lines for execution
-    std::vector<std::string> lines;
-    lines = shell_parser->parse_into_lines(script);
+    std::vector<std::string> lines = shell_parser->parse_into_lines(script);
 
     if (shell_script_interpreter) {
         // execute the parsed lines
