@@ -79,6 +79,34 @@ def mouse_left_click(column: int, row: int) -> bytes:
     return press + release
 
 
+def mouse_left_press(column: int, row: int) -> bytes:
+    return f"\x1b[<0;{column};{row}M".encode("ascii")
+
+
+def assert_smart_mouse_selection_suspends(
+    binary: str, scenario: str, column: int, row: int, expected: str
+) -> None:
+    result, output = run_case(
+        binary,
+        scenario,
+        mouse_left_press(column, row) + b"\r",
+        capture_output=True,
+    )
+    if result != expected:
+        raise AssertionError(f"{scenario} expected {expected!r}, got {result!r}")
+
+    enable = "\x1b[?1000h\x1b[?1006h"
+    disable = "\x1b[?1000l\x1b[?1006l"
+    initial_enable = output.find(enable)
+    selection_disable = output.find(disable, initial_enable + len(enable))
+    keyboard_resume = output.find(enable, selection_disable + len(disable))
+    if min(initial_enable, selection_disable, keyboard_resume) < 0:
+        raise AssertionError(
+            f"{scenario} should suspend capture for selection and resume on keyboard input: "
+            f"output={output!r}"
+        )
+
+
 def normalize_terminal_output(text: str) -> str:
     normalized = text.replace("\r", "")
     normalized = ANSI_OSC_RE.sub("", normalized)
@@ -1199,6 +1227,30 @@ def main() -> int:
     mouse_click_completion_expanded_second = mouse_left_click(6, 4)
     mouse_click_completion_collapsed_second = mouse_left_click(6, 3)
     mouse_click_inline_hint = mouse_left_click(10, 1)
+
+    assert_smart_mouse_selection_suspends(
+        binary, "smart_mouse_prompt_selection", 1, 1, "abc"
+    )
+    assert_smart_mouse_selection_suspends(
+        binary, "smart_mouse_status_selection", 1, 2, "x"
+    )
+
+    smart_input_result, smart_input_output = run_case(
+        binary,
+        "smart_mouse_input_click",
+        mouse_left_click(6, 1) + b"\r",
+        capture_output=True,
+    )
+    if smart_input_result != "abc":
+        raise AssertionError(
+            f"smart input click expected 'abc', got {smart_input_result!r}"
+        )
+    mouse_enable = "\x1b[?1000h\x1b[?1006h"
+    if smart_input_output.count(mouse_enable) != 1:
+        raise AssertionError(
+            "clicking editable input should keep smart mouse capture enabled: "
+            f"output={smart_input_output!r}"
+        )
 
     mouse_status_result, mouse_status_output = run_case(
         binary, "insert_backspace", F2 + b"x\x7f\r", capture_output=True

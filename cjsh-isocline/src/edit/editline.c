@@ -72,6 +72,7 @@ typedef struct editor_s {
     ssize_t pos;                  // current cursor position in the input
     ssize_t cur_rows;             // current used rows to display our content (including
                                   // extra content)
+    ssize_t input_rows;           // current prompt/input rows before status/help content
     ssize_t cur_row;              // current row that has the cursor (0 based, relative to
                                   // the prompt)
     ssize_t view_first_row;       // first visible row in the current viewport
@@ -106,12 +107,14 @@ typedef struct editor_s {
     ssize_t last_screen_cursor_col;    // cached absolute cursor col from the last successful query
     bool last_screen_cursor_known;     // whether absolute cursor position cache is valid
     ic_mouse_clicking_mode_t mouse_reporting_mode;  // per-session mouse capture strategy
-    bool mouse_reporting_enabled;         // whether terminal mouse capture is currently on
-    bool mouse_reporting_manual_enabled;  // user/default preference for this session
-    bool mouse_reporting_auto_suspended;  // smart mode auto-disabled mouse capture
-    bool mouse_focus_reporting_enabled;   // focus-in/focus-out reporting (CSI I/O) enabled
-    ssize_t mouse_capture_depth;          // nested mouse tracking enablement depth
-    alloc_t* mem;                         // allocator
+    bool mouse_reporting_enabled;             // whether terminal mouse capture is currently on
+    bool mouse_reporting_manual_enabled;      // user/default preference for this session
+    bool mouse_reporting_auto_suspended;      // smart mode auto-disabled mouse capture
+    bool mouse_terminal_selection_extra;      // rendered extra rows should select in the terminal
+    bool mouse_terminal_selection_suspended;  // preserve display while terminal selection is active
+    bool mouse_focus_reporting_enabled;       // focus-in/focus-out reporting (CSI I/O) enabled
+    ssize_t mouse_capture_depth;              // nested mouse tracking enablement depth
+    alloc_t* mem;                             // allocator
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
     attrbuf_t* attrs_extra;
@@ -1786,6 +1789,8 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
 
     // update previous
     eb->cur_rows = rows;
+    eb->input_rows = rows_input;
+    eb->mouse_terminal_selection_extra = (!menu_active && rows_extra > 0);
     eb->cur_row = rc.row;
     eb->view_first_row = first_row;
     eb->force_linear_line_numbers = false;
@@ -2889,12 +2894,14 @@ static void edit_set_mouse_manual_enabled(ic_env_t* env, editor_t* eb, bool enab
     eb->mouse_reporting_manual_enabled = enabled;
     if (!enabled) {
         eb->mouse_reporting_auto_suspended = false;
+        eb->mouse_terminal_selection_suspended = false;
     }
 
     edit_apply_mouse_reporting_policy(env, eb);
 }
 
-static void edit_set_mouse_auto_suspended(ic_env_t* env, editor_t* eb, bool suspended) {
+static void edit_set_mouse_auto_suspended(ic_env_t* env, editor_t* eb, bool suspended,
+                                          bool terminal_selection) {
     if (eb == NULL) {
         return;
     }
@@ -2904,11 +2911,14 @@ static void edit_set_mouse_auto_suspended(ic_env_t* env, editor_t* eb, bool susp
         suspended = false;
     }
 
-    if (eb->mouse_reporting_auto_suspended == suspended) {
+    const bool selection_suspended = (suspended && terminal_selection);
+    if (eb->mouse_reporting_auto_suspended == suspended &&
+        eb->mouse_terminal_selection_suspended == selection_suspended) {
         return;
     }
 
     eb->mouse_reporting_auto_suspended = suspended;
+    eb->mouse_terminal_selection_suspended = selection_suspended;
     edit_apply_mouse_reporting_policy(env, eb);
 }
 
@@ -3006,11 +3016,11 @@ static void edit_maybe_resume_smart_mouse_reporting(ic_env_t* env, editor_t* eb,
     }
 
     if (edit_mouse_auto_resume_triggered_by_key(key)) {
-        edit_set_mouse_auto_suspended(env, eb, false);
+        edit_set_mouse_auto_suspended(env, eb, false, false);
     }
 }
 
-static bool edit_mouse_event_is_above_viewport(ic_env_t* env, editor_t* eb) {
+static bool edit_mouse_event_starts_terminal_selection(ic_env_t* env, editor_t* eb) {
     if (env == NULL || eb == NULL || env->tty == NULL) {
         return false;
     }
@@ -3028,12 +3038,36 @@ static bool edit_mouse_event_is_above_viewport(ic_env_t* env, editor_t* eb) {
     ssize_t target_row = 0;
     ssize_t target_col = 0;
     bool clicked_above_viewport = false;
-    (void)edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col,
-                                            &clicked_above_viewport);
-    return clicked_above_viewport;
+    const bool has_target = edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row,
+                                                              &target_col, &clicked_above_viewport);
+    if (clicked_above_viewport) {
+        return true;
+    }
+    if (!has_target) {
+        return false;
+    }
+
+    // Status and other non-menu helper rows are display-only. Let a drag that starts there select
+    // terminal text instead of keeping click-to-position capture active.
+    if (target_row >= eb->input_rows) {
+        return eb->mouse_terminal_selection_extra;
+    }
+
+    // The left prompt and continuation/line-number gutters are not editable text either. A click
+    // in the input columns remains a cursor-positioning click; a press in these prefix columns
+    // hands control back to the terminal's selection behavior.
+    ssize_t promptw = 0;
+    ssize_t cpromptw = 0;
+    edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
+    const ssize_t row_prompt_width = (target_row == 0 ? promptw : cpromptw);
+    return (target_col < row_prompt_width);
 }
 
-static bool edit_should_auto_suspend_mouse_reporting(ic_env_t* env, editor_t* eb, code_t key) {
+static bool edit_should_auto_suspend_mouse_reporting(ic_env_t* env, editor_t* eb, code_t key,
+                                                     bool* terminal_selection) {
+    if (terminal_selection != NULL) {
+        *terminal_selection = false;
+    }
     if (env == NULL || eb == NULL) {
         return false;
     }
@@ -3048,7 +3082,11 @@ static bool edit_should_auto_suspend_mouse_reporting(ic_env_t* env, editor_t* eb
         return true;
     }
 
-    if (key_no_mods == KEY_EVENT_MOUSE_OTHER && edit_mouse_event_is_above_viewport(env, eb)) {
+    if (key_no_mods == KEY_EVENT_MOUSE_OTHER &&
+        edit_mouse_event_starts_terminal_selection(env, eb)) {
+        if (terminal_selection != NULL) {
+            *terminal_selection = true;
+        }
         return true;
     }
 
@@ -3081,6 +3119,7 @@ static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool
         eb->mouse_reporting_mode = IC_MOUSE_CLICKING_DISABLED;
         eb->mouse_reporting_manual_enabled = false;
         eb->mouse_reporting_auto_suspended = false;
+        eb->mouse_terminal_selection_suspended = false;
         edit_apply_mouse_reporting_policy(env, eb);
         edit_set_mouse_focus_reporting(env, eb, false);
         return;
@@ -3097,6 +3136,7 @@ static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool
     eb->mouse_reporting_manual_enabled =
         (default_enabled && edit_mouse_mode_supports_capture(eb->mouse_reporting_mode));
     eb->mouse_reporting_auto_suspended = false;
+    eb->mouse_terminal_selection_suspended = false;
     edit_apply_mouse_reporting_policy(env, eb);
     edit_set_mouse_focus_reporting(env, eb, (eb->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART));
 }
@@ -3298,7 +3338,8 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
         }
     }
 
-    if (eb->mouse_reporting_enabled && env->mouse_reporting_status_line_enabled) {
+    if ((eb->mouse_reporting_enabled || eb->mouse_terminal_selection_suspended) &&
+        env->mouse_reporting_status_line_enabled) {
         edit_format_mouse_enabled_status_hint(env, true, mouse_status_text,
                                               sizeof(mouse_status_text));
         if (snprintf(mouse_status_bbcode, sizeof(mouse_status_bbcode), "[ic-status]%s[/]",
@@ -3393,6 +3434,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     eb.termw = term_get_width(env->term);
     eb.pos = 0;
     eb.cur_rows = 1;
+    eb.input_rows = 1;
     eb.cur_row = 0;
     eb.modified = false;
 
@@ -3668,8 +3710,9 @@ edit_loop_entry:
                 continue;
             }
 
-            if (edit_should_auto_suspend_mouse_reporting(env, &eb, c)) {
-                edit_set_mouse_auto_suspended(env, &eb, true);
+            bool terminal_selection = false;
+            if (edit_should_auto_suspend_mouse_reporting(env, &eb, c, &terminal_selection)) {
+                edit_set_mouse_auto_suspended(env, &eb, true, terminal_selection);
                 if (pending_hint != NULL) {
                     mem_free(eb.mem, pending_hint);
                     pending_hint = NULL;

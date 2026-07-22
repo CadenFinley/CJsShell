@@ -1303,19 +1303,22 @@ Set whether new prompts begin with mouse clicking enabled. This controls prompt-
 handling (for example, clicking to reposition the cursor in the active input buffer).
 
 ```bash
-cjshopt mouse-clicking <on|off|status>
+cjshopt mouse-clicking <disabled|simple|smart|status>
 ```
 
 Examples:
 
 ```bash
-cjshopt mouse-clicking on      # Enable mouse clicking by default for new prompts
-cjshopt mouse-clicking off     # Disable mouse clicking by default
-cjshopt mouse-clicking status  # Show the current setting
+cjshopt mouse-clicking disabled # Never capture mouse events
+cjshopt mouse-clicking simple   # Capture mouse events until manually toggled
+cjshopt mouse-clicking smart    # Auto-suspend for terminal selection and resume for editing
+cjshopt mouse-clicking status   # Show the current setting
 ```
 
 `F2` (or any key bound to `toggle-mouse-reporting`) still toggles mouse clicking for the current
-prompt at runtime.
+prompt at runtime. In `smart` mode, wheel input and selections started above the editor, in the
+prompt or continuation gutter, or on status/helper rows suspend capture. Keyboard or focus-in input
+resumes it.
 
 #### mouse-clicking-status-line
 

@@ -347,6 +347,8 @@ cjshopt completion-click-accept on|off|status
 
 **Behavior:**
 - In the editor buffer, left-click moves the cursor to the clicked position
+- In `smart` mode, starting a selection in the prompt/gutter or status rows suspends mouse capture
+  so the terminal can highlight text; keyboard or focus-in input resumes capture
 - In collapsed completion menus, click selection follows the prompt-level mouse toggle
 - In expanded completion menus and history search, click selection and wheel scrolling are enabled while the menu is open
 - Completion click acceptance follows `cjshopt completion-click-accept` (disabled by default)
