@@ -58,8 +58,9 @@ See [Prompt Markup and Styling](../themes/thedetails.md) for the full markup ref
 - **Syntax highlighter** – Real-time token classification and styling via `cjshopt style_def`.
   Highlight categories such as `unknown-command`, `ic-linenumber-current`, and `ic-hint` are
   non-standard.
-- **Key binding profiles** – Vi/Emacs modes plus user-defined command bindings using
-  `cjshopt keybind` and `cjshopt keybind ext`.
+- **Key binding profiles** – An Emacs-inspired default profile, a non-modal `vim` profile that adds
+  `Alt+H/J/K/L/W` navigation, and user-defined command bindings using `cjshopt keybind` and
+  `cjshopt keybind ext`.
 - **Mouse-assisted editing** – `cjshopt mouse-clicking` distinguishes hard-disabled `all-off`,
   expanded/interactive-menu-only `off`, and prompt-enabled `simple`/`smart` modes;
   `cjshopt mouse-clicking-status-line` controls the status indicator. Clicking to move the cursor or

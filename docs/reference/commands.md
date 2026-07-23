@@ -1379,7 +1379,7 @@ Key subcommands include:
 - `profile list` - List available key binding profiles
 - `profile set <name>` - Activate the named profile
 
-Key specifications accept pipe (`|`) separated alternatives, so `Ctrl+K|Ctrl+X` is a single argument covering both sequences. Place commands like `cjshopt keybind set cursor-left "Ctrl+H"` in `~/.cjshrc` to keep them between sessions.
+Key specifications accept pipe (`|`) separated alternatives, so `Ctrl+K|Ctrl+X` is a single argument covering both bindings. Place commands like `cjshopt keybind set cursor-left "Ctrl+H"` in `~/.cjshrc` to keep them between sessions.
 
 Mouse toggle actions use `toggle-mouse-reporting` (aliases: `mouse-reporting-toggle`,
 `toggle-mouse`). The default binding is `F2`.

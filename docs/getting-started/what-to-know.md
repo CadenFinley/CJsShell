@@ -176,7 +176,7 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 
 - **History expansions:** Enabled in interactive sessions (`!!`, `!git`, `!?text?`, `!$`, `!^`, `!*`, `^old^new`). `!?` by itself is not valid; include a search string. Disable with `cjsh --no-history-expansion` or persist by adding `cjshopt login-startup-arg --no-history-expansion` to `~/.cjprofile`.
 - **History recording:** Disable persistence with `cjsh --no-history` (also disables history expansion) or add `cjshopt login-startup-arg --no-history` to `~/.cjprofile`. Secure mode also disables history persistence.
-- **Reverse search:** Press `Ctrl+R` for the fuzzy history search menu (use `Alt+C` inside it to toggle case sensitivity).
+- **History search:** Press `Ctrl+R` or `Ctrl+S` for the fuzzy history search menu (use `Alt+C` inside it to toggle case sensitivity).
 - **History search case sensitivity:** Matching is case-sensitive by default; adjust with `cjshopt history-search-case on|off|status` to set the default for every session.
 - **Persistence:** History entries are appended to `~/.cache/cjsh/history.txt`; duplicate commands are suppressed by default.
 - **Retention:** Adjust limits with `cjshopt set-history-max <number|default|status>` (any non-negative value; default 1000 entries).
@@ -237,7 +237,7 @@ Inspect or tweak key bindings with:
 ```bash
 cjshopt keybind list                   # safe at runtime
 cjshopt keybind profile list           # show available profiles
-cjshopt keybind profile set vi         # choose vi bindings (persist in ~/.cjshrc)
+cjshopt keybind profile set vim        # add Vim-inspired navigation (persist in ~/.cjshrc)
 cjshopt keybind set <action> <keys>    # redefine bindings (run from config files)
 cjshopt keybind add <action> <keys>    # append bindings (run from config files)
 ```
@@ -269,8 +269,8 @@ cjshopt completion-menu-expanded on
 # Enable inline whitespace markers
 cjshopt visible-whitespace on
 
-# Switch to vi key bindings (add to ~/.cjshrc to persist)
-cjshopt keybind profile set vi
+# Add Vim-inspired navigation bindings (add to ~/.cjshrc to persist)
+cjshopt keybind profile set vim
 
 # Increase history retention
 cjshopt set-history-max 20000

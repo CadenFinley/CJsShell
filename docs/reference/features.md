@@ -55,13 +55,14 @@ Powered by the embedded [isocline](https://github.com/cadenfinley/isocline) edit
 - **Fuzzy completions** for commands, files, options, variables, users, and hosts. Completions learn
     from your `PATH` and cached man-page metadata.
 - **Inline hints & preview** with configurable delays, spell correction, and case sensitivity.
-- **Advanced history** – reverse search (`Ctrl+R`), deduplicated persistent history with exit codes,
+- **Advanced history** – fuzzy search (`Ctrl+R`/`Ctrl+S`), deduplicated persistent history with exit codes,
     and bash-style history expansion that auto-disables in non-interactive contexts. Configure
     whether the fuzzy history menu matches case-sensitively with `cjshopt history-search-case` or
     flip it on the fly with `Alt+C` inside the menu. Press `Alt+S` to cycle sort modes for the open
     history search menu.
-- **Custom key bindings** – Emacs and Vi profiles plus fine-grained overrides via
-    `cjshopt keybind` (including command-driven bindings through `cjsh-widget`).
+- **Custom key bindings** – An Emacs-inspired default profile, an optional `vim` profile that adds
+    `Alt+H/J/K/L/W` navigation, and fine-grained overrides via `cjshopt keybind` (including
+    command-driven bindings through `cjsh-widget`). The `vim` profile is not a modal Vi/Vim mode.
 - **Mouse-aware editing** – Configure capture with `cjshopt mouse-clicking`: `all-off` disables it
     everywhere, `off` limits it to expanded/interactive menus, and `simple`/`smart` also support
     prompt cursor placement. Collapsed completions are not clickable in `off`; clicks can select

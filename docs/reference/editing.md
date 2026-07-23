@@ -412,7 +412,7 @@ CJ's Shell maintains a persistent command history with advanced search capabilit
 - Configurable maximum entries
 - Duplicate suppression
 - History expansion (`!`, `!!`, `!$`, etc.)
-- Incremental search
+- Interactive fuzzy search
 
 **Configuration:**
 ```bash
@@ -449,16 +449,17 @@ History expansion runs in interactive sessions before the command line is parsed
 
 `!?` by itself is not a complete expansion; use `!?text?` (or `!?text`) with a search string.
 
-`Alt+.` and `Alt+_` are not built-in readline-style bindings in cjsh today. If you want the last
-argument from the previous command, use `!$` or the fuzzy history search menu (`Ctrl+R`).
+Press `Alt+.` or `Alt+_` to insert the last argument from the previous command. Press the binding
+again to cycle through the last arguments of older history entries. You can also use `!$` when you
+want history expansion to happen as part of command submission.
 
 ### History Search
 
-**Incremental Search (Ctrl+R):**
-1. Press `Ctrl+R` to enter search mode
-2. Type to search through history
-3. Press `Ctrl+R` again to find the next match
-4. Press `Enter` to execute the found command
+**Fuzzy Search (`Ctrl+R` or `Ctrl+S`):**
+1. Press `Ctrl+R` or `Ctrl+S` to open the history search menu
+2. Type to filter history entries
+3. Use `Up` and `Down` to select a match
+4. Press `Enter` to execute the selected command, or `Tab` to load it for editing
 5. Press `Esc` to cancel search
 
 **History Navigation:**
@@ -478,15 +479,16 @@ CJ's Shell supports customizable key bindings with multiple profiles.
 ### Key Binding Profiles
 
 **Available Profiles:**
-- `emacs`: Emacs-style key bindings (default)
-- `vi`: Vi/Vim-style key bindings
+- `emacs`: Emacs-inspired key bindings (default)
+- `vim`: Inherits the `emacs` profile and adds Vim-inspired navigation with `Alt+H/J/K/L` and
+  `Alt+W`. This is not a modal Vi/Vim editing mode.
 
 **Set Profile:**
 ```bash
-cjshopt keybind profile set emacs|vi
+cjshopt keybind profile set emacs|vim
 ```
 
-### Common Key Bindings (Emacs Mode)
+### Common Key Bindings (Emacs Profile)
 
 #### Cursor Movement
 - `Ctrl+A`: Move to beginning of line
@@ -505,13 +507,16 @@ cjshopt keybind profile set emacs|vi
 - `Alt+D`: Delete word after cursor
 - `Ctrl+U`: Delete from cursor to beginning of line
 - `Ctrl+K`: Delete from cursor to end of line
-- `Ctrl+Y`: Paste (yank) last deleted text
+- `Ctrl+Z` / `Ctrl+_`: Undo
+- `Ctrl+Y`: Redo
 - `Ctrl+T`: Transpose characters
-- `Alt+T`: Transpose words
+
+CJ's Shell does not currently provide a kill ring, yank-last-deletion command, or transpose-words
+action.
 
 #### History
-- `Ctrl+R`: Open the fuzzy history search menu (reverse search)
-- `Ctrl+S`: Open the fuzzy history search menu (forward search)
+- `Ctrl+R`: Open the fuzzy history search menu
+- `Ctrl+S`: Open the fuzzy history search menu
 - `Alt+C`: Toggle case sensitivity while the fuzzy history search menu is open
 - `Alt+S`: Cycle sort arrangements while the fuzzy history search menu is open
 - `↑`: Previous history entry
@@ -530,7 +535,7 @@ cjshopt keybind profile set emacs|vi
 - `Enter`: Execute command
 - `F1`: Show help / key binding cheat sheet
 - `F2`: Toggle mouse clicking for the current prompt
-- `Esc`: Cancel operation
+- `Esc`: Cancel an open menu or search; at the main prompt, clear non-empty input
 
 ### Custom Key Bindings
 
@@ -543,8 +548,8 @@ cjshopt keybind list
 # Show available key binding profiles
 cjshopt keybind profile list
 
-# Activate a key binding profile (add to ~/.cjshrc to persist)
-cjshopt keybind profile set vi
+# Add Vim-inspired navigation bindings (add to ~/.cjshrc to persist)
+cjshopt keybind profile set vim
 
 # Replace bindings for an action (changes apply immediately; add to ~/.cjshrc to persist)
 cjshopt keybind set cursor-left ctrl-h|left
