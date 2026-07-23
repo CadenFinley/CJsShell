@@ -915,15 +915,15 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#common-key-bindings-emacs-mode" class="md-nav__link">
+  <a href="#common-key-bindings-emacs-profile" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Common Key Bindings (Emacs Mode)
+        Common Key Bindings (Emacs Profile)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Common Key Bindings (Emacs Mode)">
+    <nav class="md-nav" aria-label="Common Key Bindings (Emacs Profile)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1926,7 +1926,7 @@ When you type an opening brace, the closing brace is automatically inserted (ena
 - Configurable maximum entries
 - Duplicate suppression
 - History expansion (<code>!</code>, <code>!!</code>, <code>!$</code>, etc.)
-- Incremental search</p>
+- Interactive fuzzy search</p>
 <p><strong>Configuration:</strong>
 </p><div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Set maximum history entries</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>&lt;number&gt;
@@ -1953,14 +1953,15 @@ By default, duplicate entries are not stored in history to keep it clean and rel
 </span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>^old^new<span class="w">      </span><span class="c1"># replace the first "old" in the previous command with "new"</span>
 </span></code></pre></div>
 <p><code>!?</code> by itself is not a complete expansion; use <code>!?text?</code> (or <code>!?text</code>) with a search string.</p>
-<p><code>Alt+.</code> and <code>Alt+_</code> are not built-in readline-style bindings in cjsh today. If you want the last
-argument from the previous command, use <code>!$</code> or the fuzzy history search menu (<code>Ctrl+R</code>).</p>
+<p>Press <code>Alt+.</code> or <code>Alt+_</code> to insert the last argument from the previous command. Press the binding
+again to cycle through the last arguments of older history entries. You can also use <code>!$</code> when you
+want history expansion to happen as part of command submission.</p>
 <h3 id="history-search">History Search</h3>
-<p><strong>Incremental Search (Ctrl+R):</strong>
-1. Press <code>Ctrl+R</code> to enter search mode
-2. Type to search through history
-3. Press <code>Ctrl+R</code> again to find the next match
-4. Press <code>Enter</code> to execute the found command
+<p><strong>Fuzzy Search (<code>Ctrl+R</code> or <code>Ctrl+S</code>):</strong>
+1. Press <code>Ctrl+R</code> or <code>Ctrl+S</code> to open the history search menu
+2. Type to filter history entries
+3. Use <code>Up</code> and <code>Down</code> to select a match
+4. Press <code>Enter</code> to execute the selected command, or <code>Tab</code> to load it for editing
 5. Press <code>Esc</code> to cancel search</p>
 <p><strong>History Navigation:</strong>
 - <code>↑</code> (Up Arrow): Previous command
@@ -1973,12 +1974,13 @@ argument from the previous command, use <code>!$</code> or the fuzzy history sea
 <p>CJ's Shell supports customizable key bindings with multiple profiles.</p>
 <h3 id="key-binding-profiles">Key Binding Profiles</h3>
 <p><strong>Available Profiles:</strong>
-- <code>emacs</code>: Emacs-style key bindings (default)
-- <code>vi</code>: Vi/Vim-style key bindings</p>
+- <code>emacs</code>: Emacs-inspired key bindings (default)
+- <code>vim</code>: Inherits the <code>emacs</code> profile and adds Vim-inspired navigation with <code>Alt+H/J/K/L</code> and
+  <code>Alt+W</code>. This is not a modal Vi/Vim editing mode.</p>
 <p><strong>Set Profile:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>emacs<span class="p">|</span>vi
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>emacs<span class="p">|</span>vim
 </span></code></pre></div><p></p>
-<h3 id="common-key-bindings-emacs-mode">Common Key Bindings (Emacs Mode)</h3>
+<h3 id="common-key-bindings-emacs-profile">Common Key Bindings (Emacs Profile)</h3>
 <h4 id="cursor-movement">Cursor Movement</h4>
 <ul>
 <li><code>Ctrl+A</code>: Move to beginning of line</li>
@@ -1998,14 +2000,16 @@ argument from the previous command, use <code>!$</code> or the fuzzy history sea
 <li><code>Alt+D</code>: Delete word after cursor</li>
 <li><code>Ctrl+U</code>: Delete from cursor to beginning of line</li>
 <li><code>Ctrl+K</code>: Delete from cursor to end of line</li>
-<li><code>Ctrl+Y</code>: Paste (yank) last deleted text</li>
+<li><code>Ctrl+Z</code> / <code>Ctrl+_</code>: Undo</li>
+<li><code>Ctrl+Y</code>: Redo</li>
 <li><code>Ctrl+T</code>: Transpose characters</li>
-<li><code>Alt+T</code>: Transpose words</li>
 </ul>
+<p>CJ's Shell does not currently provide a kill ring, yank-last-deletion command, or transpose-words
+action.</p>
 <h4 id="history">History</h4>
 <ul>
-<li><code>Ctrl+R</code>: Open the fuzzy history search menu (reverse search)</li>
-<li><code>Ctrl+S</code>: Open the fuzzy history search menu (forward search)</li>
+<li><code>Ctrl+R</code>: Open the fuzzy history search menu</li>
+<li><code>Ctrl+S</code>: Open the fuzzy history search menu</li>
 <li><code>Alt+C</code>: Toggle case sensitivity while the fuzzy history search menu is open</li>
 <li><code>Alt+S</code>: Cycle sort arrangements while the fuzzy history search menu is open</li>
 <li><code>↑</code>: Previous history entry</li>
@@ -2026,7 +2030,7 @@ argument from the previous command, use <code>!$</code> or the fuzzy history sea
 <li><code>Enter</code>: Execute command</li>
 <li><code>F1</code>: Show help / key binding cheat sheet</li>
 <li><code>F2</code>: Toggle mouse clicking for the current prompt</li>
-<li><code>Esc</code>: Cancel operation</li>
+<li><code>Esc</code>: Cancel an open menu or search; at the main prompt, clear non-empty input</li>
 </ul>
 <h3 id="custom-key-bindings">Custom Key Bindings</h3>
 <p>You can inspect and customize key bindings through the <code>cjshopt keybind</code> subcommands:</p>
@@ -2036,8 +2040,8 @@ argument from the previous command, use <code>!$</code> or the fuzzy history sea
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># Show available key binding profiles</span>
 </span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span>list
 </span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
-</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Activate a key binding profile (add to ~/.cjshrc to persist)</span>
-</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Add Vim-inspired navigation bindings (add to ~/.cjshrc to persist)</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vim
 </span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>
 </span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="c1"># Replace bindings for an action (changes apply immediately; add to ~/.cjshrc to persist)</span>
 </span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span><span class="nb">set</span><span class="w"> </span>cursor-left<span class="w"> </span>ctrl-h<span class="p">|</span>left
