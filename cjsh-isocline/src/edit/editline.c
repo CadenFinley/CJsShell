@@ -1079,7 +1079,9 @@ static ssize_t print_prompt_prefix_lines(ic_env_t* env, editor_t* eb, const char
     eb->prompt_prefix_text = prefix;
 
     // Print the prefix lines directly to the terminal
+    ic_term_mark_prompt_start(env, false);
     bbcode_print(env->bbcode, prefix);
+    ic_term_mark_input_start(env);
 
     // Count how many lines we emitted (number of newline characters)
     ssize_t lines = 0;
@@ -1098,7 +1100,9 @@ static void redraw_prompt_prefix_lines(ic_env_t* env, editor_t* eb) {
     if (eb->prompt_prefix_text == NULL || eb->prompt_prefix_lines <= 0)
         return;
     term_start_of_line(env->term);
+    ic_term_mark_prompt_start(env, false);
     bbcode_print(env->bbcode, eb->prompt_prefix_text);
+    ic_term_mark_input_start(env);
 }
 
 static void format_line_number_prompt(char* buffer, size_t buffer_size, ssize_t row,
@@ -1384,6 +1388,7 @@ static void edit_render_inline_right_prompt(refresh_info_t* info, ssize_t row, s
         spaces_needed = 1;
     }
 
+    ic_term_mark_prompt_start(info->env, row > 0);
     term_write_repeat(info->env->term, " ", spaces_needed);
 
     const char* text_to_write = info->eb->inline_right_text;
@@ -1403,6 +1408,7 @@ static void edit_render_inline_right_prompt(refresh_info_t* info, ssize_t row, s
         bbcode_print(info->env->bbcode, text_to_write);
     }
 
+    ic_term_mark_input_start(info->env);
     term_flush(info->env->term);
 }
 

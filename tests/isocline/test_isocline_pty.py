@@ -262,6 +262,27 @@ def assert_region_markers(output_text: str, expect_secondary_prompt: bool) -> No
         raise AssertionError(f"unexpected OSC 133 secondary-prompt marker: output={output_text!r}")
 
 
+def assert_text_is_prompt_marked(output_text: str, text: str) -> None:
+    prompt_start = "\x1b]133;A\x1b\\"
+    input_start = "\x1b]133;B\x1b\\"
+    text_index = output_text.rfind(text)
+    if text_index < 0:
+        raise AssertionError(f"missing prompt text {text!r}: output={output_text!r}")
+
+    prompt_start_index = output_text.rfind(prompt_start, 0, text_index)
+    input_start_index = output_text.find(input_start, text_index + len(text))
+    if prompt_start_index < 0 or input_start_index < 0:
+        raise AssertionError(
+            f"prompt text {text!r} is missing an OSC 133 A/B boundary: "
+            f"output={output_text!r}"
+        )
+    if output_text.find(input_start, prompt_start_index, text_index) >= 0:
+        raise AssertionError(
+            f"prompt text {text!r} appears after OSC 133 input start: "
+            f"output={output_text!r}"
+        )
+
+
 def assert_last_prompt_suffix(
     scenario: str, output_text: str, expected_suffix: str
 ) -> None:
@@ -898,6 +919,21 @@ def main() -> int:
             f"got {multiline_region_result!r}"
         )
     assert_region_markers(multiline_region_output, expect_secondary_prompt=True)
+
+    transient_result, transient_output = run_case(
+        binary,
+        "region_marking_transient_prompt_components",
+        b"ok\r",
+        capture_output=True,
+    )
+    if transient_result != "ok":
+        raise AssertionError(
+            "region_marking_transient_prompt_components expected 'ok', "
+            f"got {transient_result!r}"
+        )
+    assert_region_markers(transient_output, expect_secondary_prompt=False)
+    assert_text_is_prompt_marked(transient_output, "final-prefix")
+    assert_text_is_prompt_marked(transient_output, "final-right")
 
     multiline_backslash = run_case(
         binary, "multiline_backslash_continuation", b"echo \\\rhi\r"

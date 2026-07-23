@@ -140,6 +140,13 @@ static void emit_readline_step_done(void) {
     (void)fflush(stdout);
 }
 
+static bool apply_transient_prompt_on_submit(const char* input_buffer, void* arg) {
+    (void)input_buffer;
+    (void)arg;
+    (void)ic_current_loop_reset(NULL, "final-prefix\nfinal> ", "final-right");
+    return true;
+}
+
 static int run_readline_status_case(const char* scenario) {
     if (scenario == NULL) {
         return 2;
@@ -278,8 +285,10 @@ static int run_case(const char* scenario) {
         return run_history_probe_case(scenario);
     }
 
-    const bool region_marking = (strcmp(scenario, "region_marking") == 0 ||
-                                 strcmp(scenario, "region_marking_multiline") == 0);
+    const bool region_marking =
+        (strcmp(scenario, "region_marking") == 0 ||
+         strcmp(scenario, "region_marking_multiline") == 0 ||
+         strcmp(scenario, "region_marking_transient_prompt_components") == 0);
     bool multiline_mode = (strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
                            strcmp(scenario, "multiline_backslash_continuation") == 0 ||
                            strcmp(scenario, "multiline_initial_ctrl_j") == 0 ||
@@ -524,6 +533,7 @@ static int run_case(const char* scenario) {
     } else if (strcmp(scenario, "insert_backspace") == 0 || strcmp(scenario, "ctrl_c") == 0 ||
                strcmp(scenario, "ctrl_d_empty") == 0 || strcmp(scenario, "region_marking") == 0 ||
                strcmp(scenario, "region_marking_multiline") == 0 ||
+               strcmp(scenario, "region_marking_transient_prompt_components") == 0 ||
                strcmp(scenario, "ctrl_w_delete_word") == 0 ||
                strcmp(scenario, "backspace_twice_typed") == 0 ||
                strcmp(scenario, "ctrl_w_then_type") == 0 ||
@@ -602,6 +612,9 @@ static int run_case(const char* scenario) {
                              continuation_prompt_marker);
     }
     (void)ic_enable_terminal_region_marking(region_marking);
+    if (strcmp(scenario, "region_marking_transient_prompt_components") == 0) {
+        ic_set_check_for_continuation_or_return_callback(apply_transient_prompt_on_submit, NULL);
+    }
 
     char* line = NULL;
     if (history_interactive_triplet) {
