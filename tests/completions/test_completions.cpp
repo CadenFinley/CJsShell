@@ -157,6 +157,27 @@ static bool first_generated_completion_matches(const char* replacement, const ch
            std::strcmp(actual_source, source) == 0;
 }
 
+static bool generated_completions_include_source(const char* source) {
+    if (source == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ic_get_env();
+    if (env == nullptr || env->completions == nullptr) {
+        return false;
+    }
+
+    ssize_t count = completions_count(env->completions);
+    for (ssize_t i = 0; i < count; ++i) {
+        const char* candidate_source = completions_get_source(env->completions, i);
+        if (candidate_source != nullptr && std::strcmp(candidate_source, source) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void clear_generated_completions(void) {
     ic_env_t* env = ic_get_env();
     if (env == nullptr || env->completions == nullptr) {
@@ -445,6 +466,28 @@ static bool test_default_completer_spell_follows_command_cursor(void) {
                 "an adjacent-transposition correction should precede prefix completions");
     EXPECT_FALSE(has_argument_correction, test_name,
                  "an argument cursor must not offer a correction for the command token");
+    return true;
+}
+
+static bool test_default_completer_does_not_spell_correct_assignments(void) {
+    const char* test_name = "default_completer_does_not_spell_correct_assignments";
+    const bool original_spell_setting = is_completion_spell_correction_enabled();
+    set_completion_spell_correction_enabled(true);
+
+    (void)run_completion_generation("MAX=10000\nprimes=\"\"\ni=2", &cjsh_default_completer, 256);
+    bool multiline_has_spell_correction = generated_completions_include_source("spell");
+    clear_generated_completions();
+
+    (void)run_completion_generation("values[0]=2", &cjsh_default_completer, 256);
+    bool array_has_spell_correction = generated_completions_include_source("spell");
+    clear_generated_completions();
+
+    set_completion_spell_correction_enabled(original_spell_setting);
+
+    EXPECT_FALSE(multiline_has_spell_correction, test_name,
+                 "a multiline assignment must not be treated as a misspelled command");
+    EXPECT_FALSE(array_has_spell_correction, test_name,
+                 "an array assignment must not be treated as a misspelled command");
     return true;
 }
 
@@ -1118,6 +1161,8 @@ static const test_case_t kTests[] = {
      test_default_completer_split_unknown_command_merge},
     {"default_completer_spell_follows_command_cursor",
      test_default_completer_spell_follows_command_cursor},
+    {"default_completer_does_not_spell_correct_assignments",
+     test_default_completer_does_not_spell_correct_assignments},
     {"find_last_unquoted_space", test_find_last_unquoted_space},
     {"find_last_unquoted_space_with_tabs", test_find_last_unquoted_space_with_tabs},
     {"find_last_unquoted_space_with_escaped_space",

@@ -56,6 +56,7 @@
 #include "interpreter.h"
 #include "isocline.h"
 #include "job_control.h"
+#include "parser_utils.h"
 #include "quote_state.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -595,6 +596,13 @@ bool command_resolution_is_unknown(const std::string& token) {
         return false;
     }
 
+    // Assignments occupy command position syntactically, but are not commands. In particular,
+    // multiline input commonly starts a continuation line with an assignment such as `i=2`.
+    // Do not compare those tokens with command names for spell correction.
+    if (looks_like_assignment(token)) {
+        return false;
+    }
+
     if (command_lookup::should_auto_cd_token(token, g_shell.get())) {
         return false;
     }
@@ -660,12 +668,11 @@ void add_command_name_completions(ic_completion_env_t* cenv,
                                   const std::string& prefix, size_t delete_before_length,
                                   bool allow_spell_corrections = true) {
     std::string normalized_prefix;
-    if (allow_spell_corrections) {
+    const bool should_offer_spell_corrections =
+        allow_spell_corrections && command_resolution_is_unknown(prefix);
+    if (should_offer_spell_corrections) {
         normalized_prefix = completion_utils::normalize_for_comparison(prefix);
-        if (command_resolution_is_unknown(prefix)) {
-            add_command_spell_corrections(cenv, sources, normalized_prefix, delete_before_length,
-                                          true);
-        }
+        add_command_spell_corrections(cenv, sources, normalized_prefix, delete_before_length, true);
     }
 
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
@@ -727,7 +734,7 @@ void add_command_name_completions(ic_completion_env_t* cenv,
         cenv, sources.executables_in_path, prefix, delete_before_length, "system installed command",
         [](const std::string& value) { return value; }, {}, system_summary_provider);
 
-    if (allow_spell_corrections) {
+    if (should_offer_spell_corrections) {
         add_command_spell_corrections(cenv, sources, normalized_prefix, delete_before_length);
     }
 }
