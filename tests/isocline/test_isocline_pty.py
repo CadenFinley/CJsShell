@@ -258,6 +258,34 @@ def assert_menu_replaces_multiline_prompt(output_text: str, menu_prompt: str) ->
         )
 
 
+def assert_final_prompt_replaces_multiline_prompt(output_text: str) -> None:
+    final_index = output_text.find("FINAL-TOP")
+    if final_index < 0:
+        raise AssertionError(f"missing multi-line final prompt: output={output_text!r}")
+
+    clear_index = output_text.rfind("\x1b[2A", 0, final_index)
+    if clear_index < 0:
+        raise AssertionError(
+            "final prompt did not move above both original prompt-prefix rows before clearing: "
+            f"output={output_text!r}"
+        )
+
+    replacement_output = output_text[clear_index:final_index]
+    if replacement_output.count("\x1b[K") < 3:
+        raise AssertionError(
+            "final prompt did not clear the two original prompt-prefix rows and editable row: "
+            f"replacement_output={replacement_output!r}"
+        )
+
+    final_middle_index = output_text.find("FINAL-MIDDLE", final_index)
+    final_prompt_index = output_text.find("final> ", final_middle_index)
+    if final_middle_index < 0 or final_prompt_index < 0:
+        raise AssertionError(
+            "multi-line final prompt was not rendered in order after clearing: "
+            f"output={output_text!r}"
+        )
+
+
 def assert_region_markers(output_text: str, expect_secondary_prompt: bool) -> None:
     prompt_start = "\x1b]133;A\x1b\\"
     secondary_start = "\x1b]133;A;k=s\x1b\\"
@@ -976,6 +1004,19 @@ def main() -> int:
     assert_region_markers(transient_output, expect_secondary_prompt=False)
     assert_text_is_prompt_marked(transient_output, "final-prefix")
     assert_text_is_prompt_marked(transient_output, "final-right")
+
+    multiline_final_result, multiline_final_output = run_case(
+        binary,
+        "transient_prompt_multiline_clear",
+        b"ok\r",
+        capture_output=True,
+    )
+    if multiline_final_result != "ok":
+        raise AssertionError(
+            "transient_prompt_multiline_clear expected 'ok', "
+            f"got {multiline_final_result!r}"
+        )
+    assert_final_prompt_replaces_multiline_prompt(multiline_final_output)
 
     multiline_backslash = run_case(
         binary, "multiline_backslash_continuation", b"echo \\\rhi\r"

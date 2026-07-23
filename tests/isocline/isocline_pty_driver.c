@@ -142,8 +142,8 @@ static void emit_readline_step_done(void) {
 
 static bool apply_transient_prompt_on_submit(const char* input_buffer, void* arg) {
     (void)input_buffer;
-    (void)arg;
-    (void)ic_current_loop_reset(NULL, "final-prefix\nfinal> ", "final-right");
+    const char* final_prompt = (arg == NULL ? "final-prefix\nfinal> " : (const char*)arg);
+    (void)ic_current_loop_reset(NULL, final_prompt, "final-right");
     return true;
 }
 
@@ -462,6 +462,8 @@ static int run_case(const char* scenario) {
         prompt_text = "MENU-BASE-TOP\nMENU-BASE-MIDDLE\npty";
         inline_right_text = "MENU-BASE-RIGHT";
         initial_input = "keep";
+    } else if (strcmp(scenario, "transient_prompt_multiline_clear") == 0) {
+        prompt_text = "ORIGINAL-TOP\nORIGINAL-MIDDLE\npty";
     } else if (strcmp(scenario, "history_search_sort_alt_s") == 0) {
         initial_input = "a";
         ic_history_clear();
@@ -631,6 +633,9 @@ static int run_case(const char* scenario) {
     (void)ic_enable_terminal_region_marking(region_marking);
     if (strcmp(scenario, "region_marking_transient_prompt_components") == 0) {
         ic_set_check_for_continuation_or_return_callback(apply_transient_prompt_on_submit, NULL);
+    } else if (strcmp(scenario, "transient_prompt_multiline_clear") == 0) {
+        ic_set_check_for_continuation_or_return_callback(
+            apply_transient_prompt_on_submit, "FINAL-TOP\nFINAL-MIDDLE\nfinal");
     }
 
     char* line = NULL;

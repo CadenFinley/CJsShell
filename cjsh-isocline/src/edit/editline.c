@@ -168,6 +168,8 @@ static void edit_history_next(ic_env_t* env, editor_t* eb);
 static void edit_yank_last_arg(ic_env_t* env, editor_t* eb);
 static void edit_clear_history_preview(editor_t* eb);
 static void edit_clear(ic_env_t* env, editor_t* eb);
+static void edit_clear_with_prompt_prefix(ic_env_t* env, editor_t* eb,
+                                          ssize_t prompt_prefix_lines);
 static void edit_clear_screen(ic_env_t* env, editor_t* eb);
 static void edit_undo_restore(ic_env_t* env, editor_t* eb);
 static void edit_redo_restore(ic_env_t* env, editor_t* eb);
@@ -1815,6 +1817,36 @@ static void edit_clear(ic_env_t* env, editor_t* eb) {
 
     // move cursor back
     term_up(env->term, eb->cur_rows - eb->cur_row);
+}
+
+// Prompt prefix lines are emitted above the editor and are not included in eb->cur_rows.
+// Clear both regions and leave the cursor at their shared origin.
+static void edit_clear_with_prompt_prefix(ic_env_t* env, editor_t* eb,
+                                          ssize_t prompt_prefix_lines) {
+    if (env == NULL || eb == NULL) {
+        return;
+    }
+
+    ssize_t display_rows = (eb->cur_rows > 0 ? eb->cur_rows : 1);
+    ssize_t cursor_row = eb->cur_row;
+    if (cursor_row < 0) {
+        cursor_row = 0;
+    } else if (cursor_row >= display_rows) {
+        cursor_row = display_rows - 1;
+    }
+    if (prompt_prefix_lines < 0) {
+        prompt_prefix_lines = 0;
+    }
+
+    const ssize_t total_rows = prompt_prefix_lines + display_rows;
+    term_attr_reset(env->term);
+    term_start_of_line(env->term);
+    term_up(env->term, prompt_prefix_lines + cursor_row);
+    for (ssize_t i = 0; i < total_rows; ++i) {
+        term_clear_line(env->term);
+        term_writeln(env->term, "");
+    }
+    term_up(env->term, total_rows);
 }
 
 // clear screen and refresh
@@ -4160,6 +4192,13 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
 
     editor_t* eb = env->current_editor;
 
+    // Prefix lines live outside eb->cur_rows, so clear the complete old prompt before
+    // replacing any of the state used to locate it.
+    const ssize_t old_prompt_prefix_lines = eb->prompt_prefix_lines;
+    edit_clear_with_prompt_prefix(env, eb, old_prompt_prefix_lines);
+    eb->cur_row = 0;
+    eb->cur_rows = 1;
+
     // Update buffer if provided
     if (new_buffer != NULL) {
         sbuf_replace(eb->input, new_buffer);
@@ -4180,6 +4219,9 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
         eb->prompt_prefix_lines = print_prompt_prefix_lines(env, eb, new_prompt);
         eb->prompt_begins_with_newline = (new_prompt[0] == '\n');
         eb->replace_prompt_line_with_number = prompt_line_should_use_line_numbers(env, eb);
+    } else if (old_prompt_prefix_lines > 0) {
+        // The display was fully cleared even when only the buffer or right prompt changed.
+        redraw_prompt_prefix_lines(env, eb);
     }
 
     // Update inline right text if provided
@@ -4187,11 +4229,6 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
         eb->inline_right_text = new_inline_right;
         eb->inline_right_width = 0;  // Will be recalculated
     }
-
-    // Clear current display and reset cursor tracking
-    edit_clear(env, eb);
-    eb->cur_row = 0;
-    eb->cur_rows = 1;
 
     // Rewrite the prompt
     edit_write_prompt(env, eb, 0, false, 0, 0, 0, false);
