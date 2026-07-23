@@ -8,12 +8,17 @@
 
 typedef struct edit_menu_session_s {
     const char* prompt_text;
+    const char* inline_right_text;
     bool prompt_replacement;
     bool force_prompt_visibility;
+    bool prompt_begins_with_newline;
+    ssize_t prompt_prefix_lines;
     ssize_t line_number_column_width;
+    ssize_t inline_right_width;
     bool old_hint;
     bool old_highlight;
     bool mouse_scroll_enabled;
+    bool prompt_prefix_hidden;
 } edit_menu_session_t;
 
 typedef struct edit_menu_window_s {
@@ -433,6 +438,37 @@ done_plain:
     return appended;
 }
 
+// Multi-line prompt prefixes are emitted above the editor and are deliberately excluded from
+// eb->cur_rows. Clear both regions and leave the cursor at their shared origin so a menu can use
+// its own prompt as the complete prompt display.
+static void edit_menu_clear_display_with_prefix(ic_env_t* env, editor_t* eb,
+                                                ssize_t prompt_prefix_lines) {
+    if (env == NULL || eb == NULL) {
+        return;
+    }
+
+    ssize_t display_rows = (eb->cur_rows > 0 ? eb->cur_rows : 1);
+    ssize_t cursor_row = eb->cur_row;
+    if (cursor_row < 0) {
+        cursor_row = 0;
+    } else if (cursor_row >= display_rows) {
+        cursor_row = display_rows - 1;
+    }
+    if (prompt_prefix_lines < 0) {
+        prompt_prefix_lines = 0;
+    }
+
+    const ssize_t total_rows = prompt_prefix_lines + display_rows;
+    term_attr_reset(env->term);
+    term_start_of_line(env->term);
+    term_up(env->term, prompt_prefix_lines + cursor_row);
+    for (ssize_t i = 0; i < total_rows; ++i) {
+        term_clear_line(env->term);
+        term_writeln(env->term, "");
+    }
+    term_up(env->term, total_rows);
+}
+
 static edit_menu_session_t edit_menu_begin(ic_env_t* env, editor_t* eb, const char* prompt_text,
                                            bool enable_mouse_scroll) {
     edit_menu_session_t session = {0};
@@ -446,12 +482,28 @@ static edit_menu_session_t edit_menu_begin(ic_env_t* env, editor_t* eb, const ch
     session.old_highlight = ic_enable_highlight(true);
     ic_enable_highlight(session.old_highlight);
     session.prompt_text = eb->prompt_text;
+    session.inline_right_text = eb->inline_right_text;
     session.prompt_replacement = eb->replace_prompt_line_with_number;
     session.force_prompt_visibility = eb->force_prompt_text_visible;
+    session.prompt_begins_with_newline = eb->prompt_begins_with_newline;
+    session.prompt_prefix_lines = eb->prompt_prefix_lines;
     session.line_number_column_width = eb->line_number_column_width;
+    session.inline_right_width = eb->inline_right_width;
+    session.prompt_prefix_hidden = (eb->prompt_prefix_lines > 0);
+    if (session.prompt_prefix_hidden) {
+        edit_menu_clear_display_with_prefix(env, eb, eb->prompt_prefix_lines);
+        eb->prompt_prefix_lines = 0;
+        eb->prompt_begins_with_newline = false;
+        eb->cur_rows = 1;
+        eb->input_rows = 1;
+        eb->cur_row = 0;
+        eb->view_first_row = 0;
+    }
     eb->force_prompt_text_visible = true;
     eb->replace_prompt_line_with_number = false;
     eb->prompt_text = prompt_text;
+    eb->inline_right_text = NULL;
+    eb->inline_right_width = 0;
     session.mouse_scroll_enabled =
         (enable_mouse_scroll ? edit_enable_menu_mouse_scroll(env) : false);
     return session;
@@ -468,15 +520,31 @@ static void edit_menu_finish(ic_env_t* env, editor_t* eb, edit_menu_session_t* s
     if (restore_undo) {
         editor_undo_restore(eb, false);
     }
+
+    if (session->prompt_prefix_hidden) {
+        edit_menu_clear_display_with_prefix(env, eb, 0);
+        eb->cur_rows = 1;
+        eb->input_rows = 1;
+        eb->cur_row = 0;
+        eb->view_first_row = 0;
+    }
+
     eb->prompt_text = session->prompt_text;
+    eb->inline_right_text = session->inline_right_text;
     eb->replace_prompt_line_with_number = session->prompt_replacement;
     eb->force_prompt_text_visible = session->force_prompt_visibility;
+    eb->prompt_begins_with_newline = session->prompt_begins_with_newline;
+    eb->prompt_prefix_lines = session->prompt_prefix_lines;
     eb->line_number_column_width = session->line_number_column_width;
+    eb->inline_right_width = session->inline_right_width;
     ic_enable_hint(session->old_hint);
     ic_enable_highlight(session->old_highlight);
     edit_disable_menu_mouse_scroll(env, session->mouse_scroll_enabled);
     session->mouse_scroll_enabled = false;
-    if (refresh) {
+    if (session->prompt_prefix_hidden) {
+        redraw_prompt_prefix_lines(env, eb);
+    }
+    if (refresh || session->prompt_prefix_hidden) {
         edit_refresh(env, eb);
     }
 }

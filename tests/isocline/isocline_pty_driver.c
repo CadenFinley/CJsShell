@@ -320,6 +320,7 @@ static int run_case(const char* scenario) {
     ic_set_default_completer(NULL, NULL);
 
     const char* initial_input = NULL;
+    const char* inline_right_text = NULL;
     const char* pre_prompt_output = NULL;
     const char* prompt_text = "pty";
     const char* prompt_marker = NULL;
@@ -450,6 +451,17 @@ static int run_case(const char* scenario) {
         ic_history_clear();
         ic_history_add("printf done");
         ic_history_add("mlhist first line\nmlhist second line");
+    } else if (strcmp(scenario, "history_search_multiline_prompt") == 0) {
+        prompt_text = "MENU-BASE-TOP\nMENU-BASE-MIDDLE\npty";
+        inline_right_text = "MENU-BASE-RIGHT";
+        initial_input = "history";
+        ic_history_clear();
+        ic_history_add("history alpha");
+        ic_history_add("history beta");
+    } else if (strcmp(scenario, "command_palette_multiline_prompt") == 0) {
+        prompt_text = "MENU-BASE-TOP\nMENU-BASE-MIDDLE\npty";
+        inline_right_text = "MENU-BASE-RIGHT";
+        initial_input = "keep";
     } else if (strcmp(scenario, "history_search_sort_alt_s") == 0) {
         initial_input = "a";
         ic_history_clear();
@@ -668,7 +680,7 @@ static int run_case(const char* scenario) {
         emit_result(payload);
         return 0;
     } else {
-        line = ic_readline(prompt_text, NULL, initial_input);
+        line = ic_readline(prompt_text, inline_right_text, initial_input);
     }
     if (line == NULL) {
         return 3;

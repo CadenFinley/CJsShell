@@ -66,6 +66,7 @@ F2 = b"\x1bOQ"
 F3 = b"\x1bOR"
 ALT_LT = b"\x1b<"
 ALT_GT = b"\x1b>"
+ALT_P = b"\x1bp"
 ALT_S = b"\x1bs"
 ALT_DELETE = b"\x1b[3;3~"
 CTRL_ENTER = b"\x1b[13;5u"
@@ -223,6 +224,38 @@ def assert_prompt_guard_case(binary: str, scenario: str, expect_marker: bool) ->
     if result != "ok":
         raise AssertionError(f"{scenario} expected 'ok', got {result!r}")
     assert_prompt_guard_marker(scenario, output_text, expect_marker)
+
+
+def assert_menu_replaces_multiline_prompt(output_text: str, menu_prompt: str) -> None:
+    menu_index = output_text.find(menu_prompt)
+    if menu_index < 0:
+        raise AssertionError(
+            f"missing menu prompt {menu_prompt!r}: output={output_text!r}"
+        )
+
+    clear_index = output_text.rfind("\x1b[2A", 0, menu_index)
+    if clear_index < 0:
+        raise AssertionError(
+            "menu did not move above both multi-line prompt prefix rows before rendering: "
+            f"output={output_text!r}"
+        )
+
+    replacement_output = output_text[clear_index:menu_index]
+    if replacement_output.count("\x1b[K") < 3:
+        raise AssertionError(
+            "menu did not clear the two prompt-prefix rows and editable prompt row: "
+            f"replacement_output={replacement_output!r}"
+        )
+    if "MENU-BASE-TOP" in replacement_output or "MENU-BASE-MIDDLE" in replacement_output:
+        raise AssertionError(
+            "menu redrew the primary multi-line prompt while installing its own prompt: "
+            f"replacement_output={replacement_output!r}"
+        )
+    if "MENU-BASE-RIGHT" in output_text[clear_index:]:
+        raise AssertionError(
+            "menu redrew the primary right prompt instead of showing only its menu prompt: "
+            f"output={output_text!r}"
+        )
 
 
 def assert_region_markers(output_text: str, expect_secondary_prompt: bool) -> None:
@@ -1575,6 +1608,48 @@ def main() -> int:
             "history search menu should render selected multiline command inline instead of "
             "truncating it, got "
             f"normalized_output={normalized_hist_multiline_output!r}"
+        )
+
+    history_multiline_prompt_output = run_resize_case(
+        binary,
+        "history_search_multiline_prompt",
+        [("send", b"\x12"), ("wait", "history search:"), ("idle", 0.05)],
+        return_after_actions=True,
+    )
+    assert_menu_replaces_multiline_prompt(
+        history_multiline_prompt_output, "history search:"
+    )
+    history_multiline_prompt_result = run_case_timed(
+        binary,
+        "history_search_multiline_prompt",
+        [b"\x12", b"\x1b", b"\r"],
+        step_delay_s=0.5,
+    )
+    if history_multiline_prompt_result != "history":
+        raise AssertionError(
+            "history search should restore a multi-line primary prompt and its input on cancel, "
+            f"got {history_multiline_prompt_result!r}"
+        )
+
+    palette_multiline_prompt_output = run_resize_case(
+        binary,
+        "command_palette_multiline_prompt",
+        [("send", ALT_P), ("wait", "command palette:"), ("idle", 0.05)],
+        return_after_actions=True,
+    )
+    assert_menu_replaces_multiline_prompt(
+        palette_multiline_prompt_output, "command palette:"
+    )
+    palette_multiline_prompt_result = run_case_timed(
+        binary,
+        "command_palette_multiline_prompt",
+        [ALT_P, b"\x1b", b"\r"],
+        step_delay_s=0.5,
+    )
+    if palette_multiline_prompt_result != "keep":
+        raise AssertionError(
+            "command palette should restore a multi-line primary prompt and its input on cancel, "
+            f"got {palette_multiline_prompt_result!r}"
         )
 
     comp_single = run_case(binary, "completion_single_tab", b"hel\t\r")
