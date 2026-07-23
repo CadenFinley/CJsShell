@@ -1846,32 +1846,6 @@ static void edit_clear(ic_env_t* env, editor_t* eb) {
     term_up(env->term, clear_rows - visible_cursor_row);
 }
 
-// Clear both the editable rows and the prompt prefix that was emitted above them.
-// Unlike edit_clear(), leave the cursor at the first prefix row so a replacement
-// multi-line prompt can be redrawn from the same origin.
-static void edit_clear_prompt(ic_env_t* env, editor_t* eb) {
-    term_attr_reset(env->term);
-
-    const ssize_t clear_rows = (eb->view_rows > 0 ? eb->view_rows : 1);
-    ssize_t visible_cursor_row = eb->cur_row - eb->view_first_row;
-    if (visible_cursor_row < 0) {
-        visible_cursor_row = 0;
-    } else if (visible_cursor_row >= clear_rows) {
-        visible_cursor_row = clear_rows - 1;
-    }
-
-    const ssize_t prefix_rows = (eb->prompt_prefix_lines > 0 ? eb->prompt_prefix_lines : 0);
-    const ssize_t total_rows = prefix_rows + clear_rows;
-
-    term_start_of_line(env->term);
-    term_up(env->term, prefix_rows + visible_cursor_row);
-    for (ssize_t i = 0; i < total_rows; i++) {
-        term_clear_line(env->term);
-        term_writeln(env->term, "");
-    }
-    term_up(env->term, total_rows);
-}
-
 // clear screen and refresh
 static void edit_clear_screen(ic_env_t* env, editor_t* eb) {
     const ssize_t view_rows = eb->view_rows;
@@ -4216,15 +4190,6 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
 
     editor_t* eb = env->current_editor;
 
-    // A prompt prefix is outside the editor's normal row accounting. Clear it
-    // together with the editable rows before changing the cached prompt so a
-    // multi-line replacement is rendered from the original prompt origin.
-    if (new_prompt != NULL) {
-        edit_clear_prompt(env, eb);
-    } else {
-        edit_clear(env, eb);
-    }
-
     // Update buffer if provided
     if (new_buffer != NULL) {
         sbuf_replace(eb->input, new_buffer);
@@ -4253,7 +4218,8 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
         eb->inline_right_width = 0;  // Will be recalculated
     }
 
-    // Reset cursor tracking for the replacement display.
+    // Clear current display and reset cursor tracking
+    edit_clear(env, eb);
     eb->cur_row = 0;
     eb->cur_rows = 1;
     eb->view_first_row = 0;
