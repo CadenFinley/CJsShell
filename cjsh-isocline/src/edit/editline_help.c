@@ -427,5 +427,7 @@ static void edit_show_help(ic_env_t* env, editor_t* eb) {
     }
     eb->cur_rows = 0;
     eb->cur_row = 0;
+    eb->view_first_row = 0;
+    eb->view_rows = 0;
     edit_refresh(env, eb);
 }

@@ -775,6 +775,16 @@ size_t ic_set_multiline_max_line_count(size_t line_count);
 /// Get the current maximum number of visible input rows for multiline editing.
 size_t ic_get_multiline_max_line_count(void);
 
+/// Configure how many existing input rows the multiline viewport should retain below the cursor.
+/// The default is 3. The editor never inserts blank rows to satisfy this setting; near the end of
+/// the input, it shows only the content rows that remain. A value of 0 keeps the cursor on the
+/// bottom row once scrolling begins.
+/// Returns the previous configured line count.
+size_t ic_set_multiline_bottom_line_count(size_t line_count);
+
+/// Get the preferred number of content rows shown below the multiline cursor.
+size_t ic_get_multiline_bottom_line_count(void);
+
 /// Enable or disable line numbers in multiline input mode. (enabled by default)
 /// When enabled, each line will be prefixed with a line number (e.g., "2| ", "3| ", etc.).
 /// The first line continues to use the regular prompt.

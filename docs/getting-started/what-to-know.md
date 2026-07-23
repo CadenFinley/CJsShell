@@ -154,6 +154,7 @@ cjshopt multiline on|off|status
 cjshopt multiline-indent on|off|status
 cjshopt multiline-start-lines <count|status>
 cjshopt multiline-max-lines <count|status>
+cjshopt multiline-bottom-lines <count|status>
 cjshopt line-numbers <absolute|relative|off|status>
 cjshopt line-numbers-continuation on|off|status
 cjshopt line-numbers-replace-prompt on|off|status
