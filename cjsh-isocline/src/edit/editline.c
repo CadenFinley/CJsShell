@@ -163,7 +163,7 @@ static bool edit_completion_click_accept_enabled(const ic_env_t* env) {
 }
 
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab);
-static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb);
+static void edit_history_search_with_current_line(ic_env_t* env, editor_t* eb);
 static void edit_command_palette(ic_env_t* env, editor_t* eb);
 static void edit_history_prev(ic_env_t* env, editor_t* eb);
 static void edit_history_next(ic_env_t* env, editor_t* eb);
@@ -232,7 +232,7 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
             edit_generate_completions(env, eb, false);
             return true;
         case IC_KEY_ACTION_HISTORY_SEARCH:
-            edit_history_search_with_current_word(env, eb);
+            edit_history_search_with_current_line(env, eb);
             return true;
         case IC_KEY_ACTION_COMMAND_PALETTE:
             edit_command_palette(env, eb);
@@ -3907,7 +3907,7 @@ edit_loop_entry:
                         break;
                     case KEY_CTRL_R:
                     case KEY_CTRL_S:
-                        edit_history_search_with_current_word(env, &eb);
+                        edit_history_search_with_current_line(env, &eb);
                         break;
                     case WITH_ALT('p'):
                     case WITH_ALT('P'):

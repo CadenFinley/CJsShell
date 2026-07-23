@@ -298,6 +298,7 @@ static int run_case(const char* scenario) {
                            strcmp(scenario, "multiline_max_lines_viewport") == 0 ||
                            strcmp(scenario, "multiline_max_lines_prompt_reset") == 0 ||
                            strcmp(scenario, "completion_many_menu_long_multiline") == 0 ||
+                           strcmp(scenario, "history_search_long_multiline_viewport") == 0 ||
                            strcmp(scenario, "region_marking_multiline") == 0 ||
                            strcmp(scenario, "completion_many_menu_multiline_replacement") == 0);
     ic_enable_multiline(multiline_mode);
@@ -469,6 +470,14 @@ static int run_case(const char* scenario) {
         ic_history_clear();
         ic_history_add("printf done");
         ic_history_add("mlhist first line\nmlhist second line");
+    } else if (strcmp(scenario, "history_search_long_multiline_viewport") == 0) {
+        initial_input =
+            "history-line-01\nhistory-line-02\nhistory-line-03\nhistory-line-04\nhistory-line-05";
+        (void)ic_set_multiline_max_line_count(3);
+        (void)ic_enable_line_numbers_with_continuation_prompt(true);
+        ic_history_clear();
+        ic_history_add("history candidate one");
+        ic_history_add("history candidate two");
     } else if (strcmp(scenario, "history_search_multiline_prompt") == 0) {
         prompt_text = "MENU-BASE-TOP\nMENU-BASE-MIDDLE\npty";
         inline_right_text = "MENU-BASE-RIGHT";

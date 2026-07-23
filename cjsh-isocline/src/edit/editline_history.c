@@ -1425,11 +1425,12 @@ again:;
     }
 }
 
-static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb) {
+static void edit_history_search_with_current_line(ic_env_t* env, editor_t* eb) {
     char* initial = NULL;
-    const ssize_t input_len = sbuf_len(eb->input);
-    if (input_len > 0) {
-        initial = mem_strndup(eb->mem, sbuf_string(eb->input), input_len);
+    ssize_t line_start = 0;
+    ssize_t line_end = 0;
+    if (edit_get_line_bounds(eb, &line_start, &line_end) && line_end > line_start) {
+        initial = mem_strndup(eb->mem, sbuf_string(eb->input) + line_start, line_end - line_start);
     }
     edit_history_fuzzy_search(env, eb, initial);
     mem_free(env->mem, initial);

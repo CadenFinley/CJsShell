@@ -1095,6 +1095,28 @@ def main() -> int:
             f"three-row screen position: output={viewport_output!r}"
         )
 
+    history_search_result, history_search_output = run_case(
+        binary,
+        "history_search_long_multiline_viewport",
+        UP + UP + b"\x12\x03\r",
+        capture_output=True,
+        initial_rows=24,
+        initial_cols=80,
+    )
+    if history_search_result != viewport_expected.replace("viewport", "history"):
+        raise AssertionError(
+            "history search should preserve the complete multiline buffer, got "
+            f"{history_search_result!r}"
+        )
+    history_search_render = normalize_terminal_output(
+        history_search_output.split("[IC_RESULT_BEGIN]", 1)[0]
+    )
+    if "history search: > history-line-03\nNo matches" not in history_search_render:
+        raise AssertionError(
+            "history search should use only the logical line containing the cursor: "
+            f"output={history_search_render!r}"
+        )
+
     reset_result, reset_output = run_case(
         binary,
         "multiline_max_lines_prompt_reset",
