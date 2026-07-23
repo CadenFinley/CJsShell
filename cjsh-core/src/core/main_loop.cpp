@@ -510,17 +510,18 @@ void initialize_isocline() {
     initialize_completion_system();
     SyntaxHighlighter::initialize_syntax_highlighting();
     ic_enable_history_duplicates(false);
+    ic_enable_multiline_continuation_retention(true);
     ic_set_prompt_marker("", nullptr);
     ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);
     ic_set_command_palette_entry_handler(handle_command_palette_entry, nullptr);
     refresh_command_palette_entries();
-    (void)ic_bind_key(IC_KEY_EVENT_PROMPT_REFRESH, IC_KEY_ACTION_RUNOFF);
+    ic_bind_key(IC_KEY_EVENT_PROMPT_REFRESH, IC_KEY_ACTION_RUNOFF);
     ic_set_status_message_callback(status_line::create_below_syntax_message, nullptr);
     ic_set_check_for_continuation_or_return_callback(continuation_or_return_callback, nullptr);
     ic_set_typeahead_capture_allowed_callback(typeahead_capture_allowed, nullptr);
-    (void)ic_enable_terminal_region_marking(true);
+    ic_enable_terminal_region_marking(true);
     if (!config::status_line_enabled) {
-        (void)ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
+        ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
     }
 }
 

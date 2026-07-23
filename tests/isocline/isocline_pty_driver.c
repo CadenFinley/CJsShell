@@ -292,6 +292,9 @@ static int run_case(const char* scenario) {
          strcmp(scenario, "prompt_guard_region_marking_external_visible") == 0);
     bool multiline_mode = (strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
                            strcmp(scenario, "multiline_backslash_continuation") == 0 ||
+                           strcmp(scenario, "multiline_backslash_continuation_retained") == 0 ||
+                           strcmp(scenario, "multiline_backslash_submit_with_following_content") ==
+                               0 ||
                            strcmp(scenario, "multiline_initial_ctrl_j") == 0 ||
                            strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0 ||
                            strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0 ||
@@ -302,6 +305,8 @@ static int run_case(const char* scenario) {
                            strcmp(scenario, "region_marking_multiline") == 0 ||
                            strcmp(scenario, "completion_many_menu_multiline_replacement") == 0);
     ic_enable_multiline(multiline_mode);
+    (void)ic_enable_multiline_continuation_retention(
+        strcmp(scenario, "multiline_backslash_continuation_retained") == 0);
     ic_enable_hint(false);
     ic_enable_inline_help(false);
     ic_enable_completion_preview(false);
@@ -374,6 +379,8 @@ static int run_case(const char* scenario) {
         continuation_prompt_marker = "> ";
     } else if (strcmp(scenario, "multiline_initial_ctrl_j") == 0) {
         initial_input = "ab";
+    } else if (strcmp(scenario, "multiline_backslash_submit_with_following_content") == 0) {
+        initial_input = "echo \\\nhi";
     } else if (strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0) {
         initial_input = "ab\ncd\nef";
     } else if (strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0) {
@@ -588,6 +595,7 @@ static int run_case(const char* scenario) {
                strcmp(scenario, "resize_reflow_typed_input") == 0 ||
                strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
                strcmp(scenario, "multiline_backslash_continuation") == 0 ||
+               strcmp(scenario, "multiline_backslash_continuation_retained") == 0 ||
                strcmp(scenario, "completion_single_tab") == 0 ||
                strcmp(scenario, "completion_single_then_type") == 0 ||
                strcmp(scenario, "completion_no_match") == 0 ||

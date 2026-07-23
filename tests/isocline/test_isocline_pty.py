@@ -1026,6 +1026,27 @@ def main() -> int:
             f"multiline_backslash_continuation expected 'echo \\nhi', got {multiline_backslash!r}"
         )
 
+    multiline_backslash_retained = run_case(
+        binary, "multiline_backslash_continuation_retained", b"echo \\\rhi\r"
+    )
+    if multiline_backslash_retained != "echo \\\nhi":
+        raise AssertionError(
+            "multiline_backslash_continuation_retained expected the continuation "
+            f"character to remain, got {multiline_backslash_retained!r}"
+        )
+
+    multiline_backslash_with_following_content = run_case(
+        binary,
+        "multiline_backslash_submit_with_following_content",
+        UP + END + b"\r",
+    )
+    if multiline_backslash_with_following_content != "echo \\\nhi":
+        raise AssertionError(
+            "Enter on a continued line with following content should submit the complete "
+            "buffer, got "
+            f"{multiline_backslash_with_following_content!r}"
+        )
+
     multiline_initial = run_case(binary, "multiline_initial_ctrl_j", b"\x0acd\r")
     if multiline_initial != "ab\ncd":
         raise AssertionError(

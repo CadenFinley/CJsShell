@@ -663,6 +663,12 @@ const char* ic_get_command_palette_prompt(void);
 /// Returns the previous setting.
 bool ic_enable_multiline(bool enable);
 
+/// Configure whether Enter retains the trailing continuation character when it starts a new
+/// multiline input row. When disabled (default), the continuation character is replaced by the
+/// inserted newline. When enabled, the newline is inserted after it so the returned input keeps
+/// the continuation character. Returns the previous setting.
+bool ic_enable_multiline_continuation_retention(bool enable);
+
 /// Disable or enable sound (enabled by default).
 /// A beep is used when tab cannot find any completion for example.
 /// Returns the previous setting.

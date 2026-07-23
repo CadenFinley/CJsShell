@@ -180,6 +180,15 @@ ic_public bool ic_enable_multiline(bool enable) {
     return !prev;
 }
 
+ic_public bool ic_enable_multiline_continuation_retention(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->retain_multiline_continuation;
+    env->retain_multiline_continuation = enable;
+    return prev;
+}
+
 ic_public bool ic_enable_beep(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

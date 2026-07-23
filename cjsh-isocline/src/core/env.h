@@ -107,6 +107,7 @@ struct ic_env_s {
     ic_readline_disposition_t last_readline_disposition;  // disposition from most recent read
     char multiline_eol;                    // character used for multiline input ("\") (set to 0
                                            // to disable)
+    bool retain_multiline_continuation;     // keep multiline_eol when Enter inserts a newline?
     bool initialized;                      // are we initialized?
     bool noedit;                           // is rich editing possible (tty != NULL)
     bool singleline_only;                  // allow only single line editing?

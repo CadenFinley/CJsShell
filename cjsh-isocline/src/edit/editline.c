@@ -2476,6 +2476,13 @@ static void edit_multiline_eol(ic_env_t* env, editor_t* eb) {
     if (sbuf_string(eb->input)[eb->pos - 1] != env->multiline_eol)
         return;
     editor_start_modify(eb);
+    if (env->retain_multiline_continuation) {
+        ssize_t nextpos = sbuf_insert_at(eb->input, "\n", eb->pos);
+        if (nextpos >= 0)
+            eb->pos = nextpos;
+        edit_refresh(env, eb);
+        return;
+    }
     // replace line continuation with a real newline
     sbuf_delete_at(eb->input, eb->pos - 1, 1);
     sbuf_insert_at(eb->input, "\n", eb->pos - 1);
@@ -3839,10 +3846,12 @@ edit_loop_entry:
             if (c == KEY_ENTER) {
                 // Clear history preview when submitting
                 edit_clear_history_preview(&eb);
-                if (!env->singleline_only && eb.pos > 0 &&
+                if (!env->singleline_only && editor_pos_is_at_end(&eb) && eb.pos > 0 &&
                     sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
                     edit_pos_is_at_row_end(env, &eb)) {
-                    // replace line-continuation with newline
+                    // At the end of the buffer, start a new row after a line-continuation.
+                    // A continuation on an earlier line is already followed by content, so Enter
+                    // there submits the complete buffer instead of adding another continuation.
                     edit_multiline_eol(env, &eb);
                 } else {
                     // otherwise done

@@ -186,6 +186,24 @@ static bool test_multiline_toggle(void) {
     return true;
 }
 
+static bool test_multiline_continuation_retention_toggle(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    env->retain_multiline_continuation = false;
+    EXPECT_FALSE(ic_enable_multiline_continuation_retention(true),
+                 "continuation retention should report previously disabled state");
+    EXPECT_TRUE(env->retain_multiline_continuation,
+                "enabling continuation retention should set the environment flag");
+
+    EXPECT_TRUE(ic_enable_multiline_continuation_retention(false),
+                "disabling continuation retention should report previously enabled state");
+    EXPECT_FALSE(env->retain_multiline_continuation,
+                 "disabling continuation retention should clear the environment flag");
+    return true;
+}
+
 static bool test_line_number_modes(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -4083,6 +4101,8 @@ static const test_case_t kTests[] = {
     {"mouse_reporting_defaults", test_mouse_reporting_defaults},
     {"readline_disposition_name_mappings", test_readline_disposition_name_mappings},
     {"multiline_toggle", test_multiline_toggle},
+    {"multiline_continuation_retention_toggle",
+     test_multiline_continuation_retention_toggle},
     {"line_number_modes", test_line_number_modes},
     {"line_number_continuation_prompt_toggle", test_line_number_continuation_prompt_toggle},
     {"line_number_prompt_replacement_toggle", test_line_number_prompt_replacement_toggle},

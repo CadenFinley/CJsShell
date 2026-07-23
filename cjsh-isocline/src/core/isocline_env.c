@@ -158,6 +158,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->no_help = false;                               // inline help (inverted: false = enabled)
     env->no_multiline_indent = false;      // multiline indent (inverted: false = enabled)
     env->singleline_only = false;          // multiline (inverted: false = enabled)
+    env->retain_multiline_continuation = false;  // remove "\\" when Enter continues by default
     env->multiline_start_line_count = 1;   // preallocated prompt lines when multiline is on
     env->multiline_max_line_count = 15;    // visible input rows before viewport scrolling
     env->multiline_bottom_line_count = 3;  // existing input-row margin around the cursor
