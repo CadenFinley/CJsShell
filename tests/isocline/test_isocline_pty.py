@@ -283,6 +283,22 @@ def assert_text_is_prompt_marked(output_text: str, text: str) -> None:
         )
 
 
+def assert_transient_prompt_prefix_starts_on_fresh_line(output_text: str) -> None:
+    prefix_index = output_text.rfind("final-prefix")
+    submitted_input_index = output_text.rfind("ok", 0, prefix_index)
+    line_start_index = output_text.rfind("\r", 0, prefix_index)
+    if min(prefix_index, submitted_input_index, line_start_index) < 0:
+        raise AssertionError(
+            "missing submitted input or transient prompt prefix: "
+            f"output={output_text!r}"
+        )
+    if line_start_index < submitted_input_index + len("ok"):
+        raise AssertionError(
+            "multi-line transient prompt prefix was appended to the submitted input row: "
+            f"output={output_text!r}"
+        )
+
+
 def assert_last_prompt_suffix(
     scenario: str, output_text: str, expected_suffix: str
 ) -> None:
@@ -943,6 +959,7 @@ def main() -> int:
     assert_region_markers(transient_output, expect_secondary_prompt=False)
     assert_text_is_prompt_marked(transient_output, "final-prefix")
     assert_text_is_prompt_marked(transient_output, "final-right")
+    assert_transient_prompt_prefix_starts_on_fresh_line(transient_output)
 
     multiline_backslash = run_case(
         binary, "multiline_backslash_continuation", b"echo \\\rhi\r"
