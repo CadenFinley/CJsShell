@@ -465,6 +465,11 @@ static int run_case(const char* scenario) {
         ic_history_clear();
         ic_history_add("history alpha");
         ic_history_add("history beta");
+    } else if (strcmp(scenario, "history_search_typed_buffer") == 0) {
+        ic_history_clear();
+        ic_history_add("history alpha");
+        ic_history_add("history beta");
+        ic_history_add("history");
     } else if (strcmp(scenario, "history_search_multiline") == 0) {
         initial_input = "mlhist";
         ic_history_clear();

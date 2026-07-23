@@ -1693,6 +1693,42 @@ def main() -> int:
             f"history_search_scroll ctrl+s expected 'history beta', got {hist_search_ctrl_s!r}"
         )
 
+    typed_history_result, typed_history_output = run_case(
+        binary,
+        "history_search_typed_buffer",
+        b"history\x12\t\r",
+        capture_output=True,
+    )
+    if typed_history_result != "history":
+        raise AssertionError(
+            "history search should restore the typed buffer on cancel, got "
+            f"{typed_history_result!r}"
+        )
+    normalized_typed_history_output = normalize_terminal_output(typed_history_output)
+    if "3 matches found" not in normalized_typed_history_output:
+        raise AssertionError(
+            "history search should retain a real entry equal to the live input without adding "
+            "another match, got "
+            f"normalized_output={normalized_typed_history_output!r}"
+        )
+    if (
+        "→ \n" not in normalized_typed_history_output
+        or "→ history" in normalized_typed_history_output
+    ):
+        raise AssertionError(
+            "history search should begin on a blank selection instead of repeating the input, got "
+            f"normalized_output={normalized_typed_history_output!r}"
+        )
+
+    typed_history_down = run_case(
+        binary, "history_search_typed_buffer", b"history\x12" + DOWN + b"\r"
+    )
+    if typed_history_down != "history":
+        raise AssertionError(
+            "history search Down should move from the blank selection to the newest match, got "
+            f"{typed_history_down!r}"
+        )
+
     hist_sort_alt_s = run_case(
         binary,
         "history_search_sort_alt_s",
