@@ -478,13 +478,40 @@ std::vector<std::string> Tokenizer::split_by_ifs(const std::string& input) {
                 continue;
             }
 
-            if (ifs.find(c) != std::string::npos) {
+            const bool is_ifs = ifs.find(c) != std::string::npos;
+            const bool is_ifs_whitespace = is_ifs && (c == ' ' || c == '\t' || c == '\n');
+            if (is_ifs_whitespace) {
                 if (in_word) {
                     result.push_back(current_word);
                     current_word.clear();
                     in_word = false;
                 }
-                idx++;
+
+                do {
+                    ++idx;
+                } while (idx < input.size() && ifs.find(input[idx]) != std::string::npos &&
+                         (input[idx] == ' ' || input[idx] == '\t' || input[idx] == '\n'));
+
+                if (idx < input.size() && ifs.find(input[idx]) != std::string::npos &&
+                    input[idx] != ' ' && input[idx] != '\t' && input[idx] != '\n') {
+                    ++idx;
+                    while (idx < input.size() && ifs.find(input[idx]) != std::string::npos &&
+                           (input[idx] == ' ' || input[idx] == '\t' || input[idx] == '\n')) {
+                        ++idx;
+                    }
+                }
+                continue;
+            }
+
+            if (is_ifs) {
+                result.push_back(current_word);
+                current_word.clear();
+                in_word = false;
+                ++idx;
+                while (idx < input.size() && ifs.find(input[idx]) != std::string::npos &&
+                       (input[idx] == ' ' || input[idx] == '\t' || input[idx] == '\n')) {
+                    ++idx;
+                }
                 continue;
             }
         } else {

@@ -268,6 +268,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
                             args.end());
     }
     const bool has_temporary_env = !env_assignments.empty() && !command_args.empty();
+    const bool assignments_persist =
+        has_temporary_env && !run_in_background && is_posix_special_builtin(command_args[0]);
 
     const bool is_direct_command =
         !command_args.empty() && (built_ins->is_builtin_or_runtime_command(command_args[0]) != 0);
@@ -333,7 +335,9 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
 
             apply_assignments();
             code = built_ins->builtin_or_runtime_command(command_args);
-            restore_assignments();
+            if (!assignments_persist) {
+                restore_assignments();
+            }
         } else {
             code = built_ins->builtin_or_runtime_command(command_args);
         }

@@ -59,6 +59,7 @@
 #include "redirection_utils.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "string_utils.h"
 #include "tokenizer.h"
 #include "variable_expander.h"
 
@@ -1069,15 +1070,62 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
     args = std::move(expanded_args);
 
+    auto find_expandable_dollar_ats = [](const std::string& value) {
+        const std::string& start_marker = noenv_start();
+        const std::string& end_marker = noenv_end();
+        std::vector<size_t> positions;
+        bool inside_noenv = false;
+
+        for (size_t i = 0; i + 1 < value.size();) {
+            if (value.compare(i, start_marker.size(), start_marker) == 0) {
+                inside_noenv = true;
+                i += start_marker.size();
+                continue;
+            }
+            if (value.compare(i, end_marker.size(), end_marker) == 0) {
+                inside_noenv = false;
+                i += end_marker.size();
+                continue;
+            }
+            if (!inside_noenv && value[i] == '$' && value[i + 1] == '@') {
+                positions.push_back(i);
+                i += 2;
+                continue;
+            }
+            ++i;
+        }
+
+        return positions;
+    };
+
     std::vector<std::string> pre_expanded_args;
     pre_expanded_args.reserve(args.size() + 4);
     for (std::string& raw_arg : args) {
         QuoteInfo qi(raw_arg);
 
-        if (qi.is_double && qi.value == "$@") {
+        const std::vector<size_t> at_positions =
+            qi.is_double ? find_expandable_dollar_ats(qi.value) : std::vector<size_t>{};
+        if (!at_positions.empty()) {
             auto params = flags::get_positional_parameters();
-            for (const auto& param : params) {
-                pre_expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, param));
+            std::vector<std::string> fields(1);
+            size_t cursor = 0;
+
+            for (size_t at_pos : at_positions) {
+                fields.back() += qi.value.substr(cursor, at_pos - cursor);
+                if (!params.empty()) {
+                    fields.back() += params.front();
+                    for (size_t param_index = 1; param_index < params.size(); ++param_index) {
+                        fields.push_back(params[param_index]);
+                    }
+                }
+                cursor = at_pos + 2;
+            }
+            fields.back() += qi.value.substr(cursor);
+
+            if (!params.empty() || fields.size() > 1 || !fields.front().empty()) {
+                for (auto& field : fields) {
+                    pre_expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, field));
+                }
             }
             continue;
         }
@@ -1380,15 +1428,26 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
         if (!cmd_part.empty()) {
             size_t lead = cmd_part.find_first_not_of(" \t\r\n");
-            if (lead != std::string::npos && cmd_part[lead] == '(') {
-                size_t close_paren = cmd_part.find(')', lead + 1);
-                if (close_paren != std::string::npos) {
-                    std::string subshell_content =
-                        cmd_part.substr(lead + 1, close_paren - (lead + 1));
-                    std::string remaining = cmd_part.substr(close_paren + 1);
+            if (lead != std::string::npos && (cmd_part[lead] == '(' || cmd_part[lead] == '{')) {
+                const bool is_brace_group = cmd_part[lead] == '{';
+                size_t close_pos = is_brace_group ? find_matching_brace(cmd_part, lead)
+                                                  : find_matching_paren(cmd_part, lead);
+                if (close_pos != std::string::npos) {
+                    std::string group_content = cmd_part.substr(lead + 1, close_pos - (lead + 1));
+                    std::string remaining = cmd_part.substr(close_pos + 1);
 
-                    cmd.args.push_back("__INTERNAL_SUBSHELL__");
-                    cmd.args.push_back(subshell_content);
+                    if (is_brace_group) {
+                        group_content = string_utils::trim_ascii_whitespace_copy(group_content);
+                        if (!group_content.empty() && group_content.back() == ';') {
+                            group_content.pop_back();
+                            group_content =
+                                string_utils::trim_right_ascii_whitespace_copy(group_content);
+                        }
+                    }
+
+                    cmd.args.push_back(is_brace_group ? "__INTERNAL_BRACE_GROUP__"
+                                                      : "__INTERNAL_SUBSHELL__");
+                    cmd.args.push_back(group_content);
 
                     if (!remaining.empty()) {
                         std::vector<std::string> redir_tokens =
@@ -1803,6 +1862,7 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
     int single_bracket_depth = 0;
     int parameter_brace_depth = 0;
     int control_depth = 0;
+    bool has_logical_operator = false;
 
     for (size_t i = 0; i < command.length(); ++i) {
         if (delimiters.update_quote(command[i])) {
@@ -1898,9 +1958,16 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
 
         if (!delimiters.in_quotes && delimiters.paren_depth == 0 && arith_depth == 0 &&
             delimiters.bracket_depth == 0 && delimiters.brace_depth == 0 &&
-            single_bracket_depth == 0 && parameter_brace_depth == 0 && control_depth == 0 &&
-            i < command.length() - 1) {
-            if (command[i] == '&' && command[i + 1] == '&') {
+            single_bracket_depth == 0 && parameter_brace_depth == 0 && control_depth == 0) {
+            if (command[i] == ';' && !is_char_escaped(command, i)) {
+                if (!current.empty()) {
+                    logical_commands.push_back({current, ""});
+                    current.clear();
+                }
+                continue;
+            }
+            if (i < command.length() - 1 && command[i] == '&' && command[i + 1] == '&') {
+                has_logical_operator = true;
                 if (!current.empty()) {
                     logical_commands.push_back({current, "&&"});
                     current.clear();
@@ -1908,7 +1975,8 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
                 i++;
                 continue;
             }
-            if (command[i] == '|' && command[i + 1] == '|') {
+            if (i < command.length() - 1 && command[i] == '|' && command[i + 1] == '|') {
+                has_logical_operator = true;
                 if (!current.empty()) {
                     logical_commands.push_back({current, "||"});
                     current.clear();
@@ -1923,6 +1991,13 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
 
     if (!current.empty()) {
         logical_commands.push_back({current, ""});
+    }
+
+    if (!has_logical_operator) {
+        logical_commands.clear();
+        if (!command.empty()) {
+            logical_commands.push_back({command, ""});
+        }
     }
 
     return logical_commands;

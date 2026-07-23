@@ -38,6 +38,8 @@
 
 class Shell;
 
+bool is_posix_special_builtin(const std::string& name);
+
 class Built_ins {
    public:
     Built_ins();

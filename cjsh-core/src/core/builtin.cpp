@@ -100,6 +100,13 @@ int reject_posix_restricted_builtin(const std::string& name) {
 
 }  // namespace
 
+bool is_posix_special_builtin(const std::string& name) {
+    return name == "." || name == ":" || name == "break" || name == "continue" || name == "eval" ||
+           name == "exec" || name == "exit" || name == "export" || name == "readonly" ||
+           name == "return" || name == "set" || name == "shift" || name == "times" ||
+           name == "trap" || name == "unset";
+}
+
 Built_ins::Built_ins() : shell(nullptr) {
     builtins = {
         {"echo", [](const std::vector<std::string>& args) { return ::echo_command(args); }},

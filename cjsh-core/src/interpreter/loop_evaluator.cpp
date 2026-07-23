@@ -1099,6 +1099,8 @@ int handle_for_block(
                     items.push_back(toks[i++]);
                 }
             }
+        } else {
+            items = flags::get_positional_parameters();
         }
         return !var.empty();
     };

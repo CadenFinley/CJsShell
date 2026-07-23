@@ -221,18 +221,18 @@ fi
 
 log_test "Leading and trailing IFS characters"
 result=$("$SHELL_TO_TEST" -c 'IFS=:; var=":a:b:"; set -- $var; echo $#' 2>/dev/null)
-if [ "$result" = "2" ]; then
+if [ "$result" = "3" ]; then
     pass
 else
-    fail "Expected 2 words with leading/trailing IFS, got '$result'"
+    fail "Expected 3 words with leading/trailing non-whitespace IFS, got '$result'"
 fi
 
 log_test "Multiple consecutive IFS characters"
 result=$("$SHELL_TO_TEST" -c 'IFS=:; var="a::b"; set -- $var; echo $#' 2>/dev/null)
-if [ "$result" = "2" ]; then
+if [ "$result" = "3" ]; then
     pass
 else
-    fail "Expected 2 words with consecutive IFS, got '$result'"
+    fail "Expected 3 words with consecutive non-whitespace IFS, got '$result'"
 fi
 
 log_test "Quoted variable assignment"

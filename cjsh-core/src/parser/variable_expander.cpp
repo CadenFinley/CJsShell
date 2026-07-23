@@ -231,6 +231,15 @@ void VariableExpander::expand_env_vars(std::string& arg) {
         }
 
         if (in_var) {
+            if (!var_name.empty() &&
+                ((std::isdigit(static_cast<unsigned char>(var_name.front())) != 0) ||
+                 parameter_utils::is_special_parameter_char(var_name.front()) || var_name == "-")) {
+                in_var = false;
+                result += resolve_parameter_value(var_name);
+                --i;
+                continue;
+            }
+
             if (is_valid_identifier_char(arg[i]) ||
                 (var_name.empty() &&
                  (parameter_utils::is_special_parameter_char(arg[i]) || arg[i] == '-'))) {
@@ -321,6 +330,16 @@ void VariableExpander::expand_exported_env_vars_only(std::string& arg) {
             in_var = true;
             var_name.clear();
         } else if (in_var) {
+            if (!var_name.empty() &&
+                ((std::isdigit(static_cast<unsigned char>(var_name.front())) != 0) ||
+                 parameter_utils::is_special_parameter_char(var_name.front()) || var_name == "-")) {
+                result += get_exported_variable_value(var_name);
+                in_var = false;
+                var_name.clear();
+                --i;
+                continue;
+            }
+
             if (arg[i] == '{') {
                 size_t brace_start = i + 1;
                 size_t brace_end = brace_start;

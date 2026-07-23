@@ -714,6 +714,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
     std::function<int(const std::string&, bool)> execute_simple_or_pipeline_impl;
     std::function<int(const std::string&)> execute_simple_or_pipeline;
+    bool last_result_errexit_exempt = false;
 
     std::function<int(const std::string&)> evaluate_logical_condition;
     std::function<std::optional<int>(const std::string&, bool)> try_handle_inline_case;
@@ -729,6 +730,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
     execute_simple_or_pipeline_impl = [&](const std::string& cmd_text,
                                           bool allow_semicolon_split) -> int {
+        last_result_errexit_exempt = false;
         // single-command executor used by if conditions and by branch body commands
         std::string text = process_line_for_validation(cmd_text);
         if (text.empty())
@@ -770,6 +772,16 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 return env_result;
             }
 
+            std::vector<std::pair<std::string, std::string>> function_assignments;
+            size_t function_index =
+                cjsh_env::collect_env_assignments(quick_args, function_assignments);
+            if (function_index > 0 && function_index < quick_args.size() &&
+                functions.count(quick_args[function_index]) != 0U) {
+                auto function_commands =
+                    shell_parser->parse_pipeline_with_preprocessing(command_text);
+                return run_pipeline(function_commands);
+            }
+
             if (functions.count(program) != 0U) {
                 return execute_function_call(quick_args);
             }
@@ -802,6 +814,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
             if (has_logical_op) {
                 int logical_status = 0;
+                size_t last_executed_index = 0;
+                bool executed_command = false;
                 for (size_t idx = 0; idx < logical_cmds.size(); ++idx) {
                     if (idx > 0) {
                         const std::string& prev_op = logical_cmds[idx - 1].op;
@@ -821,6 +835,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         }
                     }
 
+                    last_executed_index = idx;
+                    executed_command = true;
                     logical_status =
                         execute_simple_or_pipeline_impl(logical_cmds[idx].command, true);
 
@@ -828,6 +844,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         return logical_status;
                     }
                 }
+                last_result_errexit_exempt = logical_status != 0 && executed_command &&
+                                             last_executed_index + 1 < logical_cmds.size();
                 return logical_status;
             }
         }
@@ -839,6 +857,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 int last_code = 0;
                 for (const auto& part : semicolon_commands) {
                     last_code = execute_simple_or_pipeline_impl(part, false);
+                    const bool errexit_exempt = last_result_errexit_exempt;
 
                     if (is_terminating_signal_exit_code(last_code)) {
                         return last_code;
@@ -849,7 +868,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
 
                     if (g_shell && g_shell->should_abort_on_nonzero_exit(last_code) &&
-                        last_code != 0 && !is_control_flow_exit_code(last_code)) {
+                        last_code != 0 && !is_control_flow_exit_code(last_code) &&
+                        !errexit_exempt) {
                         return last_code;
                     }
                 }
@@ -1091,6 +1111,14 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                     if (!expanded_args.empty() && functions.count(expanded_args[0])) {
                         return execute_function_call(expanded_args);
+                    }
+
+                    std::vector<std::pair<std::string, std::string>> function_assignments;
+                    size_t function_index =
+                        cjsh_env::collect_env_assignments(expanded_args, function_assignments);
+                    if (function_index > 0 && function_index < expanded_args.size() &&
+                        functions.count(expanded_args[function_index]) != 0U) {
+                        return run_pipeline(cmds);
                     }
                     int exit_code = g_shell->execute_command(expanded_args, c.background,
                                                              c.auto_background_on_stop,
@@ -1790,7 +1818,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                     }
                                 }
 
-                                if (!in_double && paren_depth == 0 && ch == '|') {
+                                if (!in_double && paren_depth == 0 &&
+                                    (ch == '|' || ch == '<' || ch == '>')) {
                                     return true;
                                 }
                             }

@@ -76,7 +76,8 @@ int return_command(const std::vector<std::string>& args) {
                    "Exit a function with status N (default uses last command status)."})) {
         return 0;
     }
-    int exit_code = 0;
+    int exit_code =
+        numeric_utils::parse_exit_status_or(cjsh_env::get_shell_variable_value("?"), 0, false);
     if (args.size() > 1) {
         if (!numeric_utils::parse_int_in_range(args[1], 0, 255, exit_code)) {
             print_error(

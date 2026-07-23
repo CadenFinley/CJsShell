@@ -30,6 +30,7 @@
 
 #include "exec.h"
 #include "parser_utils.h"
+#include "shell.h"
 #include "string_utils.h"
 
 #include <cstdio>
@@ -48,7 +49,7 @@ std::pair<std::string, int> execute_command_for_substitution(
             std::cout.flush();
             (void)fflush(nullptr);
 
-            int exit_code = executor(command);
+            int exit_code = read_exit_code_or(executor(command));
             std::cout.flush();
             std::cerr.flush();
             std::clog.flush();

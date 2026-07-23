@@ -30,6 +30,7 @@
 
 #include <unistd.h>
 
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <unordered_set>
@@ -539,13 +540,19 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
         return true;
     }
 
-    if (var_name.length() == 1 && isdigit(var_name[0]) != 0) {
+    if (!var_name.empty() && std::all_of(var_name.begin(), var_name.end(),
+                                         [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
         // Raw getenv here: positional vars stored in process env.
         if (getenv(var_name.c_str()) != nullptr) {
             return true;
         }
 
-        int param_num = var_name[0] - '0';
+        int param_num = 0;
+        try {
+            param_num = std::stoi(var_name);
+        } catch (const std::exception&) {
+            return false;
+        }
         if (param_num > 0) {
             auto params = flags::get_positional_parameters();
             return static_cast<size_t>(param_num - 1) < params.size();
@@ -974,14 +981,20 @@ std::string VariableManager::get_special_variable(const std::string& var_name) c
 }
 
 std::string VariableManager::get_positional_parameter(const std::string& var_name) const {
-    if (var_name.length() == 1 && isdigit(var_name[0]) != 0) {
+    if (!var_name.empty() && std::all_of(var_name.begin(), var_name.end(),
+                                         [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
         // Raw getenv here: positional vars stored in process env.
         const char* env_val = getenv(var_name.c_str());
         if (env_val != nullptr) {
             return env_val;
         }
 
-        int param_num = var_name[0] - '0';
+        int param_num = 0;
+        try {
+            param_num = std::stoi(var_name);
+        } catch (const std::exception&) {
+            return "";
+        }
         if (param_num > 0) {
             auto params = flags::get_positional_parameters();
             if (static_cast<size_t>(param_num - 1) < params.size()) {

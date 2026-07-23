@@ -34,12 +34,12 @@ bool PatternMatcher::matches_pattern(const std::string& text, const std::string&
     auto sanitize_quotes = [](const std::string& raw_pattern) {
         std::string cleaned;
         cleaned.reserve(raw_pattern.size());
+        char quote = '\0';
 
         for (size_t i = 0; i < raw_pattern.size(); ++i) {
             char ch = raw_pattern[i];
 
-            if (ch == '\\' && i + 1 < raw_pattern.size() &&
-                (raw_pattern[i + 1] == '\'' || raw_pattern[i + 1] == '"')) {
+            if (ch == '\\' && quote != '\'' && i + 1 < raw_pattern.size()) {
                 cleaned += ch;
                 cleaned += raw_pattern[i + 1];
                 ++i;
@@ -47,9 +47,19 @@ bool PatternMatcher::matches_pattern(const std::string& text, const std::string&
             }
 
             if (ch == '\'' || ch == '"') {
+                if (quote == '\0') {
+                    quote = ch;
+                } else if (quote == ch) {
+                    quote = '\0';
+                } else {
+                    cleaned += ch;
+                }
                 continue;
             }
 
+            if (quote != '\0' && (ch == '*' || ch == '?' || ch == '[' || ch == '|' || ch == '\\')) {
+                cleaned += '\\';
+            }
             cleaned += ch;
         }
 
@@ -58,12 +68,19 @@ bool PatternMatcher::matches_pattern(const std::string& text, const std::string&
 
     std::string sanitized_pattern = sanitize_quotes(pattern);
 
-    if (pattern.find('|') != std::string::npos) {
+    if (sanitized_pattern.find('|') != std::string::npos) {
         size_t start = 0;
         while (start < sanitized_pattern.length()) {
-            size_t pipe_pos = sanitized_pattern.find('|', start);
+            size_t pipe_pos = start;
+            while (pipe_pos < sanitized_pattern.length()) {
+                if (sanitized_pattern[pipe_pos] == '|' &&
+                    (pipe_pos == 0 || sanitized_pattern[pipe_pos - 1] != '\\')) {
+                    break;
+                }
+                ++pipe_pos;
+            }
             std::string sub_pattern;
-            if (pipe_pos == std::string::npos) {
+            if (pipe_pos >= sanitized_pattern.length()) {
                 sub_pattern = sanitized_pattern.substr(start);
                 start = sanitized_pattern.length();
             } else {

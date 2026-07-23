@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
@@ -168,6 +169,114 @@ bool expression_is_cacheable(std::string_view expression) {
     return true;
 }
 
+std::string_view trim_expression(std::string_view expression) {
+    while (!expression.empty() &&
+           std::isspace(static_cast<unsigned char>(expression.front())) != 0) {
+        expression.remove_prefix(1);
+    }
+    while (!expression.empty() &&
+           std::isspace(static_cast<unsigned char>(expression.back())) != 0) {
+        expression.remove_suffix(1);
+    }
+    return expression;
+}
+
+bool has_wrapping_parentheses(std::string_view expression) {
+    if (expression.size() < 2 || expression.front() != '(' || expression.back() != ')') {
+        return false;
+    }
+
+    int depth = 0;
+    for (size_t i = 0; i < expression.size(); ++i) {
+        if (expression[i] == '(') {
+            ++depth;
+        } else if (expression[i] == ')') {
+            --depth;
+            if (depth == 0 && i + 1 < expression.size()) {
+                return false;
+            }
+        }
+    }
+    return depth == 0;
+}
+
+std::optional<size_t> find_top_level_operator(std::string_view expression,
+                                              std::string_view target) {
+    int depth = 0;
+    for (size_t i = 0; i + target.size() <= expression.size(); ++i) {
+        if (expression[i] == '(') {
+            ++depth;
+            continue;
+        }
+        if (expression[i] == ')') {
+            --depth;
+            continue;
+        }
+        if (depth == 0 && expression.substr(i, target.size()) == target) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
+bool has_top_level_assignment(std::string_view expression) {
+    int depth = 0;
+    for (size_t i = 0; i < expression.size(); ++i) {
+        if (expression[i] == '(') {
+            ++depth;
+            continue;
+        }
+        if (expression[i] == ')') {
+            --depth;
+            continue;
+        }
+        if (depth != 0 || expression[i] != '=') {
+            continue;
+        }
+
+        const char previous = i > 0 ? expression[i - 1] : '\0';
+        const char next = i + 1 < expression.size() ? expression[i + 1] : '\0';
+        if (next != '=' && previous != '=' && previous != '!' && previous != '<' &&
+            previous != '>') {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::optional<std::pair<size_t, size_t>> find_top_level_ternary(std::string_view expression) {
+    int paren_depth = 0;
+    int ternary_depth = 0;
+    size_t question_pos = std::string_view::npos;
+
+    for (size_t i = 0; i < expression.size(); ++i) {
+        if (expression[i] == '(') {
+            ++paren_depth;
+            continue;
+        }
+        if (expression[i] == ')') {
+            --paren_depth;
+            continue;
+        }
+        if (paren_depth != 0) {
+            continue;
+        }
+        if (expression[i] == '?') {
+            if (question_pos == std::string_view::npos) {
+                question_pos = i;
+            } else {
+                ++ternary_depth;
+            }
+        } else if (expression[i] == ':' && question_pos != std::string_view::npos) {
+            if (ternary_depth == 0) {
+                return std::pair<size_t, size_t>{question_pos, i};
+            }
+            --ternary_depth;
+        }
+    }
+    return std::nullopt;
+}
+
 }  // namespace
 
 ArithmeticEvaluator::ArithmeticEvaluator(VariableReader var_reader, VariableWriter var_writer)
@@ -179,15 +288,50 @@ long long ArithmeticEvaluator::evaluate(const std::string& expr) {
     using PostfixCache = std::unordered_map<std::string, std::vector<Token>>;
     static thread_local PostfixCache postfix_cache;
 
-    bool cacheable = expression_is_cacheable(expr);
+    std::string_view normalized_view = trim_expression(expr);
+    while (has_wrapping_parentheses(normalized_view)) {
+        normalized_view.remove_prefix(1);
+        normalized_view.remove_suffix(1);
+        normalized_view = trim_expression(normalized_view);
+    }
+    const std::string normalized_expression(normalized_view);
+
+    if (!has_top_level_assignment(normalized_expression)) {
+        if (auto ternary = find_top_level_ternary(normalized_expression)) {
+            const long long condition = evaluate(normalized_expression.substr(0, ternary->first));
+            if (condition != 0) {
+                return evaluate(normalized_expression.substr(ternary->first + 1,
+                                                             ternary->second - ternary->first - 1));
+            }
+            return evaluate(normalized_expression.substr(ternary->second + 1));
+        }
+
+        if (auto logical_or = find_top_level_operator(normalized_expression, "||")) {
+            const long long left = evaluate(normalized_expression.substr(0, *logical_or));
+            if (left != 0) {
+                return 1;
+            }
+            return evaluate(normalized_expression.substr(*logical_or + 2)) != 0 ? 1 : 0;
+        }
+
+        if (auto logical_and = find_top_level_operator(normalized_expression, "&&")) {
+            const long long left = evaluate(normalized_expression.substr(0, *logical_and));
+            if (left == 0) {
+                return 0;
+            }
+            return evaluate(normalized_expression.substr(*logical_and + 2)) != 0 ? 1 : 0;
+        }
+    }
+
+    bool cacheable = expression_is_cacheable(normalized_expression);
     if (cacheable) {
-        auto cache_it = postfix_cache.find(expr);
+        auto cache_it = postfix_cache.find(normalized_expression);
         if (cache_it != postfix_cache.end()) {
             return evaluate_postfix(cache_it->second);
         }
     }
 
-    auto tokens = tokenize(expr);
+    auto tokens = tokenize(normalized_expression);
     handle_assignment_operators(tokens);
     handle_increment_operators(tokens);
     auto postfix = infix_to_postfix(tokens);
@@ -196,7 +340,7 @@ long long ArithmeticEvaluator::evaluate(const std::string& expr) {
         if (postfix_cache.size() >= kCacheLimit) {
             postfix_cache.clear();
         }
-        postfix_cache.emplace(expr, postfix);
+        postfix_cache.emplace(normalized_expression, postfix);
     }
 
     return evaluate_postfix(postfix);

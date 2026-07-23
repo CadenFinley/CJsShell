@@ -1665,10 +1665,21 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         const bool has_temporary_env = strip_temporary_env_assignments(
             cmd.args, cmd_start_idx, original_arg_count, env_assignments);
+        const bool assignments_persist = has_temporary_env && !cmd.background &&
+                                         !cmd.args.empty() && is_posix_special_builtin(cmd.args[0]);
+
+        if (assignments_persist) {
+            apply_assignments_to_shell_env(env_assignments);
+        }
 
         if (can_execute_in_process(cmd)) {
-            TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
-            int exit_code = execute_builtin_or_special_command(cmd.args);
+            int exit_code = 0;
+            if (assignments_persist) {
+                exit_code = execute_builtin_or_special_command(cmd.args);
+            } else {
+                TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
+                exit_code = execute_builtin_or_special_command(cmd.args);
+            }
             set_last_pipeline_statuses({exit_code});
             return finalize_exit(exit_code);
         }
@@ -1680,9 +1691,33 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
             return finalize_exit(async_result);
         }
+
+        ShellScriptInterpreter* interpreter =
+            g_shell ? g_shell->get_shell_script_interpreter() : nullptr;
+        if (interpreter && !cmd.args.empty() && interpreter->has_function(cmd.args[0])) {
+            auto invoke_function = [&]() { return interpreter->invoke_function(cmd.args); };
+            int function_exit = 0;
+            if (requires_fork(cmd)) {
+                bool action_invoked = false;
+                TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
+                function_exit = run_with_command_redirections(cmd, invoke_function, cmd.args[0],
+                                                              false, &action_invoked);
+            } else {
+                TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
+                function_exit = invoke_function();
+            }
+            set_last_pipeline_statuses({function_exit});
+            return finalize_exit(function_exit);
+        }
+
         if (is_builtin_or_special_command(cmd.args)) {
-            TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
-            int builtin_exit = execute_builtin_with_redirections(cmd);
+            int builtin_exit = 0;
+            if (assignments_persist) {
+                builtin_exit = execute_builtin_with_redirections(cmd);
+            } else {
+                TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
+                builtin_exit = execute_builtin_with_redirections(cmd);
+            }
             set_last_pipeline_statuses({builtin_exit});
             return finalize_exit(builtin_exit);
         }

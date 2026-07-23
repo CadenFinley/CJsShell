@@ -47,6 +47,7 @@
 namespace {
 
 static int exit_status = 0;
+static bool output_stopped = false;
 
 constexpr long long kMaxPrintfFieldWidth = 1'000'000;
 constexpr long long kMaxPrintfPrecision = 1'000'000;
@@ -151,7 +152,7 @@ static void print_esc_char(char c) {
             putchar('\b');
             break;
         case 'c':
-            exit(0);
+            output_stopped = true;
             break;
         case 'e':
             putchar('\x1B');
@@ -208,7 +209,9 @@ static int print_esc(const char* escstart, bool octal_0) {
                          "printf",
                          "missing hexadecimal number in escape",
                          {}});
-            exit(1);
+            exit_status = 1;
+            output_stopped = true;
+            return static_cast<int>(p - escstart - 1);
         }
         putchar(esc_value);
     } else if (is_octal_digit(*p)) {
@@ -228,7 +231,9 @@ static int print_esc(const char* escstart, bool octal_0) {
                              "printf",
                              "missing hexadecimal number in escape",
                              {}});
-                exit(1);
+                exit_status = 1;
+                output_stopped = true;
+                return static_cast<int>(p - escstart - 1);
             }
             uni_value = uni_value * 16 + static_cast<uint32_t>(from_hex_digit(*p));
         }
@@ -236,7 +241,9 @@ static int print_esc(const char* escstart, bool octal_0) {
         if (uni_value >= 0xD800 && uni_value <= 0xDFFF) {
             print_error(
                 {ErrorType::INVALID_ARGUMENT, "printf", "invalid universal character name", {}});
-            exit(1);
+            exit_status = 1;
+            output_stopped = true;
+            return static_cast<int>(p - escstart - 1);
         }
 
         print_unicode_char(uni_value);
@@ -251,7 +258,7 @@ static int print_esc(const char* escstart, bool octal_0) {
 }
 
 static void print_esc_string(const char* str) {
-    for (; *str; str++)
+    for (; *str && !output_stopped; str++)
         if (*str == '\\')
             str += print_esc(str, true);
         else
@@ -492,7 +499,7 @@ static int print_formatted(const char* format, int argc, char** argv) {
     int precision = 0;
     bool ok[256] = {false};
 
-    for (ac.f = format; *ac.f; ac.f++) {
+    for (ac.f = format; *ac.f && !output_stopped; ac.f++) {
         if (*ac.f == '%') {
             direc_start = ac.f;
             ac.f++;
@@ -517,6 +524,8 @@ static int print_formatted(const char* format, int argc, char** argv) {
                 }
                 if (ac.curr_arg < argc)
                     print_esc_string(argv[ac.curr_arg]);
+                if (output_stopped)
+                    break;
                 continue;
             }
 
@@ -711,6 +720,7 @@ int printf_command(const std::vector<std::string>& args) {
     }
 
     exit_status = 0;
+    output_stopped = false;
 
     const std::string& format = args[1];
     std::vector<std::string> argv_storage;
@@ -733,6 +743,8 @@ int printf_command(const std::vector<std::string>& args) {
         args_used = print_formatted(format.c_str(), argc, argv);
         if (args_used < 0)
             return 1;
+        if (output_stopped)
+            break;
         argc -= args_used;
         argv += args_used;
     } while (args_used > 0 && argc > 0);

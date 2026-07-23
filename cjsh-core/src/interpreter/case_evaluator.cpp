@@ -90,13 +90,6 @@ std::vector<std::string> split_case_sections(const std::string& input, bool trim
 }
 
 std::string normalize_case_pattern(std::string pattern, Parser* parser) {
-    if (pattern.length() >= 2) {
-        char first_char = pattern.front();
-        char last_char = pattern.back();
-        if ((first_char == '"' && last_char == '"') || (first_char == '\'' && last_char == '\'')) {
-            pattern = pattern.substr(1, pattern.length() - 2);
-        }
-    }
     if (parser != nullptr)
         parser->expand_env_vars(pattern);
     return pattern;
