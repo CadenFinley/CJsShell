@@ -33,7 +33,6 @@
 #include <string.h>
 
 #include "completions.h"
-#include "editline_viewport.h"
 #include "env.h"
 #include "history.h"
 #include "isocline.h"
@@ -364,58 +363,6 @@ static bool test_multiline_max_line_count_defaults_and_clamps(void) {
     EXPECT_TRUE(previous == 256, "previous value should reflect the clamped maximum");
     EXPECT_TRUE(ic_get_multiline_max_line_count() == 15,
                 "multiline maximum line count should accept the default value");
-
-    return true;
-}
-
-static bool test_multiline_bottom_line_count_defaults_and_clamps(void) {
-    ic_env_t* env = ensure_env();
-    if (env == NULL)
-        return false;
-
-    EXPECT_TRUE(ic_get_multiline_bottom_line_count() == 3,
-                "multiline viewport should default to three content rows below the cursor");
-
-    size_t previous = ic_set_multiline_bottom_line_count(0);
-    EXPECT_TRUE(previous == 3,
-                "ic_set_multiline_bottom_line_count should return the previous value");
-    EXPECT_TRUE(env->multiline_bottom_line_count == 0,
-                "multiline bottom line count should allow zero");
-
-    previous = ic_set_multiline_bottom_line_count(300);
-    EXPECT_TRUE(previous == 0,
-                "multiline bottom line setter should report the most recent stored value");
-    EXPECT_TRUE(env->multiline_bottom_line_count == 256,
-                "multiline bottom line count should clamp to 256");
-
-    previous = ic_set_multiline_bottom_line_count(3);
-    EXPECT_TRUE(previous == 256, "previous value should reflect the clamped maximum");
-    EXPECT_TRUE(ic_get_multiline_bottom_line_count() == 3,
-                "multiline bottom line count should accept the default value");
-
-    return true;
-}
-
-static bool test_multiline_viewport_bottom_content_rows(void) {
-    editline_viewport_t viewport = editline_viewport_for(20, 14, 15, 3);
-    EXPECT_TRUE(viewport.first_row == 3 && viewport.last_row == 17,
-                "viewport should retain three existing rows below the cursor");
-
-    viewport = editline_viewport_for(20, 16, 15, 3);
-    EXPECT_TRUE(viewport.first_row == 5 && viewport.last_row == 19,
-                "viewport should stop at the final content row without adding blank rows");
-
-    viewport = editline_viewport_for(20, 19, 15, 3);
-    EXPECT_TRUE(viewport.first_row == 5 && viewport.last_row == 19,
-                "viewport should keep the final content-filled window at end of input");
-
-    viewport = editline_viewport_for(20, 14, 15, 0);
-    EXPECT_TRUE(viewport.first_row == 0 && viewport.last_row == 14,
-                "zero bottom rows should allow the cursor to reach the viewport bottom");
-
-    viewport = editline_viewport_for(20, 5, 5, 20);
-    EXPECT_TRUE(viewport.first_row == 5 && viewport.last_row == 9,
-                "bottom row preference should be bounded by the visible viewport");
 
     return true;
 }
@@ -4024,9 +3971,6 @@ static const test_case_t kTests[] = {
     {"multiline_start_line_count_clamp", test_multiline_start_line_count_clamp},
     {"multiline_max_line_count_defaults_and_clamps",
      test_multiline_max_line_count_defaults_and_clamps},
-    {"multiline_bottom_line_count_defaults_and_clamps",
-     test_multiline_bottom_line_count_defaults_and_clamps},
-    {"multiline_viewport_bottom_content_rows", test_multiline_viewport_bottom_content_rows},
     {"editline_buffer_api_without_editor", test_editline_buffer_api_without_editor},
     {"continuation_callback_registration", test_continuation_callback_registration},
     {"completion_generation_and_apply", test_completion_generation_and_apply},

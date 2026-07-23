@@ -45,7 +45,6 @@
 
 #include "common.h"
 #include "completions.h"
-#include "editline_viewport.h"
 #include "env.h"
 #include "env_internal.h"
 #include "fuzzy_match.h"
@@ -77,7 +76,6 @@ typedef struct editor_s {
     ssize_t cur_row;              // current row that has the cursor (0 based, relative to
                                   // the prompt)
     ssize_t view_first_row;       // first visible row in the current viewport
-    ssize_t view_rows;            // rows rendered in the current viewport
     ssize_t termw;
     bool modified;                      // has a modification happened? (used for history navigation
                                         // for example)
@@ -1713,17 +1711,10 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     ssize_t first_row = 0;        // first visible row
     ssize_t last_row = rows - 1;  // last visible row
     if (rows > visible_termh) {
-        if (!menu_active && rows_input > visible_termh) {
-            const editline_viewport_t viewport = editline_viewport_for(
-                rows_input, rc.row, visible_termh, env->multiline_bottom_line_count);
-            first_row = viewport.first_row;
-            last_row = viewport.last_row;
-        } else {
-            first_row = rc.row - visible_termh + 1;  // ensure cursor is visible
-            if (first_row < 0)
-                first_row = 0;
-            last_row = first_row + visible_termh - 1;
-        }
+        first_row = rc.row - visible_termh + 1;  // ensure cursor is visible
+        if (first_row < 0)
+            first_row = 0;
+        last_row = first_row + visible_termh - 1;
     }
     assert(last_row - first_row < visible_termh);
 
@@ -1731,14 +1722,8 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     buffer_mode_t bmode = term_set_buffer_mode(env->term, BUFFERED);
 
     // back up to the first line
-    ssize_t previous_visible_cursor_row = eb->cur_row - eb->view_first_row;
-    if (previous_visible_cursor_row < 0) {
-        previous_visible_cursor_row = 0;
-    } else if (eb->view_rows > 0 && previous_visible_cursor_row >= eb->view_rows) {
-        previous_visible_cursor_row = eb->view_rows - 1;
-    }
     term_start_of_line(env->term);
-    term_up(env->term, previous_visible_cursor_row);
+    term_up(env->term, (eb->cur_row >= visible_termh ? visible_termh - 1 : eb->cur_row));
     // term_clear_lines_to_end(env->term);  // gives flicker in old Windows cmd
     // prompt
 
@@ -1755,8 +1740,7 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     }
 
     // overwrite trailing rows we do not use anymore
-    const ssize_t view_rows = last_row - first_row + 1;
-    ssize_t rrows = view_rows;  // rendered rows, including any trailing rows cleared below
+    ssize_t rrows = last_row - first_row + 1;  // rendered rows
     if (rrows < visible_termh && rows < eb->cur_rows) {
         ssize_t clear = eb->cur_rows - rows;
         while (rrows < visible_termh && clear > 0) {
@@ -1820,38 +1804,30 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     eb->mouse_terminal_selection_extra = (!menu_active && rows_extra > 0);
     eb->cur_row = rc.row;
     eb->view_first_row = first_row;
-    eb->view_rows = view_rows;
     eb->force_linear_line_numbers = false;
 }
 
 // clear current output
 static void edit_clear(ic_env_t* env, editor_t* eb) {
     term_attr_reset(env->term);
-    const ssize_t clear_rows = (eb->view_rows > 0 ? eb->view_rows : 1);
-    ssize_t visible_cursor_row = eb->cur_row - eb->view_first_row;
-    if (visible_cursor_row < 0) {
-        visible_cursor_row = 0;
-    } else if (visible_cursor_row >= clear_rows) {
-        visible_cursor_row = clear_rows - 1;
-    }
-    term_up(env->term, visible_cursor_row);
+    term_up(env->term, eb->cur_row);
 
     // overwrite all rows
-    for (ssize_t i = 0; i < clear_rows; i++) {
+    for (ssize_t i = 0; i < eb->cur_rows; i++) {
         term_clear_line(env->term);
         term_writeln(env->term, "");
     }
 
     // move cursor back
-    term_up(env->term, clear_rows - visible_cursor_row);
+    term_up(env->term, eb->cur_rows - eb->cur_row);
 }
 
 // clear screen and refresh
 static void edit_clear_screen(ic_env_t* env, editor_t* eb) {
-    const ssize_t view_rows = eb->view_rows;
-    eb->view_rows = term_get_height(env->term) - 1;
+    ssize_t cur_rows = eb->cur_rows;
+    eb->cur_rows = term_get_height(env->term) - 1;
     edit_clear(env, eb);
-    eb->view_rows = view_rows;
+    eb->cur_rows = cur_rows;
     if (eb->prompt_prefix_lines > 0) {
         redraw_prompt_prefix_lines(env, eb);
     }
@@ -3483,7 +3459,6 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     eb.cur_rows = 1;
     eb.input_rows = 1;
     eb.cur_row = 0;
-    eb.view_rows = 1;
     eb.modified = false;
 
     const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
@@ -4222,8 +4197,6 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
     edit_clear(env, eb);
     eb->cur_row = 0;
     eb->cur_rows = 1;
-    eb->view_first_row = 0;
-    eb->view_rows = 1;
 
     // Rewrite the prompt
     edit_write_prompt(env, eb, 0, false, 0, 0, 0, false);

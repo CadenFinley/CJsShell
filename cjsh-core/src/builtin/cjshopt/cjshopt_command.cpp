@@ -59,7 +59,6 @@ enum class CjshoptSubcommand : std::uint8_t {
     CurrentLineNumberHighlight,
     MultilineStartLines,
     MultilineMaxLines,
-    MultilineBottomLines,
     HintDelay,
     CompletionPreview,
     CompletionMenuExpanded,
@@ -121,8 +120,6 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
          {CjshoptSubcommand::MultilineStartLines, "multiline-start-lines",
           multiline_start_lines_command},
          {CjshoptSubcommand::MultilineMaxLines, "multiline-max-lines", multiline_max_lines_command},
-         {CjshoptSubcommand::MultilineBottomLines, "multiline-bottom-lines",
-          multiline_bottom_lines_command},
          {CjshoptSubcommand::HintDelay, "hint-delay", hint_delay_command},
          {CjshoptSubcommand::CompletionPreview, "completion-preview", completion_preview_command},
          {CjshoptSubcommand::CompletionMenuExpanded, "completion-menu-expanded",
@@ -201,8 +198,6 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "height (default: 1)",
         std::string("  multiline-max-lines <count|status> Limit visible multiline input rows ") +
             "(default: 15)",
-        std::string("  multiline-bottom-lines <count|status> Keep content rows below the cursor ") +
-            "(default: 3)",
         "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
         std::string("  completion-preview <on|off|status> Configure completion preview ") +
             "(default: enabled)",
@@ -291,7 +286,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                   "completion-learning, "
                   "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
                   "current-line-number-highlight, multiline-start-lines, multiline-max-lines, "
-                  "multiline-bottom-lines, hint-delay, "
+                  "hint-delay, "
                   "completion-preview, completion-menu-expanded, completion-click-accept, "
                   "menu-highlighting, visible-whitespace, hint, "
                   "multiline-indent, multiline, inline-help, "
