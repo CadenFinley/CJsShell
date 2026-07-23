@@ -140,6 +140,7 @@ struct ic_env_s {
     bool terminal_region_marking_enabled;              // emit OSC 133 semantic regions
     uint8_t terminal_region_state;                     // current OSC 133 lifecycle state
     size_t multiline_start_line_count;  // prefill multiline prompts with this many lines
+    size_t multiline_max_line_count;    // maximum visible input rows in multiline mode
     long hint_delay;                    // delay before displaying a hint in milliseconds
 
     ic_key_binding_entry_t* key_bindings;  // dynamic array of custom key bindings

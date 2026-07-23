@@ -1052,6 +1052,108 @@ def main() -> int:
             f"{multiline_ctrl_e_stays_on_line!r}"
         )
 
+    viewport_expected = (
+        "viewport-line-01\nviewport-line-02\nviewport-line-03\n"
+        "viewport-line-04\nviewport-line-05"
+    )
+    viewport_result, viewport_output = run_case(
+        binary,
+        "multiline_max_lines_viewport",
+        b"\x0c\r",
+        capture_output=True,
+        initial_rows=24,
+        initial_cols=80,
+    )
+    if viewport_result != viewport_expected:
+        raise AssertionError(
+            "multiline_max_lines_viewport should preserve the complete buffer, got "
+            f"{viewport_result!r}"
+        )
+    viewport_render = normalize_terminal_output(
+        viewport_output.split("[IC_RESULT_BEGIN]", 1)[0]
+    )
+    if "viewport-line-01" in viewport_render or "viewport-line-02" in viewport_render:
+        raise AssertionError(
+            "multiline viewport rendered rows above its three-line window: "
+            f"output={viewport_render!r}"
+        )
+    for expected_line in ("viewport-line-03", "viewport-line-04", "viewport-line-05"):
+        if expected_line not in viewport_render:
+            raise AssertionError(
+                f"multiline viewport omitted visible row {expected_line!r}: "
+                f"output={viewport_render!r}"
+            )
+    for expected_number in ("3| ", "4| ", "5| "):
+        if expected_number not in viewport_render:
+            raise AssertionError(
+                "multiline viewport lost logical line-number state while skipping hidden rows: "
+                f"missing={expected_number!r}, output={viewport_render!r}"
+            )
+    if "\x1b[4A" in viewport_output:
+        raise AssertionError(
+            "viewport clear/redraw used the five-row logical cursor position instead of the "
+            f"three-row screen position: output={viewport_output!r}"
+        )
+
+    reset_result, reset_output = run_case(
+        binary,
+        "multiline_max_lines_prompt_reset",
+        b"\r",
+        capture_output=True,
+        initial_rows=24,
+        initial_cols=80,
+    )
+    if reset_result != viewport_expected:
+        raise AssertionError(
+            "multiline_max_lines_prompt_reset should preserve the complete buffer, got "
+            f"{reset_result!r}"
+        )
+    final_prompt_index = reset_output.find("VIEWPORT-FINAL-TOP")
+    if final_prompt_index < 0:
+        raise AssertionError(
+            f"multiline viewport prompt reset omitted the final prompt: output={reset_output!r}"
+        )
+    reset_clear_index = reset_output.rfind("\x1b[2A", 0, final_prompt_index)
+    if reset_clear_index < 0:
+        raise AssertionError(
+            "multiline viewport prompt reset did not move up by its two visible cursor rows: "
+            f"output={reset_output!r}"
+        )
+    reset_clear_output = reset_output[reset_clear_index:final_prompt_index]
+    if reset_clear_output.count("\x1b[K") < 3 or "\x1b[4A" in reset_clear_output:
+        raise AssertionError(
+            "multiline viewport prompt reset did not clear exactly the rendered viewport: "
+            f"clear_output={reset_clear_output!r}"
+        )
+
+    menu_expected = (
+        "hidden-menu-line-01\nhidden-menu-line-02\nvisible-menu-line-03\n"
+        "visible-menu-line-04\ns01"
+    )
+    menu_result, menu_output = run_case(
+        binary,
+        "completion_many_menu_long_multiline",
+        b"\t\r\r",
+        capture_output=True,
+        initial_rows=24,
+        initial_cols=80,
+    )
+    if menu_result != menu_expected:
+        raise AssertionError(
+            "completion menu over a multiline viewport should preserve the complete buffer, got "
+            f"{menu_result!r}"
+        )
+    menu_render = normalize_terminal_output(menu_output.split("[IC_RESULT_BEGIN]", 1)[0])
+    if "s01" not in menu_render:
+        raise AssertionError(
+            f"completion menu was not rendered below the multiline viewport: {menu_render!r}"
+        )
+    if "hidden-menu-line-01" in menu_render or "hidden-menu-line-02" in menu_render:
+        raise AssertionError(
+            "completion menu temporarily exposed input rows outside the configured viewport: "
+            f"output={menu_render!r}"
+        )
+
     multiline_navigation_cases = [
         (
             "pageup_input_start",

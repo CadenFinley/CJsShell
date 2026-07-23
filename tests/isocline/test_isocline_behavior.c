@@ -33,6 +33,7 @@
 #include <string.h>
 
 #include "completions.h"
+#include "editline_viewport.h"
 #include "env.h"
 #include "history.h"
 #include "isocline.h"
@@ -336,6 +337,63 @@ static bool test_multiline_start_line_count_clamp(void) {
     EXPECT_TRUE(previous == 256, "previous value should reflect clamped maximum");
     EXPECT_TRUE(env->multiline_start_line_count == 3,
                 "multiline start line count should accept values within the allowed range");
+
+    return true;
+}
+
+static bool test_multiline_max_line_count_defaults_and_clamps(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    EXPECT_TRUE(ic_get_multiline_max_line_count() == 15,
+                "multiline viewport should default to 15 visible rows");
+
+    size_t previous = ic_set_multiline_max_line_count(0);
+    EXPECT_TRUE(previous == 15, "multiline maximum setter should return the previous value");
+    EXPECT_TRUE(env->multiline_max_line_count == 1,
+                "multiline maximum line count should clamp to a minimum of 1");
+
+    previous = ic_set_multiline_max_line_count(300);
+    EXPECT_TRUE(previous == 1,
+                "multiline maximum setter should report the most recent stored value");
+    EXPECT_TRUE(env->multiline_max_line_count == 256,
+                "multiline maximum line count should clamp to 256");
+
+    previous = ic_set_multiline_max_line_count(15);
+    EXPECT_TRUE(previous == 256, "previous value should reflect the clamped maximum");
+    EXPECT_TRUE(ic_get_multiline_max_line_count() == 15,
+                "multiline maximum line count should accept the default value");
+
+    return true;
+}
+
+static bool test_multiline_viewport_layout(void) {
+    editline_viewport_t viewport = editline_viewport_for(20, 0, 19, 24, 15);
+    EXPECT_TRUE(viewport.input_first_row == 5 && viewport.input_row_count == 15,
+                "viewport should show the final 15 input rows at end of the buffer");
+    EXPECT_TRUE(viewport.extra_row_count == 0,
+                "viewport without helpers should not reserve extra rows");
+
+    viewport = editline_viewport_for(20, 0, 0, 24, 15);
+    EXPECT_TRUE(viewport.input_first_row == 0 && viewport.input_row_count == 15,
+                "viewport should keep the first input row visible at buffer start");
+
+    viewport = editline_viewport_for(20, 5, 19, 24, 15);
+    EXPECT_TRUE(viewport.input_first_row == 5 && viewport.input_row_count == 15,
+                "helper rows should coexist with the configured input viewport when space allows");
+    EXPECT_TRUE(viewport.extra_row_count == 5,
+                "all helper rows should remain visible when they fit below the input viewport");
+
+    viewport = editline_viewport_for(20, 10, 19, 24, 15);
+    EXPECT_TRUE(viewport.input_first_row == 6 && viewport.input_row_count == 14,
+                "input viewport should yield screen space when helper rows fill the terminal");
+    EXPECT_TRUE(viewport.extra_row_count == 10,
+                "already-windowed helper rows should be preserved where possible");
+
+    viewport = editline_viewport_for(20, 0, 19, 10, 15);
+    EXPECT_TRUE(viewport.input_first_row == 10 && viewport.input_row_count == 10,
+                "terminal height should bound the configured input viewport");
 
     return true;
 }
@@ -3942,6 +4000,9 @@ static const test_case_t kTests[] = {
     {"prompt_line_replacement_requires_content", test_prompt_line_replacement_requires_content},
     {"visible_whitespace_marker", test_visible_whitespace_marker},
     {"multiline_start_line_count_clamp", test_multiline_start_line_count_clamp},
+    {"multiline_max_line_count_defaults_and_clamps",
+     test_multiline_max_line_count_defaults_and_clamps},
+    {"multiline_viewport_layout", test_multiline_viewport_layout},
     {"editline_buffer_api_without_editor", test_editline_buffer_api_without_editor},
     {"continuation_callback_registration", test_continuation_callback_registration},
     {"completion_generation_and_apply", test_completion_generation_and_apply},

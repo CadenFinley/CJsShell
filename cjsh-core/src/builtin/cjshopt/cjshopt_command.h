@@ -64,6 +64,7 @@ int hint_command(const std::vector<std::string>& args);
 int multiline_indent_command(const std::vector<std::string>& args);
 int multiline_command(const std::vector<std::string>& args);
 int multiline_start_lines_command(const std::vector<std::string>& args);
+int multiline_max_lines_command(const std::vector<std::string>& args);
 int inline_help_command(const std::vector<std::string>& args);
 int status_hints_command(const std::vector<std::string>& args);
 int status_line_command(const std::vector<std::string>& args);

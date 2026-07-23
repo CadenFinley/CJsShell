@@ -426,6 +426,10 @@ static void edit_show_help(ic_env_t* env, editor_t* eb) {
         redraw_prompt_prefix_lines(env, eb);
     }
     eb->cur_rows = 0;
+    eb->input_rows = 0;
     eb->cur_row = 0;
+    eb->view_first_row = 0;
+    eb->view_rows = 0;
+    eb->view_input_rows = 0;
     edit_refresh(env, eb);
 }

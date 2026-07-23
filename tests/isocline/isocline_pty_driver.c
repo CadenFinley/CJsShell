@@ -295,6 +295,9 @@ static int run_case(const char* scenario) {
                            strcmp(scenario, "multiline_initial_ctrl_j") == 0 ||
                            strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0 ||
                            strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0 ||
+                           strcmp(scenario, "multiline_max_lines_viewport") == 0 ||
+                           strcmp(scenario, "multiline_max_lines_prompt_reset") == 0 ||
+                           strcmp(scenario, "completion_many_menu_long_multiline") == 0 ||
                            strcmp(scenario, "region_marking_multiline") == 0 ||
                            strcmp(scenario, "completion_many_menu_multiline_replacement") == 0);
     ic_enable_multiline(multiline_mode);
@@ -374,6 +377,13 @@ static int run_case(const char* scenario) {
         initial_input = "ab\ncd\nef";
     } else if (strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0) {
         initial_input = "ab\ncd\nef";
+    } else if (strcmp(scenario, "multiline_max_lines_viewport") == 0 ||
+               strcmp(scenario, "multiline_max_lines_prompt_reset") == 0) {
+        initial_input =
+            "viewport-line-01\nviewport-line-02\nviewport-line-03\nviewport-line-04\n"
+            "viewport-line-05";
+        (void)ic_set_multiline_max_line_count(3);
+        (void)ic_enable_line_numbers_with_continuation_prompt(true);
     } else if (strcmp(scenario, "completion_midline_single") == 0) {
         initial_input = "say he";
         g_completion_mode = COMPLETION_MODE_SINGLE;
@@ -408,6 +418,7 @@ static int run_case(const char* scenario) {
                strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0 ||
                strcmp(scenario, "completion_many_menu_mouse_default_on") == 0 ||
                strcmp(scenario, "completion_many_menu_multiline") == 0 ||
+               strcmp(scenario, "completion_many_menu_long_multiline") == 0 ||
                strcmp(scenario, "completion_many_menu_multiline_replacement") == 0) {
         if (strcmp(scenario, "completion_many_menu_multiline") == 0) {
             g_completion_mode = COMPLETION_MODE_MANY_MULTILINE;
@@ -416,6 +427,13 @@ static int run_case(const char* scenario) {
             ic_enable_completion_preview(true);
         } else {
             g_completion_mode = COMPLETION_MODE_MANY;
+        }
+        if (strcmp(scenario, "completion_many_menu_long_multiline") == 0) {
+            initial_input =
+                "hidden-menu-line-01\nhidden-menu-line-02\nvisible-menu-line-03\n"
+                "visible-menu-line-04\ns";
+            (void)ic_set_multiline_max_line_count(3);
+            (void)ic_enable_line_numbers_with_continuation_prompt(true);
         }
         ic_set_default_completer(pty_completion_dispatcher, NULL);
         if (strcmp(scenario, "completion_many_menu_off") == 0) {
@@ -634,8 +652,11 @@ static int run_case(const char* scenario) {
     if (strcmp(scenario, "region_marking_transient_prompt_components") == 0) {
         ic_set_check_for_continuation_or_return_callback(apply_transient_prompt_on_submit, NULL);
     } else if (strcmp(scenario, "transient_prompt_multiline_clear") == 0) {
+        ic_set_check_for_continuation_or_return_callback(apply_transient_prompt_on_submit,
+                                                         "FINAL-TOP\nFINAL-MIDDLE\nfinal");
+    } else if (strcmp(scenario, "multiline_max_lines_prompt_reset") == 0) {
         ic_set_check_for_continuation_or_return_callback(
-            apply_transient_prompt_on_submit, "FINAL-TOP\nFINAL-MIDDLE\nfinal");
+            apply_transient_prompt_on_submit, "VIEWPORT-FINAL-TOP\nVIEWPORT-FINAL-MIDDLE\nfinal");
     }
 
     char* line = NULL;

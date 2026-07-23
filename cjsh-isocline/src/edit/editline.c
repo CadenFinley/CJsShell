@@ -45,6 +45,7 @@
 
 #include "common.h"
 #include "completions.h"
+#include "editline_viewport.h"
 #include "env.h"
 #include "env_internal.h"
 #include "fuzzy_match.h"
@@ -70,12 +71,13 @@ typedef struct editor_s {
     stringbuf_t* hint_help;       // help for a hint.
     stringbuf_t* history_prefix;  // cached prefix before history navigation
     ssize_t pos;                  // current cursor position in the input
-    ssize_t cur_rows;             // current used rows to display our content (including
-                                  // extra content)
-    ssize_t input_rows;           // current prompt/input rows before status/help content
-    ssize_t cur_row;              // current row that has the cursor (0 based, relative to
+    ssize_t cur_rows;             // total logical rows for input and extra content
+    ssize_t input_rows;           // logical prompt/input rows before status/help content
+    ssize_t cur_row;              // logical row that has the cursor (0 based, relative to
                                   // the prompt)
-    ssize_t view_first_row;       // first visible row in the current viewport
+    ssize_t view_first_row;       // first logical input row in the current viewport
+    ssize_t view_rows;            // total rows physically rendered in the current viewport
+    ssize_t view_input_rows;      // physically rendered prompt/input rows in the viewport
     ssize_t termw;
     bool modified;                      // has a modification happened? (used for history navigation
                                         // for example)
@@ -168,8 +170,7 @@ static void edit_history_next(ic_env_t* env, editor_t* eb);
 static void edit_yank_last_arg(ic_env_t* env, editor_t* eb);
 static void edit_clear_history_preview(editor_t* eb);
 static void edit_clear(ic_env_t* env, editor_t* eb);
-static void edit_clear_with_prompt_prefix(ic_env_t* env, editor_t* eb,
-                                          ssize_t prompt_prefix_lines);
+static void edit_clear_with_prompt_prefix(ic_env_t* env, editor_t* eb, ssize_t prompt_prefix_lines);
 static void edit_clear_screen(ic_env_t* env, editor_t* eb);
 static void edit_undo_restore(ic_env_t* env, editor_t* eb);
 static void edit_redo_restore(ic_env_t* env, editor_t* eb);
@@ -588,6 +589,24 @@ static ssize_t edit_get_rowcol(ic_env_t* env, editor_t* eb, rowcol_t* rc) {
     return sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, eb->pos, rc);
 }
 
+static ssize_t edit_visible_input_row_count(ic_env_t* env, editor_t* eb, ssize_t input_rows) {
+    if (env == NULL || input_rows < 1) {
+        return 1;
+    }
+
+    ssize_t available_rows = term_get_height(env->term);
+    if (eb != NULL && eb->prompt_prefix_lines > 0) {
+        available_rows -= eb->prompt_prefix_lines;
+    }
+    if (available_rows < 1) {
+        available_rows = 1;
+    }
+
+    return editline_viewport_for(input_rows, 0, input_rows - 1, available_rows,
+                                 env->multiline_max_line_count)
+        .input_row_count;
+}
+
 static void edit_set_pos_at_rowcol(ic_env_t* env, editor_t* eb, ssize_t row, ssize_t col) {
     ssize_t promptw, cpromptw;
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
@@ -596,6 +615,34 @@ static void edit_set_pos_at_rowcol(ic_env_t* env, editor_t* eb, ssize_t row, ssi
         return;
     eb->pos = pos;
     edit_refresh_hint(env, eb);
+}
+
+static ssize_t edit_view_cursor_row(const editor_t* eb) {
+    if (eb == NULL || eb->view_rows <= 0) {
+        return 0;
+    }
+
+    ssize_t cursor_row = eb->cur_row - eb->view_first_row;
+    if (cursor_row < 0) {
+        cursor_row = 0;
+    } else if (cursor_row >= eb->view_input_rows) {
+        cursor_row = (eb->view_input_rows > 0 ? eb->view_input_rows - 1 : 0);
+    }
+    return cursor_row;
+}
+
+static bool edit_view_row_to_logical_row(const editor_t* eb, ssize_t view_row,
+                                         ssize_t* logical_row) {
+    if (eb == NULL || logical_row == NULL || view_row < 0 || view_row >= eb->view_rows) {
+        return false;
+    }
+
+    if (view_row < eb->view_input_rows) {
+        *logical_row = eb->view_first_row + view_row;
+    } else {
+        *logical_row = eb->input_rows + (view_row - eb->view_input_rows);
+    }
+    return (*logical_row >= 0 && *logical_row < eb->cur_rows);
 }
 
 static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
@@ -629,8 +676,9 @@ static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
     }
 
     if (!has_cursor_pos) {
-        ssize_t fallback_row = mouse_event->row - 1;
-        if (fallback_row < 0 || fallback_row >= eb->cur_rows) {
+        const ssize_t fallback_view_row = mouse_event->row - 1;
+        ssize_t fallback_row = 0;
+        if (!edit_view_row_to_logical_row(eb, fallback_view_row, &fallback_row)) {
             return false;
         }
 
@@ -645,10 +693,7 @@ static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
     }
     ic_unused(cursor_col);
 
-    ssize_t visible_cursor_row = eb->cur_row - eb->view_first_row;
-    if (visible_cursor_row < 0) {
-        visible_cursor_row = 0;
-    }
+    const ssize_t visible_cursor_row = edit_view_cursor_row(eb);
 
     ssize_t top_row = cursor_row - visible_cursor_row;
     ssize_t clicked_visible_row = mouse_event->row - top_row;
@@ -659,8 +704,8 @@ static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
         return false;
     }
 
-    ssize_t row = eb->view_first_row + clicked_visible_row;
-    if (row < 0 || row >= eb->cur_rows) {
+    ssize_t row = 0;
+    if (!edit_view_row_to_logical_row(eb, clicked_visible_row, &row)) {
         return false;
     }
 
@@ -1356,6 +1401,7 @@ typedef struct refresh_info_s {
     ssize_t logical_line;
     ssize_t cursor_logical_line;
     bool continuation_row;
+    bool has_following_row;
 } refresh_info_t;
 
 static void edit_render_inline_right_prompt(refresh_info_t* info, ssize_t row, ssize_t row_len) {
@@ -1459,7 +1505,7 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         }
 
         // write line ending
-        if (row < info->last_row) {
+        if (row < info->last_row || info->has_following_row) {
             if (is_wrap && tty_is_utf8(info->env->tty)) {
                 ic_term_mark_prompt_start(info->env, true);
 #ifndef __APPLE__
@@ -1496,7 +1542,8 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
 
 static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, attrbuf_t* attrs,
                               ssize_t promptw, ssize_t cpromptw, bool in_extra, ssize_t first_row,
-                              ssize_t last_row, ssize_t cursor_row, ssize_t cursor_logical_line) {
+                              ssize_t last_row, bool has_following_row, ssize_t cursor_row,
+                              ssize_t cursor_logical_line) {
     if (input == NULL)
         return;
     refresh_info_t info;
@@ -1510,6 +1557,7 @@ static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, a
     info.logical_line = 0;
     info.cursor_logical_line = cursor_logical_line;
     info.continuation_row = false;
+    info.has_following_row = has_following_row;
     sbuf_for_each_row(input, eb->termw, promptw, cpromptw, &edit_refresh_rows_iter, &info, NULL);
 }
 
@@ -1705,41 +1753,42 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
         }
     }
 
-    ssize_t first_row = 0;        // first visible row
-    ssize_t last_row = rows - 1;  // last visible row
-    if (rows > visible_termh) {
-        first_row = rc.row - visible_termh + 1;  // ensure cursor is visible
-        if (first_row < 0)
-            first_row = 0;
-        last_row = first_row + visible_termh - 1;
-    }
-    assert(last_row - first_row < visible_termh);
+    const editline_viewport_t viewport = editline_viewport_for(
+        rows_input, rows_extra, rc.row, visible_termh, env->multiline_max_line_count);
+    const ssize_t first_input_row = viewport.input_first_row;
+    const ssize_t last_input_row = first_input_row + viewport.input_row_count - 1;
+    const ssize_t view_rows = viewport.input_row_count + viewport.extra_row_count;
+    const ssize_t visible_cursor_row = rc.row - first_input_row;
+    assert(viewport.input_row_count >= 1);
+    assert(visible_cursor_row >= 0 && visible_cursor_row < viewport.input_row_count);
+    assert(view_rows >= 1 && view_rows <= visible_termh);
 
     // reduce flicker
     buffer_mode_t bmode = term_set_buffer_mode(env->term, BUFFERED);
 
-    // back up to the first line
+    // Back up from the cursor's physical row in the previous viewport. Logical row counts can be
+    // much larger than the number of rows currently present on screen.
+    const ssize_t previous_visible_cursor_row = edit_view_cursor_row(eb);
     term_start_of_line(env->term);
-    term_up(env->term, (eb->cur_row >= visible_termh ? visible_termh - 1 : eb->cur_row));
+    term_up(env->term, previous_visible_cursor_row);
     // term_clear_lines_to_end(env->term);  // gives flicker in old Windows cmd
     // prompt
 
-    // render rows
-    edit_refresh_rows(env, eb, eb->input, eb->attrs, promptw, cpromptw, false, first_row, last_row,
-                      cursor_row_for_display, cursor_line_for_display);
-    if (rows_extra > 0) {
+    // Render the input viewport and then any helper/menu rows. These regions are intentionally
+    // non-contiguous in the logical layout when input rows above or below the cursor are hidden.
+    edit_refresh_rows(env, eb, eb->input, eb->attrs, promptw, cpromptw, false, first_input_row,
+                      last_input_row, viewport.extra_row_count > 0, cursor_row_for_display,
+                      cursor_line_for_display);
+    if (viewport.extra_row_count > 0) {
         assert(extra != NULL);
-        const ssize_t first_rowx = (first_row > rows_input ? first_row - rows_input : 0);
-        const ssize_t last_rowx = last_row - rows_input;
-        assert(last_rowx >= 0);
-        edit_refresh_rows(env, eb, extra, eb->attrs_extra, 0, 0, true, first_rowx, last_rowx,
-                          cursor_row_for_display, -1);
+        edit_refresh_rows(env, eb, extra, eb->attrs_extra, 0, 0, true, 0,
+                          viewport.extra_row_count - 1, false, cursor_row_for_display, -1);
     }
 
     // overwrite trailing rows we do not use anymore
-    ssize_t rrows = last_row - first_row + 1;  // rendered rows
-    if (rrows < visible_termh && rows < eb->cur_rows) {
-        ssize_t clear = eb->cur_rows - rows;
+    ssize_t rrows = view_rows;
+    if (rrows < visible_termh && view_rows < eb->view_rows) {
+        ssize_t clear = eb->view_rows - view_rows;
         while (rrows < visible_termh && clear > 0) {
             clear--;
             rrows++;
@@ -1750,7 +1799,7 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
 
     // move cursor back to edit position
     term_start_of_line(env->term);
-    term_up(env->term, first_row + rrows - 1 - rc.row);
+    term_up(env->term, rrows - 1 - visible_cursor_row);
 
     // Calculate the actual prompt width for the current row
     ssize_t actual_prompt_width;
@@ -1800,23 +1849,27 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     eb->input_rows = rows_input;
     eb->mouse_terminal_selection_extra = (!menu_active && rows_extra > 0);
     eb->cur_row = rc.row;
-    eb->view_first_row = first_row;
+    eb->view_first_row = first_input_row;
+    eb->view_input_rows = viewport.input_row_count;
+    eb->view_rows = view_rows;
     eb->force_linear_line_numbers = false;
 }
 
 // clear current output
 static void edit_clear(ic_env_t* env, editor_t* eb) {
+    const ssize_t clear_rows = (eb->view_rows > 0 ? eb->view_rows : 1);
+    const ssize_t visible_cursor_row = edit_view_cursor_row(eb);
     term_attr_reset(env->term);
-    term_up(env->term, eb->cur_row);
+    term_up(env->term, visible_cursor_row);
 
     // overwrite all rows
-    for (ssize_t i = 0; i < eb->cur_rows; i++) {
+    for (ssize_t i = 0; i < clear_rows; i++) {
         term_clear_line(env->term);
         term_writeln(env->term, "");
     }
 
     // move cursor back
-    term_up(env->term, eb->cur_rows - eb->cur_row);
+    term_up(env->term, clear_rows - visible_cursor_row);
 }
 
 // Prompt prefix lines are emitted above the editor and are not included in eb->cur_rows.
@@ -1827,13 +1880,8 @@ static void edit_clear_with_prompt_prefix(ic_env_t* env, editor_t* eb,
         return;
     }
 
-    ssize_t display_rows = (eb->cur_rows > 0 ? eb->cur_rows : 1);
-    ssize_t cursor_row = eb->cur_row;
-    if (cursor_row < 0) {
-        cursor_row = 0;
-    } else if (cursor_row >= display_rows) {
-        cursor_row = display_rows - 1;
-    }
+    const ssize_t display_rows = (eb->view_rows > 0 ? eb->view_rows : 1);
+    const ssize_t cursor_row = edit_view_cursor_row(eb);
     if (prompt_prefix_lines < 0) {
         prompt_prefix_lines = 0;
     }
@@ -1851,10 +1899,10 @@ static void edit_clear_with_prompt_prefix(ic_env_t* env, editor_t* eb,
 
 // clear screen and refresh
 static void edit_clear_screen(ic_env_t* env, editor_t* eb) {
-    ssize_t cur_rows = eb->cur_rows;
-    eb->cur_rows = term_get_height(env->term) - 1;
+    const ssize_t view_rows = eb->view_rows;
+    eb->view_rows = term_get_height(env->term) - 1;
     edit_clear(env, eb);
-    eb->cur_rows = cur_rows;
+    eb->view_rows = view_rows;
     if (eb->prompt_prefix_lines > 0) {
         redraw_prompt_prefix_lines(env, eb);
     }
@@ -3486,6 +3534,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     eb.cur_rows = 1;
     eb.input_rows = 1;
     eb.cur_row = 0;
+    eb.view_rows = 1;
+    eb.view_input_rows = 1;
     eb.modified = false;
 
     const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
@@ -4198,6 +4248,10 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
     edit_clear_with_prompt_prefix(env, eb, old_prompt_prefix_lines);
     eb->cur_row = 0;
     eb->cur_rows = 1;
+    eb->input_rows = 1;
+    eb->view_first_row = 0;
+    eb->view_rows = 1;
+    eb->view_input_rows = 1;
 
     // Update buffer if provided
     if (new_buffer != NULL) {

@@ -467,6 +467,8 @@ static edit_menu_session_t edit_menu_begin(ic_env_t* env, editor_t* eb, const ch
         eb->input_rows = 1;
         eb->cur_row = 0;
         eb->view_first_row = 0;
+        eb->view_rows = 1;
+        eb->view_input_rows = 1;
     }
     eb->force_prompt_text_visible = true;
     eb->replace_prompt_line_with_number = false;
@@ -496,6 +498,8 @@ static void edit_menu_finish(ic_env_t* env, editor_t* eb, edit_menu_session_t* s
         eb->input_rows = 1;
         eb->cur_row = 0;
         eb->view_first_row = 0;
+        eb->view_rows = 1;
+        eb->view_input_rows = 1;
     }
 
     eb->prompt_text = session->prompt_text;
@@ -539,7 +543,7 @@ static ssize_t edit_menu_input_rows(ic_env_t* env, editor_t* eb) {
     if (input_rows <= 0) {
         input_rows = 1;
     }
-    return input_rows;
+    return edit_visible_input_row_count(env, eb, input_rows);
 }
 
 static ssize_t edit_menu_available_lines(ic_env_t* env, editor_t* eb, ssize_t reserved_rows,
@@ -884,7 +888,7 @@ static bool edit_menu_mouse_select_vertical(ic_env_t* env, editor_t* eb, ssize_t
     }
     ic_unused(target_col);
 
-    const ssize_t input_rows = edit_menu_input_rows(env, eb);
+    const ssize_t input_rows = (eb->input_rows > 0 ? eb->input_rows : 1);
     const ssize_t items_first_row = input_rows + status_rows;
     const ssize_t item_row = target_row - items_first_row;
     if (item_row < 0 || item_row >= display_count) {

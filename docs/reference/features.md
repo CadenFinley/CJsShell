@@ -93,7 +93,7 @@ for full details.
 
 - **Runtime toggles** – Every major interactive feature has a `cjshopt` command. Highlights:
     - `cjshopt multiline`, `cjshopt multiline-indent`, `cjshopt line-numbers`,
-        `cjshopt multiline-start-lines`
+        `cjshopt multiline-start-lines`, `cjshopt multiline-max-lines`
       - `cjshopt completion-preview`, `cjshopt completion-menu-expanded`,
           `cjshopt completion-click-accept`, `cjshopt menu-highlighting`,
           `cjshopt completion-case`, `cjshopt completion-spell`, `cjshopt completion-spell-enter`,

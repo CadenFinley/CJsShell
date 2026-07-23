@@ -397,7 +397,7 @@ static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, s
     if (preview_rows <= 0) {
         preview_rows = 1;
     }
-    return preview_rows;
+    return edit_visible_input_row_count(env, eb, preview_rows);
 }
 
 static ssize_t edit_completion_collapsed_max_rows(ic_env_t* env, editor_t* eb, ssize_t input_rows) {
@@ -408,8 +408,7 @@ static bool completion_menu_mouse_select(ic_env_t* env, editor_t* eb, bool expan
                                          bool grid_mode, ssize_t grid_columns, ssize_t grid_rows,
                                          ssize_t colwidth, ssize_t scroll_offset,
                                          ssize_t count_displayed, ssize_t last_rows_visible,
-                                         ssize_t rendered_input_rows, ssize_t* selected,
-                                         bool* accept_selection) {
+                                         ssize_t* selected, bool* accept_selection) {
     if (env == NULL || eb == NULL || env->tty == NULL || selected == NULL ||
         accept_selection == NULL) {
         return false;
@@ -433,8 +432,7 @@ static bool completion_menu_mouse_select(ic_env_t* env, editor_t* eb, bool expan
         return false;
     }
 
-    const ssize_t input_rows =
-        (rendered_input_rows > 0 ? rendered_input_rows : edit_menu_input_rows(env, eb));
+    const ssize_t input_rows = (eb->input_rows > 0 ? eb->input_rows : 1);
     const ssize_t items_first_row = input_rows + (expanded_mode ? 1 : 0);
     const ssize_t item_row = target_row - items_first_row;
     if (item_row < 0) {
@@ -551,7 +549,6 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
     ssize_t scroll_offset = 0;
     ssize_t last_rows_visible = 0;
     ssize_t last_max_scroll_offset = 0;
-    ssize_t last_rendered_input_rows = 0;
     ssize_t count_displayed = count;
     code_t c = 0;
     bool grid_layout_active = false;
@@ -562,7 +559,6 @@ again:
     sbuf_clear(eb->extra);
     last_rows_visible = 0;
     last_max_scroll_offset = 0;
-    last_rendered_input_rows = 0;
     grid_layout_active = false;
     grid_columns = 1;
     grid_rows = 1;
@@ -583,7 +579,6 @@ again:
     ssize_t collapsed_max_rows = -1;
     const ssize_t collapsed_max_items = 12;
     const ssize_t rendered_input_rows = edit_completion_preview_input_rows(env, eb, selected);
-    last_rendered_input_rows = rendered_input_rows;
     if (!expanded_mode) {
         collapsed_max_rows = edit_completion_collapsed_max_rows(env, eb, rendered_input_rows);
         if (collapsed_max_rows > 1 && count > collapsed_max_rows * 3) {
@@ -901,8 +896,7 @@ read_key:
             bool accept_selection = false;
             if (completion_menu_mouse_select(env, eb, expanded_mode, grid_mode, grid_columns,
                                              grid_rows, colwidth, scroll_offset, count_displayed,
-                                             last_rows_visible, last_rendered_input_rows, &selected,
-                                             &accept_selection)) {
+                                             last_rows_visible, &selected, &accept_selection)) {
                 if (accept_selection && edit_completion_click_accept_enabled(env)) {
                     c = KEY_ENTER;
                     key_no_mods = KEY_ENTER;
