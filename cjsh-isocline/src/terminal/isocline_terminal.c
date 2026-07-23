@@ -33,6 +33,7 @@
 -----------------------------------------------------------------------------*/
 
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "common.h"
 #include "env.h"
@@ -53,7 +54,7 @@ static void terminal_region_write(ic_env_t* env, const char* sequence, bool flus
     if (!terminal_region_marking_available(env) || sequence == NULL) {
         return;
     }
-    term_write(env->term, sequence);
+    term_write_untracked(env->term, sequence);
     if (flush) {
         term_flush(env->term);
     }
@@ -68,7 +69,7 @@ ic_private void ic_term_mark_input_start(ic_env_t* env) {
     if (!terminal_region_marking_available(env)) {
         return;
     }
-    term_write(env->term, "\x1b]133;B\x1b\\");
+    terminal_region_write(env, "\x1b]133;B\x1b\\", false);
     env->terminal_region_state = IC_TERMINAL_REGION_INPUT;
 }
 
@@ -77,8 +78,7 @@ ic_private void ic_term_abort_input_region(ic_env_t* env) {
         env->terminal_region_state != IC_TERMINAL_REGION_INPUT) {
         return;
     }
-    term_write(env->term, "\x1b]133;D\x1b\\");
-    term_flush(env->term);
+    terminal_region_write(env, "\x1b]133;D\x1b\\", true);
     env->terminal_region_state = IC_TERMINAL_REGION_NONE;
 }
 
@@ -90,8 +90,7 @@ ic_public bool ic_enable_terminal_region_marking(bool enable) {
     bool previous = env->terminal_region_marking_enabled;
     if (!enable && previous && env->terminal_region_state != IC_TERMINAL_REGION_NONE &&
         env->term != NULL && term_is_interactive(env->term)) {
-        term_write(env->term, "\x1b]133;D\x1b\\");
-        term_flush(env->term);
+        terminal_region_write(env, "\x1b]133;D\x1b\\", true);
     }
     env->terminal_region_marking_enabled = enable;
     if (!enable) {
@@ -111,8 +110,7 @@ ic_public void ic_mark_command_start(void) {
         env->terminal_region_state == IC_TERMINAL_REGION_OUTPUT) {
         return;
     }
-    term_write(env->term, "\x1b]133;C\x1b\\");
-    term_flush(env->term);
+    terminal_region_write(env, "\x1b]133;C\x1b\\", true);
     env->terminal_region_state = IC_TERMINAL_REGION_OUTPUT;
 }
 
@@ -127,8 +125,9 @@ ic_public void ic_mark_command_finished(int exit_status) {
     } else if (exit_status > 255) {
         exit_status = 255;
     }
-    term_writef(env->term, "\x1b]133;D;%d\x1b\\", exit_status);
-    term_flush(env->term);
+    char sequence[32];
+    (void)snprintf(sequence, sizeof(sequence), "\x1b]133;D;%d\x1b\\", exit_status);
+    terminal_region_write(env, sequence, true);
     env->terminal_region_state = IC_TERMINAL_REGION_NONE;
 }
 

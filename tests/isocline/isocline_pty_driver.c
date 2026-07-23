@@ -288,7 +288,8 @@ static int run_case(const char* scenario) {
     const bool region_marking =
         (strcmp(scenario, "region_marking") == 0 ||
          strcmp(scenario, "region_marking_multiline") == 0 ||
-         strcmp(scenario, "region_marking_transient_prompt_components") == 0);
+         strcmp(scenario, "region_marking_transient_prompt_components") == 0 ||
+         strcmp(scenario, "prompt_guard_region_marking_external_visible") == 0);
     bool multiline_mode = (strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
                            strcmp(scenario, "multiline_backslash_continuation") == 0 ||
                            strcmp(scenario, "multiline_initial_ctrl_j") == 0 ||
@@ -325,6 +326,7 @@ static int run_case(const char* scenario) {
     const char* continuation_prompt_marker = NULL;
     bool history_interactive_triplet = false;
     bool history_sort_cycle_nonpersistent = false;
+    bool external_pre_prompt_output = false;
     if (strcmp(scenario, "cursor_move_insert") == 0) {
         initial_input = "ab";
     } else if (strcmp(scenario, "home_insert") == 0) {
@@ -599,11 +601,14 @@ static int run_case(const char* scenario) {
         pre_prompt_output = "\xE2\x82\xAC";
     } else if (strcmp(scenario, "prompt_guard_osc_then_space") == 0) {
         pre_prompt_output = "\x1B]0;x\x07 ";
+    } else if (strcmp(scenario, "prompt_guard_region_marking_external_visible") == 0) {
+        pre_prompt_output = "visible-before-prompt";
+        external_pre_prompt_output = true;
     } else {
         return 2;
     }
 
-    if (pre_prompt_output != NULL) {
+    if (pre_prompt_output != NULL && !external_pre_prompt_output) {
         ic_term_write(pre_prompt_output);
     }
 
@@ -617,7 +622,20 @@ static int run_case(const char* scenario) {
     }
 
     char* line = NULL;
-    if (history_interactive_triplet) {
+    if (external_pre_prompt_output) {
+        ic_set_prompt_eol_mark("\n%");
+        char* first = ic_readline("seed", NULL, "seed\r");
+        if (first == NULL)
+            return 4;
+        ic_free(first);
+
+        ic_mark_command_start();
+        (void)fwrite(pre_prompt_output, sizeof(char), strlen(pre_prompt_output), stdout);
+        (void)fflush(stdout);
+        ic_mark_command_finished(0);
+
+        line = ic_readline(prompt_text, NULL, NULL);
+    } else if (history_interactive_triplet) {
         char* first = ic_readline(prompt_text, NULL, NULL);
         if (first == NULL)
             return 4;

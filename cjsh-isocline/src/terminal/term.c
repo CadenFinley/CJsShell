@@ -412,6 +412,18 @@ ic_private void term_write(term_t* term, const char* s) {
     term_write_n(term, s, n);
 }
 
+// Write terminal metadata without making it authoritative for prompt newline detection.
+// Semantic escape sequences do not describe output written directly by an embedding shell or
+// child process, so treating them as tracked output can hide real partial-line content.
+ic_private void term_write_untracked(term_t* term, const char* s) {
+    if (term == NULL)
+        return;
+    const bool track_output = term->track_output;
+    term->track_output = false;
+    term_write(term, s);
+    term->track_output = track_output;
+}
+
 // Primitive terminal write; all writes go through here
 ic_private void term_write_n(term_t* term, const char* s, ssize_t n) {
     if (s == NULL || n <= 0)

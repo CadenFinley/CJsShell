@@ -344,10 +344,19 @@ def run_case(
     output = bytearray()
     deadline = time.monotonic() + timeout_s
     sent = False
+    cursor_report_sent = False
 
     try:
         while time.monotonic() < deadline:
             read_pending_output(fd, output)
+
+            if (
+                scenario == "prompt_guard_region_marking_external_visible"
+                and not cursor_report_sent
+                and b"\x1b[6n" in output
+            ):
+                os.write(fd, b"\x1b[1;22R")
+                cursor_report_sent = True
 
             if not sent and b"pty> " in output:
                 if key_bytes:
@@ -2264,6 +2273,7 @@ def main() -> int:
         ("prompt_guard_bracketed_toggle_then_tab", True),
         ("prompt_guard_utf8_visible", True),
         ("prompt_guard_osc_then_space", True),
+        ("prompt_guard_region_marking_external_visible", True),
     ]
     for scenario, expect_marker in prompt_guard_expectations:
         assert_prompt_guard_case(binary, scenario, expect_marker)

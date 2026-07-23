@@ -77,6 +77,7 @@ ic_private buffer_mode_t term_set_buffer_mode(term_t* term, buffer_mode_t mode);
 
 ic_private void term_write_n(term_t* term, const char* s, ssize_t n);
 ic_private void term_write(term_t* term, const char* s);
+ic_private void term_write_untracked(term_t* term, const char* s);
 ic_private void term_writeln(term_t* term, const char* s);
 ic_private void term_write_char(term_t* term, char c);
 
