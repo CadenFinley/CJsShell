@@ -818,6 +818,76 @@ int multiline_max_lines_command(const std::vector<std::string>& args) {
     return 0;
 }
 
+int multiline_bottom_lines_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: multiline-bottom-lines <count|status>",
+        "Examples:", "  multiline-bottom-lines 3        Keep a three-row cursor margin",
+        "  multiline-bottom-lines 0        Disable the cursor margin",
+        "  multiline-bottom-lines status   Show the current setting"};
+
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT, "multiline-bottom-lines", "Missing line count",
+                     usage_lines});
+        return 1;
+    }
+
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "multiline-bottom-lines",
+                     "Too many arguments provided", usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    const std::string normalized = normalize_option(option);
+
+    if (parse_status_query(normalized) == StatusQuery::Status) {
+        if (!cjsh_env::startup_active()) {
+            const size_t current = ic_get_multiline_bottom_line_count();
+            std::cout << "Multiline input currently uses a cursor margin of up to " << current
+                      << " content line" << (current == 1 ? "" : "s") << ".\n";
+        }
+        return 0;
+    }
+
+    if (option.empty() || !std::all_of(option.begin(), option.end(),
+                                       [](unsigned char c) { return std::isdigit(c) != 0; })) {
+        print_error({ErrorType::INVALID_ARGUMENT, "multiline-bottom-lines",
+                     "Invalid line count '" + option + "' (expected a non-negative integer)",
+                     usage_lines});
+        return 1;
+    }
+
+    size_t requested = 0;
+    try {
+        requested = static_cast<size_t>(std::stoul(option));
+    } catch (...) {
+        print_error({ErrorType::INVALID_ARGUMENT, "multiline-bottom-lines",
+                     "Invalid line count '" + option + "' (expected a non-negative integer)",
+                     usage_lines});
+        return 1;
+    }
+
+    ic_set_multiline_bottom_line_count(requested);
+    const size_t applied = ic_get_multiline_bottom_line_count();
+
+    if (!cjsh_env::startup_active()) {
+        if (applied != requested) {
+            std::cout << "Line count exceeds the supported maximum; using " << applied
+                      << " instead.\n";
+        }
+        std::cout << "Multiline input will now use a cursor margin of up to " << applied
+                  << " content line" << (applied == 1 ? "" : "s") << ".\n";
+        std::cout << "Add `cjshopt multiline-bottom-lines " << applied
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
+
+    return 0;
+}
+
 int completion_preview_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: completion-preview <on|off|status>",

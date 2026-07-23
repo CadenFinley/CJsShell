@@ -691,6 +691,7 @@ Available subcommands:
 - `current-line-number-highlight` - Toggle highlighting of the current line number
 - `multiline-start-lines` - Configure how many prompt lines are preallocated in multiline mode
 - `multiline-max-lines` - Limit how many multiline input rows are visible at once
+- `multiline-bottom-lines` - Configure the multiline cursor scroll margin
 - `hint-delay` - Set hint display delay in milliseconds
 - `completion-preview` - Configure completion preview
 - `completion-menu-expanded` - Open completion menus in expanded mode by default
@@ -1024,6 +1025,28 @@ cjshopt multiline-max-lines status # Show the current limit
 ```
 
 Values are clamped to the supported range of 1 through 256. Add the command to `~/.cjshrc` to
+persist the setting across sessions.
+
+#### multiline-bottom-lines
+
+Configure a symmetric cursor margin within the multiline viewport. The editor keeps up to this many
+existing input rows visible below the cursor when moving down and above it when moving up. The
+viewport stays fixed while the cursor is within those margins. It does not add blank rows when the
+command has less remaining content. The default is 3.
+
+```bash
+cjshopt multiline-bottom-lines <count|status>
+```
+
+Examples:
+
+```bash
+cjshopt multiline-bottom-lines 3      # Keep a three-row cursor margin
+cjshopt multiline-bottom-lines 0      # Disable the cursor margin
+cjshopt multiline-bottom-lines status # Show the current margin
+```
+
+Values are clamped to the supported range of 0 through 256. Add the command to `~/.cjshrc` to
 persist the setting across sessions.
 
 #### hint-delay

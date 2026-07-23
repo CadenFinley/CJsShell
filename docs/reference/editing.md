@@ -74,11 +74,16 @@ cjshopt multiline-start-lines <count|status>
 
 # Limit visible multiline input rows (default: 15)
 cjshopt multiline-max-lines <count|status>
+
+# Configure the multiline cursor margin (default: 3)
+cjshopt multiline-bottom-lines <count|status>
 ```
 
 When a command exceeds the viewport limit, the visible rows scroll with the cursor while the full
 command remains available for editing and submission. Completion menus and other helper rows are
-laid out separately below the input viewport.
+laid out separately below the input viewport. The symmetric cursor margin keeps the viewport fixed
+while the cursor moves within it, uses only rows that exist in the command, and never pads the
+display with blank lines.
 
 **Multiline Detection:**
 CJ's Shell automatically enters multiline mode when:

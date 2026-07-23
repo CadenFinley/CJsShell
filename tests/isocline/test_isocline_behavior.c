@@ -368,32 +368,121 @@ static bool test_multiline_max_line_count_defaults_and_clamps(void) {
     return true;
 }
 
+static bool test_multiline_bottom_line_count_defaults_and_clamps(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    EXPECT_TRUE(ic_get_multiline_bottom_line_count() == 3,
+                "multiline viewport should default to three content rows below the cursor");
+
+    size_t previous = ic_set_multiline_bottom_line_count(0);
+    EXPECT_TRUE(previous == 3,
+                "ic_set_multiline_bottom_line_count should return the previous value");
+    EXPECT_TRUE(env->multiline_bottom_line_count == 0,
+                "multiline bottom line count should allow zero");
+
+    previous = ic_set_multiline_bottom_line_count(300);
+    EXPECT_TRUE(previous == 0,
+                "multiline bottom line setter should report the most recent stored value");
+    EXPECT_TRUE(env->multiline_bottom_line_count == 256,
+                "multiline bottom line count should clamp to 256");
+
+    previous = ic_set_multiline_bottom_line_count(3);
+    EXPECT_TRUE(previous == 256, "previous value should reflect the clamped maximum");
+    EXPECT_TRUE(ic_get_multiline_bottom_line_count() == 3,
+                "multiline bottom line count should accept the default value");
+
+    return true;
+}
+
 static bool test_multiline_viewport_layout(void) {
-    editline_viewport_t viewport = editline_viewport_for(20, 0, 19, 24, 15);
+    editline_viewport_t viewport = editline_viewport_for(20, 0, 19, 24, 15, 3, 0);
     EXPECT_TRUE(viewport.input_first_row == 5 && viewport.input_row_count == 15,
                 "viewport should show the final 15 input rows at end of the buffer");
     EXPECT_TRUE(viewport.extra_row_count == 0,
                 "viewport without helpers should not reserve extra rows");
 
-    viewport = editline_viewport_for(20, 0, 0, 24, 15);
+    viewport = editline_viewport_for(20, 0, 0, 24, 15, 3, 0);
     EXPECT_TRUE(viewport.input_first_row == 0 && viewport.input_row_count == 15,
                 "viewport should keep the first input row visible at buffer start");
 
-    viewport = editline_viewport_for(20, 5, 19, 24, 15);
+    viewport = editline_viewport_for(20, 5, 19, 24, 15, 3, 0);
     EXPECT_TRUE(viewport.input_first_row == 5 && viewport.input_row_count == 15,
                 "helper rows should coexist with the configured input viewport when space allows");
     EXPECT_TRUE(viewport.extra_row_count == 5,
                 "all helper rows should remain visible when they fit below the input viewport");
 
-    viewport = editline_viewport_for(20, 10, 19, 24, 15);
+    viewport = editline_viewport_for(20, 10, 19, 24, 15, 3, 0);
     EXPECT_TRUE(viewport.input_first_row == 6 && viewport.input_row_count == 14,
                 "input viewport should yield screen space when helper rows fill the terminal");
     EXPECT_TRUE(viewport.extra_row_count == 10,
                 "already-windowed helper rows should be preserved where possible");
 
-    viewport = editline_viewport_for(20, 0, 19, 10, 15);
+    viewport = editline_viewport_for(20, 0, 19, 10, 15, 3, 0);
     EXPECT_TRUE(viewport.input_first_row == 10 && viewport.input_row_count == 10,
                 "terminal height should bound the configured input viewport");
+
+    return true;
+}
+
+static bool test_multiline_viewport_bottom_content_rows(void) {
+    editline_viewport_t viewport = editline_viewport_for(20, 0, 14, 24, 15, 3, 0);
+    EXPECT_TRUE(viewport.input_first_row == 3 && viewport.input_row_count == 15,
+                "viewport should retain three existing rows below the cursor");
+
+    viewport = editline_viewport_for(20, 0, 16, 24, 15, 3, 0);
+    EXPECT_TRUE(viewport.input_first_row == 5 && viewport.input_row_count == 15,
+                "viewport should stop at the final content row without adding blank rows");
+
+    viewport = editline_viewport_for(20, 0, 19, 24, 15, 3, 0);
+    EXPECT_TRUE(viewport.input_first_row == 5 && viewport.input_row_count == 15,
+                "viewport should keep the final content-filled window at end of input");
+
+    viewport = editline_viewport_for(20, 0, 14, 24, 15, 0, 0);
+    EXPECT_TRUE(viewport.input_first_row == 0 && viewport.input_row_count == 15,
+                "zero bottom rows should allow the cursor to reach the viewport bottom");
+
+    viewport = editline_viewport_for(20, 0, 5, 5, 20, 20, 0);
+    EXPECT_TRUE(viewport.input_first_row == 3 && viewport.input_row_count == 5,
+                "scroll margin should be bounded symmetrically by the visible viewport");
+
+    viewport = editline_viewport_for(20, 4, 14, 15, 15, 3, 0);
+    EXPECT_TRUE(viewport.input_first_row == 7 && viewport.input_row_count == 11 &&
+                    viewport.extra_row_count == 4,
+                "bottom row preference should use the input space left after helper rows");
+
+    return true;
+}
+
+static bool test_multiline_viewport_symmetric_scroll_margin(void) {
+    editline_viewport_t viewport = editline_viewport_for(30, 0, 20, 15, 15, 3, 0);
+    EXPECT_TRUE(viewport.input_first_row == 9,
+                "viewport should place a downward-moving cursor above the bottom margin");
+
+    viewport = editline_viewport_for(30, 0, 19, 15, 15, 3, viewport.input_first_row);
+    EXPECT_TRUE(viewport.input_first_row == 9,
+                "viewport should stay fixed while the cursor moves upward within its margins");
+
+    viewport = editline_viewport_for(30, 0, 12, 15, 15, 3, viewport.input_first_row);
+    EXPECT_TRUE(viewport.input_first_row == 9,
+                "viewport should remain fixed when the cursor reaches the top margin");
+
+    viewport = editline_viewport_for(30, 0, 11, 15, 15, 3, viewport.input_first_row);
+    EXPECT_TRUE(viewport.input_first_row == 8,
+                "viewport should scroll only after the cursor crosses the top margin");
+
+    viewport = editline_viewport_for(30, 0, 12, 15, 15, 3, viewport.input_first_row);
+    EXPECT_TRUE(viewport.input_first_row == 8,
+                "viewport should stay fixed while the cursor moves downward within its margins");
+
+    viewport = editline_viewport_for(30, 0, 19, 15, 15, 3, viewport.input_first_row);
+    EXPECT_TRUE(viewport.input_first_row == 8,
+                "viewport should remain fixed when the cursor reaches the bottom margin");
+
+    viewport = editline_viewport_for(30, 0, 20, 15, 15, 3, viewport.input_first_row);
+    EXPECT_TRUE(viewport.input_first_row == 9,
+                "viewport should scroll only after the cursor crosses the bottom margin");
 
     return true;
 }
@@ -4002,7 +4091,11 @@ static const test_case_t kTests[] = {
     {"multiline_start_line_count_clamp", test_multiline_start_line_count_clamp},
     {"multiline_max_line_count_defaults_and_clamps",
      test_multiline_max_line_count_defaults_and_clamps},
+    {"multiline_bottom_line_count_defaults_and_clamps",
+     test_multiline_bottom_line_count_defaults_and_clamps},
     {"multiline_viewport_layout", test_multiline_viewport_layout},
+    {"multiline_viewport_bottom_content_rows", test_multiline_viewport_bottom_content_rows},
+    {"multiline_viewport_symmetric_scroll_margin", test_multiline_viewport_symmetric_scroll_margin},
     {"editline_buffer_api_without_editor", test_editline_buffer_api_without_editor},
     {"continuation_callback_registration", test_continuation_callback_registration},
     {"completion_generation_and_apply", test_completion_generation_and_apply},

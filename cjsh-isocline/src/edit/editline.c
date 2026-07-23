@@ -603,7 +603,7 @@ static ssize_t edit_visible_input_row_count(ic_env_t* env, editor_t* eb, ssize_t
     }
 
     return editline_viewport_for(input_rows, 0, input_rows - 1, available_rows,
-                                 env->multiline_max_line_count)
+                                 env->multiline_max_line_count, env->multiline_bottom_line_count, 0)
         .input_row_count;
 }
 
@@ -1754,7 +1754,8 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     }
 
     const editline_viewport_t viewport = editline_viewport_for(
-        rows_input, rows_extra, rc.row, visible_termh, env->multiline_max_line_count);
+        rows_input, rows_extra, rc.row, visible_termh, env->multiline_max_line_count,
+        env->multiline_bottom_line_count, eb->view_first_row);
     const ssize_t first_input_row = viewport.input_first_row;
     const ssize_t last_input_row = first_input_row + viewport.input_row_count - 1;
     const ssize_t view_rows = viewport.input_row_count + viewport.extra_row_count;

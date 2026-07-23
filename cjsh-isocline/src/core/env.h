@@ -139,9 +139,10 @@ struct ic_env_s {
     bool typeahead_enabled;                            // capture pending stdin for next readline
     bool terminal_region_marking_enabled;              // emit OSC 133 semantic regions
     uint8_t terminal_region_state;                     // current OSC 133 lifecycle state
-    size_t multiline_start_line_count;  // prefill multiline prompts with this many lines
-    size_t multiline_max_line_count;    // maximum visible input rows in multiline mode
-    long hint_delay;                    // delay before displaying a hint in milliseconds
+    size_t multiline_start_line_count;   // prefill multiline prompts with this many lines
+    size_t multiline_max_line_count;     // maximum visible input rows in multiline mode
+    size_t multiline_bottom_line_count;  // content-row margin kept around the cursor
+    long hint_delay;                     // delay before displaying a hint in milliseconds
 
     ic_key_binding_entry_t* key_bindings;  // dynamic array of custom key bindings
     ssize_t key_binding_count;
