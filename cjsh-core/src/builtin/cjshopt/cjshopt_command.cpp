@@ -58,7 +58,6 @@ enum class CjshoptSubcommand : std::uint8_t {
     LineNumbersReplacePrompt,
     CurrentLineNumberHighlight,
     MultilineStartLines,
-    MultilineMaxLines,
     HintDelay,
     CompletionPreview,
     CompletionMenuExpanded,
@@ -119,7 +118,6 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
           current_line_number_highlight_command},
          {CjshoptSubcommand::MultilineStartLines, "multiline-start-lines",
           multiline_start_lines_command},
-         {CjshoptSubcommand::MultilineMaxLines, "multiline-max-lines", multiline_max_lines_command},
          {CjshoptSubcommand::HintDelay, "hint-delay", hint_delay_command},
          {CjshoptSubcommand::CompletionPreview, "completion-preview", completion_preview_command},
          {CjshoptSubcommand::CompletionMenuExpanded, "completion-menu-expanded",
@@ -196,8 +194,6 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "highlighting (default: enabled)",
         std::string("  multiline-start-lines <count|status> Configure default multiline prompt ") +
             "height (default: 1)",
-        std::string("  multiline-max-lines <count|status> Limit visible multiline input rows ") +
-            "(default: 15)",
         "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
         std::string("  completion-preview <on|off|status> Configure completion preview ") +
             "(default: enabled)",
@@ -285,8 +281,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                   "smart-cd, script-extension-interpreter, "
                   "completion-learning, "
                   "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
-                  "current-line-number-highlight, multiline-start-lines, multiline-max-lines, "
-                  "hint-delay, "
+                  "current-line-number-highlight, multiline-start-lines, hint-delay, "
                   "completion-preview, completion-menu-expanded, completion-click-accept, "
                   "menu-highlighting, visible-whitespace, hint, "
                   "multiline-indent, multiline, inline-help, "

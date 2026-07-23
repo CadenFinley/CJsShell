@@ -340,33 +340,6 @@ static bool test_multiline_start_line_count_clamp(void) {
     return true;
 }
 
-static bool test_multiline_max_line_count_defaults_and_clamps(void) {
-    ic_env_t* env = ensure_env();
-    if (env == NULL)
-        return false;
-
-    EXPECT_TRUE(ic_get_multiline_max_line_count() == 15,
-                "multiline viewport should default to 15 visible rows");
-
-    size_t previous = ic_set_multiline_max_line_count(0);
-    EXPECT_TRUE(previous == 15, "ic_set_multiline_max_line_count should return the previous value");
-    EXPECT_TRUE(env->multiline_max_line_count == 1,
-                "multiline maximum line count should clamp to a minimum of 1");
-
-    previous = ic_set_multiline_max_line_count(300);
-    EXPECT_TRUE(previous == 1,
-                "multiline maximum setter should report the most recent stored value");
-    EXPECT_TRUE(env->multiline_max_line_count == 256,
-                "multiline maximum line count should clamp to 256");
-
-    previous = ic_set_multiline_max_line_count(15);
-    EXPECT_TRUE(previous == 256, "previous value should reflect the clamped maximum");
-    EXPECT_TRUE(ic_get_multiline_max_line_count() == 15,
-                "multiline maximum line count should accept the default value");
-
-    return true;
-}
-
 static bool test_editline_buffer_api_without_editor(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -3969,8 +3942,6 @@ static const test_case_t kTests[] = {
     {"prompt_line_replacement_requires_content", test_prompt_line_replacement_requires_content},
     {"visible_whitespace_marker", test_visible_whitespace_marker},
     {"multiline_start_line_count_clamp", test_multiline_start_line_count_clamp},
-    {"multiline_max_line_count_defaults_and_clamps",
-     test_multiline_max_line_count_defaults_and_clamps},
     {"editline_buffer_api_without_editor", test_editline_buffer_api_without_editor},
     {"continuation_callback_registration", test_continuation_callback_registration},
     {"completion_generation_and_apply", test_completion_generation_and_apply},

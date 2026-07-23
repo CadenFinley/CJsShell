@@ -1031,17 +1031,6 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(has_entry(cjshopt_doc, "completion-spell-enter",
                           builtin_completions::EntryKind::Subcommand),
                 test_name, "cjshopt should include completion-spell-enter subcommand");
-    EXPECT_TRUE(
-        has_entry(cjshopt_doc, "multiline-max-lines", builtin_completions::EntryKind::Subcommand),
-        test_name, "cjshopt should include multiline-max-lines subcommand");
-
-    const auto* multiline_max_lines_doc =
-        builtin_completions::lookup_builtin_command_doc("cjshopt-multiline-max-lines");
-    EXPECT_TRUE(multiline_max_lines_doc != nullptr, test_name,
-                "cjshopt-multiline-max-lines doc should exist");
-    EXPECT_TRUE(
-        has_entry(multiline_max_lines_doc, "status", builtin_completions::EntryKind::Subcommand),
-        test_name, "multiline-max-lines should include status subcommand");
 
     const auto* completion_max_doc =
         builtin_completions::lookup_builtin_command_doc("cjshopt-set-completion-max");

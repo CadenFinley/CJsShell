@@ -978,38 +978,6 @@ def main() -> int:
             f"{multiline_ctrl_e_stays_on_line!r}"
         )
 
-    viewport_expected = (
-        "viewport-line-01\nviewport-line-02\nviewport-line-03\n"
-        "viewport-line-04\nviewport-line-05"
-    )
-    viewport_result, viewport_output = run_case(
-        binary,
-        "multiline_max_lines_viewport",
-        b"\r",
-        capture_output=True,
-        initial_rows=24,
-        initial_cols=80,
-    )
-    if viewport_result != viewport_expected:
-        raise AssertionError(
-            "multiline_max_lines_viewport should preserve the complete buffer, got "
-            f"{viewport_result!r}"
-        )
-    viewport_render = normalize_terminal_output(
-        viewport_output.split("[IC_RESULT_BEGIN]", 1)[0]
-    )
-    if "viewport-line-01" in viewport_render or "viewport-line-02" in viewport_render:
-        raise AssertionError(
-            "multiline viewport rendered rows above its three-line window: "
-            f"output={viewport_render!r}"
-        )
-    for expected_line in ("viewport-line-03", "viewport-line-04", "viewport-line-05"):
-        if expected_line not in viewport_render:
-            raise AssertionError(
-                f"multiline viewport omitted visible row {expected_line!r}: "
-                f"output={viewport_render!r}"
-            )
-
     multiline_navigation_cases = [
         (
             "pageup_input_start",

@@ -71,13 +71,7 @@ cjshopt multiline-indent on|off|status
 
 # Configure how many prompt lines are shown before typing (default: 1)
 cjshopt multiline-start-lines <count|status>
-
-# Limit visible multiline input rows (default: 15)
-cjshopt multiline-max-lines <count|status>
 ```
-
-When a command exceeds the viewport limit, the visible rows scroll with the cursor while the full
-command remains available for editing and submission.
 
 **Multiline Detection:**
 CJ's Shell automatically enters multiline mode when:

@@ -1702,11 +1702,6 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
             visible_termh = 1;
         }
     }
-    if (!menu_active && env->multiline_max_line_count > 0 &&
-        rows_input > (ssize_t)env->multiline_max_line_count &&
-        visible_termh > (ssize_t)env->multiline_max_line_count) {
-        visible_termh = (ssize_t)env->multiline_max_line_count;
-    }
 
     ssize_t first_row = 0;        // first visible row
     ssize_t last_row = rows - 1;  // last visible row
