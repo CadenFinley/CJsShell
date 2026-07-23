@@ -418,6 +418,32 @@ ic_public size_t ic_get_multiline_start_line_count(void) {
     return env->multiline_start_line_count;
 }
 
+ic_public size_t ic_set_multiline_max_line_count(size_t line_count) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return 15;
+
+    size_t prev = env->multiline_max_line_count;
+    if (line_count < 1) {
+        line_count = 1;
+    }
+
+    const size_t max_lines = 256;
+    if (line_count > max_lines) {
+        line_count = max_lines;
+    }
+
+    env->multiline_max_line_count = line_count;
+    return prev;
+}
+
+ic_public size_t ic_get_multiline_max_line_count(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return 15;
+    return env->multiline_max_line_count;
+}
+
 ic_public bool ic_enable_line_numbers(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

@@ -295,6 +295,7 @@ static int run_case(const char* scenario) {
                            strcmp(scenario, "multiline_initial_ctrl_j") == 0 ||
                            strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0 ||
                            strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0 ||
+                           strcmp(scenario, "multiline_max_lines_viewport") == 0 ||
                            strcmp(scenario, "region_marking_multiline") == 0 ||
                            strcmp(scenario, "completion_many_menu_multiline_replacement") == 0);
     ic_enable_multiline(multiline_mode);
@@ -373,6 +374,11 @@ static int run_case(const char* scenario) {
         initial_input = "ab\ncd\nef";
     } else if (strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0) {
         initial_input = "ab\ncd\nef";
+    } else if (strcmp(scenario, "multiline_max_lines_viewport") == 0) {
+        initial_input =
+            "viewport-line-01\nviewport-line-02\nviewport-line-03\nviewport-line-04\n"
+            "viewport-line-05";
+        (void)ic_set_multiline_max_line_count(3);
     } else if (strcmp(scenario, "completion_midline_single") == 0) {
         initial_input = "say he";
         g_completion_mode = COMPLETION_MODE_SINGLE;

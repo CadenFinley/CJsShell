@@ -576,6 +576,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("current-line-number-highlight",
                              "Toggle current line number highlighting"),
              make_subcommand("multiline-start-lines", "Set default multiline prompt height"),
+             make_subcommand("multiline-max-lines", "Limit visible multiline input rows"),
 
              make_subcommand("hint-delay", "Adjust inline hint delay"),
              make_subcommand("completion-preview", "Toggle completion preview"),
@@ -809,6 +810,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-multiline-start-lines", "",
                 {make_subcommand("status", "Show current multiline height")});
+        add_doc("cjshopt-multiline-max-lines", "",
+                {make_subcommand("status", "Show the multiline viewport limit")});
         return map;
     }();
     return docs;

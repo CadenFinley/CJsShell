@@ -766,6 +766,15 @@ size_t ic_set_multiline_start_line_count(size_t line_count);
 /// Get the current number of preallocated lines for multiline editing.
 size_t ic_get_multiline_start_line_count(void);
 
+/// Configure the maximum number of input rows shown while editing a multiline command.
+/// The default is 15. When the input needs more rows, the editor scrolls the viewport to keep
+/// the cursor visible. Values below 1 are clamped to 1.
+/// Returns the previous configured line count.
+size_t ic_set_multiline_max_line_count(size_t line_count);
+
+/// Get the current maximum number of visible input rows for multiline editing.
+size_t ic_get_multiline_max_line_count(void);
+
 /// Enable or disable line numbers in multiline input mode. (enabled by default)
 /// When enabled, each line will be prefixed with a line number (e.g., "2| ", "3| ", etc.).
 /// The first line continues to use the regular prompt.
