@@ -97,6 +97,11 @@ bool should_auto_cd_token(const std::string& token, Shell* shell) {
         return false;
     }
 
+    // A leading "./" explicitly requests command execution, even when the target is a directory.
+    if (token.rfind("./", 0) == 0) {
+        return false;
+    }
+
     Built_ins* built_ins = shell->get_built_ins();
     if (built_ins == nullptr) {
         return false;

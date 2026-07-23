@@ -31,6 +31,7 @@ from __future__ import annotations
 import errno
 import fcntl
 import os
+import shlex
 import signal
 import subprocess
 import sys
@@ -212,6 +213,79 @@ def run_exit_status_command(binary: str) -> None:
             raise AssertionError(f"interactive exit returned {return_code}, expected 37")
 
 
+def run_dot_slash_directory_is_execution_error(binary: str) -> None:
+    with tempfile.TemporaryDirectory(prefix="cjsh-auto-cd-") as working_directory:
+        resolved_working_directory = os.path.realpath(working_directory)
+        os.makedirs(os.path.join(resolved_working_directory, "single"))
+        os.makedirs(os.path.join(resolved_working_directory, "x", "x"))
+
+        executable_path = os.path.join(resolved_working_directory, "x", "tool")
+        with open(executable_path, "w", encoding="utf-8") as executable:
+            executable.write("#!/bin/sh\nprintf '__NESTED_EXEC_RAN__\\n'\n")
+        os.chmod(executable_path, 0o755)
+
+        with InteractiveSession(binary, "dot-slash directory") as session:
+            session.pump(duration_s=0.6)
+            quoted_directory = shlex.quote(resolved_working_directory)
+            session.write(f"cd {quoted_directory}\r".encode())
+            session.pump(duration_s=0.5)
+
+            session.write(b"single\r")
+            session.pump(duration_s=0.5)
+            session.write(b"printf '__BARE_AUTO_CD__:%s:%s\\n' \"$?\" \"$PWD\"\r")
+            session.pump(duration_s=0.5)
+
+            expected_bare = f"__BARE_AUTO_CD__:0:{resolved_working_directory}/single".encode()
+            if expected_bare not in session.output:
+                raise AssertionError(
+                    f"bare directory should still auto-cd: {bytes(session.output)!r}"
+                )
+
+            session.write(f"cd {quoted_directory}\r".encode())
+            session.pump(duration_s=0.5)
+            session.write(b"./single\r")
+            session.pump(duration_s=0.5)
+            session.write(b"printf '__SINGLE_DIR_RESULT__:%s:%s\\n' \"$?\" \"$PWD\"\r")
+            session.pump(duration_s=0.5)
+
+            expected_single = (
+                f"__SINGLE_DIR_RESULT__:126:{resolved_working_directory}".encode()
+            )
+            if expected_single not in session.output:
+                raise AssertionError(
+                    "single-component ./directory should fail execution without changing PWD: "
+                    f"{bytes(session.output)!r}"
+                )
+
+            session.write(b"./x/tool\r")
+            session.pump(duration_s=0.5)
+            if b"__NESTED_EXEC_RAN__" not in session.output:
+                raise AssertionError(
+                    f"nested executable did not run: {bytes(session.output)!r}"
+                )
+
+            session.write(b"./x/x\r")
+            session.pump(duration_s=0.5)
+            session.write(b"printf '__NESTED_DIR_RESULT__:%s:%s\\n' \"$?\" \"$PWD\"\r")
+            session.pump(duration_s=0.5)
+
+            expected_nested = (
+                f"__NESTED_DIR_RESULT__:126:{resolved_working_directory}".encode()
+            )
+            if expected_nested not in session.output:
+                raise AssertionError(
+                    "nested ./directory should fail execution without changing PWD: "
+                    f"{bytes(session.output)!r}"
+                )
+
+            session.write(b"exit 0\r")
+            return_code = session.wait_for_exit(timeout_s=3.0)
+            if return_code != 0:
+                raise AssertionError(
+                    f"exit after auto-cd probe returned {return_code}, expected 0"
+                )
+
+
 def run_terminal_region_marking(binary: str) -> None:
     with InteractiveSession(binary, "terminal region marking") as session:
         session.pump(duration_s=0.6)
@@ -332,6 +406,10 @@ def main(argv: list[str]) -> int:
         [
             ("ctrl-d exits", lambda: run_ctrl_d_exits(binary)),
             ("exit status command", lambda: run_exit_status_command(binary)),
+            (
+                "dot-slash directory is execution error",
+                lambda: run_dot_slash_directory_is_execution_error(binary),
+            ),
             ("terminal region marking", lambda: run_terminal_region_marking(binary)),
             ("ctrl-c then exit", lambda: run_interrupt_then_exit(binary)),
             ("ctrl-c queued exit", lambda: run_interrupt_with_queued_exit(binary)),
