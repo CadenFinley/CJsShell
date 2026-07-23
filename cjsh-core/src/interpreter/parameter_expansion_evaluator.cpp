@@ -354,7 +354,7 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
     if (!pattern.empty() && (pattern[0] == '#' || pattern[0] == '%')) {
         anchor_prefix = pattern[0] == '#';
         anchor_suffix = pattern[0] == '%';
-        pattern.erase(0, 1);
+        (void)pattern.erase(0, 1);
         if (pattern.empty()) {
             return value;
         }
@@ -387,13 +387,13 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
         if (global) {
             size_t pos = 0;
             while ((pos = result.find(pattern, pos)) != std::string::npos) {
-                result.replace(pos, pattern.length(), replacement);
+                (void)result.replace(pos, pattern.length(), replacement);
                 pos += replacement.length();
             }
         } else {
             size_t pos = result.find(pattern);
             if (pos != std::string::npos) {
-                result.replace(pos, pattern.length(), replacement);
+                (void)result.replace(pos, pattern.length(), replacement);
             }
         }
     } else {

@@ -335,7 +335,7 @@ ic_private void term_writef(term_t* term, const char* fmt, ...) {
 }
 
 ic_private void term_vwritef(term_t* term, const char* fmt, va_list args) {
-    sbuf_append_vprintf(term->buf, fmt, args);
+    (void)sbuf_append_vprintf(term->buf, fmt, args);
 }
 
 ic_private void term_write_formatted(term_t* term, const char* s, const attr_t* attrs) {
@@ -440,7 +440,7 @@ ic_private void term_write_n(term_t* term, const char* s, ssize_t n) {
 ic_private void term_flush(term_t* term) {
     if (sbuf_len(term->buf) > 0) {
         // term_show_cursor(term,false);
-        term_write_direct(term, sbuf_string(term->buf), sbuf_len(term->buf));
+        (void)term_write_direct(term, sbuf_string(term->buf), sbuf_len(term->buf));
         // term_show_cursor(term,true);
         sbuf_clear(term->buf);
     }
@@ -550,16 +550,16 @@ ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent,
     // read COLUMS/LINES from the environment for a better initial guess.
     const char* env_columns = getenv("COLUMNS");
     if (env_columns != NULL) {
-        ic_atoz(env_columns, &term->width);
+        (void)ic_atoz(env_columns, &term->width);
     }
     const char* env_lines = getenv("LINES");
     if (env_lines != NULL) {
-        ic_atoz(env_lines, &term->height);
+        (void)ic_atoz(env_lines, &term->height);
     }
 
     // initialize raw terminal output and terminal dimensions
     term_init_raw(term);
-    term_update_dim(term);
+    (void)term_update_dim(term);
     term_attr_reset(term);  // ensure we are at default settings
 
     return term;
@@ -618,7 +618,7 @@ static void term_append_esc(term_t* term, const char* const s, ssize_t len) {
         term->attr = attr_update_with(term->attr, attr_from_esc_sgr(s, len));
     }
     // and write out the escape sequence as-is
-    sbuf_append_n(term->buf, s, len);
+    (void)sbuf_append_n(term->buf, s, len);
 }
 
 static void term_append_buf(term_t* term, const char* s, ssize_t len) {
@@ -638,7 +638,7 @@ static void term_append_buf(term_t* term, const char* s, ssize_t len) {
             ascii += next;
         }
         if (ascii > 0) {
-            sbuf_append_n(term->buf, s + pos, ascii);
+            (void)sbuf_append_n(term->buf, s + pos, ascii);
             if (track_output) {
                 term->line_has_visible = true;
                 term->cursor_at_line_start = false;
@@ -651,7 +651,7 @@ static void term_append_buf(term_t* term, const char* s, ssize_t len) {
         const uint8_t c = (uint8_t)s[pos];
         // handle utf-8 sequences: append raw bytes for correct display
         if (c >= 0x80) {
-            sbuf_append_n(term->buf, s + pos, next);
+            (void)sbuf_append_n(term->buf, s + pos, next);
             if (track_output) {
                 term->line_has_visible = true;
                 term->cursor_at_line_start = false;
@@ -684,7 +684,7 @@ static void term_append_buf(term_t* term, const char* s, ssize_t len) {
                     term->cursor_at_line_start = false;
                 }
             }
-            sbuf_append_n(term->buf, s + pos, next);
+            (void)sbuf_append_n(term->buf, s + pos, next);
         }
         pos += next;
     }

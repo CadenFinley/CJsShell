@@ -190,12 +190,12 @@ std::string sanitize_for_status(const std::string& text) {
         return {};
     }
     if (start > 0) {
-        sanitized.erase(0, start);
+        (void)sanitized.erase(0, start);
     }
 
     size_t end = sanitized.find_last_not_of(' ');
     if (end != std::string::npos && end + 1 < sanitized.size()) {
-        sanitized.erase(end + 1);
+        (void)sanitized.erase(end + 1);
     }
 
     return sanitized;
@@ -239,10 +239,10 @@ std::string sanitize_status_callback_output(const std::string& raw_output) {
 
         size_t remaining = kStatusCallbackMaxBytes - sanitized.size();
         if (cleaned.size() > remaining) {
-            cleaned.erase(remaining);
+            (void)cleaned.erase(remaining);
         }
 
-        sanitized.append(cleaned);
+        (void)sanitized.append(cleaned);
         emitted_lines++;
     };
 
@@ -303,8 +303,8 @@ std::string build_user_status_callback_message(Shell* shell, const std::string& 
     try {
         std::vector<std::string> callback_args;
         callback_args.reserve(2);
-        callback_args.emplace_back(g_user_status_callback_function);
-        callback_args.emplace_back(input);
+        (void)callback_args.emplace_back(g_user_status_callback_function);
+        (void)callback_args.emplace_back(input);
         (void)interpreter->invoke_function(callback_args);
     } catch (...) {
         pipeline_status_utils::set_last_status_env(previous_status_code);
@@ -351,7 +351,8 @@ std::vector<std::string> extract_candidate_commands(const std::vector<std::strin
             continue;
         }
 
-        commands.emplace_back(suggestion.substr(first_quote + 1, second_quote - first_quote - 1));
+        (void)commands.emplace_back(
+            suggestion.substr(first_quote + 1, second_quote - first_quote - 1));
         if (commands.size() == 3) {
             break;
         }
@@ -432,11 +433,12 @@ std::optional<UnknownCommandInfo> detect_unknown_command(Shell* shell,
     std::unordered_set<std::string> available_commands = shell->get_available_commands();
 
     std::optional<UnknownCommandInfo> result;
-    command_analysis::visit_command_ranges(analysis, [&](size_t command_start, size_t command_end) {
-        result = analyze_command_range(shell, original_input, analysis, available_commands,
-                                       command_start, command_end);
-        return !result.has_value();
-    });
+    (void)command_analysis::visit_command_ranges(
+        analysis, [&](size_t command_start, size_t command_end) {
+            result = analyze_command_range(shell, original_input, analysis, available_commands,
+                                           command_start, command_end);
+            return !result.has_value();
+        });
     return result;
 }
 
@@ -465,7 +467,8 @@ std::optional<AutoCdInfo> detect_auto_cd_command(Shell* shell, const std::string
     }
 
     std::optional<AutoCdInfo> result;
-    command_analysis::visit_command_ranges(analysis, [&](size_t command_start, size_t command_end) {
+    (void)command_analysis::visit_command_ranges(analysis, [&](size_t command_start,
+                                                               size_t command_end) {
         std::string cmd_str = analysis.substr(command_start, command_end - command_start);
         size_t token_cursor = 0;
         size_t token_start = 0;
@@ -511,10 +514,10 @@ std::string format_suggestion_list(const std::vector<std::string>& suggestions) 
     }
 
     std::string result = sanitized[0];
-    result.append(", ");
-    result.append(sanitized[1]);
-    result.append(", or ");
-    result.append(sanitized[2]);
+    (void)result.append(", ");
+    (void)result.append(sanitized[1]);
+    (void)result.append(", or ");
+    (void)result.append(sanitized[2]);
     return result;
 }
 
@@ -525,13 +528,13 @@ std::string format_unknown_command_message(const UnknownCommandInfo& info) {
     }
 
     std::string message = "Unknown command: ";
-    message.append(sanitized_command);
+    (void)message.append(sanitized_command);
 
     if (config::error_suggestions_enabled && !info.suggestions.empty()) {
         std::string suggestion_text = format_suggestion_list(info.suggestions);
         if (!suggestion_text.empty()) {
-            message.append(" | Did you mean: ");
-            message.append(suggestion_text);
+            (void)message.append(" | Did you mean: ");
+            (void)message.append(suggestion_text);
             message.push_back('?');
         }
     }
@@ -546,12 +549,12 @@ std::string format_auto_cd_message(const AutoCdInfo& info) {
     }
 
     std::string message = "Auto cd dir: ";
-    message.append(token);
+    (void)message.append(token);
     if (!info.target.empty()) {
         std::string target = sanitize_for_status(info.target);
         if (!target.empty()) {
-            message.append(" -> ");
-            message.append(target);
+            (void)message.append(" -> ");
+            (void)message.append(target);
         }
     }
     return message;
@@ -680,7 +683,7 @@ std::string build_validation_status_message(
         }
         std::string part = std::to_string(count);
         part.push_back(' ');
-        part.append(label);
+        (void)part.append(label);
         if (count > 1) {
             part.push_back('s');
         }
@@ -705,8 +708,8 @@ std::string build_validation_status_message(
         std::string line;
         line.reserve(128);
         line.push_back('[');
-        line.append(severity_to_label(error->severity));
-        line.append("]");
+        (void)line.append(severity_to_label(error->severity));
+        (void)line.append("]");
 
         std::string location = format_error_location(*error);
         std::string sanitized_text = sanitize_for_status(error->message);
@@ -714,33 +717,33 @@ std::string build_validation_status_message(
         std::string detail_text;
 
         if (!location.empty()) {
-            detail_text.append(location);
+            (void)detail_text.append(location);
         }
         if (!sanitized_text.empty()) {
             if (!detail_text.empty()) {
-                detail_text.append(" - ");
+                (void)detail_text.append(" - ");
             }
-            detail_text.append(sanitized_text);
+            (void)detail_text.append(sanitized_text);
         }
         if (config::error_suggestions_enabled && !sanitized_suggestion.empty()) {
             if (!detail_text.empty()) {
-                detail_text.append(" | ");
+                (void)detail_text.append(" | ");
             }
-            detail_text.append(sanitized_suggestion);
+            (void)detail_text.append(sanitized_suggestion);
         }
 
         if (!detail_text.empty()) {
             line.push_back(' ');
-            line.append(detail_text);
+            (void)line.append(detail_text);
         }
 
         const char* style_prefix = severity_to_underline_style(error->severity);
         if (style_prefix != nullptr && style_prefix[0] != '\0') {
-            message.append(style_prefix);
-            message.append(line);
-            message.append(kAnsiReset);
+            (void)message.append(style_prefix);
+            (void)message.append(line);
+            (void)message.append(kAnsiReset);
         } else {
-            message.append(line);
+            (void)message.append(line);
         }
     }
 
@@ -771,7 +774,7 @@ std::string build_cjsh_status_reporting_message(Shell* shell, const std::string&
 
     std::vector<std::string> lines = interpreter->parse_into_lines(current_input);
     if (lines.empty()) {
-        lines.emplace_back(current_input);
+        (void)lines.emplace_back(current_input);
     }
 
     std::vector<ShellScriptInterpreter::SyntaxError> errors;
@@ -779,7 +782,7 @@ std::string build_cjsh_status_reporting_message(Shell* shell, const std::string&
         errors = interpreter->validate_comprehensive_syntax(lines);
     } catch (const std::exception& ex) {
         std::string failure_message = "Validation failed: ";
-        failure_message.append(sanitize_for_status(ex.what()));
+        (void)failure_message.append(sanitize_for_status(ex.what()));
         return failure_message;
     } catch (...) {
         return "Validation failed: unknown error.";
@@ -800,7 +803,7 @@ std::string build_cjsh_status_reporting_message(Shell* shell, const std::string&
         if (!combined_message.empty()) {
             combined_message.push_back('\n');
         }
-        combined_message.append(validation_message);
+        (void)combined_message.append(validation_message);
     }
 
     return combined_message;
@@ -843,7 +846,7 @@ const char* create_below_syntax_message(const char* input_buffer, void*) {
         if (!status_message.empty()) {
             status_message.push_back('\n');
         }
-        status_message.append(reporting_message);
+        (void)status_message.append(reporting_message);
     }
 
     if (status_message.empty()) {

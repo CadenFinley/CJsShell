@@ -141,10 +141,10 @@ void setup_environment_variables(const char* argv0) {
     std::string candidate_shell;
 
     if (argv0 != nullptr) {
-        setenv("0", argv0, 1);
+        (void)setenv("0", argv0, 1);
         std::string argv0_str(argv0);
         if (!argv0_str.empty() && argv0_str.front() == '-') {
-            argv0_str.erase(argv0_str.begin());
+            (void)argv0_str.erase(argv0_str.begin());
         }
         if (!argv0_str.empty()) {
             if (argv0_str.find('/') != std::string::npos) {
@@ -163,7 +163,7 @@ void setup_environment_variables(const char* argv0) {
             }
         }
     } else {
-        setenv("0", "cjsh", 1);
+        (void)setenv("0", "cjsh", 1);
     }
 
     if (candidate_shell.empty() && !existing_shell_value.empty() &&
@@ -180,14 +180,14 @@ void setup_environment_variables(const char* argv0) {
     }
 
     if (!shell_value.empty() && shell_value.front() == '-') {
-        shell_value.erase(shell_value.begin());
+        (void)shell_value.erase(shell_value.begin());
     }
     if (shell_value.empty()) {
         shell_value = "cjsh";
     }
 
-    setenv("SHELL", shell_value.c_str(), 1);
-    setenv("_", shell_value.c_str(), 1);
+    (void)setenv("SHELL", shell_value.c_str(), 1);
+    (void)setenv("_", shell_value.c_str(), 1);
 
     uid_t uid = getuid();
     struct passwd* pw = getpwuid(uid);
@@ -198,7 +198,7 @@ void setup_environment_variables(const char* argv0) {
         auto env_vars = setup_user_system_vars(pw);
 
         for (const auto& [name, value] : env_vars) {
-            setenv(name.c_str(), value.c_str(), 1);
+            (void)setenv(name.c_str(), value.c_str(), 1);
         }
     }
 }
@@ -280,14 +280,14 @@ void mirror_set_to_process_env(const std::string& name, const std::string& value
     if (!is_process_mirrored_shell_var(name)) {
         return;
     }
-    setenv(name.c_str(), value.c_str(), 1);
+    (void)setenv(name.c_str(), value.c_str(), 1);
 }
 
 void mirror_unset_from_process_env(const std::string& name) {
     if (!is_process_mirrored_shell_var(name)) {
         return;
     }
-    unsetenv(name.c_str());
+    (void)unsetenv(name.c_str());
 }
 
 bool set_shell_or_local_variable_value(Shell* shell, const std::string& name,
@@ -308,7 +308,7 @@ bool unset_shell_or_local_variable_value(Shell* shell, const std::string& name) 
     if (shell != nullptr) {
         if (auto* interpreter = shell->get_shell_script_interpreter()) {
             if (interpreter->is_local_variable(name)) {
-                interpreter->unset_local_variable(name);
+                (void)interpreter->unset_local_variable(name);
                 return true;
             }
         }
@@ -321,18 +321,18 @@ void setup_path_variables(const struct passwd* pw) {
     // Raw getenv here: PATH bootstrap before shell vars exist.
     const char* path_env = getenv("PATH");
     if ((path_env == nullptr) || path_env[0] == '\0') {
-        setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
+        (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
     }
 
 #ifdef __APPLE__
     // Raw getenv here: HOME bootstrap before shell vars exist.
     if (pw != nullptr && pw->pw_dir != nullptr && getenv("HOME") == nullptr) {
-        setenv("HOME", pw->pw_dir, 1);
+        (void)setenv("HOME", pw->pw_dir, 1);
     }
 
     if (config::login_mode && cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
         if (g_shell) {
-            g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
+            (void)g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
         }
     }
 #endif
@@ -393,8 +393,8 @@ void setup_path_variables(const struct passwd* pw) {
 std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const struct passwd* pw) {
     std::vector<std::pair<std::string, std::string>> env_vars;
 
-    env_vars.emplace_back("USER", std::string(pw->pw_name));
-    env_vars.emplace_back("LOGNAME", std::string(pw->pw_name));
+    (void)env_vars.emplace_back("USER", std::string(pw->pw_name));
+    (void)env_vars.emplace_back("LOGNAME", std::string(pw->pw_name));
 
     std::string home_value;
     // Raw getenv here: HOME bootstrap before shell vars exist.
@@ -403,34 +403,34 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
         home_value = current_home;
     } else {
         home_value = std::string(pw->pw_dir);
-        setenv("HOME", home_value.c_str(), 1);
+        (void)setenv("HOME", home_value.c_str(), 1);
     }
-    env_vars.emplace_back("HOME", home_value);
+    (void)env_vars.emplace_back("HOME", home_value);
 
     char hostname[256];
     if (gethostname(hostname, sizeof(hostname)) == 0) {
-        env_vars.emplace_back("HOSTNAME", std::string(hostname));
+        (void)env_vars.emplace_back("HOSTNAME", std::string(hostname));
     }
 
     std::string current_path = cjsh_filesystem::safe_current_directory();
 
-    setenv("PWD", current_path.c_str(), 1);
-    env_vars.emplace_back("IFS", std::string(" \t\n"));
+    (void)setenv("PWD", current_path.c_str(), 1);
+    (void)env_vars.emplace_back("IFS", std::string(" \t\n"));
 
     // Raw getenv here: LANG bootstrap before shell vars exist.
     const char* lang_env = getenv("LANG");
     if ((lang_env == nullptr) || lang_env[0] == '\0') {
-        env_vars.emplace_back("LANG", std::string("en_US.UTF-8"));
+        (void)env_vars.emplace_back("LANG", std::string("en_US.UTF-8"));
     }
 
     // Raw getenv here: PAGER bootstrap before shell vars exist.
     if (getenv("PAGER") == nullptr) {
-        env_vars.emplace_back("PAGER", std::string("less"));
+        (void)env_vars.emplace_back("PAGER", std::string("less"));
     }
 
     // Raw getenv here: TMPDIR bootstrap before shell vars exist.
     if (getenv("TMPDIR") == nullptr) {
-        env_vars.emplace_back("TMPDIR", std::string("/tmp"));
+        (void)env_vars.emplace_back("TMPDIR", std::string("/tmp"));
     }
 
     int shlvl = 1;
@@ -443,28 +443,28 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
         }
     }
     std::string shlvl_str = std::to_string(shlvl);
-    setenv("SHLVL", shlvl_str.c_str(), 1);
+    (void)setenv("SHLVL", shlvl_str.c_str(), 1);
 
     pipeline_status_utils::set_last_status_env(0);
 
     auto version_str = get_version();
-    env_vars.emplace_back("CJSH_VERSION", version_str);
+    (void)env_vars.emplace_back("CJSH_VERSION", version_str);
 
     // Raw getenv here: PS1 bootstrap before shell vars exist.
     if (getenv("PS1") == nullptr) {
         std::string default_ps1 = prompt::default_primary_prompt_template();
-        setenv("PS1", default_ps1.c_str(), 1);
+        (void)setenv("PS1", default_ps1.c_str(), 1);
     }
 
     // Raw getenv here: PS2 bootstrap before shell vars exist.
     if (getenv("PS2") == nullptr) {
         std::string default_ps2 = prompt::default_secondary_prompt_template();
-        setenv("PS2", default_ps2.c_str(), 1);
+        (void)setenv("PS2", default_ps2.c_str(), 1);
     }
 
     // Raw getenv here: PS4 bootstrap before shell vars exist.
     if (getenv("PS4") == nullptr) {
-        setenv("PS4", "+ ", 1);
+        (void)setenv("PS4", "+ ", 1);
     }
 
     return env_vars;
@@ -501,7 +501,7 @@ size_t collect_env_assignments(const std::vector<std::string>& args,
 void apply_env_assignments(
     const std::vector<std::pair<std::string, std::string>>& env_assignments) {
     for (const auto& env : env_assignments) {
-        setenv(env.first.c_str(), env.second.c_str(), 1);
+        (void)setenv(env.first.c_str(), env.second.c_str(), 1);
     }
 }
 
@@ -517,7 +517,7 @@ std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
     c_args.reserve(args.size() + 1);
     for (const auto& arg : args) {
         auto buf = std::make_unique<char[]>(arg.size() + 1);
-        std::memcpy(buf.get(), arg.c_str(), arg.size() + 1);
+        (void)std::memcpy(buf.get(), arg.c_str(), arg.size() + 1);
         c_args.push_back(buf.get());
         arg_buffers.push_back(std::move(buf));
     }
@@ -548,12 +548,12 @@ bool update_terminal_dimensions() {
 
     if (ws.ws_col > 0) {
         std::string columns = std::to_string(ws.ws_col);
-        setenv("COLUMNS", columns.c_str(), 1);
+        (void)setenv("COLUMNS", columns.c_str(), 1);
     }
 
     if (ws.ws_row > 0) {
         std::string lines = std::to_string(ws.ws_row);
-        setenv("LINES", lines.c_str(), 1);
+        (void)setenv("LINES", lines.c_str(), 1);
     }
 
     return updated;
@@ -634,7 +634,7 @@ int handle_non_interactive_mode(const std::string& script_file) {
                 previous_ = current;
                 had_previous_ = true;
             }
-            setenv("0", new_value.c_str(), 1);
+            (void)setenv("0", new_value.c_str(), 1);
             sync_env(new_value.c_str());
             active_ = true;
         }
@@ -644,10 +644,10 @@ int handle_non_interactive_mode(const std::string& script_file) {
                 return;
             }
             if (had_previous_) {
-                setenv("0", previous_.c_str(), 1);
+                (void)setenv("0", previous_.c_str(), 1);
                 sync_env(previous_.c_str());
             } else {
-                unsetenv("0");
+                (void)unsetenv("0");
                 sync_env(nullptr);
             }
         }
@@ -661,7 +661,7 @@ int handle_non_interactive_mode(const std::string& script_file) {
             if (value != nullptr) {
                 env_map["0"] = value;
             } else {
-                env_map.erase("0");
+                (void)env_map.erase("0");
             }
             cjsh_env::sync_parser_env_vars(shell_);
         }
@@ -674,7 +674,7 @@ int handle_non_interactive_mode(const std::string& script_file) {
 
     std::optional<ScriptZeroGuard> zero_guard;
     if (!script_file.empty()) {
-        zero_guard.emplace(g_shell.get(), script_file);
+        (void)zero_guard.emplace(g_shell.get(), script_file);
     }
 
     if (!script_file.empty()) {

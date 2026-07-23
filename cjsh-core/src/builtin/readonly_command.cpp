@@ -75,7 +75,7 @@ ReadonlyFunctionState& readonly_function_state() {
 }  // namespace
 
 void readonly_manager_set(const std::string& name) {
-    readonly_state().readonly_vars.insert(name);
+    (void)readonly_state().readonly_vars.insert(name);
 }
 
 bool readonly_manager_is(const std::string& name) {
@@ -103,7 +103,7 @@ std::vector<std::string> readonly_manager_list() {
 }
 
 void readonly_function_manager_set(const std::string& name) {
-    readonly_function_state().readonly_functions.insert(name);
+    (void)readonly_function_state().readonly_functions.insert(name);
 }
 
 bool readonly_function_manager_is(const std::string& name) {
@@ -207,7 +207,7 @@ int readonly_command(const std::vector<std::string>& args) {
 
     for (size_t i = start_index; i < args.size(); ++i) {
         AssignmentOperand operand;
-        parse_assignment_operand(args[i], operand, false);
+        (void)parse_assignment_operand(args[i], operand, false);
 
         if (operand.has_assignment) {
             if (!cjsh_env::is_valid_env_name(operand.name)) {

@@ -106,7 +106,7 @@ int restart_command(const std::vector<std::string>& args) {
     }
 
     std::vector<char*> c_args = cjsh_env::build_exec_argv(exec_args);
-    execvp(executable_path.c_str(), c_args.data());
+    (void)execvp(executable_path.c_str(), c_args.data());
 
     print_error({ErrorType::RUNTIME_ERROR,
                  "restart",

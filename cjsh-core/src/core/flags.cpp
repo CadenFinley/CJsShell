@@ -89,7 +89,7 @@ void apply_minimal_mode() {
     config::status_line_enabled = false;
     config::error_suggestions_enabled = false;
     config::prompt_vars_enabled = false;
-    ic_enable_line_numbers(false);
+    (void)ic_enable_line_numbers(false);
     // ic_enable_multiline_indent(false);
 }
 
@@ -103,7 +103,7 @@ void apply_posix_mode_settings() {
     config::show_title_line = false;
     config::error_suggestions_enabled = false;
     config::history_expansion_enabled = false;
-    setenv("POSIXLY_CORRECT", "1", 1);
+    (void)setenv("POSIXLY_CORRECT", "1", 1);
 }
 
 void save_startup_arguments(int argc, char* argv[]) {
@@ -111,7 +111,7 @@ void save_startup_arguments(int argc, char* argv[]) {
     auto& args = startup_args();
     args.clear();
     for (int i = 0; i < argc; i++) {
-        args.emplace_back(argv[i]);
+        (void)args.emplace_back(argv[i]);
     }
 }
 
@@ -237,7 +237,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 config::suppress_sh_warning = true;
                 break;
             case '?':
-                print_usage();
+                (void)print_usage();
                 result.exit_code = 127;
                 result.should_exit = true;
                 return result;
@@ -338,8 +338,8 @@ int shift_positional_parameters(int count) {
     if (static_cast<size_t>(count) >= positional_parameters.size()) {
         positional_parameters.clear();
     } else {
-        positional_parameters.erase(positional_parameters.begin(),
-                                    positional_parameters.begin() + count);
+        (void)positional_parameters.erase(positional_parameters.begin(),
+                                          positional_parameters.begin() + count);
     }
 
     return 0;

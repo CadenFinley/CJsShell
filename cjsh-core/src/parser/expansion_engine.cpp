@@ -113,7 +113,7 @@ std::string format_match_path(const std::filesystem::path& path, bool absolute) 
         if (value == ".") {
             // keep
         } else if (value.rfind("./", 0) == 0) {
-            value.erase(0, 2);
+            (void)value.erase(0, 2);
         }
     }
 
@@ -240,7 +240,7 @@ std::vector<std::string> expand_globstar_pattern(const ParsedGlobPattern& patter
 
     globstar_recurse(pattern, 0, base, matches);
     std::sort(matches.begin(), matches.end());
-    matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
+    (void)matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
     return matches;
 }
 
@@ -358,7 +358,7 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
 
     for (size_t i = 0; i <= content.size(); ++i) {
         if (i == content.size() || (content[i] == ',' && depth == 0)) {
-            options.emplace_back(content.substr(start, i - start));
+            (void)options.emplace_back(content.substr(start, i - start));
             start = i + 1;
         } else if (content[i] == '{') {
             depth++;
@@ -468,7 +468,7 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
     if (return_value == 0) {
         result.reserve(glob_result.gl_pathc);
         for (size_t i = 0; i < glob_result.gl_pathc; ++i) {
-            result.emplace_back(glob_result.gl_pathv[i]);
+            (void)result.emplace_back(glob_result.gl_pathv[i]);
         }
         globfree(&glob_result);
     } else if (return_value == GLOB_NOMATCH) {
@@ -481,8 +481,8 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
 void ExpansionEngine::expand_and_append_results(const std::string& combined,
                                                 std::vector<std::string>& result) {
     std::vector<std::string> expanded_results = expand_braces(combined);
-    result.insert(result.end(), std::make_move_iterator(expanded_results.begin()),
-                  std::make_move_iterator(expanded_results.end()));
+    (void)result.insert(result.end(), std::make_move_iterator(expanded_results.begin()),
+                        std::make_move_iterator(expanded_results.end()));
 }
 
 template <typename T>
@@ -499,7 +499,7 @@ void ExpansionEngine::expand_range(T start, T end, const std::string& prefix,
             combined.reserve(prefix.size() + 1 + suffix.size());
             combined = prefix;
             combined.append(1, value);
-            combined.append(suffix);
+            (void)combined.append(suffix);
         }
         expand_and_append_results(combined, result);
     };

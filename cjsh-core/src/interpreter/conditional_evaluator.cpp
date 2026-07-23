@@ -291,7 +291,7 @@ std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& lin
         if (depth == 0) {
             if (i + 1 < tokens.size()) {
                 auto start = std::next(tokens.begin(), static_cast<std::ptrdiff_t>(i + 1));
-                trailing_tokens.insert(trailing_tokens.end(), start, tokens.end());
+                (void)trailing_tokens.insert(trailing_tokens.end(), start, tokens.end());
             }
             break;
         }
@@ -305,8 +305,8 @@ std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& lin
         if (trailing.empty()) {
             trailing = t;
         } else {
-            trailing.append("; ");
-            trailing.append(t);
+            (void)trailing.append("; ");
+            (void)trailing.append(t);
         }
     }
 
@@ -1137,8 +1137,8 @@ std::string simplify_parentheses_in_condition(
         std::string replacement = (inner_result == 0) ? "true" : "false";
 
         std::string temp = result.substr(0, start);
-        temp.append(replacement);
-        temp.append(result.substr(end + 1));
+        (void)temp.append(replacement);
+        (void)temp.append(result.substr(end + 1));
         result = std::move(temp);
     }
 

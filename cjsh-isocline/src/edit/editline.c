@@ -427,7 +427,7 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb);
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text,
                              const char* inline_right_text) {
-    tty_start_raw(env->tty);
+    (void)tty_start_raw(env->tty);
     term_start_raw(env->term);
     char* line = edit_line(env, prompt_text, inline_right_text);
     term_end_raw(env->term, false);
@@ -459,7 +459,7 @@ static void editor_undo_forget(editor_t* eb) {
         return;
     const char* input = NULL;
     ssize_t pos = 0;
-    editstate_restore(eb->mem, &eb->undo, &input, &pos);
+    (void)editstate_restore(eb->mem, &eb->undo, &input, &pos);
     mem_free(eb->mem, input);
 }
 
@@ -765,7 +765,7 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
             sbuf_replace(display_input_with_hint, sbuf_string(eb->input));
             display_hint_len = ic_strlen(active_hint);
             if (display_hint_len > 0) {
-                sbuf_insert_at(display_input_with_hint, active_hint, display_hint_insert_pos);
+                (void)sbuf_insert_at(display_input_with_hint, active_hint, display_hint_insert_pos);
                 display_input = display_input_with_hint;
             } else {
                 display_hint_len = 0;
@@ -847,7 +847,7 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
 
 static bool edit_pos_is_at_row_end(ic_env_t* env, editor_t* eb) {
     rowcol_t rc;
-    edit_get_rowcol(env, eb, &rc);
+    (void)edit_get_rowcol(env, eb, &rc);
     return rc.last_on_row;
 }
 
@@ -1558,7 +1558,8 @@ static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, a
     info.cursor_logical_line = cursor_logical_line;
     info.continuation_row = false;
     info.has_following_row = has_following_row;
-    sbuf_for_each_row(input, eb->termw, promptw, cpromptw, &edit_refresh_rows_iter, &info, NULL);
+    (void)sbuf_for_each_row(input, eb->termw, promptw, cpromptw, &edit_refresh_rows_iter, &info,
+                            NULL);
 }
 
 static bool sbuf_ends_with_newline(stringbuf_t* sbuf) {
@@ -1647,7 +1648,7 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
             attrbuf_insert_at(eb->attrs, eb->pos, sbuf_len(eb->hint),
                               bbcode_style(env->bbcode, "ic-hint"));
         }
-        sbuf_insert_at(eb->input, sbuf_string(eb->hint), eb->pos);
+        (void)sbuf_insert_at(eb->input, sbuf_string(eb->hint), eb->pos);
     }
 
     // render extra (like a completion menu) and status message
@@ -1836,7 +1837,7 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     term_flush(env->term);
 
     // stop buffering
-    term_set_buffer_mode(env->term, bmode);
+    (void)term_set_buffer_mode(env->term, bmode);
 
     // restore input by removing the hint
     sbuf_delete_at(eb->input, eb->pos, sbuf_len(eb->hint));
@@ -1914,7 +1915,7 @@ static void edit_clear_screen(ic_env_t* env, editor_t* eb) {
 // operations!)
 static bool edit_resize(ic_env_t* env, editor_t* eb) {
     // update dimensions
-    term_update_dim(env->term);
+    (void)term_update_dim(env->term);
     ssize_t newtermw = term_get_width(env->term);
     if (eb->termw == newtermw)
         return false;
@@ -1923,8 +1924,8 @@ static bool edit_resize(ic_env_t* env, editor_t* eb) {
     // width
     ssize_t promptw, cpromptw;
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
-    sbuf_insert_at(eb->input, sbuf_string(eb->hint),
-                   eb->pos);  // insert used hint
+    (void)sbuf_insert_at(eb->input, sbuf_string(eb->hint),
+                         eb->pos);  // insert used hint
 
     // render extra (status lines, hint help, completion menu)
     stringbuf_t* extra = NULL;
@@ -1997,8 +1998,8 @@ static void editor_append_hint_help(editor_t* eb, const char* help) {
     sbuf_clear(eb->hint_help);
     if (help != NULL) {
         sbuf_replace(eb->hint_help, "[ic-info]");
-        sbuf_append(eb->hint_help, help);
-        sbuf_append(eb->hint_help, "[/ic-info]\n");
+        (void)sbuf_append(eb->hint_help, help);
+        (void)sbuf_append(eb->hint_help, "[/ic-info]\n");
     }
 }
 
@@ -2056,7 +2057,7 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
                             extra_hint = completions_get_hint(env->completions, 0, &extra_help);
                             if (extra_hint != NULL) {
                                 editor_append_hint_help(eb, extra_help);
-                                sbuf_append(eb->hint, extra_hint);
+                                (void)sbuf_append(eb->hint, extra_hint);
                             }
                         }
                     } while (count == 1);
@@ -2092,7 +2093,7 @@ static void edit_cursor_left(ic_env_t* env, editor_t* eb) {
     if (prev < 0)
         return;
     rowcol_t rc;
-    edit_get_rowcol(env, eb, &rc);
+    (void)edit_get_rowcol(env, eb, &rc);
     eb->pos = prev;
     edit_refresh_hint(env, eb);
 }
@@ -2103,7 +2104,7 @@ static void edit_cursor_right(ic_env_t* env, editor_t* eb) {
     if (next < 0)
         return;
     rowcol_t rc;
-    edit_get_rowcol(env, eb, &rc);
+    (void)edit_get_rowcol(env, eb, &rc);
     eb->pos = next;
     edit_refresh_hint(env, eb);
 }
@@ -2176,7 +2177,7 @@ static void edit_cursor_to_end(ic_env_t* env, editor_t* eb) {
 
 static void edit_cursor_row_up(ic_env_t* env, editor_t* eb) {
     rowcol_t rc;
-    edit_get_rowcol(env, eb, &rc);
+    (void)edit_get_rowcol(env, eb, &rc);
     if (rc.row == 0) {
         edit_history_prev(env, eb);
     } else {
@@ -2186,7 +2187,7 @@ static void edit_cursor_row_up(ic_env_t* env, editor_t* eb) {
 
 static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb) {
     rowcol_t rc;
-    edit_get_rowcol(env, eb, &rc);
+    (void)edit_get_rowcol(env, eb, &rc);
     if (rc.row != 0) {
         edit_set_pos_at_rowcol(env, eb, rc.row - 1, rc.col);
         return;
@@ -2243,7 +2244,7 @@ static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb) {
     }
 
     if (completions_all_sources_equal(env->completions, "spell")) {
-        edit_complete(env, eb, 0);
+        (void)edit_complete(env, eb, 0);
         mem_free(env->mem, original_word);
         completions_clear(env->completions);
         return;
@@ -2289,7 +2290,7 @@ static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb) {
             (best_replacement == NULL ? 0 : (size_t)ic_strlen(best_replacement));
         size_t threshold = edit_spell_threshold((size_t)original_len, replacement_len);
         if (best_distance <= threshold) {
-            edit_complete(env, eb, best_spell_idx);
+            (void)edit_complete(env, eb, best_spell_idx);
         }
     }
 
@@ -2485,7 +2486,7 @@ static void edit_multiline_eol(ic_env_t* env, editor_t* eb) {
     }
     // replace line continuation with a real newline
     sbuf_delete_at(eb->input, eb->pos - 1, 1);
-    sbuf_insert_at(eb->input, "\n", eb->pos - 1);
+    (void)sbuf_insert_at(eb->input, "\n", eb->pos - 1);
     edit_refresh(env, eb);
 }
 
@@ -2535,12 +2536,12 @@ static void edit_auto_brace(ic_env_t* env, editor_t* eb, char c) {
                     return;
                 if (open == '\'' && edit_is_word_char(sbuf_char_at(eb->input, inserted_index - 1)))
                     return;
-                sbuf_insert_char_at(eb->input, close, eb->pos);
+                (void)sbuf_insert_char_at(eb->input, close, eb->pos);
                 return;
             }
-            sbuf_insert_char_at(eb->input, close, eb->pos);
+            (void)sbuf_insert_char_at(eb->input, close, eb->pos);
             bool balanced = false;
-            find_matching_brace(sbuf_string(eb->input), eb->pos, braces, &balanced);
+            (void)find_matching_brace(sbuf_string(eb->input), eb->pos, braces, &balanced);
             if (!balanced) {
                 // don't insert if it leads to an unbalanced expression.
                 sbuf_delete_char_at(eb->input, eb->pos);
@@ -2567,7 +2568,7 @@ static void editor_auto_indent(editor_t* eb, const char* pre, const char* post) 
         if (!ic_starts_with(sbuf_string(eb->input) + eb->pos, post))
             return;
         eb->pos = sbuf_insert_at(eb->input, "  ", eb->pos);
-        sbuf_insert_char_at(eb->input, '\n', eb->pos);
+        (void)sbuf_insert_char_at(eb->input, '\n', eb->pos);
     }
 }
 
@@ -2687,7 +2688,7 @@ static void edit_insert_char(ic_env_t* env, editor_t* eb, char c) {
     if (nextpos >= 0)
         eb->pos = nextpos;
     if (c == ' ' || c == '\n' || c == '\r') {
-        edit_try_expand_abbreviation(env, eb, true, true);
+        (void)edit_try_expand_abbreviation(env, eb, true, true);
     }
     edit_auto_brace(env, eb, c);
     if (c == '\n') {
@@ -2848,7 +2849,7 @@ static void edit_format_mouse_enabled_status_hint(ic_env_t* env, bool include_di
         }
     }
 
-    ic_strncpy(buffer, (ssize_t)buflen, "Mouse clicking is enabled", (ssize_t)buflen - 1);
+    (void)ic_strncpy(buffer, (ssize_t)buflen, "Mouse clicking is enabled", (ssize_t)buflen - 1);
 }
 
 static ic_mouse_clicking_mode_t edit_normalize_mouse_mode(ic_mouse_clicking_mode_t mode) {
@@ -3339,7 +3340,7 @@ static bool insert_initial_input(const char* initial_input, editor_t* eb) {
 
     sbuf_clear(eb->input);
     if (length > 0) {
-        sbuf_append_n(eb->input, initial_input, length);
+        (void)sbuf_append_n(eb->input, initial_input, length);
     }
     eb->pos = sbuf_len(eb->input);
     return has_trailing_enter;
@@ -3371,15 +3372,15 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
         } else {
             custom_combined = sbuf_new(eb->mem);
             if (custom_combined != NULL) {
-                sbuf_append(custom_combined, custom_message);
+                (void)sbuf_append(custom_combined, custom_message);
                 ssize_t custom_len = sbuf_len(custom_combined);
                 if (custom_len > 0) {
                     const char* existing = sbuf_string(custom_combined);
                     if (existing != NULL && existing[custom_len - 1] != '\n') {
-                        sbuf_append_char(custom_combined, '\n');
+                        (void)sbuf_append_char(custom_combined, '\n');
                     }
                 }
-                sbuf_append(custom_combined, spell_message);
+                (void)sbuf_append(custom_combined, spell_message);
                 custom_message = sbuf_string(custom_combined);
             }
         }
@@ -3423,10 +3424,10 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
             if (combine_with_custom && has_custom_message) {
                 combined = sbuf_new(eb->mem);
                 if (combined != NULL) {
-                    sbuf_append(combined, fallback_buffer);
+                    (void)sbuf_append(combined, fallback_buffer);
                     if (custom_message[0] != '\0') {
-                        sbuf_append_char(combined, '\n');
-                        sbuf_append(combined, custom_message);
+                        (void)sbuf_append_char(combined, '\n');
+                        (void)sbuf_append(combined, custom_message);
                     }
                     next = sbuf_string(combined);
                 } else {
@@ -3455,10 +3456,10 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
 
         with_mouse_prefix = sbuf_new(eb->mem);
         if (with_mouse_prefix != NULL) {
-            sbuf_append(with_mouse_prefix, mouse_status_prefix);
+            (void)sbuf_append(with_mouse_prefix, mouse_status_prefix);
             if (next != NULL && next[0] != '\0') {
-                sbuf_append_char(with_mouse_prefix, '\n');
-                sbuf_append(with_mouse_prefix, next);
+                (void)sbuf_append_char(with_mouse_prefix, '\n');
+                (void)sbuf_append(with_mouse_prefix, next);
             }
             next = sbuf_string(with_mouse_prefix);
         } else if (next == NULL || next[0] == '\0') {
@@ -3634,7 +3635,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     if (env->initial_input != NULL) {
         initial_requests_submit = insert_initial_input(env->initial_input, &eb);
         // Expand pending abbreviations in pre-seeded buffers (e.g., typeahead with trailing space)
-        edit_expand_abbreviation_if_needed(env, &eb, false);
+        (void)edit_expand_abbreviation_if_needed(env, &eb, false);
     } else {
         seeded_multiline_lines = apply_default_multiline_start_lines(env, &eb);
     }
@@ -3663,7 +3664,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     }
 
     // always a history entry for the current input
-    history_push(env->history, "");
+    (void)history_push(env->history, "");
 
     if (edit_update_status_message(env, &eb)) {
         if (eb.refresh_suppressed) {
@@ -3751,7 +3752,7 @@ edit_loop_entry:
                 should_resize = true;
             }
             if (should_resize) {
-                edit_resize(env, &eb);
+                (void)edit_resize(env, &eb);
             }
 
             // clear hint only after a potential resize (so resize row calculations
@@ -3893,7 +3894,7 @@ edit_loop_entry:
                 switch (c) {
                         // events
                     case KEY_EVENT_RESIZE:
-                        edit_resize(env, &eb);
+                        (void)edit_resize(env, &eb);
                         break;
                     case KEY_EVENT_AUTOTAB:
                         edit_generate_completions(env, &eb, true);
@@ -4097,7 +4098,7 @@ edit_loop_entry:
             pending_key = KEY_LINEFEED;
             goto edit_loop_entry;
         }
-        edit_expand_abbreviation_if_needed(env, &eb, false);
+        (void)edit_expand_abbreviation_if_needed(env, &eb, false);
         c = KEY_ENTER;
     }
 
@@ -4107,7 +4108,7 @@ edit_loop_entry:
 
     // Final chance to expand pending abbreviations (e.g., buffered typeahead ending in space)
     if (!ctrl_c_pressed && !ctrl_d_pressed && c != KEY_EVENT_STOP) {
-        edit_expand_abbreviation_if_needed(env, &eb, false);
+        (void)edit_expand_abbreviation_if_needed(env, &eb, false);
     }
 
     if (eb.status != NULL && sbuf_len(eb.status) > 0) {
@@ -4154,7 +4155,7 @@ edit_loop_entry:
     }
 
     // update history in memory (file saving handled after execution)
-    history_update(env->history, sbuf_string(eb.input));
+    (void)history_update(env->history, sbuf_string(eb.input));
     if (res == NULL || sbuf_len(eb.input) <= 1) {
         ic_history_remove_last();
     }

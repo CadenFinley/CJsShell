@@ -140,9 +140,9 @@ int double_bracket_command(const std::vector<std::string>& args) {
 
     if (args[0] == "[[" && args.size() > 1 && args.back() == "]]") {
         expression_args.pop_back();
-        expression_args.erase(expression_args.begin());
+        (void)expression_args.erase(expression_args.begin());
     } else if (args[0] == "[[") {
-        expression_args.erase(expression_args.begin());
+        (void)expression_args.erase(expression_args.begin());
     }
 
     if (expression_args.empty()) {

@@ -112,7 +112,7 @@ inline bool is_inside_quotes_at(std::string_view text, size_t pos) {
     QuoteState state;
     size_t limit = std::min(pos, text.size());
     for (size_t i = 0; i < limit; ++i) {
-        state.consume_forward(text[i]);
+        (void)state.consume_forward(text[i]);
     }
     return state.inside_quotes();
 }

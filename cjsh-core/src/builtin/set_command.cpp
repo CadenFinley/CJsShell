@@ -52,7 +52,7 @@ std::string pad_option_name(const std::string& name) {
         return name;
     }
     std::string padded = name;
-    padded.append(kOptionNamePadding - name.size(), ' ');
+    (void)padded.append(kOptionNamePadding - name.size(), ' ');
     return padded;
 }
 
@@ -84,7 +84,7 @@ std::string normalize_option_key(std::string key) {
     if (first_non_dash == std::string::npos) {
         key.clear();
     } else if (first_non_dash > 0) {
-        key.erase(0, first_non_dash);
+        (void)key.erase(0, first_non_dash);
     }
 
     key = string_utils::to_lower_copy(key);

@@ -326,12 +326,12 @@ int report_error_with_code(ErrorType type, ErrorSeverity severity, const std::st
 
 std::string sanitize_context(const std::string& text) {
     std::string sanitized = text;
-    sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\n'), sanitized.end());
-    sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\r'), sanitized.end());
+    (void)sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\n'), sanitized.end());
+    (void)sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\r'), sanitized.end());
     sanitized = trim(sanitized);
     if (sanitized.size() > 160) {
         sanitized.resize(157);
-        sanitized.append("...");
+        (void)sanitized.append("...");
     }
     return sanitized;
 }
@@ -364,11 +364,11 @@ void append_context_hint(std::vector<std::string>& suggestions, const std::strin
 std::string strip_cjsh_prefix(std::string message) {
     const std::string prefix = "cjsh:";
     if (message.rfind(prefix, 0) == 0) {
-        message.erase(0, prefix.size());
+        (void)message.erase(0, prefix.size());
         message = string_utils::trim_left_ascii_whitespace_copy(message);
     }
     if (message.rfind("cjsh ", 0) == 0) {
-        message.erase(0, 5);
+        (void)message.erase(0, 5);
         message = string_utils::trim_left_ascii_whitespace_copy(message);
     }
     return message;
@@ -510,7 +510,7 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
         exit(exit_code);
     } else if (pid > 0) {
         int status = 0;
-        waitpid(pid, &status, 0);
+        (void)waitpid(pid, &status, 0);
         int exit_code = wait_status_utils::to_exit_code(status, 1);
         return set_last_status(exit_code);
     } else {
@@ -549,7 +549,7 @@ int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>
     for (size_t pi = 1; pi < expanded_args.size() && pi <= 9; ++pi) {
         std::string name = std::to_string(pi);
         param_names.push_back(name);
-        setenv(name.c_str(), expanded_args[pi].c_str(), 1);
+        (void)setenv(name.c_str(), expanded_args[pi].c_str(), 1);
     }
 
     int exit_code = 0;
@@ -572,7 +572,7 @@ int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>
             std::string return_code_env = cjsh_env::get_shell_variable_value("CJSH_RETURN_CODE");
             try {
                 exit_code = std::stoi(return_code_env);
-                cjsh_env::unset_shell_variable_value("CJSH_RETURN_CODE");
+                (void)cjsh_env::unset_shell_variable_value("CJSH_RETURN_CODE");
             } catch (const std::exception&) {
                 exit_code = 0;
             }
@@ -582,7 +582,7 @@ int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>
     flags::set_positional_parameters(saved_params);
 
     for (const auto& n : param_names)
-        unsetenv(n.c_str());
+        (void)unsetenv(n.c_str());
 
     pop_function_scope();
 
@@ -1388,7 +1388,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             if (is_control_flow_exit_code(last_code) || cjsh_env::exit_requested()) {
                 return last_code;
             }
-            set_last_status(last_code);
+            (void)set_last_status(last_code);
             continue;
         }
 
@@ -1661,7 +1661,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                     functions[func_name] = {body_lines, opening_delim == '('};
                                     last_code = 0;
                                 }
-                                set_last_status(last_code);
+                                (void)set_last_status(last_code);
                                 continue;
                             }
                         }
@@ -1857,7 +1857,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
                     last_code = code;
 
-                    set_last_status(last_code);
+                    (void)set_last_status(last_code);
 
                     if (g_parameter_expansion_fatal_error) {
                         return set_last_status(last_code);
@@ -1903,7 +1903,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         if (control_flow_error) {
                             code = 1;
                             last_code = code;
-                            set_last_status(last_code);
+                            (void)set_last_status(last_code);
                         } else {
                             goto control_flow_exit;
                         }
@@ -1956,7 +1956,7 @@ bool ShellScriptInterpreter::should_interpret_as_cjsh_script(const std::string& 
     if (!f)
         return false;
     std::string first_line;
-    std::getline(f, first_line);
+    (void)std::getline(f, first_line);
     return first_line.rfind("#!", 0) == 0 && first_line.find("cjsh") != std::string::npos;
 }
 
@@ -2004,9 +2004,9 @@ int ShellScriptInterpreter::evaluate_logical_condition_internal(
 
                 std::string new_cond;
                 new_cond.reserve(processed_cond.size() - (end + 2 - pos) + result_str.size());
-                new_cond.append(processed_cond, 0, pos);
-                new_cond.append(result_str);
-                new_cond.append(processed_cond, end + 2, std::string::npos);
+                (void)new_cond.append(processed_cond, 0, pos);
+                (void)new_cond.append(result_str);
+                (void)new_cond.append(processed_cond, end + 2, std::string::npos);
                 processed_cond = std::move(new_cond);
                 pos = pos + result_str.length();
             } catch (const std::exception&) {
@@ -2020,7 +2020,7 @@ int ShellScriptInterpreter::evaluate_logical_condition_internal(
     int condition_status =
         conditional_evaluator::evaluate_logical_condition(processed_cond, executor);
 
-    set_last_status(condition_status);
+    (void)set_last_status(condition_status);
     return condition_status;
 }
 
@@ -2420,8 +2420,8 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                                 std::string var_name =
                                     expanded_result.substr(var_start, var_end - var_start);
                                 std::string var_value = get_variable_value(var_name);
-                                expanded_result.replace(dollar_pos, var_end - dollar_pos,
-                                                        var_value);
+                                (void)expanded_result.replace(dollar_pos, var_end - dollar_pos,
+                                                              var_value);
                                 dollar_pos += var_value.length();
                             } else {
                                 dollar_pos++;

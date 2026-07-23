@@ -412,18 +412,19 @@ again:;
         ssize_t total_actions = command_palette_action_count() + command_palette_custom_count(env);
 
         if (showing_all_due_to_no_matches) {
-            sbuf_appendf(
+            (void)sbuf_appendf(
                 eb->extra,
                 "[ic-info]No matches - showing all actions (%zd action%s) - case %s%s[/]\n",
                 total_actions, total_actions == 1 ? "" : "s",
                 session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
         } else if (is_filtered) {
-            sbuf_appendf(eb->extra, "[ic-info]%zd action%s found - case %s%s[/]\n", match_count,
-                         match_count == 1 ? "" : "s",
-                         session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
+            (void)sbuf_appendf(eb->extra, "[ic-info]%zd action%s found - case %s%s[/]\n",
+                               match_count, match_count == 1 ? "" : "s",
+                               session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
         } else {
-            sbuf_appendf(eb->extra, "[ic-info]Actions (%zd total) - case %s%s[/]\n", total_actions,
-                         session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
+            (void)sbuf_appendf(eb->extra, "[ic-info]Actions (%zd total) - case %s%s[/]\n",
+                               total_actions, session_case_sensitive ? "sensitive" : "insensitive",
+                               mouse_suffix);
         }
 
         ssize_t term_width = term_get_width(env->term);
@@ -549,10 +550,10 @@ again:;
 
             bool is_selected = (match_idx == selected_idx);
             if (is_selected) {
-                sbuf_append(eb->extra, "[ic-menu-selected]");
+                (void)sbuf_append(eb->extra, "[ic-menu-selected]");
             }
             const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
-            sbuf_appendf(eb->extra, "[!pre]%s ", (is_selected ? arrow : " "));
+            (void)sbuf_appendf(eb->extra, "[!pre]%s ", (is_selected ? arrow : " "));
 
             bool highlight_match = (is_filtered && !showing_all_due_to_no_matches &&
                                     match->match_len > 0 && match->match_pos >= 0);
@@ -561,41 +562,41 @@ again:;
                                                 highlight_match, NULL, false);
 
             if (append_ellipsis && max_columns > 3) {
-                sbuf_append(eb->extra, "...");
+                (void)sbuf_append(eb->extra, "...");
             }
 
-            sbuf_append(eb->extra, "[/pre]");
+            (void)sbuf_append(eb->extra, "[/pre]");
 
             if (tagbuf[0] != '\0') {
-                sbuf_append(eb->extra, tag_prefix);
+                (void)sbuf_append(eb->extra, tag_prefix);
                 edit_menu_append_tag_text(eb->extra, is_selected, tagbuf);
             }
 
             if (is_selected) {
-                sbuf_append(eb->extra, "[/ic-menu-selected]");
+                (void)sbuf_append(eb->extra, "[/ic-menu-selected]");
             }
 
-            sbuf_append(eb->extra, "\n");
+            (void)sbuf_append(eb->extra, "\n");
         }
 
         edit_menu_append_scroll_hint(eb->extra, match_count, display_count, scroll_offset);
     } else {
         scroll_offset = 0;
-        sbuf_appendf(eb->extra, "[ic-info]No actions found - case %s%s[/]\n",
-                     session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
+        (void)sbuf_appendf(eb->extra, "[ic-info]No actions found - case %s%s[/]\n",
+                           session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
     }
 
     if (!env->no_help) {
-        sbuf_append(eb->extra,
-                    "[ic-diminish](↑↓/wheel:navigate shift+↑/↓:page enter/tab:run alt+c:case "
-                    "esc:cancel)[/]");
+        (void)sbuf_append(eb->extra,
+                          "[ic-diminish](↑↓/wheel:navigate shift+↑/↓:page enter/tab:run alt+c:case "
+                          "esc:cancel)[/]");
     }
 
     edit_refresh(env, eb);
 
     code_t c = tty_read(env->tty);
     if (tty_term_resize_event(env->tty)) {
-        edit_resize(env, eb);
+        (void)edit_resize(env, eb);
     }
     sbuf_clear(eb->extra);
 

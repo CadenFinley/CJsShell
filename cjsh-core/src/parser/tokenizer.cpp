@@ -180,7 +180,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                      ((c == '&' && cmdline[i + 1] == '&') || (c == '|' && cmdline[i + 1] == '|'))) {
                 flush_current_token();
 
-                tokens.emplace_back(2, c);
+                (void)tokens.emplace_back(2, c);
                 tokens.back()[1] = cmdline[i + 1];
                 i++;
             }
@@ -261,13 +261,13 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                         merged.reserve(merged_size);
                         merged = tokens.back();
                         merged += '&';
-                        merged.append(cmdline, i + 1, j - i - 1);
+                        (void)merged.append(cmdline, i + 1, j - i - 1);
                         tokens.back() = std::move(merged);
                         i = j - 1;
                         continue;
                     }
                 }
-                tokens.emplace_back(1, c);
+                (void)tokens.emplace_back(1, c);
             } else {
                 current_token += c;
             }

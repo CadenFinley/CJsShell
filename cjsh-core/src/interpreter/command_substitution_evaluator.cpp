@@ -46,13 +46,13 @@ std::pair<std::string, int> execute_command_for_substitution(
     const std::string& command, const std::function<int(const std::string&)>& executor) {
     auto output = exec_utils::execute_with_stdout_capture(
         [&]() -> int {
-            std::cout.flush();
+            (void)std::cout.flush();
             (void)fflush(nullptr);
 
             int exit_code = read_exit_code_or(executor(command));
-            std::cout.flush();
-            std::cerr.flush();
-            std::clog.flush();
+            (void)std::cout.flush();
+            (void)std::cerr.flush();
+            (void)std::clog.flush();
             (void)fflush(nullptr);
             return exit_code;
         },

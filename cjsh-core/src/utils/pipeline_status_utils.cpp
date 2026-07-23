@@ -63,7 +63,7 @@ void set_last_status_env(int status_code) {
     cached_status = status_code;
 
     const std::string status_string = std::to_string(status_code);
-    setenv("?", status_string.c_str(), 1);
+    (void)setenv("?", status_string.c_str(), 1);
 }
 
 void apply_execution_status_env(int status_code, Exec* exec_ptr,
@@ -77,7 +77,7 @@ void apply_pipeline_status_env(Exec* exec_ptr,
                                const std::function<void(const std::string&)>& on_set_callback,
                                const std::function<void()>& on_unset_callback) {
     if (!exec_ptr) {
-        cjsh_env::unset_shell_variable_value("PIPESTATUS");
+        (void)cjsh_env::unset_shell_variable_value("PIPESTATUS");
         if (on_unset_callback) {
             on_unset_callback();
         }
@@ -86,7 +86,7 @@ void apply_pipeline_status_env(Exec* exec_ptr,
 
     const auto& pipeline_statuses = exec_ptr->get_last_pipeline_statuses();
     if (pipeline_statuses.empty()) {
-        cjsh_env::unset_shell_variable_value("PIPESTATUS");
+        (void)cjsh_env::unset_shell_variable_value("PIPESTATUS");
         if (on_unset_callback) {
             on_unset_callback();
         }
@@ -94,7 +94,7 @@ void apply_pipeline_status_env(Exec* exec_ptr,
     }
 
     const std::string pipe_status_str = build_status_string(pipeline_statuses);
-    cjsh_env::set_shell_variable_value("PIPESTATUS", pipe_status_str);
+    (void)cjsh_env::set_shell_variable_value("PIPESTATUS", pipe_status_str);
     if (on_set_callback) {
         on_set_callback(pipe_status_str);
     }

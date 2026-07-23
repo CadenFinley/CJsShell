@@ -176,7 +176,7 @@ int widget_builtin(const std::vector<std::string>& args) {
             return report_buffer_update_failure();
         }
 
-        ic_set_cursor_pos(cursor_pos + text.length());
+        (void)ic_set_cursor_pos(cursor_pos + text.length());
         return 0;
     }
 

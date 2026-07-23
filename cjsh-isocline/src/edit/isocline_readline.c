@@ -70,7 +70,7 @@ static char* ic_getline(alloc_t* mem) {
             last_char = c;
             break;
         } else {
-            sbuf_append_char(sb, (char)c);
+            (void)sbuf_append_char(sb, (char)c);
         }
         if (getline_interrupt) {
             last_char = 0;
@@ -333,11 +333,11 @@ ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
         // Not the delimiter, add line to content
         // If strip_tabs, use the tab-stripped version
         if (strip_tabs) {
-            sbuf_append(content, check_line);
+            (void)sbuf_append(content, check_line);
         } else {
-            sbuf_append(content, line);
+            (void)sbuf_append(content, line);
         }
-        sbuf_append_char(content, '\n');
+        (void)sbuf_append_char(content, '\n');
 
         ic_free(line);
         line_number++;

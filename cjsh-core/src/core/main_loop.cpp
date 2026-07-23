@@ -204,7 +204,7 @@ std::optional<std::string> get_next_command() {
         prompt::execute_prompt_command();
         prompt::apply_terminal_window_title();
     }
-    cjsh_env::update_terminal_dimensions();
+    (void)cjsh_env::update_terminal_dimensions();
     std::string prompt_text = generate_prompt();
     std::string prompt_eol_mark = prompt::render_prompt_eol_mark();
     ic_set_prompt_eol_mark(prompt_eol_mark.c_str());
@@ -262,7 +262,7 @@ std::optional<std::string> get_next_command() {
     consecutive_readline_errors = 0;
 
     // there was actual input, assign it to command to run
-    command_to_run.assign(input);
+    (void)command_to_run.assign(input);
     ic_free(input);
     input = nullptr;
 
@@ -286,19 +286,19 @@ bool execute_custom_editor_command(const std::string& command) {
 
     const char* buffer = ic_get_buffer();
     size_t cursor_pos = 0;
-    ic_get_cursor_pos(&cursor_pos);
+    (void)ic_get_cursor_pos(&cursor_pos);
 
     std::string original_buffer = buffer ? buffer : "";
 
-    cjsh_env::set_shell_variable_value("CJSH_LINE", original_buffer);
-    cjsh_env::set_shell_variable_value("CJSH_POINT", std::to_string(cursor_pos));
+    (void)cjsh_env::set_shell_variable_value("CJSH_LINE", original_buffer);
+    (void)cjsh_env::set_shell_variable_value("CJSH_POINT", std::to_string(cursor_pos));
 
-    g_shell->execute(command);
+    (void)g_shell->execute(command);
 
     if (cjsh_env::shell_variable_is_set("CJSH_LINE")) {
         std::string new_buffer_env = cjsh_env::get_shell_variable_value("CJSH_LINE");
         if (original_buffer != new_buffer_env) {
-            ic_set_buffer(new_buffer_env.c_str());
+            (void)ic_set_buffer(new_buffer_env.c_str());
         }
     }
 
@@ -307,12 +307,12 @@ bool execute_custom_editor_command(const std::string& command) {
         char* endptr;
         long new_pos = strtol(new_point_env.c_str(), &endptr, 10);
         if (endptr != new_point_env.c_str() && new_pos >= 0) {
-            ic_set_cursor_pos((size_t)new_pos);
+            (void)ic_set_cursor_pos((size_t)new_pos);
         }
     }
 
-    cjsh_env::unset_shell_variable_value("CJSH_LINE");
-    cjsh_env::unset_shell_variable_value("CJSH_POINT");
+    (void)cjsh_env::unset_shell_variable_value("CJSH_LINE");
+    (void)cjsh_env::unset_shell_variable_value("CJSH_POINT");
     return true;
 }
 
@@ -341,7 +341,7 @@ bool handle_command_palette_entry(const ic_command_palette_entry_t* entry, void*
 
     if (id.rfind(kExtKeyPrefix, 0) == 0) {
         std::string key_spec = id;
-        key_spec.erase(0, std::strlen(kExtKeyPrefix));
+        (void)key_spec.erase(0, std::strlen(kExtKeyPrefix));
         ic_keycode_t key = IC_KEY_NONE;
         if (!ic_parse_key_spec(key_spec.c_str(), &key)) {
             return false;
@@ -351,7 +351,7 @@ bool handle_command_palette_entry(const ic_command_palette_entry_t* entry, void*
 
     if (id.rfind(kExtPalettePrefix, 0) == 0) {
         std::string palette_id = id;
-        palette_id.erase(0, std::strlen(kExtPalettePrefix));
+        (void)palette_id.erase(0, std::strlen(kExtPalettePrefix));
         return execute_custom_palette_command(palette_id);
     }
 
@@ -391,11 +391,11 @@ void refresh_command_palette_entries() {
 
         std::string title = binding.title.empty() ? command_preview : binding.title;
 
-        ids.emplace_back(std::string("ext-key:") + key_spec_buffer);
-        names.emplace_back(title);
-        descriptions.emplace_back(std::string("[") + key_spec_buffer + "] (custom)");
-        keywords.emplace_back(std::string("custom keybinding snippet widget command ") +
-                              key_spec_buffer + " " + title + " " + binding.command);
+        (void)ids.emplace_back(std::string("ext-key:") + key_spec_buffer);
+        (void)names.emplace_back(title);
+        (void)descriptions.emplace_back(std::string("[") + key_spec_buffer + "] (custom)");
+        (void)keywords.emplace_back(std::string("custom keybinding snippet widget command ") +
+                                    key_spec_buffer + " " + title + " " + binding.command);
     }
 
     for (const auto& [id, binding] : palette_bindings) {
@@ -406,11 +406,11 @@ void refresh_command_palette_entries() {
 
         std::string title = binding.title.empty() ? id : binding.title;
 
-        ids.emplace_back(std::string("ext-cmd:") + id);
-        names.emplace_back(title);
-        descriptions.emplace_back("");
-        keywords.emplace_back(std::string("palette snippet custom command ") + id + " " + title +
-                              " " + command_preview);
+        (void)ids.emplace_back(std::string("ext-cmd:") + id);
+        (void)names.emplace_back(title);
+        (void)descriptions.emplace_back("");
+        (void)keywords.emplace_back(std::string("palette snippet custom command ") + id + " " +
+                                    title + " " + command_preview);
     }
 
     if (ids.empty()) {
@@ -452,7 +452,7 @@ bool should_show_creator_line() {
     }
     value = string_utils::to_lower_copy(value);
 
-    cjsh_env::unset_shell_variable_value("CJSH_SHOW_CREATED");
+    (void)cjsh_env::unset_shell_variable_value("CJSH_SHOW_CREATED");
 
     return value == "1" || value == "true" || value == "yes" || value == "on";
 }
@@ -498,7 +498,7 @@ bool continuation_or_return_callback(const char* input_buffer, void*) {
     std::string buffer(input_buffer);
     bool should_submit = !buffer_requires_additional_input(buffer);
     if (should_submit) {
-        prompt::apply_transient_final_prompt_if_configured();
+        (void)prompt::apply_transient_final_prompt_if_configured();
     }
     return should_submit;
 }
@@ -509,19 +509,19 @@ void initialize_isocline() {
     // setup isocline environment and ui styling
     initialize_completion_system();
     SyntaxHighlighter::initialize_syntax_highlighting();
-    ic_enable_history_duplicates(false);
-    ic_enable_multiline_continuation_retention(true);
+    (void)ic_enable_history_duplicates(false);
+    (void)ic_enable_multiline_continuation_retention(true);
     ic_set_prompt_marker("", nullptr);
     ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);
     ic_set_command_palette_entry_handler(handle_command_palette_entry, nullptr);
     refresh_command_palette_entries();
-    ic_bind_key(IC_KEY_EVENT_PROMPT_REFRESH, IC_KEY_ACTION_RUNOFF);
+    (void)ic_bind_key(IC_KEY_EVENT_PROMPT_REFRESH, IC_KEY_ACTION_RUNOFF);
     ic_set_status_message_callback(status_line::create_below_syntax_message, nullptr);
     ic_set_check_for_continuation_or_return_callback(continuation_or_return_callback, nullptr);
     ic_set_typeahead_capture_allowed_callback(typeahead_capture_allowed, nullptr);
-    ic_enable_terminal_region_marking(true);
+    (void)ic_enable_terminal_region_marking(true);
     if (!config::status_line_enabled) {
-        ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
+        (void)ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
     }
 }
 
@@ -533,7 +533,7 @@ void main_process_loop() {
     // main input loop, runs until exit
     while (true) {
         // handle any pending signals before each prompt
-        g_shell->process_pending_signals();
+        (void)g_shell->process_pending_signals();
 
         if (cjsh_env::exit_requested()) {
             break;

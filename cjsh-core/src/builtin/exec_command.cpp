@@ -143,7 +143,7 @@ FdOpOutcome try_apply_fd_operation(const std::vector<std::string>& args, size_t&
 
 int exec_replacing_shell(const std::vector<std::string>& exec_args) {
     auto c_args = cjsh_env::build_exec_argv(exec_args);
-    execvp(exec_args[0].c_str(), c_args.data());
+    (void)execvp(exec_args[0].c_str(), c_args.data());
 
     int saved_errno = errno;
     print_exec_runtime_error(exec_args[0] + ": " + std::strerror(saved_errno));

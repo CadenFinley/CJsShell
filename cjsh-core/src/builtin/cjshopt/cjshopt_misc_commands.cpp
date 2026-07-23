@@ -55,7 +55,7 @@ const std::vector<std::string>& startup_flag_help_lines() {
     static const std::vector<std::string> lines = [] {
         std::vector<std::string> help = {"Usage: login-startup-arg <flag>", "Available flags:"};
         for (const auto& entry : startup_flags::descriptors()) {
-            help.emplace_back("  " + std::string(entry.name) + "  " + entry.description);
+            (void)help.emplace_back("  " + std::string(entry.name) + "  " + entry.description);
         }
         return help;
     }();

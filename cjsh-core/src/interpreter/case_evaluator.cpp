@@ -76,10 +76,10 @@ std::vector<std::string> split_case_sections(const std::string& input, bool trim
         size_t sep_pos = input.find(";;", start);
         std::string section;
         if (sep_pos == std::string::npos) {
-            section.assign(input, start, std::string::npos);
+            (void)section.assign(input, start, std::string::npos);
             start = input.length();
         } else {
-            section.assign(input, start, sep_pos - start);
+            (void)section.assign(input, start, sep_pos - start);
             start = sep_pos + 2;
         }
         if (trim_sections)
@@ -104,7 +104,7 @@ std::string normalize_case_value(std::string value, Parser* parser) {
         }
     }
 
-    strip_subst_literal_markers(value);
+    (void)strip_subst_literal_markers(value);
 
     if (!value.empty() && parser != nullptr)
         parser->expand_env_vars(value);

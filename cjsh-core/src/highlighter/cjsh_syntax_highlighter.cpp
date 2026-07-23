@@ -410,10 +410,10 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
 void SyntaxHighlighter::initialize_syntax_highlighting() {
     if (config::syntax_highlighting_enabled) {
         ic_set_default_highlighter(SyntaxHighlighter::highlight, nullptr);
-        ic_enable_highlight(true);
+        (void)ic_enable_highlight(true);
     } else {
         ic_set_default_highlighter(nullptr, nullptr);
-        ic_enable_highlight(false);
+        (void)ic_enable_highlight(false);
     }
 }
 
@@ -456,7 +456,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
     const auto& comparison_ops = token_constants::comparison_operators();
 
-    command_analysis::visit_command_ranges(
+    (void)command_analysis::visit_command_ranges(
         sanitized_input,
         [&](size_t command_start, size_t command_end) {
             highlight_command_range(henv, input, sanitized_input, command_start, command_end,

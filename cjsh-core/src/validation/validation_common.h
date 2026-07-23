@@ -324,7 +324,7 @@ std::vector<SyntaxError> validate_tokenized_with_first_token_context(
         TokenizedLineContext context{line_errors, line,        trimmed_line, line_idx + 1,
                                      tokens,      first_token, lines,        line_idx};
         callback(context);
-        errors.insert(errors.end(), line_errors.begin(), line_errors.end());
+        (void)errors.insert(errors.end(), line_errors.begin(), line_errors.end());
     }
 
     return errors;

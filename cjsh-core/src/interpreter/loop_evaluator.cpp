@@ -110,7 +110,7 @@ const std::shared_ptr<std::vector<std::string>>& get_cached_inline_loop_body(
     if (g_inline_loop_cache.size() >= kInlineLoopCacheLimit) {
         for (auto it = g_inline_loop_cache.begin(); it != g_inline_loop_cache.end(); ++it) {
             if (it->second.use_count() == 1) {
-                g_inline_loop_cache.erase(it);
+                (void)g_inline_loop_cache.erase(it);
                 break;
             }
         }
@@ -150,11 +150,11 @@ int adjust_loop_signal(const char* env_name, int consumed_rc, int propagate_rc) 
         } catch (...) {
             level = 1;
         }
-        cjsh_env::unset_shell_variable_value(env_name);
+        (void)cjsh_env::unset_shell_variable_value(env_name);
     }
     if (level > 1) {
         std::string next_level = std::to_string(level - 1);
-        cjsh_env::set_shell_variable_value(env_name, next_level);
+        (void)cjsh_env::set_shell_variable_value(env_name, next_level);
         return propagate_rc;
     }
     return consumed_rc;
@@ -905,18 +905,18 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             if (source.stdout_to_stderr) {
                 control_cmd.stdout_to_stderr = true;
             }
-            control_cmd.fd_redirections.insert(control_cmd.fd_redirections.end(),
-                                               source.fd_redirections.begin(),
-                                               source.fd_redirections.end());
-            control_cmd.fd_duplications.insert(control_cmd.fd_duplications.end(),
-                                               source.fd_duplications.begin(),
-                                               source.fd_duplications.end());
-            control_cmd.redirection_order.insert(control_cmd.redirection_order.end(),
-                                                 source.redirection_order.begin(),
-                                                 source.redirection_order.end());
-            control_cmd.process_substitutions.insert(control_cmd.process_substitutions.end(),
-                                                     source.process_substitutions.begin(),
-                                                     source.process_substitutions.end());
+            (void)control_cmd.fd_redirections.insert(control_cmd.fd_redirections.end(),
+                                                     source.fd_redirections.begin(),
+                                                     source.fd_redirections.end());
+            (void)control_cmd.fd_duplications.insert(control_cmd.fd_duplications.end(),
+                                                     source.fd_duplications.begin(),
+                                                     source.fd_duplications.end());
+            (void)control_cmd.redirection_order.insert(control_cmd.redirection_order.end(),
+                                                       source.redirection_order.begin(),
+                                                       source.redirection_order.end());
+            (void)control_cmd.process_substitutions.insert(control_cmd.process_substitutions.end(),
+                                                           source.process_substitutions.begin(),
+                                                           source.process_substitutions.end());
         };
 
         if (!done_redirections.empty()) {

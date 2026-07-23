@@ -255,7 +255,7 @@ std::vector<std::string> get_function_names(const FunctionMap& functions) {
 }
 
 void push_function_scope(LocalVariableStack& stack) {
-    stack.emplace_back();
+    (void)stack.emplace_back();
 }
 
 void pop_function_scope(LocalVariableStack& stack) {

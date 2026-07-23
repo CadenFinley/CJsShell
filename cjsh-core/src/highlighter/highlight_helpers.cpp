@@ -207,7 +207,7 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
         char c = input[i];
 
         if (quote_state.escaped) {
-            quote_state.consume_forward(c);
+            (void)quote_state.consume_forward(c);
             continue;
         }
 

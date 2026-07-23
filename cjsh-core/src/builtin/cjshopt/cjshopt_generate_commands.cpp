@@ -52,7 +52,7 @@ int handle_generate_command_common(
 
     std::string usage = "Usage: " + command_name + " [--force]";
     if (alternate_target_path) {
-        usage.append(" [--alt]");
+        (void)usage.append(" [--alt]");
     }
 
     std::vector<std::string> help_lines = {

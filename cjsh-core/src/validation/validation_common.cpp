@@ -182,7 +182,7 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
             if (i < input.size()) {
                 i += literal_end.size();
             }
-            output.append(placeholder);
+            (void)output.append(placeholder);
             continue;
         }
 
@@ -194,7 +194,7 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
             if (i < input.size()) {
                 i += noenv_end.size();
             }
-            output.append(placeholder);
+            (void)output.append(placeholder);
             continue;
         }
 
@@ -233,8 +233,8 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
             size_t end_index = 0;
             if (find_matching_command_substitution_end_for_validation_impl(input, i + 2,
                                                                            end_index)) {
-                output.append("$(");
-                output.append(placeholder);
+                (void)output.append("$(");
+                (void)output.append(placeholder);
                 output.push_back(')');
                 i = end_index + 1;
                 continue;
@@ -245,7 +245,7 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
             size_t end_index = find_matching_backtick_for_validation_impl(input, i + 1);
             if (end_index != std::string::npos) {
                 output.push_back('`');
-                output.append(placeholder);
+                (void)output.append(placeholder);
                 output.push_back('`');
                 i = end_index + 1;
                 continue;
@@ -275,11 +275,11 @@ std::vector<std::string> sanitize_lines_for_validation(const std::vector<std::st
                     find_marker(line, pos, kSubstLiteralEnd, kSubstLiteralEndLen,
                                 kSubstLiteralEndPlain, kSubstLiteralEndPlainLen, matched_len);
                 if (end_pos == std::string::npos) {
-                    line.erase(pos);
+                    (void)line.erase(pos);
                     break;
                 }
 
-                line.erase(pos, (end_pos + matched_len) - pos);
+                (void)line.erase(pos, (end_pos + matched_len) - pos);
                 inside_subst_literal = false;
                 continue;
             }
@@ -289,11 +289,11 @@ std::vector<std::string> sanitize_lines_for_validation(const std::vector<std::st
                 size_t end_pos = find_marker(line, pos, kNoEnvEnd, kNoEnvEndLen, kNoEnvEndPlain,
                                              kNoEnvEndPlainLen, matched_len);
                 if (end_pos == std::string::npos) {
-                    line.erase(pos);
+                    (void)line.erase(pos);
                     break;
                 }
 
-                line.erase(pos, (end_pos + matched_len) - pos);
+                (void)line.erase(pos, (end_pos + matched_len) - pos);
                 inside_noenv_literal = false;
                 continue;
             }
@@ -315,7 +315,7 @@ std::vector<std::string> sanitize_lines_for_validation(const std::vector<std::st
                                 (subst_pos != std::string::npos && subst_pos <= noenv_pos);
 
             if (handle_subst) {
-                line.replace(subst_pos, subst_len, kSubstitutionPlaceholder);
+                (void)line.replace(subst_pos, subst_len, kSubstitutionPlaceholder);
                 pos = subst_pos + kSubstitutionPlaceholderLen;
 
                 size_t matched_len = 0;
@@ -323,26 +323,26 @@ std::vector<std::string> sanitize_lines_for_validation(const std::vector<std::st
                     find_marker(line, pos, kSubstLiteralEnd, kSubstLiteralEndLen,
                                 kSubstLiteralEndPlain, kSubstLiteralEndPlainLen, matched_len);
                 if (end_pos == std::string::npos) {
-                    line.erase(pos);
+                    (void)line.erase(pos);
                     inside_subst_literal = true;
                     break;
                 }
 
-                line.erase(pos, (end_pos + matched_len) - pos);
+                (void)line.erase(pos, (end_pos + matched_len) - pos);
             } else {
-                line.replace(noenv_pos, noenv_len, kSubstitutionPlaceholder);
+                (void)line.replace(noenv_pos, noenv_len, kSubstitutionPlaceholder);
                 pos = noenv_pos + kSubstitutionPlaceholderLen;
 
                 size_t matched_len = 0;
                 size_t end_pos = find_marker(line, pos, kNoEnvEnd, kNoEnvEndLen, kNoEnvEndPlain,
                                              kNoEnvEndPlainLen, matched_len);
                 if (end_pos == std::string::npos) {
-                    line.erase(pos);
+                    (void)line.erase(pos);
                     inside_noenv_literal = true;
                     break;
                 }
 
-                line.erase(pos, (end_pos + matched_len) - pos);
+                (void)line.erase(pos, (end_pos + matched_len) - pos);
             }
         }
     }

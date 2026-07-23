@@ -543,7 +543,7 @@ HistoryExpansion::ExpansionResult HistoryExpansion::expand(
 }
 
 std::string HistoryExpansion::get_history_file_path() {
-    cjsh_filesystem::initialize_cjsh_directories();
+    (void)cjsh_filesystem::initialize_cjsh_directories();
     return cjsh_filesystem::g_cjsh_history_path().string();
 }
 

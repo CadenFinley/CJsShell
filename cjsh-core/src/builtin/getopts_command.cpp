@@ -52,7 +52,7 @@ void unset_special_var(Shell* shell, const std::string& key) {
 }
 
 void set_getopts_pos(int value) {
-    cjsh_env::set_shell_variable_value("GETOPTS_POS", std::to_string(value));
+    (void)cjsh_env::set_shell_variable_value("GETOPTS_POS", std::to_string(value));
 }
 
 }  // namespace
@@ -111,7 +111,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
 
     if (argv_list.empty() || optind > static_cast<int>(argv_list.size())) {
         set_special_var(shell, "OPTIND", optind);
-        cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
+        (void)cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
         return 1;
     }
 
@@ -119,13 +119,13 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
 
     if (current_arg.size() < 2 || current_arg[0] != '-') {
         set_special_var(shell, "OPTIND", optind);
-        cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
+        (void)cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
         return 1;
     }
 
     if (current_arg == "--") {
         set_special_var(shell, "OPTIND", optind + 1);
-        cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
+        (void)cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
         return 1;
     }
 
@@ -145,7 +145,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
         optind++;
         char_index = 1;
         set_special_var(shell, "OPTIND", optind);
-        cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
+        (void)cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
         return getopts_command(args, shell);
     }
 
@@ -204,7 +204,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
                     set_special_var(shell, "OPTARG", opt_val);
                 }
                 set_special_var(shell, "OPTIND", optind);
-                cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
+                (void)cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
                 return 0;
             }
             char_index = 1;

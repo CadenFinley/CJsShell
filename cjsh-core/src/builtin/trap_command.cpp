@@ -87,7 +87,7 @@ void trap_manager_set_trap(int signal, const std::string& command) {
 
 void trap_manager_remove_trap(int signal) {
     auto& state = trap_manager_state();
-    state.traps.erase(signal);
+    (void)state.traps.erase(signal);
 
     if (signal == 0) {
         state.has_exit_trap = false;
@@ -99,7 +99,7 @@ void trap_manager_execute_trap(int signal) {
     auto& state = trap_manager_state();
     auto it = state.traps.find(signal);
     if (it != state.traps.end() && (state.shell_ref != nullptr)) {
-        state.shell_ref->execute(it->second);
+        (void)state.shell_ref->execute(it->second);
     }
 }
 
@@ -130,7 +130,7 @@ void trap_manager_execute_exit_trap() {
     state.exit_trap_executed = true;
 
     if (state.has_exit_trap && (state.shell_ref != nullptr)) {
-        state.shell_ref->execute(state.exit_trap_command);
+        (void)state.shell_ref->execute(state.exit_trap_command);
     }
 }
 
@@ -138,7 +138,7 @@ void trap_manager_execute_debug_trap() {
     auto& state = trap_manager_state();
     auto it = state.traps.find(-3);
     if (it != state.traps.end() && (state.shell_ref != nullptr)) {
-        state.shell_ref->execute(it->second);
+        (void)state.shell_ref->execute(it->second);
     }
 }
 

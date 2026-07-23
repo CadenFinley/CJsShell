@@ -572,7 +572,7 @@ static ssize_t str_get_pos_at_rc(const char* s, ssize_t len, ssize_t termw, ssiz
     rc.row = row;
     rc.col = col;
     ssize_t pos = -1;
-    str_for_each_row(s, len, termw, promptw, cpromptw, &str_set_pos_iter, &rc, &pos);
+    (void)str_for_each_row(s, len, termw, promptw, cpromptw, &str_set_pos_iter, &rc, &pos);
     return pos;
 }
 
@@ -735,7 +735,7 @@ ic_private stringbuf_t* sbuf_split_at(stringbuf_t* sb, ssize_t pos) {
     if (res == NULL)
         return NULL;
     if (pos < sb->count) {
-        sbuf_append_n(res, sb->buf + pos, sb->count - pos);
+        (void)sbuf_append_n(res, sb->buf + pos, sb->count - pos);
         sb->count = pos;
     }
     return res;
@@ -799,7 +799,7 @@ ic_private ssize_t sbuf_append_char(stringbuf_t* sbuf, char c) {
 
 ic_private void sbuf_replace(stringbuf_t* sbuf, const char* s) {
     sbuf_clear(sbuf);
-    sbuf_append(sbuf, s);
+    (void)sbuf_append(sbuf, s);
 }
 
 ic_private ssize_t sbuf_next_ofs(stringbuf_t* sbuf, ssize_t pos, ssize_t* cwidth) {

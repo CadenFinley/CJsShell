@@ -195,7 +195,7 @@ static bool history_entry_set_metadata_owned(history_t* h, history_entry_t* entr
     }
 
     ssize_t existing_idx = -1;
-    history_entry_metadata_lookup(entry, key, &existing_idx);
+    (void)history_entry_metadata_lookup(entry, key, &existing_idx);
     if (existing_idx >= 0 && existing_idx < entry->metadata_count) {
         mem_free(h->mem, entry->metadata[existing_idx].key);
         mem_free(h->mem, entry->metadata[existing_idx].value);
@@ -606,7 +606,7 @@ static const char* history_set_scratch(history_t* h, const char* entry) {
         h->scratch = newscratch;
         h->scratch_cap = needed;
     }
-    ic_strncpy(h->scratch, h->scratch_cap, entry, needed - 1);
+    (void)ic_strncpy(h->scratch, h->scratch_cap, entry, needed - 1);
     return h->scratch;
 }
 
@@ -785,7 +785,7 @@ ic_private void history_remove_last(history_t* h) {
     }
     if (list.count > 0) {
         history_list_remove_at(h, &list, list.count - 1);
-        history_update_file(h, &list);
+        (void)history_update_file(h, &list);
     }
     history_list_free(h, &list);
 }
@@ -803,9 +803,9 @@ ic_private void history_clear(history_t* h) {
     FILE* f = fopen(h->fname, "w");
     if (f != NULL) {
 #ifndef _WIN32
-        chmod(h->fname, S_IRUSR | S_IWUSR);
+        (void)chmod(h->fname, S_IRUSR | S_IWUSR);
 #endif
-        history_close_stream(f);
+        (void)history_close_stream(f);
     }
 }
 
@@ -1307,13 +1307,13 @@ static char* history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {
             if (esc == EOF)
                 return NULL;
             if (esc == 'n') {
-                sbuf_append(sbuf, "\n");
+                (void)sbuf_append(sbuf, "\n");
             } else if (esc == 'r') {
                 continue;
             } else if (esc == 't') {
-                sbuf_append(sbuf, "\t");
+                (void)sbuf_append(sbuf, "\t");
             } else if (esc == '\\') {
-                sbuf_append(sbuf, "\\");
+                (void)sbuf_append(sbuf, "\\");
             } else if (esc == 'x') {
                 int c1 = fgetc(f);
                 if (c1 == EOF)
@@ -1323,7 +1323,7 @@ static char* history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {
                     return NULL;
                 if (ic_isxdigit(c1) && ic_isxdigit(c2)) {
                     char chr = from_xdigit(c1) * 16 + from_xdigit(c2);
-                    sbuf_append_char(sbuf, chr);
+                    (void)sbuf_append_char(sbuf, chr);
                 } else {
                     return NULL;
                 }
@@ -1331,7 +1331,7 @@ static char* history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {
                 return NULL;
             }
         } else {
-            sbuf_append_char(sbuf, (char)c);
+            (void)sbuf_append_char(sbuf, (char)c);
         }
     }
     if (sbuf_len(sbuf) == 0)
@@ -1353,26 +1353,26 @@ static bool history_write_entry(const char* entry, FILE* f, stringbuf_t* sbuf) {
     while (*entry != 0) {
         char c = *entry++;
         if (c == '\\') {
-            sbuf_append(sbuf, "\\\\");
+            (void)sbuf_append(sbuf, "\\\\");
         } else if (c == '\n') {
-            sbuf_append(sbuf, "\\n");
+            (void)sbuf_append(sbuf, "\\n");
         } else if (c == '\r') {
             continue;
         } else if (c == '\t') {
-            sbuf_append(sbuf, "\\t");
+            (void)sbuf_append(sbuf, "\\t");
         } else if (c < ' ' || c > '~' || c == '#') {
             char c1 = to_xdigit((uint8_t)c / 16);
             char c2 = to_xdigit((uint8_t)c % 16);
-            sbuf_append(sbuf, "\\x");
-            sbuf_append_char(sbuf, c1);
-            sbuf_append_char(sbuf, c2);
+            (void)sbuf_append(sbuf, "\\x");
+            (void)sbuf_append_char(sbuf, c1);
+            (void)sbuf_append_char(sbuf, c2);
         } else {
-            sbuf_append_char(sbuf, c);
+            (void)sbuf_append_char(sbuf, c);
         }
     }
 
     if (sbuf_len(sbuf) > 0) {
-        sbuf_append(sbuf, "\n");
+        (void)sbuf_append(sbuf, "\n");
         if (!history_write_successful(fputs(sbuf_string(sbuf), f)))
             return false;
     }
@@ -1388,11 +1388,11 @@ static bool history_metadata_write_escaped(stringbuf_t* sbuf, const char* value)
         uint8_t c = (uint8_t)(*p);
         if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
             c == '-' || c == '_' || c == '.' || c == '~') {
-            sbuf_append_char(sbuf, (char)c);
+            (void)sbuf_append_char(sbuf, (char)c);
         } else {
-            sbuf_append_char(sbuf, '%');
-            sbuf_append_char(sbuf, to_xdigit((uint8_t)(c / 16)));
-            sbuf_append_char(sbuf, to_xdigit((uint8_t)(c % 16)));
+            (void)sbuf_append_char(sbuf, '%');
+            (void)sbuf_append_char(sbuf, to_xdigit((uint8_t)(c / 16)));
+            (void)sbuf_append_char(sbuf, to_xdigit((uint8_t)(c % 16)));
         }
     }
     return true;
@@ -1491,7 +1491,7 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
         return true;
 
     sbuf_clear(sbuf);
-    sbuf_append(sbuf, "#");
+    (void)sbuf_append(sbuf, "#");
 
     bool wrote_metadata = false;
     for (ssize_t i = 0; i < entry->metadata_count; ++i) {
@@ -1499,28 +1499,28 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
         if (!history_metadata_key_valid(key))
             continue;
         wrote_metadata = true;
-        sbuf_append_char(sbuf, ' ');
-        sbuf_append(sbuf, key);
-        sbuf_append_char(sbuf, '=');
-        history_metadata_write_escaped(
+        (void)sbuf_append_char(sbuf, ' ');
+        (void)sbuf_append(sbuf, key);
+        (void)sbuf_append_char(sbuf, '=');
+        (void)history_metadata_write_escaped(
             sbuf, entry->metadata[i].value == NULL ? "" : entry->metadata[i].value);
     }
     if (!wrote_metadata) {
-        sbuf_append_char(sbuf, ' ');
-        sbuf_append(sbuf, k_history_frequency_key);
-        sbuf_append_char(sbuf, '=');
-        sbuf_append(sbuf, "1");
+        (void)sbuf_append_char(sbuf, ' ');
+        (void)sbuf_append(sbuf, k_history_frequency_key);
+        (void)sbuf_append_char(sbuf, '=');
+        (void)sbuf_append(sbuf, "1");
 
         char ts_buf[32];
         int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
         if (n <= 0 || n >= (int)sizeof(ts_buf))
             return false;
-        sbuf_append_char(sbuf, ' ');
-        sbuf_append(sbuf, k_history_timestamp_key);
-        sbuf_append_char(sbuf, '=');
-        history_metadata_write_escaped(sbuf, ts_buf);
+        (void)sbuf_append_char(sbuf, ' ');
+        (void)sbuf_append(sbuf, k_history_timestamp_key);
+        (void)sbuf_append_char(sbuf, '=');
+        (void)history_metadata_write_escaped(sbuf, ts_buf);
     }
-    sbuf_append_char(sbuf, '\n');
+    (void)sbuf_append_char(sbuf, '\n');
 
     if (!history_write_successful(fputs(sbuf_string(sbuf), f)))
         return false;
@@ -1543,7 +1543,7 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
 
     stringbuf_t* sbuf = sbuf_new(h->mem);
     if (sbuf == NULL) {
-        history_close_stream(f);
+        (void)history_close_stream(f);
         return false;
     }
 
@@ -1646,14 +1646,14 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
             history_entry_clear(h, &entry);
             history_list_free(h, list);
             sbuf_free(sbuf);
-            history_close_stream(f);
+            (void)history_close_stream(f);
             return false;
         }
 
         if (!history_list_append(h, list, entry)) {
             history_list_free(h, list);
             sbuf_free(sbuf);
-            history_close_stream(f);
+            (void)history_close_stream(f);
             return false;
         }
     }
@@ -1683,19 +1683,19 @@ static bool history_write_all(const history_t* h, const history_list_t* list) {
     if (f == NULL)
         return false;
 #ifndef _WIN32
-    chmod(h->fname, S_IRUSR | S_IWUSR);
+    (void)chmod(h->fname, S_IRUSR | S_IWUSR);
 #endif
 
     stringbuf_t* sbuf = sbuf_new(h->mem);
     if (sbuf == NULL) {
-        history_close_stream(f);
+        (void)history_close_stream(f);
         return false;
     }
 
     for (ssize_t i = 0; i < list->count; i++) {
         if (!history_write_record(&list->entries[i], f, sbuf)) {
             sbuf_free(sbuf);
-            history_close_stream(f);
+            (void)history_close_stream(f);
             return false;
         }
     }
@@ -1712,12 +1712,12 @@ static bool history_append_entry(const history_t* h, const history_entry_t* entr
     if (f == NULL)
         return false;
 #ifndef _WIN32
-    chmod(h->fname, S_IRUSR | S_IWUSR);
+    (void)chmod(h->fname, S_IRUSR | S_IWUSR);
 #endif
 
     stringbuf_t* sbuf = sbuf_new(h->mem);
     if (sbuf == NULL) {
-        history_close_stream(f);
+        (void)history_close_stream(f);
         return false;
     }
 
@@ -1740,7 +1740,7 @@ ic_private void history_load(history_t* h) {
         history_list_free(h, &list);
         return;
     }
-    history_write_all(h, &list);
+    (void)history_write_all(h, &list);
     history_list_free(h, &list);
 }
 

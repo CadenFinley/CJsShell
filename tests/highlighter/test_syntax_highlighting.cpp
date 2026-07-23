@@ -54,7 +54,7 @@ extern "C" void syntax_highlight_bridge(ic_highlight_env_t* henv, const char* in
 }
 
 static void log_failure(const char* test_name, const char* message) {
-    std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
+    (void)std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
 }
 
 #define EXPECT_TRUE(condition, test_name, message) \
@@ -1478,7 +1478,7 @@ static bool test_existing_file_argument_highlighting(void) {
     }
 
     std::error_code remove_error;
-    std::filesystem::remove(file_path, remove_error);
+    (void)std::filesystem::remove(file_path, remove_error);
 
     return ok;
 }
@@ -1525,7 +1525,7 @@ static bool test_existing_directory_argument_highlighting(void) {
         }
     }
 
-    std::filesystem::remove(directory_path, filesystem_error);
+    (void)std::filesystem::remove(directory_path, filesystem_error);
     return ok;
 }
 
@@ -1604,16 +1604,17 @@ int main(void) {
 
     for (size_t i = 0; i < test_count; ++i) {
         if (!kTests[i].fn()) {
-            std::fprintf(stderr, "Test '%s' failed\n", kTests[i].name);
+            (void)std::fprintf(stderr, "Test '%s' failed\n", kTests[i].name);
             failures += 1;
         }
     }
 
     if (failures > 0) {
-        std::fprintf(stderr, "%zu/%zu syntax highlighting tests failed\n", failures, test_count);
+        (void)std::fprintf(stderr, "%zu/%zu syntax highlighting tests failed\n", failures,
+                           test_count);
         return 1;
     }
 
-    std::printf("All %zu syntax highlighting tests passed\n", test_count);
+    (void)std::printf("All %zu syntax highlighting tests passed\n", test_count);
     return 0;
 }

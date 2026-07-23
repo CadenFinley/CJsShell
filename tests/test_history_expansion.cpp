@@ -37,7 +37,7 @@
 std::unique_ptr<Shell> g_shell;
 
 static void log_failure(const char* test_name, const char* message) {
-    std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
+    (void)std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
 }
 
 #define EXPECT_TRUE(condition, test_name, message) \
@@ -56,9 +56,9 @@ static bool expect_streq(const std::string& actual, const std::string& expected,
         return true;
     }
 
-    std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
-    std::fprintf(stderr, "  actual:   %s\n", actual.c_str());
-    std::fprintf(stderr, "  expected: %s\n", expected.c_str());
+    (void)std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
+    (void)std::fprintf(stderr, "  actual:   %s\n", actual.c_str());
+    (void)std::fprintf(stderr, "  expected: %s\n", expected.c_str());
     return false;
 }
 
@@ -150,10 +150,11 @@ int main(void) {
     }
 
     if (!all_passed) {
-        std::fprintf(stderr, "%zu/%zu history expansion tests failed\n", failures, test_count);
+        (void)std::fprintf(stderr, "%zu/%zu history expansion tests failed\n", failures,
+                           test_count);
         return 1;
     }
 
-    std::printf("All %zu history expansion tests passed\n", test_count);
+    (void)std::printf("All %zu history expansion tests passed\n", test_count);
     return 0;
 }

@@ -606,7 +606,7 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
                     continue;
                 }
             } else if (option_state.active) {
-                append_description_continuation(option_state.description, left_trimmed);
+                (void)append_description_continuation(option_state.description, left_trimmed);
                 continue;
             }
         }
@@ -669,7 +669,7 @@ std::string strip_summary_prefix(const std::string& doc_target, const std::strin
         std::string candidate = working.substr(hyphen_pos + 1);
         while (!candidate.empty() && (candidate.front() == '-' || candidate.front() == ' ' ||
                                       candidate.front() == '\t')) {
-            candidate.erase(candidate.begin());
+            (void)candidate.erase(candidate.begin());
         }
         candidate = string_utils::trim_ascii_whitespace_copy(candidate);
         if (!candidate.empty())
@@ -680,7 +680,7 @@ std::string strip_summary_prefix(const std::string& doc_target, const std::strin
         std::string candidate =
             string_utils::trim_ascii_whitespace_copy(working.substr(doc_target.size()));
         if (!candidate.empty() && candidate.front() == '-') {
-            candidate.erase(candidate.begin());
+            (void)candidate.erase(candidate.begin());
             candidate = string_utils::trim_ascii_whitespace_copy(candidate);
         }
         if (!candidate.empty())
@@ -819,7 +819,7 @@ std::optional<CommandDoc> read_cache_entries(const std::filesystem::path& path,
 void write_cache_entries(const std::filesystem::path& path, const std::string& doc_target,
                          const CommandDoc& doc) {
     std::error_code dir_error;
-    std::filesystem::create_directories(path.parent_path(), dir_error);
+    (void)std::filesystem::create_directories(path.parent_path(), dir_error);
     if (dir_error) {
         return;
     }
@@ -889,9 +889,9 @@ CommandDoc load_entries_for_target(const std::string& doc_target, bool allow_fet
             g_memory_cache[key] = doc;
         }
         if (doc.entries.empty() && doc.summary.empty())
-            g_failed_targets.insert(key);
+            (void)g_failed_targets.insert(key);
         else
-            g_failed_targets.erase(key);
+            (void)g_failed_targets.erase(key);
     };
 
     std::optional<CommandDoc> memoized_doc;
@@ -1069,8 +1069,8 @@ bool regenerate_external_completion_cache(const std::string& command, bool force
 
         {
             std::lock_guard<std::mutex> lock(g_cache_mutex);
-            g_memory_cache.erase(normalized_target);
-            g_failed_targets.erase(normalized_target);
+            (void)g_memory_cache.erase(normalized_target);
+            (void)g_failed_targets.erase(normalized_target);
         }
 
         std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path() /
@@ -1078,7 +1078,7 @@ bool regenerate_external_completion_cache(const std::string& command, bool force
 
         if (force_refresh) {
             std::error_code remove_error;
-            std::filesystem::remove(cache_path, remove_error);
+            (void)std::filesystem::remove(cache_path, remove_error);
         }
 
         CommandDoc doc = load_entries_for_target(current_target, true, true);

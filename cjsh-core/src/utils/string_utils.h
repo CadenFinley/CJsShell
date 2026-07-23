@@ -37,14 +37,14 @@
 namespace string_utils {
 
 inline std::string to_lower_copy(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    (void)std::transform(value.begin(), value.end(), value.begin(),
+                         [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     return value;
 }
 
 inline std::string to_upper_copy(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::toupper(ch)); });
+    (void)std::transform(value.begin(), value.end(), value.begin(),
+                         [](unsigned char ch) { return static_cast<char>(std::toupper(ch)); });
     return value;
 }
 
@@ -115,9 +115,9 @@ inline std::string join_strings(const std::vector<std::string>& values, std::str
     result.reserve(total_length);
     for (size_t i = start_index; i < values.size(); ++i) {
         if (i > start_index) {
-            result.append(separator);
+            (void)result.append(separator);
         }
-        result.append(values[i]);
+        (void)result.append(values[i]);
     }
     return result;
 }

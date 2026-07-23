@@ -69,7 +69,7 @@ std::string signal_status_message(int signal_number) {
 
     const size_t context_start = description.find(" (");
     if (context_start != std::string::npos) {
-        description.erase(context_start);
+        (void)description.erase(context_start);
     }
     if (!signal_name.empty() && signal_name != std::to_string(signal_number)) {
         description += " (" + signal_name + ")";
@@ -141,7 +141,7 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
 
     std::string job_spec = args[1];
     if (!job_spec.empty() && job_spec[0] == '%') {
-        job_spec.erase(0, 1);
+        (void)job_spec.erase(0, 1);
     }
 
     job_spec = string_utils::trim_ascii_whitespace_copy(job_spec);
@@ -442,7 +442,7 @@ void JobManager::remove_job(int job_id) {
             previous_job = -1;
         }
 
-        jobs.erase(it);
+        (void)jobs.erase(it);
     }
 }
 
@@ -534,7 +534,7 @@ void JobManager::update_job_statuses() {
                 }
 
                 ++status_updates;
-                status_changes.emplace_back(pid, status);
+                (void)status_changes.emplace_back(pid, status);
                 if (WIFEXITED(status) || WIFSIGNALED(status)) {
                     break;
                 }
@@ -683,7 +683,7 @@ void JobManager::handle_child_status(pid_t pid, int status) {
     }
 
     clear_stdin_signal(job->pgid);
-    job->pids.erase(std::remove(job->pids.begin(), job->pids.end(), pid), job->pids.end());
+    (void)job->pids.erase(std::remove(job->pids.begin(), job->pids.end(), pid), job->pids.end());
     if (job->pids.empty()) {
         notify_job_finished(job);
     }
@@ -782,7 +782,7 @@ void JobManager::mark_pid_completed(pid_t pid, int status) {
             continue;
         }
 
-        job->pids.erase(pid_it);
+        (void)job->pids.erase(pid_it);
 
         const auto wait_info = wait_status_utils::decode(status);
         if (wait_info.disposition == wait_status_utils::WaitDisposition::Exited) {

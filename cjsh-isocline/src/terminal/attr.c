@@ -270,7 +270,7 @@ ic_private attrbuf_t* attrbuf_new(alloc_t* mem) {
     if (ab == NULL)
         return NULL;
     ab->mem = mem;
-    attrbuf_ensure_extra(ab, 1);
+    (void)attrbuf_ensure_extra(ab, 1);
     return ab;
 }
 

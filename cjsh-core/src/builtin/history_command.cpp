@@ -49,7 +49,7 @@ int history_command(const std::vector<std::string>& args) {
                        "Display command history, optionally limiting to COUNT entries."})) {
             return 0;
         }
-        cjsh_filesystem::initialize_cjsh_directories();
+        (void)cjsh_filesystem::initialize_cjsh_directories();
 
         auto read_result =
             cjsh_filesystem::read_file_content(cjsh_filesystem::g_cjsh_history_path().string());

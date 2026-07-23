@@ -51,7 +51,7 @@ extern "C" {
 }
 
 static void log_failure(const char* test_name, const char* message) {
-    std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
+    (void)std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
 }
 
 #define EXPECT_TRUE(condition, test_name, message) \
@@ -69,9 +69,9 @@ static bool expect_streq(const std::string& actual, const std::string& expected,
     if (actual == expected) {
         return true;
     }
-    std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
-    std::fprintf(stderr, "  actual:   %s\n", actual.c_str());
-    std::fprintf(stderr, "  expected: %s\n", expected.c_str());
+    (void)std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
+    (void)std::fprintf(stderr, "  actual:   %s\n", actual.c_str());
+    (void)std::fprintf(stderr, "  expected: %s\n", expected.c_str());
     return false;
 }
 
@@ -91,7 +91,7 @@ static void completion_action_completer(ic_completion_env_t* cenv, const char* p
     completion_tracker::completion_session_begin(cenv, prefix);
     for (const auto& action : g_completion_actions) {
         const char* source = action.source == nullptr ? "test" : action.source;
-        completion_tracker::safe_add_completion_prim_with_source(
+        (void)completion_tracker::safe_add_completion_prim_with_source(
             cenv, action.text.c_str(), nullptr, nullptr, source, action.delete_before,
             action.delete_after);
     }
@@ -363,9 +363,9 @@ static bool test_history_completer_filters_exit_127(void) {
         fs::temp_directory_path() /
         ("cjsh_completion_history_test_" + std::to_string(static_cast<long long>(unique_suffix)));
     std::error_code ec;
-    fs::remove_all(temp_dir, ec);
+    (void)fs::remove_all(temp_dir, ec);
     ec.clear();
-    fs::create_directories(temp_dir, ec);
+    (void)fs::create_directories(temp_dir, ec);
     EXPECT_FALSE(ec, test_name, "temporary history directory should be created");
 
     fs::path history_path = temp_dir / "history.txt";
@@ -389,8 +389,8 @@ static bool test_history_completer_filters_exit_127(void) {
     bool has_legacy_127 = generated_completions_include_replacement("typo_legacy");
     clear_generated_completions();
 
-    fs::remove_all(temp_dir, ec);
-    unsetenv("CJSH_HISTORY_FILE");
+    (void)fs::remove_all(temp_dir, ec);
+    (void)unsetenv("CJSH_HISTORY_FILE");
 
     EXPECT_TRUE(count == 1, test_name, "only non-127 history entry should be offered");
     EXPECT_TRUE(has_good, test_name, "successful history entry should remain available");
@@ -813,7 +813,7 @@ static bool test_completion_tracker_max_results(void) {
 
     EXPECT_TRUE(count == min_allowed, test_name, "completion count should honor max results cap");
 
-    completion_tracker::set_completion_max_results(default_max, nullptr);
+    (void)completion_tracker::set_completion_max_results(default_max, nullptr);
     return true;
 }
 
@@ -834,7 +834,7 @@ static bool test_completion_tracker_delete_before_bounds(void) {
         return false;
     }
 
-    tracker.added_completions.insert("abcz");
+    (void)tracker.added_completions.insert("abcz");
     EXPECT_TRUE(tracker.would_create_duplicate("z", 5), test_name,
                 "out-of-range delete_before should still deduplicate canonical result");
     return true;
@@ -1227,16 +1227,16 @@ int main(void) {
 
     for (size_t i = 0; i < test_count; ++i) {
         if (!kTests[i].fn()) {
-            std::fprintf(stderr, "Test '%s' failed\n", kTests[i].name);
+            (void)std::fprintf(stderr, "Test '%s' failed\n", kTests[i].name);
             failures += 1;
         }
     }
 
     if (failures > 0) {
-        std::fprintf(stderr, "%zu/%zu completion tests failed\n", failures, test_count);
+        (void)std::fprintf(stderr, "%zu/%zu completion tests failed\n", failures, test_count);
         return 1;
     }
 
-    std::printf("All %zu completion tests passed\n", test_count);
+    (void)std::printf("All %zu completion tests passed\n", test_count);
     return 0;
 }

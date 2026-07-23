@@ -106,7 +106,7 @@ Numeric parse_printf_numeric(const char* s, Parser parse) {
 
         if (MB_CUR_MAX > 1 && *(s + 1) && *(s + 1) != quote) {
             mbstate_t mbstate;
-            memset(&mbstate, 0, sizeof(mbstate));
+            (void)memset(&mbstate, 0, sizeof(mbstate));
             wchar_t wc;
             size_t slen = strlen(s);
             size_t bytes = mbrtowc(&wc, s, slen, &mbstate);
@@ -146,53 +146,53 @@ static long double vstrtold(const char* s) {
 static void print_esc_char(char c) {
     switch (c) {
         case 'a':
-            putchar('\a');
+            (void)putchar('\a');
             break;
         case 'b':
-            putchar('\b');
+            (void)putchar('\b');
             break;
         case 'c':
             output_stopped = true;
             break;
         case 'e':
-            putchar('\x1B');
+            (void)putchar('\x1B');
             break;
         case 'f':
-            putchar('\f');
+            (void)putchar('\f');
             break;
         case 'n':
-            putchar('\n');
+            (void)putchar('\n');
             break;
         case 'r':
-            putchar('\r');
+            (void)putchar('\r');
             break;
         case 't':
-            putchar('\t');
+            (void)putchar('\t');
             break;
         case 'v':
-            putchar('\v');
+            (void)putchar('\v');
             break;
         default:
-            putchar(c);
+            (void)putchar(c);
             break;
     }
 }
 
 static void print_unicode_char(uint32_t code) {
     if (code <= 0x7F) {
-        putchar(static_cast<int>(code));
+        (void)putchar(static_cast<int>(code));
     } else if (code <= 0x7FF) {
-        putchar(static_cast<int>(0xC0 | (code >> 6)));
-        putchar(static_cast<int>(0x80 | (code & 0x3F)));
+        (void)putchar(static_cast<int>(0xC0 | (code >> 6)));
+        (void)putchar(static_cast<int>(0x80 | (code & 0x3F)));
     } else if (code <= 0xFFFF) {
-        putchar(static_cast<int>(0xE0 | (code >> 12)));
-        putchar(static_cast<int>(0x80 | ((code >> 6) & 0x3F)));
-        putchar(static_cast<int>(0x80 | (code & 0x3F)));
+        (void)putchar(static_cast<int>(0xE0 | (code >> 12)));
+        (void)putchar(static_cast<int>(0x80 | ((code >> 6) & 0x3F)));
+        (void)putchar(static_cast<int>(0x80 | (code & 0x3F)));
     } else if (code <= 0x10FFFF) {
-        putchar(static_cast<int>(0xF0 | (code >> 18)));
-        putchar(static_cast<int>(0x80 | ((code >> 12) & 0x3F)));
-        putchar(static_cast<int>(0x80 | ((code >> 6) & 0x3F)));
-        putchar(static_cast<int>(0x80 | (code & 0x3F)));
+        (void)putchar(static_cast<int>(0xF0 | (code >> 18)));
+        (void)putchar(static_cast<int>(0x80 | ((code >> 12) & 0x3F)));
+        (void)putchar(static_cast<int>(0x80 | ((code >> 6) & 0x3F)));
+        (void)putchar(static_cast<int>(0x80 | (code & 0x3F)));
     }
 }
 
@@ -213,12 +213,12 @@ static int print_esc(const char* escstart, bool octal_0) {
             output_stopped = true;
             return static_cast<int>(p - escstart - 1);
         }
-        putchar(esc_value);
+        (void)putchar(esc_value);
     } else if (is_octal_digit(*p)) {
         for (esc_length = 0, p += octal_0 && *p == '0'; esc_length < 3 && is_octal_digit(*p);
              ++esc_length, ++p)
             esc_value = esc_value * 8 + from_octal(*p);
-        putchar(esc_value);
+        (void)putchar(esc_value);
     } else if (*p && strchr("\"\\abcefnrtv", *p)) {
         print_esc_char(*p++);
     } else if (*p == 'u' || *p == 'U') {
@@ -248,9 +248,9 @@ static int print_esc(const char* escstart, bool octal_0) {
 
         print_unicode_char(uni_value);
     } else {
-        putchar('\\');
+        (void)putchar('\\');
         if (*p) {
-            putchar(*p);
+            (void)putchar(*p);
             p++;
         }
     }
@@ -262,7 +262,7 @@ static void print_esc_string(const char* str) {
         if (*str == '\\')
             str += print_esc(str, true);
         else
-            putchar(*str);
+            (void)putchar(*str);
 }
 
 static std::string shell_escape(const std::string& str) {
@@ -302,7 +302,7 @@ static void printf_value(const std::string& fmt, T value) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
 #endif
-    printf(fmt.c_str(), value);
+    (void)printf(fmt.c_str(), value);
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(__GNUC__)
@@ -506,7 +506,7 @@ static int print_formatted(const char* format, int argc, char** argv) {
             have_field_width = have_precision = false;
 
             if (*ac.f == '%') {
-                putchar('%');
+                (void)putchar('%');
                 continue;
             }
 
@@ -541,7 +541,7 @@ static int print_formatted(const char* format, int argc, char** argv) {
                 continue;
             }
 
-            memset(ok, 0, sizeof(ok));
+            (void)memset(ok, 0, sizeof(ok));
             ok['a'] = ok['A'] = ok['c'] = ok['d'] = ok['e'] = ok['E'] = ok['f'] = ok['F'] =
                 ok['g'] = ok['G'] = ok['i'] = ok['o'] = ok['s'] = ok['u'] = ok['x'] = ok['X'] =
                     true;
@@ -673,7 +673,7 @@ static int print_formatted(const char* format, int argc, char** argv) {
         } else if (*ac.f == '\\') {
             ac.f += print_esc(ac.f, false);
         } else {
-            putchar(*ac.f);
+            (void)putchar(*ac.f);
         }
     }
 

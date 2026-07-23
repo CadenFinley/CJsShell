@@ -212,7 +212,7 @@ class GenerateCompletionsProgressDisplay {
             filled = width;
 
         std::string bar(filled, '#');
-        bar.append(width - filled, '-');
+        (void)bar.append(width - filled, '-');
         return bar;
     }
 
@@ -501,8 +501,8 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         }
 
         std::sort(options.targets.begin(), options.targets.end());
-        options.targets.erase(std::unique(options.targets.begin(), options.targets.end()),
-                              options.targets.end());
+        (void)options.targets.erase(std::unique(options.targets.begin(), options.targets.end()),
+                                    options.targets.end());
 
         const auto start_time = std::chrono::steady_clock::now();
 
@@ -630,7 +630,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                         command, options.force_refresh, options.include_subcommands,
                         progress_report, should_cancel);
                     if (generated) {
-                        success_counter.fetch_add(1, std::memory_order_relaxed);
+                        (void)success_counter.fetch_add(1, std::memory_order_relaxed);
                     } else {
                         local_failures.push_back(command);
                     }
@@ -638,14 +638,15 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
 
                 if (!local_failures.empty()) {
                     std::lock_guard<std::mutex> lock(failure_mutex);
-                    failures.insert(failures.end(), local_failures.begin(), local_failures.end());
+                    (void)failures.insert(failures.end(), local_failures.begin(),
+                                          local_failures.end());
                 }
             };
 
             std::vector<std::thread> workers;
             workers.reserve(job_count);
             for (std::size_t i = 0; i < job_count; ++i) {
-                workers.emplace_back(worker);
+                (void)workers.emplace_back(worker);
             }
             for (auto& thread : workers) {
                 thread.join();

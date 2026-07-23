@@ -736,7 +736,7 @@ ic_public void ic_reset_key_bindings(void) {
         return;
     key_binding_clear_all(env);
     if (env->key_binding_profile != NULL) {
-        ic_keybinding_apply_profile(env, env->key_binding_profile);
+        (void)ic_keybinding_apply_profile(env, env->key_binding_profile);
     }
 }
 
@@ -785,7 +785,7 @@ ic_public bool ic_set_key_binding_profile(const char* name) {
     if (!ic_keybinding_apply_profile(env, profile)) {
         env->key_binding_profile = previous;
         key_binding_clear_all(env);
-        ic_keybinding_apply_profile(env, env->key_binding_profile);
+        (void)ic_keybinding_apply_profile(env, env->key_binding_profile);
         return false;
     }
     return true;

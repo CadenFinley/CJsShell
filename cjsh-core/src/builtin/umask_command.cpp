@@ -192,7 +192,7 @@ int umask_command(const std::vector<std::string>& args) {
     }
 
     mode_t current_mask = umask(0);
-    umask(current_mask);
+    (void)umask(current_mask);
 
     bool symbolic_output = false;
     bool posix_output = false;
@@ -256,7 +256,7 @@ int umask_command(const std::vector<std::string>& args) {
         }
     }
 
-    umask(new_mask);
+    (void)umask(new_mask);
 
     return 0;
 }

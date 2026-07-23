@@ -119,7 +119,7 @@ bool CompletionTracker::add_completion_prim_with_source_if_unique(
     }
 
     std::string final_result = calculate_final_result(completion_text, delete_before);
-    added_completions.insert(canonicalize_final_result(std::move(final_result)));
+    (void)added_completions.insert(canonicalize_final_result(std::move(final_result)));
     total_completions_added++;
     return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source,
                                               delete_before, delete_after);

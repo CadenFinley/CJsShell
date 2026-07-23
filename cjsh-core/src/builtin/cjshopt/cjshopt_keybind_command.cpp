@@ -153,7 +153,7 @@ std::vector<std::string> parse_key_spec_arguments(const std::vector<std::string>
     std::vector<std::string> specs;
     for (size_t i = start_index; i < args.size(); ++i) {
         std::vector<std::string> tokens = split_key_spec_string(args[i]);
-        specs.insert(specs.end(), tokens.begin(), tokens.end());
+        (void)specs.insert(specs.end(), tokens.begin(), tokens.end());
     }
     return specs;
 }
@@ -190,7 +190,7 @@ std::vector<ic_key_binding_entry_t> collect_bindings() {
     size_t count = ic_list_key_bindings(nullptr, 0);
     std::vector<ic_key_binding_entry_t> entries(count);
     if (count > 0) {
-        ic_list_key_bindings(entries.data(), count);
+        (void)ic_list_key_bindings(entries.data(), count);
     }
     return entries;
 }
@@ -210,13 +210,13 @@ std::unordered_map<ic_key_action_t, std::vector<std::string>> group_bindings_by_
     for (const auto& entry : entries) {
         char buffer[64];
         if (ic_format_key_spec(entry.key, buffer, sizeof(buffer))) {
-            grouped[entry.action].emplace_back(buffer);
+            (void)grouped[entry.action].emplace_back(buffer);
         }
     }
     for (auto& pair : grouped) {
         auto& vec = pair.second;
         std::sort(vec.begin(), vec.end());
-        vec.erase(std::unique(vec.begin(), vec.end()), vec.end());
+        (void)vec.erase(std::unique(vec.begin(), vec.end()), vec.end());
     }
     return grouped;
 }
@@ -225,11 +225,11 @@ std::vector<std::string> available_action_names() {
     std::vector<std::string> names;
     names.reserve(key_binding_defaults().size() + 1);
     for (const auto& entry : key_binding_defaults()) {
-        names.emplace_back(entry.canonical_name);
+        (void)names.emplace_back(entry.canonical_name);
     }
-    names.emplace_back("none");
+    (void)names.emplace_back("none");
     std::sort(names.begin(), names.end());
-    names.erase(std::unique(names.begin(), names.end()), names.end());
+    (void)names.erase(std::unique(names.begin(), names.end()), names.end());
     return names;
 }
 
@@ -265,7 +265,7 @@ bool parse_key_specs_to_codes(const std::vector<std::string>& specs,
             return false;
         }
         if (seen.insert(key_code).second) {
-            out_codes->emplace_back(key_code, spec);
+            (void)out_codes->emplace_back(key_code, spec);
         }
     }
     return true;
@@ -346,14 +346,14 @@ void remove_profile_defaults_from_group(
         const std::string canonical = string_utils::to_lower_copy(formatted);
         for (size_t idx = 0; idx < specs.size();) {
             if (string_utils::to_lower_copy(specs[idx]) == canonical) {
-                specs.erase(specs.begin() + static_cast<std::ptrdiff_t>(idx));
+                (void)specs.erase(specs.begin() + static_cast<std::ptrdiff_t>(idx));
             } else {
                 ++idx;
             }
         }
     }
     if (specs.empty()) {
-        grouped->erase(it);
+        (void)grouped->erase(it);
     }
 }
 
@@ -403,7 +403,7 @@ int keybind_list_command() {
         auto it = grouped.find(entry.action);
         if (it != grouped.end()) {
             custom_display = join_specs(it->second);
-            printed.insert(entry.action);
+            (void)printed.insert(entry.action);
         }
 
         std::cout << std::left << std::setw(static_cast<int>(name_width) + 2)
@@ -441,7 +441,7 @@ int keybind_profile_list_command() {
     size_t count = ic_list_key_binding_profiles(nullptr, 0);
     std::vector<ic_key_binding_profile_info_t> profiles(count);
     if (count > 0) {
-        ic_list_key_binding_profiles(profiles.data(), count);
+        (void)ic_list_key_binding_profiles(profiles.data(), count);
     }
 
     const char* active = ic_get_key_binding_profile();
@@ -475,13 +475,13 @@ int keybind_profile_set_command(const std::vector<std::string>& args) {
         size_t count = ic_list_key_binding_profiles(nullptr, 0);
         std::vector<ic_key_binding_profile_info_t> profiles(count);
         if (count > 0) {
-            ic_list_key_binding_profiles(profiles.data(), count);
+            (void)ic_list_key_binding_profiles(profiles.data(), count);
         }
         std::vector<std::string> names;
         names.reserve(profiles.size());
         for (const auto& profile : profiles) {
             if (profile.name != nullptr) {
-                names.emplace_back(profile.name);
+                (void)names.emplace_back(profile.name);
             }
         }
         std::ostringstream oss;
@@ -531,7 +531,7 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
     std::unordered_set<ic_keycode_t> new_keys;
     new_keys.reserve(parsed.size());
     for (const auto& entry : parsed) {
-        new_keys.insert(entry.first);
+        (void)new_keys.insert(entry.first);
     }
 
     std::vector<std::pair<ic_keycode_t, std::string>> default_keys;
@@ -574,17 +574,17 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
         for (const auto& entry : entries) {
             if (entry.action == action) {
                 previous.push_back(entry);
-                ic_clear_key_binding(entry.key);
+                (void)ic_clear_key_binding(entry.key);
             }
         }
     }
 
     for (const auto& entry : parsed) {
-        ic_clear_key_binding(entry.first);
+        (void)ic_clear_key_binding(entry.first);
     }
 
     for (const auto& entry : keys_to_suppress) {
-        ic_clear_key_binding(entry.first);
+        (void)ic_clear_key_binding(entry.first);
     }
 
     std::vector<ic_keycode_t> bound;
@@ -593,10 +593,10 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
                                 const std::string& spec_for_error) {
         if (!ic_bind_key(key, target_action)) {
             for (const auto& k : bound) {
-                ic_clear_key_binding(k);
+                (void)ic_clear_key_binding(k);
             }
             for (const auto& prev : previous) {
-                ic_bind_key(prev.key, prev.action);
+                (void)ic_bind_key(prev.key, prev.action);
             }
             print_error({ErrorType::INVALID_ARGUMENT, "keybind",
                          "Failed to bind key specification '" + spec_for_error + "'",
@@ -702,9 +702,9 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
         if (entry.action == action) {
             char buffer[64];
             if (ic_format_key_spec(entry.key, buffer, sizeof(buffer))) {
-                removed.emplace_back(buffer);
+                (void)removed.emplace_back(buffer);
             }
-            ic_clear_key_binding(entry.key);
+            (void)ic_clear_key_binding(entry.key);
         }
     }
 
@@ -714,7 +714,7 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
             ic_key_action_t existing_action;
             if (ic_get_key_binding(def.first, &existing_action) &&
                 existing_action == IC_KEY_ACTION_NONE) {
-                ic_clear_key_binding(def.first);
+                (void)ic_clear_key_binding(def.first);
             }
         }
     }

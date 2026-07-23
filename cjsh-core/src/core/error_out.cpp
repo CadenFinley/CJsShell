@@ -81,7 +81,7 @@ void append_error_header(std::ostream& out, const ErrorInfo& error) {
         }
     }
     if (config::login_mode && (header.empty() || header.front() != '-')) {
-        header.insert(header.begin(), '-');
+        (void)header.insert(header.begin(), '-');
     }
     out << header << ": ";
 
@@ -209,7 +209,7 @@ void append_error_log(const ErrorInfo& error) {
     std::error_code ec;
     std::filesystem::path parent = path.parent_path();
     if (!parent.empty()) {
-        std::filesystem::create_directories(parent, ec);
+        (void)std::filesystem::create_directories(parent, ec);
     }
 
     std::ofstream log_file(path, std::ios::app);

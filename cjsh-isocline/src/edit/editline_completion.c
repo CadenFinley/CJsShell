@@ -56,7 +56,7 @@ static bool edit_complete(ic_env_t* env, editor_t* eb, ssize_t idx) {
     bool changed = edit_completion_commit(eb, newpos);
 
     if (changed) {
-        edit_expand_abbreviation_if_needed(env, eb, true);
+        (void)edit_expand_abbreviation_if_needed(env, eb, true);
         edit_refresh(env, eb);
     } else if (newpos == IC_COMP_APPLY_NOOP && completions_count(env->completions) > 1) {
         edit_refresh(env, eb);
@@ -70,14 +70,14 @@ static void edit_complete_longest_prefix(ic_env_t* env, editor_t* eb) {
     if (!edit_completion_commit(eb, newpos)) {
         return;
     }
-    edit_expand_abbreviation_if_needed(env, eb, true);
+    (void)edit_expand_abbreviation_if_needed(env, eb, true);
     edit_refresh(env, eb);
 }
 
 ic_private void sbuf_append_tagged(stringbuf_t* sb, const char* tag, const char* content) {
-    sbuf_appendf(sb, "[%s]", tag);
-    sbuf_append(sb, content);
-    sbuf_append(sb, "[/]");
+    (void)sbuf_appendf(sb, "[%s]", tag);
+    (void)sbuf_append(sb, content);
+    (void)sbuf_append(sb, "[/]");
 }
 
 static const char* completion_single_line_view(alloc_t* mem, const char* display,
@@ -161,7 +161,7 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
     const char* help_style = (selected ? "ic-menu-selected-secondary" : "ic-info");
 
     if (selected) {
-        sbuf_append(eb->extra, "[ic-menu-selected]");
+        (void)sbuf_append(eb->extra, "[ic-menu-selected]");
     }
 
     if (numbered) {
@@ -172,18 +172,18 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
         }
         ssize_t prefix_width = 1 + ndigits + 1;
         width_remaining -= prefix_width;
-        sbuf_appendf(eb->extra, "%s%zd ", (selected ? arrow : " "), shown);
+        (void)sbuf_appendf(eb->extra, "%s%zd ", (selected ? arrow : " "), shown);
     } else {
         ssize_t prefix_width = 2;
         width_remaining -= prefix_width;
-        sbuf_appendf(eb->extra, "%s ", (selected ? arrow : " "));
+        (void)sbuf_appendf(eb->extra, "%s ", (selected ? arrow : " "));
     }
 
     bool display_has_line_break = edit_menu_contains_line_break(display);
     bool apply_width_constraint =
         (width_remaining > 0) && (numbered || !selected || display_has_line_break);
     if (apply_width_constraint) {
-        sbuf_appendf(eb->extra, "[width=\"%zd;left; ;on\"]", width_remaining);
+        (void)sbuf_appendf(eb->extra, "[width=\"%zd;left; ;on\"]", width_remaining);
     }
     char* single_line_alloc = NULL;
     const char* single_line_display =
@@ -196,7 +196,7 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
                                                      -1, 0, selected, false, NULL);
         }
     } else {
-        sbuf_append(eb->extra, single_line_display);
+        (void)sbuf_append(eb->extra, single_line_display);
     }
     if (single_line_alloc != NULL) {
         mem_free(env->mem, single_line_alloc);
@@ -212,21 +212,21 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
             completion_source_view(env->mem, source, limit, allow_full_source, &source_alloc);
     }
     if (source_display != NULL) {
-        sbuf_append(eb->extra, " ");
+        (void)sbuf_append(eb->extra, " ");
         sbuf_append_tagged(eb->extra, source_style, "(");
         sbuf_append_tagged(eb->extra, source_style, source_display);
         sbuf_append_tagged(eb->extra, source_style, ")");
     }
 
     if (help != NULL) {
-        sbuf_append(eb->extra, "  ");
+        (void)sbuf_append(eb->extra, "  ");
         sbuf_append_tagged(eb->extra, help_style, help);
     }
     if (apply_width_constraint) {
-        sbuf_append(eb->extra, "[/width]");
+        (void)sbuf_append(eb->extra, "[/width]");
     }
     if (selected) {
-        sbuf_append(eb->extra, "[/ic-menu-selected]");
+        (void)sbuf_append(eb->extra, "[/ic-menu-selected]");
     }
     if (source_alloc != NULL) {
         mem_free(env->mem, source_alloc);
@@ -245,16 +245,16 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
 static void editor_append_completion2(ic_env_t* env, editor_t* eb, ssize_t col_width, ssize_t idx1,
                                       ssize_t idx2, ssize_t selected) {
     editor_append_completion(env, eb, idx1, col_width, true, (idx1 == selected));
-    sbuf_append(eb->extra, "  ");
+    (void)sbuf_append(eb->extra, "  ");
     editor_append_completion(env, eb, idx2, col_width, true, (idx2 == selected));
 }
 
 static void editor_append_completion3(ic_env_t* env, editor_t* eb, ssize_t col_width, ssize_t idx1,
                                       ssize_t idx2, ssize_t idx3, ssize_t selected) {
     editor_append_completion(env, eb, idx1, col_width, true, (idx1 == selected));
-    sbuf_append(eb->extra, "  ");
+    (void)sbuf_append(eb->extra, "  ");
     editor_append_completion(env, eb, idx2, col_width, true, (idx2 == selected));
-    sbuf_append(eb->extra, "  ");
+    (void)sbuf_append(eb->extra, "  ");
     editor_append_completion(env, eb, idx3, col_width, true, (idx3 == selected));
 }
 
@@ -378,10 +378,10 @@ static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, s
         return current_rows;
     }
 
-    sbuf_append_n(preview, input, replacement_start);
-    sbuf_append(preview, replacement);
+    (void)sbuf_append_n(preview, input, replacement_start);
+    (void)sbuf_append(preview, replacement);
     if (suffix_start < input_len) {
-        sbuf_append_n(preview, input + suffix_start, input_len - suffix_start);
+        (void)sbuf_append_n(preview, input + suffix_start, input_len - suffix_start);
     }
 
     ssize_t promptw = 0;
@@ -648,7 +648,7 @@ again:
             grid_rows = percolumn;
             for (ssize_t rw = 0; rw < percolumn; rw++) {
                 if (rw > 0) {
-                    sbuf_append(eb->extra, "\n");
+                    (void)sbuf_append(eb->extra, "\n");
                 }
                 editor_append_completion3(env, eb, colwidth, rw, percolumn + rw,
                                           (2 * percolumn) + rw, selected);
@@ -679,7 +679,7 @@ again:
             grid_rows = percolumn;
             for (ssize_t rw = 0; rw < percolumn; rw++) {
                 if (rw > 0) {
-                    sbuf_append(eb->extra, "\n");
+                    (void)sbuf_append(eb->extra, "\n");
                 }
                 editor_append_completion2(env, eb, colwidth, rw, percolumn + rw, selected);
             }
@@ -697,7 +697,7 @@ again:
             }
             for (ssize_t i = 0; i < count_displayed; i++) {
                 if (i > 0) {
-                    sbuf_append(eb->extra, "\n");
+                    (void)sbuf_append(eb->extra, "\n");
                 }
                 editor_append_completion(env, eb, i, -1, true, (selected == i));
             }
@@ -706,8 +706,9 @@ again:
             selected = (count_displayed > 0 ? count_displayed - 1 : -1);
         }
         if (count > count_displayed) {
-            sbuf_append(eb->extra,
-                        "\n[ic-info](press PgDn or ctrl-j to expand; ctrl-j again collapses)[/]");
+            (void)sbuf_append(
+                eb->extra,
+                "\n[ic-info](press PgDn or ctrl-j to expand; ctrl-j again collapses)[/]");
         }
     } else {
         grid_layout_active = false;
@@ -783,7 +784,7 @@ again:
                 continue;
             }
             if (wrote_any_row) {
-                sbuf_append(eb->extra, "\n");
+                (void)sbuf_append(eb->extra, "\n");
             }
             wrote_any_row = true;
             editor_append_completion(env, eb, idx, colwidth, false, (selected == idx));
@@ -797,16 +798,17 @@ again:
 
         if (show_instructions) {
             if (sbuf_len(eb->extra) > 0) {
-                sbuf_append(eb->extra, "\n");
+                (void)sbuf_append(eb->extra, "\n");
             }
             if (more_available) {
-                sbuf_append(
+                (void)sbuf_append(
                     eb->extra,
                     "[ic-info]Press PgDn to load more completions; ctrl-j collapses the list[/]");
             } else {
-                sbuf_append(eb->extra,
-                            "[ic-info]Use up/down, tab/shift-tab, or wheel to move; Shift+Up/Down "
-                            "to page; PgUp/PgDn to scroll[/]");
+                (void)sbuf_append(
+                    eb->extra,
+                    "[ic-info]Use up/down, tab/shift-tab, or wheel to move; Shift+Up/Down "
+                    "to page; PgUp/PgDn to scroll[/]");
             }
         }
 
@@ -852,7 +854,7 @@ again:
                      (visible_count > 0 ? visible_count : count_displayed), count, hint_suffix,
                      mouse_suffix);
         }
-        sbuf_insert_at(eb->extra, header, 0);
+        (void)sbuf_insert_at(eb->extra, header, 0);
 
         last_rows_visible = rows_visible;
         last_max_scroll_offset = max_scroll_offset;
@@ -882,7 +884,7 @@ again:
 read_key:
     c = tty_read(env->tty);
     if (tty_term_resize_event(env->tty)) {
-        edit_resize(env, eb);
+        (void)edit_resize(env, eb);
     }
     sbuf_clear(eb->extra);
 

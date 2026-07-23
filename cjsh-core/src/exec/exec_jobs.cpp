@@ -116,7 +116,7 @@ void Exec::remove_job(int job_id) {
 
     auto it = jobs.find(job_id);
     if (it != jobs.end()) {
-        jobs.erase(it);
+        (void)jobs.erase(it);
     }
 }
 
@@ -225,9 +225,9 @@ void Exec::wait_for_job(int job_id) {
         if (pid == -1) {
             if (errno == EINTR) {
                 if (g_shell) {
-                    g_shell->process_pending_signals();
+                    (void)g_shell->process_pending_signals();
                 } else if (auto* signal_handler = SignalHandler::instance()) {
-                    signal_handler->process_pending_signals(this);
+                    (void)signal_handler->process_pending_signals(this);
                 }
                 continue;
             }
@@ -242,7 +242,7 @@ void Exec::wait_for_job(int job_id) {
 
         auto pid_it = std::find(remaining_pids.begin(), remaining_pids.end(), pid);
         if (pid_it != remaining_pids.end()) {
-            remaining_pids.erase(pid_it);
+            (void)remaining_pids.erase(pid_it);
         }
 
         auto order_it = std::find(pid_order.begin(), pid_order.end(), pid);
@@ -373,7 +373,7 @@ void Exec::handle_child_signal(pid_t pid, int status) {
                 job.stopped = true;
                 job.status = status;
             } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                job.pids.erase(it);
+                (void)job.pids.erase(it);
 
                 if (job.pids.empty()) {
                     job.completed = true;

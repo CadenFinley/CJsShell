@@ -47,7 +47,7 @@ int set_loop_control_level(const std::vector<std::string>& args, const std::stri
         return 1;
     }
 
-    cjsh_env::set_shell_variable_value(variable, std::to_string(level));
+    (void)cjsh_env::set_shell_variable_value(variable, std::to_string(level));
     return return_code;
 }
 
@@ -86,7 +86,7 @@ int return_command(const std::vector<std::string>& args) {
         }
     }
 
-    cjsh_env::set_shell_variable_value("CJSH_RETURN_CODE", std::to_string(exit_code));
+    (void)cjsh_env::set_shell_variable_value("CJSH_RETURN_CODE", std::to_string(exit_code));
 
     return 253;
 }

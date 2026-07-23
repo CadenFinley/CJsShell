@@ -87,7 +87,7 @@ int exit_command(const std::vector<std::string>& args) {
                              "invalid numeric argument: " + val,
                              {"Use a number between 0 and 255."}});
                 cjsh_env::request_exit();
-                cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
+                (void)cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
                 return 0;
             }
         }
@@ -99,7 +99,7 @@ int exit_command(const std::vector<std::string>& args) {
                      "too many arguments",
                      {"Use at most one exit status argument."}});
         cjsh_env::request_exit();
-        cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
+        (void)cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
         return 0;
     }
 
@@ -184,7 +184,7 @@ int exit_command(const std::vector<std::string>& args) {
     cjsh_env::request_exit();
 
     // set the exit code that the shell will actually exit with
-    cjsh_env::set_shell_variable_value("EXIT_CODE", std::to_string(exit_code));
+    (void)cjsh_env::set_shell_variable_value("EXIT_CODE", std::to_string(exit_code));
 
     // the exit command itself will return 0 on a successful exit request and exit code set. this is
     // not the exit code that the shell returns

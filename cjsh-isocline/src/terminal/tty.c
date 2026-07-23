@@ -113,7 +113,7 @@ static void tty_close_wakeup_channel(tty_t* tty) {
     }
     for (int i = 0; i < 2; ++i) {
         if (tty->wake_pipe[i] >= 0) {
-            close(tty->wake_pipe[i]);
+            (void)close(tty->wake_pipe[i]);
             tty->wake_pipe[i] = -1;
         }
     }
@@ -649,7 +649,7 @@ ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
     for (;;) {
         ssize_t bytes_read = read(tty->fd_in, buffer, sizeof(buffer));
         if (bytes_read > 0) {
-            sbuf_append_n(out, buffer, bytes_read);
+            (void)sbuf_append_n(out, buffer, bytes_read);
             if (bytes_read < (ssize_t)sizeof(buffer)) {
                 break;
             }
@@ -673,10 +673,10 @@ ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
     }
 
     if (restore_termios) {
-        tcsetattr(tty->fd_in, TCSANOW, &original_termios);
+        (void)tcsetattr(tty->fd_in, TCSANOW, &original_termios);
     }
     if (restore_flags) {
-        fcntl(tty->fd_in, F_SETFL, fd_flags);
+        (void)fcntl(tty->fd_in, F_SETFL, fd_flags);
     }
 
     if (sbuf_len(out) > 0) {
@@ -921,7 +921,7 @@ static void sig_handler(int signum, siginfo_t* siginfo, void* uap) {
         }
     } else {
         if (sig_tty != NULL && sig_tty->raw_enabled) {
-            tcsetattr(sig_tty->fd_in, TCSAFLUSH, &sig_tty->orig_ios);
+            (void)tcsetattr(sig_tty->fd_in, TCSAFLUSH, &sig_tty->orig_ios);
             sig_tty->raw_enabled = false;
         }
     }
@@ -962,7 +962,7 @@ static void signals_install(tty_t* tty) {
 static void signals_restore(void) {
     for (signal_handler_t* sh = sighandlers; sh->signum != 0; sh++) {
         if (sigaction_is_valid(&sh->action.previous)) {
-            sigaction(sh->signum, &sh->action.previous, NULL);
+            (void)sigaction(sh->signum, &sh->action.previous, NULL);
         };
     }
     sig_tty = NULL;

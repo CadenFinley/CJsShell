@@ -130,7 +130,7 @@ ic_private void ic_typeahead_filter_escape_sequences_into(const char* input, siz
         } else if (ch == '\x07' || (ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r')) {
             continue;
         } else {
-            sbuf_append_char(output, (char)ch);
+            (void)sbuf_append_char(output, (char)ch);
         }
     }
 }
@@ -193,7 +193,7 @@ ic_private void ic_typeahead_normalize_line_edit_sequences_into(const char* inpu
                 break;
             }
             default:
-                sbuf_append_char(output, (char)ch);
+                (void)sbuf_append_char(output, (char)ch);
                 break;
         }
     }
@@ -206,7 +206,7 @@ static void assign_input_view(ic_env_t* env, const char* data, ssize_t length) {
 
     sbuf_clear(env->typeahead_input_buffer);
     if (data != NULL && length > 0) {
-        sbuf_append_n(env->typeahead_input_buffer, data, length);
+        (void)sbuf_append_n(env->typeahead_input_buffer, data, length);
     }
 }
 
@@ -282,14 +282,14 @@ ic_private bool ic_typeahead_ingest_raw_input(const uint8_t* data, size_t length
         return false;
     }
 
-    sbuf_append_n(env->typeahead_pending_raw_bytes, (const char*)data, (ssize_t)length);
+    (void)sbuf_append_n(env->typeahead_pending_raw_bytes, (const char*)data, (ssize_t)length);
 
     const ssize_t existing_len = sbuf_len(env->typeahead_input_buffer);
     const char* existing = sbuf_string(env->typeahead_input_buffer);
     if (existing != NULL && existing_len > 0) {
-        sbuf_append_n(combined, existing, existing_len);
+        (void)sbuf_append_n(combined, existing, existing_len);
     }
-    sbuf_append_n(combined, (const char*)data, (ssize_t)length);
+    (void)sbuf_append_n(combined, (const char*)data, (ssize_t)length);
 
     const char* combined_data = sbuf_string(combined);
     ssize_t combined_len = sbuf_len(combined);
@@ -299,7 +299,7 @@ ic_private bool ic_typeahead_ingest_raw_input(const uint8_t* data, size_t length
     const ssize_t sanitized_len = sbuf_len(sanitized);
     for (ssize_t i = 0; i < sanitized_len; ++i) {
         char ch = sanitized_data[i];
-        sbuf_append_char(crlf_normalized, ch == '\r' ? '\n' : ch);
+        (void)sbuf_append_char(crlf_normalized, ch == '\r' ? '\n' : ch);
     }
 
     const char* crlf_data = sbuf_string(crlf_normalized);

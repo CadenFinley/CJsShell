@@ -81,7 +81,7 @@ std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tok
     result.reserve(tokens.size());
 
     if (config::posix_mode) {
-        result.insert(result.end(), tokens.begin(), tokens.end());
+        (void)result.insert(result.end(), tokens.begin(), tokens.end());
         return result;
     }
 

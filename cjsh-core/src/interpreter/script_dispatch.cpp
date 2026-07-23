@@ -60,7 +60,7 @@ bool file_has_shebang(const std::filesystem::path& path) {
         return false;
     }
     char prefix[2] = {0, 0};
-    file.read(prefix, 2);
+    (void)file.read(prefix, 2);
     return file.gcount() == 2 && prefix[0] == '#' && prefix[1] == '!';
 }
 
@@ -105,7 +105,7 @@ std::optional<std::vector<std::string>> build_extension_interpreter_args(
     interpreter_args.push_back(*interpreter);
     interpreter_args.push_back(*script_path);
     if (args.size() > 1) {
-        interpreter_args.insert(interpreter_args.end(), args.begin() + 1, args.end());
+        (void)interpreter_args.insert(interpreter_args.end(), args.begin() + 1, args.end());
     }
     return interpreter_args;
 }

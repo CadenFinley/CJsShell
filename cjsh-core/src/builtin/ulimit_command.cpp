@@ -189,7 +189,7 @@ const std::vector<std::string>& ulimit_help_text() {
                 selector += entry.long_opt;
             }
             if (selector.size() < 30) {
-                selector.append(30 - selector.size(), ' ');
+                (void)selector.append(30 - selector.size(), ' ');
             } else {
                 selector += ' ';
             }

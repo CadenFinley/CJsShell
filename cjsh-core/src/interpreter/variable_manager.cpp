@@ -60,19 +60,19 @@ void assign_string_value(std::string& target, const std::string& value, bool app
 }  // namespace
 
 void VariableManager::push_scope() {
-    local_variable_stack.emplace_back();
-    local_array_stack.emplace_back();
-    exported_locals_stack.emplace_back();
-    saved_env_stack.emplace_back();
+    (void)local_variable_stack.emplace_back();
+    (void)local_array_stack.emplace_back();
+    (void)exported_locals_stack.emplace_back();
+    (void)saved_env_stack.emplace_back();
 }
 
 void VariableManager::pop_scope() {
     if (!saved_env_stack.empty()) {
         for (const auto& [var_name, old_value] : saved_env_stack.back()) {
             if (old_value.empty()) {
-                unsetenv(var_name.c_str());
+                (void)unsetenv(var_name.c_str());
             } else {
-                setenv(var_name.c_str(), old_value.c_str(), 1);
+                (void)setenv(var_name.c_str(), old_value.c_str(), 1);
             }
         }
         saved_env_stack.pop_back();
@@ -92,7 +92,7 @@ void VariableManager::pop_scope() {
 
 void VariableManager::set_local_variable(const std::string& name, const std::string& value) {
     if (local_variable_stack.empty()) {
-        assign_variable(name, value, false);
+        (void)assign_variable(name, value, false);
         return;
     }
 
@@ -116,7 +116,7 @@ void VariableManager::set_environment_variable(const std::string& name, const st
         env_vars[name] = value;
         cjsh_env::mirror_set_to_process_env(name, value);
 
-        global_array_variables.erase(name);
+        (void)global_array_variables.erase(name);
 
         if (auto* parser = g_shell->get_parser()) {
             parser->set_env_var(name, value);
@@ -176,13 +176,13 @@ bool VariableManager::assign_array_literal(const std::string& name,
 
         if (append) {
             if (inserted && scalar_it != scalars.end()) {
-                target_array->emplace(0, scalar_it->second);
-                scalars.erase(scalar_it);
+                (void)target_array->emplace(0, scalar_it->second);
+                (void)scalars.erase(scalar_it);
             }
         } else {
             target_array->clear();
             if (scalar_it != scalars.end()) {
-                scalars.erase(scalar_it);
+                (void)scalars.erase(scalar_it);
             }
         }
     } else {
@@ -191,7 +191,7 @@ bool VariableManager::assign_array_literal(const std::string& name,
 
         if (append) {
             if (inserted && has_global_scalar_binding(name)) {
-                target_array->emplace(0, get_global_scalar_value(name));
+                (void)target_array->emplace(0, get_global_scalar_value(name));
                 remove_global_scalar_binding(name);
             }
         } else {
@@ -215,7 +215,7 @@ bool VariableManager::assign_global_array_literal(const std::string& name,
 
     if (append) {
         if (inserted && has_global_scalar_binding(name)) {
-            target_array->emplace(0, get_global_scalar_value(name));
+            (void)target_array->emplace(0, get_global_scalar_value(name));
             remove_global_scalar_binding(name);
         }
     } else {
@@ -304,7 +304,7 @@ bool VariableManager::unset_local_variable(const std::string& name) {
     auto& current_scope = local_variable_stack.back();
     auto scalar_it = current_scope.find(name);
     if (scalar_it != current_scope.end()) {
-        current_scope.erase(scalar_it);
+        (void)current_scope.erase(scalar_it);
         removed = true;
     }
 
@@ -312,7 +312,7 @@ bool VariableManager::unset_local_variable(const std::string& name) {
         auto& current_arrays = local_array_stack.back();
         auto array_it = current_arrays.find(name);
         if (array_it != current_arrays.end()) {
-            current_arrays.erase(array_it);
+            (void)current_arrays.erase(array_it);
             removed = true;
         }
     }
@@ -387,7 +387,7 @@ void VariableManager::mark_local_as_exported(const std::string& name) {
         const char* old_val = getenv(name.c_str());
         std::string old_value = (old_val != nullptr) ? old_val : "";
 
-        saved_env_stack.back().emplace_back(name, old_value);
+        (void)saved_env_stack.back().emplace_back(name, old_value);
         exported_locals_stack.back().push_back(name);
     }
 }
@@ -635,23 +635,23 @@ std::vector<std::string> VariableManager::get_variable_names() const {
 
     for (const auto& scope : local_variable_stack) {
         for (const auto& entry : scope) {
-            name_set.insert(entry.first);
+            (void)name_set.insert(entry.first);
         }
     }
     for (const auto& scope : local_array_stack) {
         for (const auto& entry : scope) {
-            name_set.insert(entry.first);
+            (void)name_set.insert(entry.first);
         }
     }
 
     for (const auto& entry : global_array_variables) {
-        name_set.insert(entry.first);
+        (void)name_set.insert(entry.first);
     }
 
     if (g_shell) {
         const auto& env_vars = cjsh_env::env_vars();
         for (const auto& entry : env_vars) {
-            name_set.insert(entry.first);
+            (void)name_set.insert(entry.first);
         }
     }
 
@@ -915,8 +915,8 @@ bool VariableManager::assign_array_element_value(const std::string& name,
         auto [array_it, inserted] = arrays.emplace(name, IndexedArray{});
         IndexedArray& target = array_it->second;
         if (inserted && scalar_it != scalars.end()) {
-            target.emplace(0, scalar_it->second);
-            scalars.erase(scalar_it);
+            (void)target.emplace(0, scalar_it->second);
+            (void)scalars.erase(scalar_it);
         }
 
         assign_string_value(target[*index], value, append);
@@ -927,7 +927,7 @@ bool VariableManager::assign_array_element_value(const std::string& name,
     IndexedArray& target = array_it->second;
 
     if (inserted && has_global_scalar_binding(name)) {
-        target.emplace(0, get_global_scalar_value(name));
+        (void)target.emplace(0, get_global_scalar_value(name));
         remove_global_scalar_binding(name);
     }
 
@@ -965,14 +965,14 @@ std::string VariableManager::get_global_scalar_value(const std::string& name) co
 void VariableManager::remove_global_scalar_binding(const std::string& name) {
     if (g_shell) {
         auto& env_vars = cjsh_env::env_vars();
-        env_vars.erase(name);
+        (void)env_vars.erase(name);
 
         if (auto* parser = g_shell->get_parser()) {
             parser->unset_env_var(name);
         }
     }
 
-    unsetenv(name.c_str());
+    (void)unsetenv(name.c_str());
     cjsh_env::mirror_unset_from_process_env(name);
 }
 

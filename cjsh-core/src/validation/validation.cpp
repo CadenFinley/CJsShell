@@ -617,7 +617,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         QuoteState quote_state;
 
         for (char c : sanitized_line_without_comments) {
-            should_process_char(quote_state, c, false, false);
+            (void)should_process_char(quote_state, c, false, false);
         }
 
         if (quote_state.in_quotes) {
@@ -856,7 +856,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                    handle_inline_loop_header(trimmed_for_parsing, ControlToken::Select,
                                              display_line, control_stack)) {
         } else {
-            handle_embedded_loop_header(trimmed_for_parsing, display_line, control_stack);
+            (void)handle_embedded_loop_header(trimmed_for_parsing, display_line, control_stack);
 
             auto tokens = tokenize_whitespace(trimmed_for_parsing);
 
@@ -1033,7 +1033,7 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
         errors = validate_script_syntax(lines);
 
         auto append_errors = [&errors](const std::vector<SyntaxError>& source) {
-            errors.insert(errors.end(), source.begin(), source.end());
+            (void)errors.insert(errors.end(), source.begin(), source.end());
         };
 
         append_errors(validate_variable_usage(lines));
@@ -1157,7 +1157,7 @@ ShellScriptInterpreter::validate_comprehensive_syntax(const std::vector<std::str
     std::vector<SyntaxError> all_errors;
 
     auto add_errors = [&all_errors](const std::vector<SyntaxError>& new_errors) {
-        all_errors.insert(all_errors.end(), new_errors.begin(), new_errors.end());
+        (void)all_errors.insert(all_errors.end(), new_errors.begin(), new_errors.end());
     };
 
     add_errors(validate_script_syntax(lines));

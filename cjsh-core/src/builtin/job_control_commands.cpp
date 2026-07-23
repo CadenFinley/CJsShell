@@ -185,7 +185,7 @@ int fg_command(const std::vector<std::string>& args) {
 
     int status = 0;
     for (pid_t pid : job->pids) {
-        waitpid(pid, &status, WUNTRACED);
+        (void)waitpid(pid, &status, WUNTRACED);
     }
 
     restore_terminal_control();

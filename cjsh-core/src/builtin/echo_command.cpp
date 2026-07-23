@@ -128,7 +128,7 @@ bool print_with_escapes(std::ostream& out, const std::string& input) {
                 out << '\b';
                 break;
             case 'c':
-                out.flush();
+                (void)out.flush();
                 return false;
             case 'e':
                 out << '\x1B';
@@ -258,7 +258,7 @@ int echo_command(const std::vector<std::string>& args) {
     }
 
     if (!redirect_to_stderr) {
-        out.flush();
+        (void)out.flush();
     }
     return 0;
 }

@@ -140,7 +140,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
     for (size_t i = start_index; i < args.size(); ++i) {
         AssignmentOperand operand;
-        parse_assignment_operand(args[i], operand, true);
+        (void)parse_assignment_operand(args[i], operand, true);
 
         const std::string& name = operand.name;
         bool is_readonly = false;
@@ -163,7 +163,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
             env_vars[name] = value;
 
-            setenv(name.c_str(), value.c_str(), 1);
+            (void)setenv(name.c_str(), value.c_str(), 1);
         } else {
             std::string var_value;
             bool is_local = false;
@@ -190,7 +190,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
             if (!is_local) {
                 env_vars[name] = var_value;
             }
-            setenv(name.c_str(), var_value.c_str(), 1);
+            (void)setenv(name.c_str(), var_value.c_str(), 1);
         }
     }
 
@@ -242,7 +242,7 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
             continue;
         }
 
-        env_vars.erase(base_name);
+        (void)env_vars.erase(base_name);
 
         if (unsetenv(base_name.c_str()) != 0) {
             print_error({ErrorType::RUNTIME_ERROR,

@@ -90,7 +90,7 @@ const std::vector<std::string>& fc_help_lines() {
 }
 
 std::vector<std::string> read_history_entries() {
-    cjsh_filesystem::initialize_cjsh_directories();
+    (void)cjsh_filesystem::initialize_cjsh_directories();
     return history_file_utils::read_history_entries(
         cjsh_filesystem::g_cjsh_history_path().string());
 }
@@ -208,7 +208,7 @@ std::string get_editor() {
 
 int edit_and_execute_content(const std::string& initial_content, const std::string& editor,
                              Shell* shell) {
-    cjsh_filesystem::initialize_cjsh_directories();
+    (void)cjsh_filesystem::initialize_cjsh_directories();
     const auto& temp_dir = cjsh_filesystem::g_cjsh_cache_path();
     auto temp_file = temp_dir / ("fc_edit_" + std::to_string(getpid()) + ".sh");
 
@@ -225,12 +225,12 @@ int edit_and_execute_content(const std::string& initial_content, const std::stri
     int editor_exit_code = shell->execute_command(editor_args, false);
 
     if (editor_exit_code != 0) {
-        std::filesystem::remove(temp_file);
+        (void)std::filesystem::remove(temp_file);
         return editor_exit_code;
     }
 
     auto read_result = cjsh_filesystem::read_file_content(temp_file.string());
-    std::filesystem::remove(temp_file);
+    (void)std::filesystem::remove(temp_file);
 
     if (read_result.is_error()) {
         print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to read edited commands", {}});
@@ -315,7 +315,7 @@ int substitute_and_execute(const std::vector<std::string>& entries, const std::s
     if (!old_str.empty()) {
         size_t pos = command.find(old_str);
         if (pos != std::string::npos) {
-            command.replace(pos, old_str.length(), new_str);
+            (void)command.replace(pos, old_str.length(), new_str);
         }
     }
 

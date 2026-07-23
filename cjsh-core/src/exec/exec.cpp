@@ -77,9 +77,9 @@ int extract_exit_code(int status) {
 }
 
 void flush_standard_streams_before_fork() {
-    std::cout.flush();
-    std::cerr.flush();
-    std::clog.flush();
+    (void)std::cout.flush();
+    (void)std::cerr.flush();
+    (void)std::clog.flush();
     (void)std::fflush(nullptr);
 }
 
@@ -304,7 +304,7 @@ std::string generate_process_substitution_fifo_path(size_t index) {
 void replace_all_instances(std::string& target, const std::string& from, const std::string& to) {
     size_t pos = 0;
     while ((pos = target.find(from, pos)) != std::string::npos) {
-        target.replace(pos, from.length(), to);
+        (void)target.replace(pos, from.length(), to);
         pos += to.length();
     }
 }
@@ -332,7 +332,7 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
     if (pos == std::string::npos) {
         return false;
     }
-    target.replace(pos, from.length(), to);
+    (void)target.replace(pos, from.length(), to);
     return true;
 }
 
@@ -369,21 +369,21 @@ std::optional<int> maybe_invoke_command_not_found_handler(const std::vector<std:
 
     std::vector<std::string> handler_args;
     handler_args.reserve(args.size() + 1);
-    handler_args.emplace_back("command_not_found_handler");
-    handler_args.insert(handler_args.end(), args.begin(), args.end());
+    (void)handler_args.emplace_back("command_not_found_handler");
+    (void)handler_args.insert(handler_args.end(), args.begin(), args.end());
 
     handler_active = true;
-    g_command_not_found_handler_depth.fetch_add(1, std::memory_order_relaxed);
+    (void)g_command_not_found_handler_depth.fetch_add(1, std::memory_order_relaxed);
     int handler_exit_code = ShellScriptInterpreter::exit_command_not_found;
     try {
         handler_exit_code = interpreter->invoke_function(handler_args);
     } catch (...) {
-        g_command_not_found_handler_depth.fetch_sub(1, std::memory_order_relaxed);
+        (void)g_command_not_found_handler_depth.fetch_sub(1, std::memory_order_relaxed);
         handler_active = false;
         return std::nullopt;
     }
 
-    g_command_not_found_handler_depth.fetch_sub(1, std::memory_order_relaxed);
+    (void)g_command_not_found_handler_depth.fetch_sub(1, std::memory_order_relaxed);
     handler_active = false;
     return handler_exit_code;
 }
@@ -466,7 +466,7 @@ bool strip_temporary_env_assignments(
     if (has_temporary_env && cmd_start_idx > 0) {
         auto erase_end =
             args.begin() + static_cast<std::vector<std::string>::difference_type>(cmd_start_idx);
-        args.erase(args.begin(), erase_end);
+        (void)args.erase(args.begin(), erase_end);
     }
     return has_temporary_env;
 }
@@ -497,7 +497,7 @@ class TemporaryEnvAssignmentScope {
             }
 
             env_vars[name] = value;
-            setenv(name.c_str(), value.c_str(), 1);
+            (void)setenv(name.c_str(), value.c_str(), 1);
         }
 
         refresh_parser_env();
@@ -512,10 +512,10 @@ class TemporaryEnvAssignmentScope {
         for (auto it = backups_.rbegin(); it != backups_.rend(); ++it) {
             if (it->had_previous) {
                 env_vars[it->name] = it->previous_value;
-                setenv(it->name.c_str(), it->previous_value.c_str(), 1);
+                (void)setenv(it->name.c_str(), it->previous_value.c_str(), 1);
             } else {
-                env_vars.erase(it->name);
-                unsetenv(it->name.c_str());
+                (void)env_vars.erase(it->name);
+                (void)unsetenv(it->name.c_str());
             }
         }
 
@@ -572,7 +572,7 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
 
             pid_t pid = fork();
             if (pid == -1) {
-                unlink(fifo_path.c_str());
+                (void)unlink(fifo_path.c_str());
                 throw std::runtime_error("cjsh: failed to fork for process substitution '" +
                                          proc_sub + "': " + std::string(strerror(errno)));
             }
@@ -636,25 +636,25 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
             }
 
             if (!cmd.input_file.empty()) {
-                replace_first_instance(cmd.input_file, proc_sub, fifo_path);
+                (void)replace_first_instance(cmd.input_file, proc_sub, fifo_path);
             }
             if (!cmd.output_file.empty()) {
-                replace_first_instance(cmd.output_file, proc_sub, fifo_path);
+                (void)replace_first_instance(cmd.output_file, proc_sub, fifo_path);
             }
             if (!cmd.append_file.empty()) {
-                replace_first_instance(cmd.append_file, proc_sub, fifo_path);
+                (void)replace_first_instance(cmd.append_file, proc_sub, fifo_path);
             }
             if (!cmd.stderr_file.empty()) {
-                replace_first_instance(cmd.stderr_file, proc_sub, fifo_path);
+                (void)replace_first_instance(cmd.stderr_file, proc_sub, fifo_path);
             }
             if (!cmd.both_output_file.empty()) {
-                replace_first_instance(cmd.both_output_file, proc_sub, fifo_path);
+                (void)replace_first_instance(cmd.both_output_file, proc_sub, fifo_path);
             }
             for (auto& [fd, path] : cmd.fd_redirections) {
-                replace_first_instance(path, proc_sub, fifo_path);
+                (void)replace_first_instance(path, proc_sub, fifo_path);
             }
             for (auto& redirection : cmd.redirection_order) {
-                replace_first_instance(redirection.value, proc_sub, fifo_path);
+                (void)replace_first_instance(redirection.value, proc_sub, fifo_path);
             }
 
             if (!replaced_arg) {
@@ -676,7 +676,7 @@ void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
     if (terminate_children) {
         for (pid_t pid : resources.child_pids) {
             if (pid > 0) {
-                kill(pid, SIGTERM);
+                (void)kill(pid, SIGTERM);
             }
         }
     }
@@ -691,7 +691,7 @@ void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
     }
 
     for (const std::string& path : resources.fifo_paths) {
-        unlink(path.c_str());
+        (void)unlink(path.c_str());
     }
 
     resources.child_pids.clear();
@@ -1140,18 +1140,18 @@ bool can_control_terminal(bool shell_is_interactive, int terminal_fd, pid_t shel
             script_dispatch::build_extension_interpreter_args(args, cached_path);
         if (interpreter_args) {
             auto c_interp_args = cjsh_env::build_exec_argv(*interpreter_args);
-            execvp((*interpreter_args)[0].c_str(), c_interp_args.data());
+            (void)execvp((*interpreter_args)[0].c_str(), c_interp_args.data());
             int saved_errno = errno;
             report_exec_failure(*interpreter_args, saved_errno);
         }
     }
     auto c_args = cjsh_env::build_exec_argv(args);
     if (cached_path != nullptr && cached_path[0] != '\0') {
-        execv(cached_path, c_args.data());
+        (void)execv(cached_path, c_args.data());
         int saved_errno = errno;
         report_exec_failure(args, saved_errno);
     }
-    execvp(args[0].c_str(), c_args.data());
+    (void)execvp(args[0].c_str(), c_args.data());
     int saved_errno = errno;
     report_exec_failure(args, saved_errno);
 }
@@ -1208,7 +1208,7 @@ Exec::~Exec() {
     }
 
     if (owns_shell_terminal && shell_terminal >= 0) {
-        close(shell_terminal);
+        (void)close(shell_terminal);
         shell_terminal = STDIN_FILENO;
         owns_shell_terminal = false;
     }
@@ -1502,7 +1502,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         completed_status = it->second.status;
         exit_code = extract_exit_code(*completed_status);
         JobManager::instance().remove_job(new_job_id);
-        jobs.erase(it);
+        (void)jobs.erase(it);
     } else if (it != jobs.end() && it->second.stopped) {
         if (WIFSTOPPED(it->second.status)) {
             exit_code = 128 + WSTOPSIG(it->second.status);
@@ -1902,12 +1902,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
                 if (dup2(fd, STDOUT_FILENO) == -1) {
                     int saved_errno = errno;
-                    close(fd);
+                    (void)close(fd);
                     child_exit_with_error(ErrorType::RUNTIME_ERROR, command_name,
                                           "dup2: failed for append redirection: " +
                                               std::string(strerror(saved_errno)));
                 }
-                close(fd);
+                (void)close(fd);
             }
 
             if (cmd.redirection_order.empty() &&
@@ -1931,9 +1931,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             pid_t wpid = waitpid(pid, &status, wait_options);
             while (wpid == -1 && errno == EINTR) {
                 if (g_shell) {
-                    g_shell->process_pending_signals();
+                    (void)g_shell->process_pending_signals();
                 } else if (auto* signal_handler = SignalHandler::instance()) {
-                    signal_handler->process_pending_signals(this);
+                    (void)signal_handler->process_pending_signals(this);
                 }
                 wpid = waitpid(pid, &status, wait_options);
             }
@@ -1941,7 +1941,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             if (wpid > 0 && cmd.auto_background_on_stop && WIFSTOPPED(status) &&
                 WSTOPSIG(status) == SIGTSTP) {
                 if (kill(-pid, SIGCONT) < 0 && errno == ESRCH) {
-                    kill(pid, SIGCONT);
+                    (void)kill(pid, SIGCONT);
                 }
 
                 Job job =
@@ -1951,7 +1951,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
                 std::string full_command = join_arguments(cmd.args);
                 bool reads_stdin = job_utils::command_consumes_terminal_stdin(cmd);
-                JobManager::instance().add_job(pid, {pid}, full_command, true, reads_stdin);
+                (void)JobManager::instance().add_job(pid, {pid}, full_command, true, reads_stdin);
                 JobManager::instance().set_last_background_pid(pid);
 
                 std::cerr << "[" << job_id << "] " << pid << " " << full_command << '\n';
@@ -2002,7 +2002,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 set_last_pipeline_statuses(it->second.pipeline_statuses);
                 if (it->second.completed) {
                     JobManager::instance().remove_job(managed_job_id);
-                    jobs.erase(it);
+                    (void)jobs.erase(it);
                 }
             } else {
                 set_last_pipeline_statuses({raw_exit});
@@ -2071,8 +2071,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 print_last_error();
 
                 for (size_t j = 0; j < commands.size() - 1; j++) {
-                    close(pipes[j][0]);
-                    close(pipes[j][1]);
+                    (void)close(pipes[j][0]);
+                    (void)close(pipes[j][1]);
                 }
 
                 set_last_pipeline_statuses({1});
@@ -2145,11 +2145,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         }
                         if (dup2(fd, STDIN_FILENO) == -1) {
                             const int saved_errno = errno;
-                            close(fd);
+                            (void)close(fd);
                             child_error(ErrorType::RUNTIME_ERROR,
                                         std::string("dup2 input failed: ") + strerror(saved_errno));
                         }
-                        close(fd);
+                        (void)close(fd);
                     }
                 } else {
                     if (dup2(pipes[i - 1][0], STDIN_FILENO) == -1) {
@@ -2181,12 +2181,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         }
                         if (dup2(fd, STDOUT_FILENO) == -1) {
                             const int saved_errno = errno;
-                            close(fd);
+                            (void)close(fd);
                             child_error(
                                 ErrorType::RUNTIME_ERROR,
                                 std::string("dup2 output failed: ") + strerror(saved_errno));
                         }
-                        close(fd);
+                        (void)close(fd);
                     } else if (cmd.redirection_order.empty() && !cmd.append_file.empty()) {
                         int fd = open(cmd.append_file.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
                         if (fd == -1) {
@@ -2197,12 +2197,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         }
                         if (dup2(fd, STDOUT_FILENO) == -1) {
                             const int saved_errno = errno;
-                            close(fd);
+                            (void)close(fd);
                             child_error(
                                 ErrorType::RUNTIME_ERROR,
                                 std::string("dup2 append failed: ") + strerror(saved_errno));
                         }
-                        close(fd);
+                        (void)close(fd);
                     }
                 } else {
                     if (dup2(pipes[i][1], STDOUT_FILENO) == -1) {
@@ -2248,8 +2248,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
 
                 for (size_t j = 0; j < commands.size() - 1; j++) {
-                    close(pipes[j][0]);
-                    close(pipes[j][1]);
+                    (void)close(pipes[j][0]);
+                    (void)close(pipes[j][1]);
                 }
 
                 ShellScriptInterpreter* interpreter =
@@ -2300,8 +2300,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         for (size_t i = 0; i < commands.size() - 1; i++) {
-            close(pipes[i][0]);
-            close(pipes[i][1]);
+            (void)close(pipes[i][0]);
+            (void)close(pipes[i][1]);
         }
 
         if (output_pty.has_value()) {
@@ -2314,7 +2314,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                   "Error executing pipeline: " + std::string(e.what()));
         print_last_error();
         for (pid_t pid : pids) {
-            kill(pid, SIGTERM);
+            (void)kill(pid, SIGTERM);
         }
         set_last_pipeline_statuses({1});
         close_output_pty();
@@ -2372,7 +2372,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 raw_exit = extract_exit_code(it->second.last_status);
                 set_last_pipeline_statuses(it->second.pipeline_statuses);
                 raw_exit = apply_pipefail(raw_exit, it->second.pipeline_statuses);
-                jobs.erase(it);
+                (void)jobs.erase(it);
             } else {
                 raw_exit = last_exit_code;
             }
@@ -2406,7 +2406,7 @@ int Exec::run_with_command_redirections(Command cmd, const std::function<int()>&
         if (dup_fd != -1) {
             int flags = fcntl(dup_fd, F_GETFD);
             if (flags != -1) {
-                fcntl(dup_fd, F_SETFD, flags | FD_CLOEXEC);
+                (void)fcntl(dup_fd, F_SETFD, flags | FD_CLOEXEC);
             }
         }
         return dup_fd;
@@ -2437,9 +2437,9 @@ int Exec::run_with_command_redirections(Command cmd, const std::function<int()>&
         cleanup_process_substitutions(proc_resources, terminate_process_subs);
 
         if (!persist_fd_changes) {
-            cjsh_filesystem::safe_dup2(orig_stdin, STDIN_FILENO);
-            cjsh_filesystem::safe_dup2(orig_stdout, STDOUT_FILENO);
-            cjsh_filesystem::safe_dup2(orig_stderr, STDERR_FILENO);
+            (void)cjsh_filesystem::safe_dup2(orig_stdin, STDIN_FILENO);
+            (void)cjsh_filesystem::safe_dup2(orig_stdout, STDOUT_FILENO);
+            (void)cjsh_filesystem::safe_dup2(orig_stderr, STDERR_FILENO);
         }
 
         cjsh_filesystem::safe_close(orig_stdin);
@@ -2617,18 +2617,18 @@ int Exec::run_with_command_redirections(Command cmd, const std::function<int()>&
             (void)apply_fd_operations(cmd, fd_error_handler);
         }
 
-        std::cout.flush();
-        std::cerr.flush();
-        std::clog.flush();
+        (void)std::cout.flush();
+        (void)std::cerr.flush();
+        (void)std::clog.flush();
 
         int exit_code = action();
         if (action_invoked) {
             *action_invoked = true;
         }
 
-        std::cout.flush();
-        std::cerr.flush();
-        std::clog.flush();
+        (void)std::cout.flush();
+        (void)std::cerr.flush();
+        (void)std::clog.flush();
 
         restore_descriptors(false);
         return exit_code;
@@ -2679,7 +2679,7 @@ CommandOutput execute_with_stdout_capture(const std::function<int()>& child_exec
         } else if (suppress_stderr) {
             auto devnull_result = cjsh_filesystem::safe_open("/dev/null", O_WRONLY);
             if (devnull_result.is_ok()) {
-                cjsh_filesystem::safe_dup2(devnull_result.value(), STDERR_FILENO);
+                (void)cjsh_filesystem::safe_dup2(devnull_result.value(), STDERR_FILENO);
                 cjsh_filesystem::safe_close(devnull_result.value());
             }
         }

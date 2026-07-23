@@ -61,7 +61,7 @@ bool trim_history_file(long max_entries, std::string* error_message) {
 
     if (max_entries == 0) {
         std::error_code remove_ec;
-        std::filesystem::remove(history_path, remove_ec);
+        (void)std::filesystem::remove(history_path, remove_ec);
         if (remove_ec && remove_ec != std::errc::no_such_file_or_directory) {
             if (error_message != nullptr) {
                 *error_message = "Failed to remove history file '" + history_path.string() +
@@ -185,7 +185,7 @@ bool set_history_max_entries(long max_entries, std::string* error_message) {
 
     if (!enforce_history_limit(error_message)) {
         g_history_max_entries_value = previous_limit;
-        enforce_history_limit(nullptr);
+        (void)enforce_history_limit(nullptr);
         return false;
     }
 

@@ -211,13 +211,13 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
 
         auto add_doc = [&](std::string key, std::string summary,
                            std::vector<CompletionEntry> entries) {
-            map.emplace(std::move(key), make_doc(std::move(summary), std::move(entries)));
+            (void)map.emplace(std::move(key), make_doc(std::move(summary), std::move(entries)));
         };
 
         auto add_alias = [&](const std::string& alias, const std::string& target) {
             auto it = map.find(target);
             if (it != map.end()) {
-                map.emplace(alias, it->second);
+                (void)map.emplace(alias, it->second);
             }
         };
 

@@ -191,7 +191,7 @@ Shell::~Shell() {
         } else {
             std::cout << "cjsh exit";
         }
-        std::cout.flush();
+        (void)std::cout.flush();
     }
 }
 
@@ -305,7 +305,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
                         state.map_value = map_it->second;
                     }
 
-                    setenv(name.c_str(), value.c_str(), 1);
+                    (void)setenv(name.c_str(), value.c_str(), 1);
                     env_map[name] = value;
                     saved_states.push_back(std::move(state));
                 }
@@ -317,15 +317,15 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             auto restore_assignments = [&]() {
                 for (auto it = saved_states.rbegin(); it != saved_states.rend(); ++it) {
                     if (it->had_env) {
-                        setenv(it->name.c_str(), it->env_value.c_str(), 1);
+                        (void)setenv(it->name.c_str(), it->env_value.c_str(), 1);
                     } else {
-                        unsetenv(it->name.c_str());
+                        (void)unsetenv(it->name.c_str());
                     }
 
                     if (it->had_map) {
                         env_map[it->name] = it->map_value;
                     } else {
-                        env_map.erase(it->name);
+                        (void)env_map.erase(it->name);
                     }
                 }
                 if (shell_parser) {
@@ -363,7 +363,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             auto it = jobs.find(job_id);
             if (it != jobs.end() && !it->second.pids.empty()) {
                 pid_t last_pid = it->second.pids.back();
-                setenv("!", std::to_string(last_pid).c_str(), 1);
+                (void)setenv("!", std::to_string(last_pid).c_str(), 1);
 
                 JobManager::instance().set_last_background_pid(last_pid);
             }
@@ -441,7 +441,7 @@ int read_exit_code_or(int fallback) {
     }
 
     fallback = numeric_utils::parse_exit_status_or(exit_code_str, fallback, false);
-    cjsh_env::unset_shell_variable_value("EXIT_CODE");
+    (void)cjsh_env::unset_shell_variable_value("EXIT_CODE");
     return fallback;
 }
 
@@ -477,7 +477,7 @@ void Shell::save_terminal_state() {
 void Shell::restore_terminal_state() {
     if (terminal_state_saved) {
         if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) != 0) {
-            tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);
+            (void)tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);
         }
         terminal_state_saved = false;
     }
@@ -651,7 +651,7 @@ std::unordered_set<std::string> Shell::get_available_commands() const {
         cmds.insert(b.begin(), b.end());
     }
     for (const auto& alias : aliases) {
-        cmds.insert(alias.first);
+        (void)cmds.insert(alias.first);
     }
 
     if (shell_script_interpreter) {

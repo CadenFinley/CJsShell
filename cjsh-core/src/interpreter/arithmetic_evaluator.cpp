@@ -43,13 +43,13 @@ namespace {
 
 inline std::uint64_t to_uint64(long long value) {
     std::uint64_t result;
-    std::memcpy(&result, &value, sizeof(result));
+    (void)std::memcpy(&result, &value, sizeof(result));
     return result;
 }
 
 inline long long from_uint64(std::uint64_t value) {
     long long result;
-    std::memcpy(&result, &value, sizeof(result));
+    (void)std::memcpy(&result, &value, sizeof(result));
     return result;
 }
 
@@ -340,7 +340,7 @@ long long ArithmeticEvaluator::evaluate(const std::string& expr) {
         if (postfix_cache.size() >= kCacheLimit) {
             postfix_cache.clear();
         }
-        postfix_cache.emplace(normalized_expression, postfix);
+        (void)postfix_cache.emplace(normalized_expression, postfix);
     }
 
     return evaluate_postfix(postfix);
@@ -527,7 +527,7 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std:
             }
 
             std::string num_str;
-            num_str.assign(expr, i, j - i);
+            (void)num_str.assign(expr, i, j - i);
             long long val = parse_wrapping_literal(num_str);
 
             tokens.push_back({TokenType::NUMBER, val, "", "", OperatorType::UNKNOWN});
@@ -543,7 +543,7 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std:
                 ++j;
             }
             std::string name;
-            name.assign(expr, i, j - i);
+            (void)name.assign(expr, i, j - i);
 
             if (j + 1 < expr.size() && ((expr[j] == '+' && expr[j + 1] == '+') ||
                                         (expr[j] == '-' && expr[j + 1] == '-'))) {
@@ -778,7 +778,7 @@ void ArithmeticEvaluator::handle_assignment_operators(std::vector<Token>& tokens
             tokens[i - 1] = {TokenType::NUMBER, result, "", "", OperatorType::UNKNOWN};
             Difference erase_start = static_cast<Difference>(i);
             Difference erase_end = static_cast<Difference>(rhs_end);
-            tokens.erase(tokens.begin() + erase_start, tokens.begin() + erase_end);
+            (void)tokens.erase(tokens.begin() + erase_start, tokens.begin() + erase_end);
 
             changed = true;
             break;
@@ -805,7 +805,7 @@ void ArithmeticEvaluator::handle_increment_operators(std::vector<Token>& tokens)
 
                 tokens[i] = {TokenType::NUMBER, new_val, "", ""};
                 Difference index = static_cast<Difference>(i);
-                tokens.erase(tokens.begin() + index + 1);
+                (void)tokens.erase(tokens.begin() + index + 1);
             }
         }
     }

@@ -338,9 +338,9 @@ std::string build_default_terminal_title() {
 
     std::string title;
     title.reserve(shell_value.size() + 3 + pwd_value.size());
-    title.append(shell_value);
-    title.append(" - ");
-    title.append(pwd_value);
+    (void)title.append(shell_value);
+    (void)title.append(" - ");
+    (void)title.append(pwd_value);
     return title;
 }
 
@@ -381,7 +381,7 @@ std::optional<std::filesystem::path> git_dir_from_worktree_file(
         return std::nullopt;
     }
     std::string line;
-    std::getline(file, line);
+    (void)std::getline(file, line);
     line = string_utils::trim_ascii_whitespace_copy(line);
     constexpr std::string_view kPrefix = "gitdir:";
     if (line.rfind(kPrefix, 0) != 0) {
@@ -440,7 +440,7 @@ std::string read_git_head(const std::filesystem::path& git_dir) {
         return {};
     }
     std::string line;
-    std::getline(head_file, line);
+    (void)std::getline(head_file, line);
     line = string_utils::trim_ascii_whitespace_copy(line);
     if (line.empty()) {
         return {};
@@ -509,7 +509,7 @@ std::string build_git_segment(const GitRepositoryContext& ctx) {
     }
 
     if (!status_text.empty()) {
-        segment.insert(status_insert_offset, status_text);
+        (void)segment.insert(status_insert_offset, status_text);
     }
 
     return segment;
@@ -607,7 +607,7 @@ void AsyncGitPromptManager::append_segment(std::string& builder) {
     auto now = std::chrono::steady_clock::now();
     if (auto cached_status = git_prompt_cache().status_segment_if_fresh(*context, snapshot, now)) {
         if (!cached_status->empty()) {
-            builder.insert(status_insert_offset, *cached_status);
+            (void)builder.insert(status_insert_offset, *cached_status);
         }
         std::lock_guard<std::mutex> lock(mutex_);
         reset_async_state_locked();
@@ -626,7 +626,7 @@ void AsyncGitPromptManager::append_segment(std::string& builder) {
         reset_async_state_locked();
         lock.unlock();
         if (!status_text.empty()) {
-            builder.insert(status_insert_offset, status_text);
+            (void)builder.insert(status_insert_offset, status_text);
         }
         return;
     }
@@ -654,7 +654,7 @@ void AsyncGitPromptManager::finalize_render(const std::string& prompt_snapshot) 
     }
     lock.unlock();
     if (should_notify && g_prompt_refresh_allowed.load(std::memory_order_acquire)) {
-        ic_push_key_event(IC_KEY_EVENT_PROMPT_REFRESH);
+        (void)ic_push_key_event(IC_KEY_EVENT_PROMPT_REFRESH);
     }
 }
 
@@ -667,7 +667,7 @@ std::optional<std::string> AsyncGitPromptManager::consume_ready_prompt() {
     std::string updated = pending_prompt_;
     size_t inserted = 0;
     for (size_t offset : placeholder_offsets_) {
-        updated.insert(offset + inserted, pending_segment_);
+        (void)updated.insert(offset + inserted, pending_segment_);
         inserted += pending_segment_.size();
     }
     reset_async_state_locked();
@@ -711,7 +711,7 @@ void AsyncGitPromptManager::handle_worker_result(size_t request_id, std::string 
     }
     cv_.notify_all();
     if (should_notify && g_prompt_refresh_allowed.load(std::memory_order_acquire)) {
-        ic_push_key_event(IC_KEY_EVENT_PROMPT_REFRESH);
+        (void)ic_push_key_event(IC_KEY_EVENT_PROMPT_REFRESH);
     }
 }
 
@@ -1088,22 +1088,22 @@ void execute_prompt_command() {
     if (command.empty()) {
         return;
     }
-    g_shell->execute(command);
+    (void)g_shell->execute(command);
 }
 
 void initialize_colors() {
     if (!config::colors_enabled) {
-        ic_enable_color(false);
+        (void)ic_enable_color(false);
         return;
     }
 
     if (!terminal_supports_color()) {
         config::colors_enabled = false;
-        ic_enable_color(false);
+        (void)ic_enable_color(false);
         return;
     }
 
-    ic_enable_color(true);
+    (void)ic_enable_color(true);
 
     if (!config::syntax_highlighting_enabled) {
         return;
@@ -1127,11 +1127,11 @@ void apply_terminal_window_title() {
     std::string title;
     std::string twinprompt = cjsh_env::get_shell_variable_value("TWINPROMPT");
     if (!twinprompt.empty()) {
-        title.assign(twinprompt);
+        (void)title.assign(twinprompt);
     } else {
         title = build_default_terminal_title();
         if (!title.empty()) {
-            cjsh_env::set_shell_variable_value("TWINPROMPT", title);
+            (void)cjsh_env::set_shell_variable_value("TWINPROMPT", title);
         }
     }
 
@@ -1139,7 +1139,7 @@ void apply_terminal_window_title() {
         return;
     }
 
-    std::printf("\033]0;%s\007", title.c_str());
+    (void)std::printf("\033]0;%s\007", title.c_str());
     (void)std::fflush(stdout);
 }
 

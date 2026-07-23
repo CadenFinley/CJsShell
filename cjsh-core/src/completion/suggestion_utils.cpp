@@ -115,34 +115,34 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     if (g_shell && g_shell->get_built_ins()) {
         auto builtin_commands = g_shell->get_built_ins()->get_builtin_commands();
         for (const auto& builtin : builtin_commands) {
-            all_commands_set.insert(builtin);
+            (void)all_commands_set.insert(builtin);
         }
     }
 
     if (g_shell) {
         auto& aliases = g_shell->get_aliases();
         for (const auto& alias_pair : aliases) {
-            all_commands_set.insert(alias_pair.first);
+            (void)all_commands_set.insert(alias_pair.first);
         }
     }
 
     if (g_shell) {
         auto& abbreviations = g_shell->get_abbreviations();
         for (const auto& abbr_pair : abbreviations) {
-            all_commands_set.insert(abbr_pair.first);
+            (void)all_commands_set.insert(abbr_pair.first);
         }
     }
 
     if (g_shell && g_shell->get_shell_script_interpreter()) {
         auto function_names = g_shell->get_shell_script_interpreter()->get_function_names();
         for (const auto& func_name : function_names) {
-            all_commands_set.insert(func_name);
+            (void)all_commands_set.insert(func_name);
         }
     }
 
     auto executables = cjsh_filesystem::get_executables_in_path();
     for (const auto& exec_name : executables) {
-        all_commands_set.insert(exec_name);
+        (void)all_commands_set.insert(exec_name);
     }
 
     std::vector<std::string> all_commands(all_commands_set.begin(), all_commands_set.end());
@@ -321,7 +321,7 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
                 score += 200;
             }
 
-            candidates.emplace_back(score, name);
+            (void)candidates.emplace_back(score, name);
         }
 
         std::sort(candidates.begin(), candidates.end(),

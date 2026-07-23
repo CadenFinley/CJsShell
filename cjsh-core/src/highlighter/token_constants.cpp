@@ -75,24 +75,24 @@ const std::unordered_set<std::string>& redirection_operators() {
     static const std::unordered_set<std::string> kRedirectionOperators = []() {
         std::unordered_set<std::string> operators;
         for (std::string_view op : redirection_utils::canonical_operator_spellings()) {
-            operators.emplace(op);
+            (void)operators.emplace(op);
         }
-        operators.emplace("&>>");
-        operators.emplace("|&");
-        operators.emplace("1>");
-        operators.emplace("1>>");
-        operators.emplace("1>&2");
-        operators.emplace("1<");
-        operators.emplace("2<");
-        operators.emplace("0<");
-        operators.emplace("0>");
-        operators.emplace("3>");
-        operators.emplace("4>");
-        operators.emplace("5>");
-        operators.emplace("6>");
-        operators.emplace("7>");
-        operators.emplace("8>");
-        operators.emplace("9>");
+        (void)operators.emplace("&>>");
+        (void)operators.emplace("|&");
+        (void)operators.emplace("1>");
+        (void)operators.emplace("1>>");
+        (void)operators.emplace("1>&2");
+        (void)operators.emplace("1<");
+        (void)operators.emplace("2<");
+        (void)operators.emplace("0<");
+        (void)operators.emplace("0>");
+        (void)operators.emplace("3>");
+        (void)operators.emplace("4>");
+        (void)operators.emplace("5>");
+        (void)operators.emplace("6>");
+        (void)operators.emplace("7>");
+        (void)operators.emplace("8>");
+        (void)operators.emplace("9>");
         return operators;
     }();
     return kRedirectionOperators;

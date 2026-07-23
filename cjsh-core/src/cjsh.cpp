@@ -103,7 +103,7 @@ void cleanup_resources() {
     if (ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
         interpreter != nullptr && !config::minimal_mode && !config::secure_mode &&
         !config::posix_mode && interpreter->has_function("cjshexit")) {
-        interpreter->invoke_function({"cjshexit"});
+        (void)interpreter->invoke_function({"cjshexit"});
     }
 
     // execute exit trap and process logout file in and only if in login mode
@@ -196,7 +196,7 @@ int run_cjsh(int argc, char* argv[]) {
     // the name of the script file and sync the envvars to the shell so that $0 is properly set for
     // the command to execute
     if (config::execute_command && !script_file.empty()) {
-        setenv("0", script_file.c_str(), 1);
+        (void)setenv("0", script_file.c_str(), 1);
         std::unordered_map<std::string, std::string>& env_map = cjsh_env::env_vars();
         env_map["0"] = script_file;
         cjsh_env::sync_parser_env_vars(g_shell.get());
@@ -248,7 +248,7 @@ int run_cjsh(int argc, char* argv[]) {
 
     // init interactive ui
     prompt::initialize_colors();
-    cjsh_env::update_terminal_dimensions();
+    (void)cjsh_env::update_terminal_dimensions();
 
     // use .cjshrc
     cjsh_filesystem::process_source_files();

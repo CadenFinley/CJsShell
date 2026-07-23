@@ -184,7 +184,7 @@ int help_command() {
                  "                      or print one with approot --print/--file.\n";
 
     heading("cjsh invocation and startup flags");
-    print_usage(false, false, false);
+    (void)print_usage(false, false, false);
 
     heading("Isocline line editing");
     std::cout << "  - cjsh embeds the isocline line editor for multiline input, highlighting,\n"

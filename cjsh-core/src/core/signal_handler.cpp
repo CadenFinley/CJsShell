@@ -70,7 +70,7 @@ SignalMask::SignalMask(const std::vector<int>& signals) : active(false) {
 
 SignalMask::~SignalMask() {
     if (active) {
-        sigprocmask(SIG_SETMASK, &old_mask, nullptr);
+        (void)sigprocmask(SIG_SETMASK, &old_mask, nullptr);
     }
 }
 
@@ -250,7 +250,7 @@ void reset_child_signals() {
 
     sigset_t set{};
     sigemptyset(&set);
-    sigprocmask(SIG_SETMASK, &set, nullptr);
+    (void)sigprocmask(SIG_SETMASK, &set, nullptr);
 }
 
 bool SignalHandler::has_direct_pending_signal() {
@@ -356,13 +356,13 @@ std::vector<std::pair<int, std::string>> SignalHandler::trap_signal_names() {
         if (signal.name == nullptr) {
             continue;
         }
-        names.emplace_back(signal.signal, signal_to_name(signal.signal, true));
+        (void)names.emplace_back(signal.signal, signal_to_name(signal.signal, true));
     }
 
-    names.emplace_back(0, "EXIT");
-    names.emplace_back(-2, "ERR");
-    names.emplace_back(-3, "DEBUG");
-    names.emplace_back(-4, "RETURN");
+    (void)names.emplace_back(0, "EXIT");
+    (void)names.emplace_back(-2, "ERR");
+    (void)names.emplace_back(-3, "DEBUG");
+    (void)names.emplace_back(-4, "RETURN");
     return names;
 }
 
@@ -401,7 +401,7 @@ bool SignalHandler::is_forked_child() {
 void SignalHandler::signal_unblock_all() {
     sigset_t iset{};
     sigemptyset(&iset);
-    sigprocmask(SIG_SETMASK, &iset, nullptr);
+    (void)sigprocmask(SIG_SETMASK, &iset, nullptr);
 }
 
 void SignalHandler::set_signal_disposition(int signum, SignalDisposition disp, const std::string&) {
@@ -481,7 +481,7 @@ void SignalHandler::install_signal_handler(int signum, struct sigaction* old_act
         sa.sa_flags |= SA_RESTART;
     }
 
-    sigaction(signum, &sa, old_action);
+    (void)sigaction(signum, &sa, old_action);
 }
 
 void SignalHandler::process_trapped_signal(int signum) {
@@ -496,7 +496,7 @@ void SignalHandler::signal_handler(int signum) {
         sa.sa_handler = SIG_DFL;
         sigemptyset(&sa.sa_mask);
         sa.sa_flags = 0;
-        sigaction(signum, &sa, nullptr);
+        (void)sigaction(signum, &sa, nullptr);
         (void)raise(signum);
         return;
     }
@@ -529,7 +529,7 @@ void SignalHandler::signal_handler(int signum) {
             cjsh_env::request_exit();
             pid_t bg_pgid = JobManager::get_last_background_pid_atomic();
             if (bg_pgid > 0) {
-                killpg(bg_pgid, SIGHUP);
+                (void)killpg(bg_pgid, SIGHUP);
             }
             should_mark_pending = true;
             break;
@@ -661,12 +661,12 @@ void SignalHandler::setup_signal_handlers() {
     sa.sa_handler = SIG_IGN;
     sa.sa_flags = 0;
     sa.sa_mask = block_mask;
-    sigaction(SIGPIPE, &sa, &m_old_sigpipe_handler);
+    (void)sigaction(SIGPIPE, &sa, &m_old_sigpipe_handler);
 
     s_signal_states[SIGPIPE].disposition = SignalDisposition::IGNORE;
 
-    sigaction(SIGTTOU, &sa, &m_old_sigttou_handler);
-    sigaction(SIGTTIN, &sa, &m_old_sigttin_handler);
+    (void)sigaction(SIGTTOU, &sa, &m_old_sigttou_handler);
+    (void)sigaction(SIGTTIN, &sa, &m_old_sigttin_handler);
 
     install_signal_handler(SIGCHLD, &m_old_sigchld_handler);
     install_signal_handler(SIGINT, &m_old_sigint_handler);
@@ -697,8 +697,8 @@ void SignalHandler::setup_interactive_handlers() {
     sa.sa_flags = 0;
     sa.sa_mask = block_mask;
 
-    sigaction(SIGQUIT, &sa, &m_old_sigquit_handler);
-    sigaction(SIGTSTP, &sa, &m_old_sigtstp_handler);
+    (void)sigaction(SIGQUIT, &sa, &m_old_sigquit_handler);
+    (void)sigaction(SIGTSTP, &sa, &m_old_sigtstp_handler);
 
 #ifdef SIGWINCH
 
@@ -708,43 +708,43 @@ void SignalHandler::setup_interactive_handlers() {
 
 #ifdef SIGUSR1
 
-    sigaction(SIGUSR1, nullptr, &m_old_sigusr1_handler);
+    (void)sigaction(SIGUSR1, nullptr, &m_old_sigusr1_handler);
 #endif
 
 #ifdef SIGUSR2
-    sigaction(SIGUSR2, nullptr, &m_old_sigusr2_handler);
+    (void)sigaction(SIGUSR2, nullptr, &m_old_sigusr2_handler);
 #endif
 
 #ifdef SIGALRM
-    sigaction(SIGALRM, nullptr, &m_old_sigalrm_handler);
+    (void)sigaction(SIGALRM, nullptr, &m_old_sigalrm_handler);
 #endif
 }
 
 void SignalHandler::restore_original_handlers() {
-    sigaction(SIGINT, &m_old_sigint_handler, nullptr);
-    sigaction(SIGCHLD, &m_old_sigchld_handler, nullptr);
-    sigaction(SIGHUP, &m_old_sighup_handler, nullptr);
-    sigaction(SIGTERM, &m_old_sigterm_handler, nullptr);
-    sigaction(SIGQUIT, &m_old_sigquit_handler, nullptr);
-    sigaction(SIGTSTP, &m_old_sigtstp_handler, nullptr);
-    sigaction(SIGTTIN, &m_old_sigttin_handler, nullptr);
-    sigaction(SIGTTOU, &m_old_sigttou_handler, nullptr);
-    sigaction(SIGPIPE, &m_old_sigpipe_handler, nullptr);
+    (void)sigaction(SIGINT, &m_old_sigint_handler, nullptr);
+    (void)sigaction(SIGCHLD, &m_old_sigchld_handler, nullptr);
+    (void)sigaction(SIGHUP, &m_old_sighup_handler, nullptr);
+    (void)sigaction(SIGTERM, &m_old_sigterm_handler, nullptr);
+    (void)sigaction(SIGQUIT, &m_old_sigquit_handler, nullptr);
+    (void)sigaction(SIGTSTP, &m_old_sigtstp_handler, nullptr);
+    (void)sigaction(SIGTTIN, &m_old_sigttin_handler, nullptr);
+    (void)sigaction(SIGTTOU, &m_old_sigttou_handler, nullptr);
+    (void)sigaction(SIGPIPE, &m_old_sigpipe_handler, nullptr);
 
 #ifdef SIGUSR1
-    sigaction(SIGUSR1, &m_old_sigusr1_handler, nullptr);
+    (void)sigaction(SIGUSR1, &m_old_sigusr1_handler, nullptr);
 #endif
 
 #ifdef SIGUSR2
-    sigaction(SIGUSR2, &m_old_sigusr2_handler, nullptr);
+    (void)sigaction(SIGUSR2, &m_old_sigusr2_handler, nullptr);
 #endif
 
 #ifdef SIGALRM
-    sigaction(SIGALRM, &m_old_sigalrm_handler, nullptr);
+    (void)sigaction(SIGALRM, &m_old_sigalrm_handler, nullptr);
 #endif
 
 #ifdef SIGWINCH
-    sigaction(SIGWINCH, &m_old_sigwinch_handler, nullptr);
+    (void)sigaction(SIGWINCH, &m_old_sigwinch_handler, nullptr);
 #endif
 }
 
@@ -838,7 +838,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
                 }
 #ifdef SIGCONT
                 if (state == JobState::STOPPED) {
-                    killpg(job->pgid, SIGCONT);
+                    (void)killpg(job->pgid, SIGCONT);
                 }
 #endif
             }
@@ -847,7 +847,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         if (jobs_snapshot.empty()) {
             pid_t orphan_pid = job_manager.get_last_background_pid();
             if (orphan_pid > 0) {
-                kill(orphan_pid, SIGHUP);
+                (void)kill(orphan_pid, SIGHUP);
             }
         }
 
@@ -863,9 +863,9 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
             for (auto& job : jobs_snapshot) {
                 const JobState state = job->state.load(std::memory_order_relaxed);
                 if (state == JobState::RUNNING || state == JobState::STOPPED) {
-                    killpg(job->pgid, SIGTERM);
-                    usleep(10000);
-                    killpg(job->pgid, SIGKILL);
+                    (void)killpg(job->pgid, SIGTERM);
+                    (void)usleep(10000);
+                    (void)killpg(job->pgid, SIGKILL);
                     job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
                 }
             }
@@ -880,7 +880,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
             std::quick_exit(129);
 #endif
         } else {
-            alarm(1);
+            (void)alarm(1);
         }
     }
 
@@ -1040,7 +1040,7 @@ void SignalHandler::observe_signal(int signum) {
 void SignalHandler::unobserve_signal(int signum) {
     auto it = std::find(s_observed_signals.begin(), s_observed_signals.end(), signum);
     if (it != s_observed_signals.end()) {
-        s_observed_signals.erase(it);
+        (void)s_observed_signals.erase(it);
     }
 }
 

@@ -66,7 +66,7 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
         const std::string& arg = args[i];
 
         AssignmentOperand operand;
-        parse_assignment_operand(arg, operand, false);
+        (void)parse_assignment_operand(arg, operand, false);
 
         if (operand.name.empty()) {
             print_error({ErrorType::INVALID_ARGUMENT, "local", "invalid variable name", {}});

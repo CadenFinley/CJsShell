@@ -84,7 +84,7 @@ void set_custom_keybinding(ic_keycode_t key, const std::string& command, const s
 }
 
 void clear_custom_keybinding(ic_keycode_t key) {
-    g_custom_keybindings.erase(key);
+    (void)g_custom_keybindings.erase(key);
 }
 
 void clear_all_custom_keybindings() {
@@ -114,7 +114,7 @@ void set_custom_palette_command(const std::string& id, const std::string& comman
 }
 
 void clear_custom_palette_command(const std::string& id) {
-    g_custom_palette_commands.erase(id);
+    (void)g_custom_palette_commands.erase(id);
 }
 
 void clear_all_custom_palette_commands() {
@@ -342,7 +342,7 @@ int keybind_ext_set_command(const std::vector<std::string>& args) {
                              "' and will be overridden.",
                          {"Use 'cjshopt keybind ext list' to review custom bindings."}});
 
-            ic_clear_key_binding(key_code);
+            (void)ic_clear_key_binding(key_code);
         }
     }
 
@@ -412,7 +412,7 @@ int keybind_ext_clear_command(const std::vector<std::string>& args) {
 
         if (has_custom_keybinding(key_code)) {
             clear_custom_keybinding(key_code);
-            ic_clear_key_binding(key_code);
+            (void)ic_clear_key_binding(key_code);
             cleared.push_back(key_spec);
         } else {
             not_found.push_back(key_spec);
@@ -447,7 +447,7 @@ int keybind_ext_clear_command(const std::vector<std::string>& args) {
 
 int keybind_ext_reset_command() {
     for (const auto& [key, _] : g_custom_keybindings) {
-        ic_clear_key_binding(key);
+        (void)ic_clear_key_binding(key);
     }
     clear_all_custom_keybindings();
     clear_all_custom_palette_commands();

@@ -112,7 +112,7 @@ bool path_is_regular_file(const std::filesystem::path& path) {
 
 void close_fd_if_valid(int fd) {
     if (fd >= 0) {
-        ::close(fd);
+        (void)::close(fd);
     }
 }
 
@@ -258,7 +258,7 @@ constexpr const char* kDefaultCjshArgv0 = "cjsh";
 
 std::string strip_login_prefix(std::string token) {
     if (!token.empty() && token.front() == '-') {
-        token.erase(token.begin());
+        (void)token.erase(token.begin());
     }
     return token;
 }
@@ -412,7 +412,7 @@ std::string resolve_explicit_command(const std::string& name) {
 
 std::string scan_path_for_command(const std::string& name, std::string_view path_value) {
     std::string resolved;
-    for_each_path_segment(path_value, [&](std::string_view raw_segment) {
+    (void)for_each_path_segment(path_value, [&](std::string_view raw_segment) {
         if (raw_segment.empty()) {
             return false;
         }
@@ -448,7 +448,7 @@ class PathHashCache {
                 it->second.last_used = now;
                 return it->second.path;
             }
-            entries_.erase(it);
+            (void)entries_.erase(it);
         }
 
         if (current_path.empty()) {
@@ -534,7 +534,7 @@ class PathHashCache {
 
         auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
-        for_each_path_segment(path_value, [&](std::string_view raw_segment) {
+        (void)for_each_path_segment(path_value, [&](std::string_view raw_segment) {
             if (raw_segment.empty()) {
                 return false;
             }
@@ -551,7 +551,7 @@ class PathHashCache {
                 return false;
             }
 
-            for (; it != std::filesystem::directory_iterator(); it.increment(ec)) {
+            for (; it != std::filesystem::directory_iterator(); (void)it.increment(ec)) {
                 if (ec) {
                     break;
                 }
@@ -580,8 +580,8 @@ class PathHashCache {
                     continue;
                 }
 
-                entries_.emplace(std::move(command),
-                                 CachedExecutable{entry.path().string(), 0, now, false});
+                (void)entries_.emplace(std::move(command),
+                                       CachedExecutable{entry.path().string(), 0, now, false});
             }
 
             return false;
@@ -1065,7 +1065,7 @@ Result<std::string> read_file_content(const std::string& path) {
     while (true) {
         ssize_t bytes_read = ::read(fd.get(), buffer, sizeof(buffer));
         if (bytes_read > 0) {
-            content.append(buffer, static_cast<size_t>(bytes_read));
+            (void)content.append(buffer, static_cast<size_t>(bytes_read));
             continue;
         }
 
@@ -1093,7 +1093,7 @@ bool file_exists(const std::filesystem::path& path) {
 }
 
 bool initialize_cjsh_directories() {
-    cjsh_env::set_shell_variable_value("PWD", safe_current_directory());
+    (void)cjsh_env::set_shell_variable_value("PWD", safe_current_directory());
 
     if (!path_is_directory(g_user_home_path())) {
         print_error(
@@ -1106,7 +1106,7 @@ bool initialize_cjsh_directories() {
 
     auto create_directory_or_report = [](const std::filesystem::path& directory) {
         std::error_code ec;
-        std::filesystem::create_directories(directory, ec);
+        (void)std::filesystem::create_directories(directory, ec);
         if (!ec) {
             return true;
         }
@@ -1134,7 +1134,7 @@ bool initialize_cjsh_directories() {
 
     if (!history_parent.empty()) {
         std::error_code history_dir_error;
-        std::filesystem::create_directories(history_parent, history_dir_error);
+        (void)std::filesystem::create_directories(history_parent, history_dir_error);
         if (history_dir_error) {
             print_error({ErrorType::RUNTIME_ERROR,
                          history_parent.string(),
@@ -1269,7 +1269,7 @@ bool write_configuration_file(const std::filesystem::path& target_path,
                               const std::string& content) {
     if (!target_path.parent_path().empty()) {
         std::error_code dir_error;
-        std::filesystem::create_directories(target_path.parent_path(), dir_error);
+        (void)std::filesystem::create_directories(target_path.parent_path(), dir_error);
         if (dir_error) {
             print_error({ErrorType::RUNTIME_ERROR,
                          target_path.parent_path().string(),
@@ -1300,7 +1300,7 @@ bool execute_startup_file_if_present(const std::filesystem::path& path, bool req
         return false;
     }
 
-    g_shell->execute_script_file(path, optional_mode);
+    (void)g_shell->execute_script_file(path, optional_mode);
     return true;
 }
 
@@ -1315,11 +1315,11 @@ bool create_default_startup_file(const std::filesystem::path& target_path,
                                  std::string_view file_label, std::string_view load_description) {
     std::string content;
     content.reserve(128 + file_label.size() + load_description.size());
-    content.append("#!/usr/bin/env cjsh\n");
-    content.append("# cjsh ");
-    content.append(file_label);
-    content.append("\n# ");
-    content.append(load_description);
+    (void)content.append("#!/usr/bin/env cjsh\n");
+    (void)content.append("# cjsh ");
+    (void)content.append(file_label);
+    (void)content.append("\n# ");
+    (void)content.append(load_description);
     content.push_back('\n');
 
     return write_configuration_file(target_path, content);
@@ -1362,8 +1362,8 @@ void process_profile_files() {
         return;
     }
 
-    process_startup_file_with_fallback(g_cjsh_profile_path(), g_cjsh_profile_alt_path(), false,
-                                       true);
+    (void)process_startup_file_with_fallback(g_cjsh_profile_path(), g_cjsh_profile_alt_path(),
+                                             false, true);
 }
 
 void process_env_files() {
@@ -1377,13 +1377,13 @@ void process_env_files() {
             std::filesystem::path override_path = normalize_override_path(env_override);
 
             if (path_is_regular_file(override_path)) {
-                g_shell->execute_script_file(override_path, true);
+                (void)g_shell->execute_script_file(override_path, true);
             }
             return;
         }
     }
 
-    process_startup_file_with_fallback(g_cjsh_env_path(), g_cjsh_env_alt_path(), true, true);
+    (void)process_startup_file_with_fallback(g_cjsh_env_path(), g_cjsh_env_alt_path(), true, true);
 }
 
 void process_logout_file() {
@@ -1392,8 +1392,8 @@ void process_logout_file() {
     }
 
     if (config::interactive_mode || config::force_interactive) {
-        process_startup_file_with_fallback(g_cjsh_logout_path(), g_cjsh_logout_alt_path(), false,
-                                           true);
+        (void)process_startup_file_with_fallback(g_cjsh_logout_path(), g_cjsh_logout_alt_path(),
+                                                 false, true);
     }
 }
 
@@ -1402,8 +1402,8 @@ void process_source_files() {
         return;
     }
 
-    process_startup_file_with_fallback(g_cjsh_source_path(), g_cjsh_source_alt_path(), false,
-                                       false);
+    (void)process_startup_file_with_fallback(g_cjsh_source_path(), g_cjsh_source_alt_path(), false,
+                                             false);
 }
 
 }  // namespace cjsh_filesystem

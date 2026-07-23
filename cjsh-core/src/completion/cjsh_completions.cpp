@@ -298,7 +298,7 @@ bool has_shebang_line(const std::filesystem::path& path) {
     if (!file.is_open())
         return false;
     char prefix[2];
-    file.read(prefix, sizeof(prefix));
+    (void)file.read(prefix, sizeof(prefix));
     return file.gcount() == static_cast<std::streamsize>(sizeof(prefix)) && prefix[0] == '#' &&
            prefix[1] == '!';
 }
@@ -441,7 +441,7 @@ bool iterate_directory_entries(
         deferred_entries.reserve(32);
 
     fs::directory_iterator end;
-    for (; it != end; it.increment(ec)) {
+    for (; it != end; (void)it.increment(ec)) {
         if (ec) {
             break;
         }
@@ -849,13 +849,13 @@ bool add_variable_completions(ic_completion_env_t* cenv, const std::string& pref
     } else {
         const auto& env_vars = cjsh_env::env_vars();
         for (const auto& entry : env_vars) {
-            candidates.insert(entry.first);
+            (void)candidates.insert(entry.first);
         }
     }
 
     static const char* kSpecialVars[] = {"?", "$", "#", "*", "@", "!", "0"};
     for (const char* var_name : kSpecialVars) {
-        candidates.insert(var_name);
+        (void)candidates.insert(var_name);
     }
 
     if (candidates.empty()) {
@@ -962,7 +962,7 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
     job_lookup.reserve(jobs.size());
     for (const auto& job : jobs) {
         if (job) {
-            job_lookup.emplace(job->job_id, job);
+            (void)job_lookup.emplace(job->job_id, job);
         }
     }
 
@@ -988,14 +988,14 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
 
         std::string label;
         if (!qualifier.empty()) {
-            label.append(qualifier);
-            label.append(" · ");
+            (void)label.append(qualifier);
+            (void)label.append(" · ");
         }
-        label.append(summary_text);
-        label.append(" · job %");
-        label.append(std::to_string(job->job_id));
-        label.append(" · pid ");
-        label.append(pid_text);
+        (void)label.append(summary_text);
+        (void)label.append(" · job %");
+        (void)label.append(std::to_string(job->job_id));
+        (void)label.append(" · pid ");
+        (void)label.append(pid_text);
         return label;
     };
 
@@ -1095,7 +1095,7 @@ bool add_hook_type_completions(ic_completion_env_t* cenv, const std::string& pre
     hook_types.reserve(descriptors.size());
     for (const auto& descriptor : descriptors) {
         if (descriptor.name != nullptr) {
-            hook_types.emplace_back(descriptor.name);
+            (void)hook_types.emplace_back(descriptor.name);
         }
     }
 
@@ -1617,7 +1617,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     switch (context) {
         case CONTEXT_COMMAND:
-            add_variable_completions(cenv, current_line_prefix);
+            (void)add_variable_completions(cenv, current_line_prefix);
             if (ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
                 return;
@@ -1643,7 +1643,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             break;
 
         case CONTEXT_PATH:
-            add_variable_completions(cenv, current_line_prefix);
+            (void)add_variable_completions(cenv, current_line_prefix);
             if (ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
                 return;
@@ -1656,7 +1656,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::string prefix_str(current_line_prefix);
             std::vector<std::string> tokens = completion_utils::tokenize_command_line(prefix_str);
 
-            add_variable_completions(cenv, prefix_str);
+            (void)add_variable_completions(cenv, prefix_str);
             if (ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
                 return;
@@ -1665,9 +1665,9 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             bool ends_with_space =
                 !prefix_str.empty() && std::isspace(static_cast<unsigned char>(prefix_str.back()));
 
-            add_job_control_argument_completions(cenv, tokens, ends_with_space);
+            (void)add_job_control_argument_completions(cenv, tokens, ends_with_space);
 
-            add_builtin_argument_completions(cenv, tokens, ends_with_space);
+            (void)add_builtin_argument_completions(cenv, tokens, ends_with_space);
 
             if (!tokens.empty()) {
                 std::vector<std::string> args;
@@ -1675,13 +1675,13 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
                     args.assign(tokens.begin() + 1, tokens.end());
                 }
                 if (ends_with_space) {
-                    args.emplace_back("");
+                    (void)args.emplace_back("");
                 }
 
                 handle_external_sub_completions(cenv, current_line_prefix);
             }
 
-            add_split_unknown_command_completions(cenv, tokens, ends_with_space, prefix_str);
+            (void)add_split_unknown_command_completions(cenv, tokens, ends_with_space, prefix_str);
 
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
                 cjsh_filename_completer(cenv, current_line_prefix);
@@ -1703,13 +1703,13 @@ void initialize_completion_system() {
         ic_set_default_completer(cjsh_default_completer, nullptr);
     } else {
         ic_set_default_completer(nullptr, nullptr);
-        ic_enable_completion_preview(false);
-        ic_enable_hint(false);
-        ic_enable_auto_tab(false);
-        ic_enable_inline_help(false);
+        (void)ic_enable_completion_preview(false);
+        (void)ic_enable_hint(false);
+        (void)ic_enable_auto_tab(false);
+        (void)ic_enable_inline_help(false);
     }
-    ic_enable_spell_correct(g_completion_spell_correction_enabled);
-    ic_enable_spell_correct_on_enter(g_completion_spell_correction_on_enter_enabled);
+    (void)ic_enable_spell_correct(g_completion_spell_correction_enabled);
+    (void)ic_enable_spell_correct_on_enter(g_completion_spell_correction_on_enter_enabled);
     if (!completion_history::enforce_history_limit(nullptr)) {
         print_error(
             {ErrorType::RUNTIME_ERROR,
@@ -1730,7 +1730,7 @@ bool is_completion_case_sensitive() {
 
 void set_completion_spell_correction_enabled(bool enabled) {
     g_completion_spell_correction_enabled = enabled;
-    ic_enable_spell_correct(enabled);
+    (void)ic_enable_spell_correct(enabled);
 }
 
 bool is_completion_spell_correction_enabled() {
@@ -1739,7 +1739,7 @@ bool is_completion_spell_correction_enabled() {
 
 void set_completion_spell_correction_on_enter_enabled(bool enabled) {
     g_completion_spell_correction_on_enter_enabled = enabled;
-    ic_enable_spell_correct_on_enter(enabled);
+    (void)ic_enable_spell_correct_on_enter(enabled);
 }
 
 bool is_completion_spell_correction_on_enter_enabled() {

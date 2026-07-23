@@ -248,7 +248,7 @@ int handle_function_mode(const std::vector<std::string>& args, size_t operand_st
     if ((operand_start >= args.size() || opts.print_mode || opts.function_name_only ||
          opts.readonly_action == AttributeAction::NoChange) &&
         !function_names.empty()) {
-        print_function_declarations(function_names, "declare -f ");
+        (void)print_function_declarations(function_names, "declare -f ");
     }
 
     return success ? 0 : 1;
@@ -261,11 +261,12 @@ std::vector<std::string> collect_printable_variable_names(ShellScriptInterpreter
     }
 
     names = interpreter->get_variable_manager().get_variable_names();
-    names.erase(std::remove_if(names.begin(), names.end(),
-                               [](const std::string& name) { return !is_valid_identifier(name); }),
-                names.end());
+    (void)names.erase(
+        std::remove_if(names.begin(), names.end(),
+                       [](const std::string& name) { return !is_valid_identifier(name); }),
+        names.end());
     std::sort(names.begin(), names.end());
-    names.erase(std::unique(names.begin(), names.end()), names.end());
+    (void)names.erase(std::unique(names.begin(), names.end()), names.end());
     return names;
 }
 
@@ -367,7 +368,7 @@ void apply_export_attribute(const std::string& name, AttributeAction action, boo
     }
 
     if (action == AttributeAction::Clear) {
-        unsetenv(name.c_str());
+        (void)unsetenv(name.c_str());
         return;
     }
 
@@ -375,7 +376,7 @@ void apply_export_attribute(const std::string& name, AttributeAction action, boo
     if (local_scope && interpreter != nullptr) {
         value = interpreter->get_variable_value(name);
         interpreter->mark_local_as_exported(name);
-        setenv(name.c_str(), value.c_str(), 1);
+        (void)setenv(name.c_str(), value.c_str(), 1);
         return;
     }
 
@@ -388,7 +389,7 @@ void apply_export_attribute(const std::string& name, AttributeAction action, boo
     }
 
     env_map[name] = value;
-    setenv(name.c_str(), value.c_str(), 1);
+    (void)setenv(name.c_str(), value.c_str(), 1);
     if (shell != nullptr) {
         cjsh_env::sync_parser_env_vars(shell);
     }
@@ -483,7 +484,7 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
 
     for (size_t i = operand_start; i < args.size();) {
         AssignmentOperand operand;
-        parse_assignment_operand(args[i], operand, false);
+        (void)parse_assignment_operand(args[i], operand, false);
 
         bool append = false;
         std::string normalized_target = normalize_assignment_target(operand.name, append);

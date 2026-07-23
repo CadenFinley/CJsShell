@@ -145,7 +145,7 @@ static bool qword_add_completion_ex(ic_env_t* env, void* closure, const char* re
     sbuf_replace(wenv->sbuf, replacement);
     if (wenv->quote != 0) {
         // add end quote
-        sbuf_append_char(wenv->sbuf, wenv->quote);
+        (void)sbuf_append_char(wenv->sbuf, wenv->quote);
     } else {
         // escape non-word characters if it was not quoted
         ssize_t pos = 0;
@@ -154,7 +154,7 @@ static bool qword_add_completion_ex(ic_env_t* env, void* closure, const char* re
             if (!(*wenv->is_word_char)(sbuf_string(wenv->sbuf) + pos,
                                        (long)next)) {  // strchr(wenv->non_word_char, sbuf_char_at(
                                                        // wenv->sbuf, pos )) != NULL) {
-                sbuf_insert_char_at(wenv->sbuf, wenv->escape_char, pos);
+                (void)sbuf_insert_char_at(wenv->sbuf, wenv->escape_char, pos);
                 pos++;
             }
             pos += next;
@@ -399,9 +399,9 @@ static bool ls_colors_from_key(stringbuf_t* sb, const char* key) {
     }
     if (len <= 0)
         return false;
-    sbuf_append(sb, "[ansi-sgr=\"");
-    sbuf_append_n(sb, p, len);
-    sbuf_append(sb, "\"]");
+    (void)sbuf_append(sb, "[ansi-sgr=\"");
+    (void)sbuf_append_n(sb, p, len);
+    (void)sbuf_append(sb, "\"]");
     return true;
 }
 
@@ -440,8 +440,8 @@ static bool ls_colors_append(stringbuf_t* sb, file_type_t ft, const char* ext) {
             fg = lscolors[2 * ft];
             bg = lscolors[2 * ft + 1];
         }
-        sbuf_appendf(sb, "[ansi-color=%d ansi-bgcolor=%d]", ls_colors_from_char(fg),
-                     ls_colors_from_char(bg));
+        (void)sbuf_appendf(sb, "[ansi-color=%d ansi-bgcolor=%d]", ls_colors_from_char(fg),
+                           ls_colors_from_char(bg));
         return true;
     }
     return false;
@@ -450,13 +450,13 @@ static bool ls_colors_append(stringbuf_t* sb, file_type_t ft, const char* ext) {
 static void ls_colorize(bool no_lscolor, stringbuf_t* sb, file_type_t ft, const char* name,
                         const char* ext, char dirsep) {
     bool close = (no_lscolor ? false : ls_colors_append(sb, ft, ext));
-    sbuf_append(sb, "[ic-source]");
-    sbuf_append(sb, name);
+    (void)sbuf_append(sb, "[ic-source]");
+    (void)sbuf_append(sb, name);
     if (dirsep != 0)
-        sbuf_append_char(sb, dirsep);
-    sbuf_append(sb, "[/ic-source]");
+        (void)sbuf_append_char(sb, dirsep);
+    (void)sbuf_append(sb, "[/ic-source]");
     if (close) {
-        sbuf_append(sb, "[/]");
+        (void)sbuf_append(sb, "[/]");
     }
 }
 
@@ -532,7 +532,7 @@ ic_private char ic_dirsep(void) {
 static bool os_is_dir(const char* cpath) {
     struct stat st;
     memset(&st, 0, sizeof(st));
-    stat(cpath, &st);
+    (void)stat(cpath, &st);
     return (S_ISDIR(st.st_mode));
 }
 
@@ -595,7 +595,7 @@ static bool os_findfirst(alloc_t* mem, const char* cpath, dir_cursor* d, dir_ent
 }
 
 static void os_findclose(dir_cursor d) {
-    closedir(d);
+    (void)closedir(d);
 }
 
 static const char* os_direntry_name(dir_entry* entry) {
@@ -670,23 +670,23 @@ static bool filename_complete_indir(ic_completion_env_t* cenv, stringbuf_t* dir,
                 file_type_t ft;
                 bool isdir;
                 const ssize_t plen = sbuf_len(dir_prefix);
-                sbuf_append(dir_prefix, name);
+                (void)sbuf_append(dir_prefix, name);
                 {  // check directory and potentially add a dirsep to the
                    // dir_prefix
                     const ssize_t dlen = sbuf_len(dir);
-                    sbuf_append_char(dir, ic_dirsep());
-                    sbuf_append(dir, name);
+                    (void)sbuf_append_char(dir, ic_dirsep());
+                    (void)sbuf_append(dir, name);
                     ft = os_get_filetype(sbuf_string(dir));
                     isdir = os_is_dir(sbuf_string(dir));
                     if (isdir && dir_sep != 0) {
-                        sbuf_append_char(dir_prefix, dir_sep);
+                        (void)sbuf_append_char(dir_prefix, dir_sep);
                     }
                     sbuf_delete_from(dir, dlen);  // restore dir
                 }
                 if (isdir || match_extension(name, extensions)) {
                     // add completion
                     sbuf_clear(display);
-                    sbuf_append_char(display, IC_COMPLETION_DISPLAY_TRUSTED_PREFIX);
+                    (void)sbuf_append_char(display, IC_COMPLETION_DISPLAY_TRUSTED_PREFIX);
                     ls_colorize(cenv->env->no_lscolors, display, ft, name, NULL,
                                 (isdir ? dir_sep : 0));
                     cont = ic_add_completion_ex(cenv, sbuf_string(dir_prefix), sbuf_string(display),
@@ -725,20 +725,20 @@ static void filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 #endif
         if (base != NULL) {
             base++;
-            sbuf_append_n(dir_prefix, prefix,
-                          base - prefix);  // includes dir separator
+            (void)sbuf_append_n(dir_prefix, prefix,
+                                base - prefix);  // includes dir separator
         }
 
         // absolute path
         if (os_path_is_absolute(prefix)) {
             // do not use roots but try to complete directly
             if (base != NULL) {
-                sbuf_append_n(root_dir, prefix,
-                              (base - prefix));  // include dir separator
+                (void)sbuf_append_n(root_dir, prefix,
+                                    (base - prefix));  // include dir separator
             }
-            filename_complete_indir(cenv, root_dir, dir_prefix, display,
-                                    (base != NULL ? base : prefix), fclosure->dir_sep,
-                                    fclosure->extensions);
+            (void)filename_complete_indir(cenv, root_dir, dir_prefix, display,
+                                          (base != NULL ? base : prefix), fclosure->dir_sep,
+                                          fclosure->extensions);
         } else {
             // relative path, complete with respect to every root.
             const char* next;
@@ -748,23 +748,23 @@ static void filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 sbuf_clear(root_dir);
                 next = strchr(root, ';');
                 if (next == NULL) {
-                    sbuf_append(root_dir, root);
+                    (void)sbuf_append(root_dir, root);
                     root = NULL;
                 } else {
-                    sbuf_append_n(root_dir, root, next - root);
+                    (void)sbuf_append_n(root_dir, root, next - root);
                     root = next + 1;
                 }
-                sbuf_append_char(root_dir, ic_dirsep());
+                (void)sbuf_append_char(root_dir, ic_dirsep());
 
                 // add the dir_prefix to the root
                 if (base != NULL) {
-                    sbuf_append_n(root_dir, prefix, (base - prefix) - 1);
+                    (void)sbuf_append_n(root_dir, prefix, (base - prefix) - 1);
                 }
 
                 // and complete in this directory
-                filename_complete_indir(cenv, root_dir, dir_prefix, display,
-                                        (base != NULL ? base : prefix), fclosure->dir_sep,
-                                        fclosure->extensions);
+                (void)filename_complete_indir(cenv, root_dir, dir_prefix, display,
+                                              (base != NULL ? base : prefix), fclosure->dir_sep,
+                                              fclosure->extensions);
             }
         }
     }

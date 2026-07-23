@@ -77,7 +77,7 @@ void Command::set_fd_redirection(int fd, std::string value) {
     if (it != fd_redirections.end()) {
         it->second = std::move(value);
     } else {
-        fd_redirections.emplace_back(fd, std::move(value));
+        (void)fd_redirections.emplace_back(fd, std::move(value));
     }
 }
 
@@ -87,7 +87,7 @@ void Command::set_fd_duplication(int fd, int target) {
     if (it != fd_duplications.end()) {
         it->second = target;
     } else {
-        fd_duplications.emplace_back(fd, target);
+        (void)fd_duplications.emplace_back(fd, target);
     }
 }
 
@@ -207,7 +207,7 @@ bool parse_simple_dollar_parameter(std::string_view token, std::string& paramete
     unsigned char first = static_cast<unsigned char>(token[1]);
     if ((std::isdigit(first)) != 0) {
         if (token.size() == 2) {
-            parameter_name_out.assign(1, token[1]);
+            (void)parameter_name_out.assign(1, token[1]);
             return true;
         }
         return false;
@@ -223,7 +223,7 @@ bool parse_simple_dollar_parameter(std::string_view token, std::string& paramete
         }
     }
 
-    parameter_name_out.assign(token.substr(1));
+    (void)parameter_name_out.assign(token.substr(1));
     return true;
 }
 
@@ -290,7 +290,7 @@ std::vector<std::string> fast_split_on_whitespace(std::string_view cmdline) {
         while (i < cmdline.size() && (std::isspace(static_cast<unsigned char>(cmdline[i])) == 0)) {
             ++i;
         }
-        result.emplace_back(cmdline.substr(start, i - start));
+        (void)result.emplace_back(cmdline.substr(start, i - start));
     }
 
     return result;
@@ -440,7 +440,7 @@ void Parser::process_heredoc_content(std::string& content) {
         variableExpander->expand_env_vars(content);
         variableExpander->expand_command_substitutions_in_string(content);
     }
-    strip_subst_literal_markers(content);
+    (void)strip_subst_literal_markers(content);
 }
 
 bool Parser::is_control_word_at_position(const std::string& command, size_t i, int paren_depth,
@@ -531,7 +531,7 @@ void Parser::set_env_var(const std::string& name, const std::string& value) {
 }
 
 void Parser::unset_env_var(const std::string& name) {
-    env_vars.erase(name);
+    (void)env_vars.erase(name);
 }
 
 void Parser::set_shell(Shell* new_shell) {
@@ -713,10 +713,10 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             size_t line_end = segment_view.find('\n', effective_delim_end);
             std::string rest_of_line;
             if (line_end != std::string::npos) {
-                rest_of_line.assign(
+                (void)rest_of_line.assign(
                     segment_view.substr(effective_delim_end, line_end - effective_delim_end));
             } else {
-                rest_of_line.assign(segment_view.substr(effective_delim_end));
+                (void)rest_of_line.assign(segment_view.substr(effective_delim_end));
             }
 
             add_here_doc_placeholder_line(std::move(before_here), rest_of_line);
@@ -736,9 +736,9 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                 size_t line_end = segment_view.find('\n', delim_end);
                 std::string rest_of_line;
                 if (line_end != std::string::npos) {
-                    rest_of_line.assign(segment_view.substr(delim_end, line_end - delim_end));
+                    (void)rest_of_line.assign(segment_view.substr(delim_end, line_end - delim_end));
                 } else {
-                    rest_of_line.assign(segment_view.substr(delim_end));
+                    (void)rest_of_line.assign(segment_view.substr(delim_end));
                 }
 
                 add_here_doc_placeholder_line(std::move(before_here), rest_of_line);
@@ -971,7 +971,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     if (simple_candidate) {
         args = fast_split_on_whitespace(cmdline);
     } else if (arithmetic_assignment_candidate) {
-        args.emplace_back(cmdline);
+        (void)args.emplace_back(cmdline);
     } else {
         args.reserve(16);
         try {
@@ -1028,9 +1028,9 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                 if (!alias_args.empty()) {
                     std::vector<std::string> new_args;
                     new_args.reserve(alias_args.size() + args.size());
-                    new_args.insert(new_args.end(), alias_args.begin(), alias_args.end());
+                    (void)new_args.insert(new_args.end(), alias_args.begin(), alias_args.end());
                     if (args.size() > 1) {
-                        new_args.insert(new_args.end(), args.begin() + 1, args.end());
+                        (void)new_args.insert(new_args.end(), args.begin() + 1, args.end());
                     }
 
                     args = new_args;
@@ -1061,11 +1061,11 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
         if (qi.is_unquoted() && !looks_like_assignment(qi.value) &&
             raw_arg.find('{') != std::string::npos && raw_arg.find('}') != std::string::npos) {
             auto brace_expansions = expansionEngine->expand_braces(raw_arg);
-            expanded_args.insert(expanded_args.end(),
-                                 std::make_move_iterator(brace_expansions.begin()),
-                                 std::make_move_iterator(brace_expansions.end()));
+            (void)expanded_args.insert(expanded_args.end(),
+                                       std::make_move_iterator(brace_expansions.begin()),
+                                       std::make_move_iterator(brace_expansions.end()));
         } else {
-            expanded_args.emplace_back(std::move(raw_arg));
+            (void)expanded_args.emplace_back(std::move(raw_arg));
         }
     }
     args = std::move(expanded_args);
@@ -1129,7 +1129,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             }
             continue;
         }
-        pre_expanded_args.emplace_back(std::move(raw_arg));
+        (void)pre_expanded_args.emplace_back(std::move(raw_arg));
     }
     args = std::move(pre_expanded_args);
 
@@ -1165,7 +1165,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                         throw;
                     }
                 }
-                strip_subst_literal_markers(noenv_stripped);
+                (void)strip_subst_literal_markers(noenv_stripped);
                 return noenv_stripped;
             }
 
@@ -1180,7 +1180,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                     throw;
                 }
             }
-            strip_subst_literal_markers(noenv_stripped);
+            (void)strip_subst_literal_markers(noenv_stripped);
             return noenv_stripped;
         }
 
@@ -1195,7 +1195,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                  std::string("Error in selective environment variable expansion: ") + e.what(),
                  {"Check variable names and ensure they are exported when required."}});
         }
-        strip_subst_literal_markers(value_to_expand);
+        (void)strip_subst_literal_markers(value_to_expand);
         auto stripped_pair = strip_noenv_sentinels(value_to_expand);
         return std::move(stripped_pair.first);
     };
@@ -1243,11 +1243,11 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
         if (qi.is_unquoted()) {
             std::vector<std::string> split_words = tokenizer->split_by_ifs(raw_arg);
-            ifs_expanded_args.insert(ifs_expanded_args.end(),
-                                     std::make_move_iterator(split_words.begin()),
-                                     std::make_move_iterator(split_words.end()));
+            (void)ifs_expanded_args.insert(ifs_expanded_args.end(),
+                                           std::make_move_iterator(split_words.begin()),
+                                           std::make_move_iterator(split_words.end()));
         } else {
-            ifs_expanded_args.emplace_back(std::move(raw_arg));
+            (void)ifs_expanded_args.emplace_back(std::move(raw_arg));
         }
     }
     args = std::move(ifs_expanded_args);
@@ -1265,7 +1265,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
         if (qi.is_unquoted() && !is_double_bracket_command && !looks_like_assignment(qi.value) &&
             requires_glob_expansion_or_unescape(qi.value)) {
             auto gw = expansionEngine->expand_wildcards(qi.value);
-            final_args.insert(final_args.end(), gw.begin(), gw.end());
+            (void)final_args.insert(final_args.end(), gw.begin(), gw.end());
         } else {
             final_args.push_back(qi.value);
         }
@@ -1348,7 +1348,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
                 if (has_whitespace_after_bang) {
                     pipeline_negated = true;
-                    leading_trimmed.erase(0, 1);
+                    (void)leading_trimmed.erase(0, 1);
                     cmd_part = trim_leading_whitespace(leading_trimmed);
                     trimmed = trim_trailing_whitespace(cmd_part);
 
@@ -1651,10 +1651,10 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                             filtered_args.size() > 1 ? filtered_args.size() - 1 : 0;
                         std::vector<std::string> new_args;
                         new_args.reserve(alias_args.size() + remaining_args);
-                        new_args.insert(new_args.end(), alias_args.begin(), alias_args.end());
+                        (void)new_args.insert(new_args.end(), alias_args.begin(), alias_args.end());
                         if (filtered_args.size() > 1) {
-                            new_args.insert(new_args.end(), filtered_args.begin() + 1,
-                                            filtered_args.end());
+                            (void)new_args.insert(new_args.end(), filtered_args.begin() + 1,
+                                                  filtered_args.end());
                         }
                         filtered_args = std::move(new_args);
                     }
@@ -1692,7 +1692,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 } catch (const std::runtime_error&) {
                     // Ignore optional env expansion failures; use unexpanded value.
                 }
-                strip_subst_literal_markers(val);
+                (void)strip_subst_literal_markers(val);
                 auto stripped_pair = strip_noenv_sentinels(val);
                 val = std::move(stripped_pair.first);
             }
@@ -1707,8 +1707,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                     if (!is_double_bracket_cmd &&
                         expanded_val.find_first_of("*?[]") != std::string::npos) {
                         auto wildcard_expanded = expansionEngine->expand_wildcards(expanded_val);
-                        final_args_local.insert(final_args_local.end(), wildcard_expanded.begin(),
-                                                wildcard_expanded.end());
+                        (void)final_args_local.insert(final_args_local.end(),
+                                                      wildcard_expanded.begin(),
+                                                      wildcard_expanded.end());
                     } else {
                         final_args_local.push_back(expanded_val);
                     }
@@ -1720,7 +1721,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                     expansionEngine = std::make_unique<ExpansionEngine>(shell);
                 }
                 auto expanded = expansionEngine->expand_wildcards(val);
-                final_args_local.insert(final_args_local.end(), expanded.begin(), expanded.end());
+                (void)final_args_local.insert(final_args_local.end(), expanded.begin(),
+                                              expanded.end());
             } else {
                 final_args_local.push_back(val);
             }
@@ -1953,8 +1955,9 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
             continue;
         }
 
-        is_control_word_at_position(command, i, delimiters.paren_depth, delimiters.brace_depth,
-                                    delimiters.in_quotes, control_depth);
+        (void)is_control_word_at_position(command, i, delimiters.paren_depth,
+                                          delimiters.brace_depth, delimiters.in_quotes,
+                                          control_depth);
 
         if (!delimiters.in_quotes && delimiters.paren_depth == 0 && arith_depth == 0 &&
             delimiters.bracket_depth == 0 && delimiters.brace_depth == 0 &&
@@ -2030,8 +2033,9 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
             scan_state.brace_depth--;
         }
 
-        is_control_word_at_position(command, i, scan_state.paren_depth, scan_state.brace_depth,
-                                    scan_state.in_quotes, control_depth);
+        (void)is_control_word_at_position(command, i, scan_state.paren_depth,
+                                          scan_state.brace_depth, scan_state.in_quotes,
+                                          control_depth);
 
         if (!scan_state.in_quotes && scan_state.paren_depth == 0 && scan_state.brace_depth == 0) {
             if (split_on_newlines && command[i] == '\n' && control_depth == 0) {

@@ -103,7 +103,7 @@ std::string CommandPreprocessor::process_here_documents(
             if (first_non_tab == std::string::npos) {
                 line_to_store.clear();
             } else {
-                line_to_store.erase(0, first_non_tab);
+                (void)line_to_store.erase(0, first_non_tab);
             }
         }
 

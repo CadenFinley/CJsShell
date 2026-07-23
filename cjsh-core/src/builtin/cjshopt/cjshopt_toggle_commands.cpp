@@ -125,7 +125,7 @@ std::string format_persist_message(const ToggleCommandConfig& config, bool enabl
     auto replace_all = [](std::string* target, const std::string& from, const std::string& to) {
         size_t position = 0;
         while ((position = target->find(from, position)) != std::string::npos) {
-            target->replace(position, from.size(), to);
+            (void)target->replace(position, from.size(), to);
             position += to.size();
         }
     };
@@ -225,9 +225,9 @@ void ensure_status_hint_preference_initialized() {
 void apply_effective_status_hint_mode() {
     ensure_status_hint_preference_initialized();
     if (config::status_line_enabled) {
-        ic_set_status_hint_mode(g_status_hint_preference);
+        (void)ic_set_status_hint_mode(g_status_hint_preference);
     } else {
-        ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
+        (void)ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
     }
 }
 
@@ -302,7 +302,7 @@ int current_line_number_highlight_command(const std::vector<std::string>& args) 
         "current-line-number-highlight",
         usage_lines,
         []() { return ic_current_line_number_highlight_is_enabled(); },
-        [](bool enable) { ic_enable_current_line_number_highlight(enable); },
+        [](bool enable) { (void)ic_enable_current_line_number_highlight(enable); },
         "Current line number highlighting",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -344,7 +344,7 @@ int history_search_case_command(const std::vector<std::string>& args) {
         "history-search-case",
         usage_lines,
         []() { return ic_history_fuzzy_search_is_case_sensitive(); },
-        [](bool enable) { ic_enable_history_fuzzy_case_sensitive(enable); },
+        [](bool enable) { (void)ic_enable_history_fuzzy_case_sensitive(enable); },
         "History search case sensitivity",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -541,16 +541,16 @@ int line_numbers_command(const std::vector<std::string>& args) {
 
     switch (*mode) {
         case LineNumbersMode::Off:
-            ic_enable_line_numbers(false);
+            (void)ic_enable_line_numbers(false);
             changed = (was_enabled || was_relative);
             break;
         case LineNumbersMode::Relative:
-            ic_enable_relative_line_numbers(true);
+            (void)ic_enable_relative_line_numbers(true);
             changed = (!was_enabled || !was_relative);
             break;
         case LineNumbersMode::Absolute:
-            ic_enable_line_numbers(true);
-            ic_enable_relative_line_numbers(false);
+            (void)ic_enable_line_numbers(true);
+            (void)ic_enable_relative_line_numbers(false);
             changed = (!was_enabled || was_relative);
             break;
         case LineNumbersMode::Status:
@@ -586,7 +586,7 @@ int line_numbers_continuation_command(const std::vector<std::string>& args) {
         "line-numbers-continuation",
         usage_lines,
         []() { return ic_line_numbers_with_continuation_prompt_are_enabled(); },
-        [](bool enable) { ic_enable_line_numbers_with_continuation_prompt(enable); },
+        [](bool enable) { (void)ic_enable_line_numbers_with_continuation_prompt(enable); },
         "Line numbers with continuation prompts",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -607,7 +607,7 @@ int line_numbers_replace_prompt_command(const std::vector<std::string>& args) {
         "line-numbers-replace-prompt",
         usage_lines,
         []() { return ic_line_number_prompt_replacement_is_enabled(); },
-        [](bool enable) { ic_enable_line_number_prompt_replacement(enable); },
+        [](bool enable) { (void)ic_enable_line_number_prompt_replacement(enable); },
         "Line number prompt replacement",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -658,7 +658,7 @@ int hint_delay_command(const std::vector<std::string>& args) {
             return 1;
         }
 
-        ic_set_hint_delay(delay_ms);
+        (void)ic_set_hint_delay(delay_ms);
 
         if (!cjsh_env::startup_active()) {
             std::cout << "Hint delay set to " << delay_ms << " milliseconds.\n";
@@ -725,7 +725,7 @@ int multiline_start_lines_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    ic_set_multiline_start_line_count(requested);
+    (void)ic_set_multiline_start_line_count(requested);
     const size_t applied = ic_get_multiline_start_line_count();
 
     if (!cjsh_env::startup_active()) {
@@ -801,7 +801,7 @@ int multiline_max_lines_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    ic_set_multiline_max_line_count(requested);
+    (void)ic_set_multiline_max_line_count(requested);
     const size_t applied = ic_get_multiline_max_line_count();
 
     if (!cjsh_env::startup_active()) {
@@ -871,7 +871,7 @@ int multiline_bottom_lines_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    ic_set_multiline_bottom_line_count(requested);
+    (void)ic_set_multiline_bottom_line_count(requested);
     const size_t applied = ic_get_multiline_bottom_line_count();
 
     if (!cjsh_env::startup_active()) {
@@ -900,10 +900,10 @@ int completion_preview_command(const std::vector<std::string>& args) {
         usage_lines,
         []() {
             bool current_status = ic_enable_completion_preview(true);
-            ic_enable_completion_preview(current_status);
+            (void)ic_enable_completion_preview(current_status);
             return current_status;
         },
-        [](bool enable) { ic_enable_completion_preview(enable); },
+        [](bool enable) { (void)ic_enable_completion_preview(enable); },
         "Completion preview",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -925,10 +925,10 @@ int completion_menu_expanded_command(const std::vector<std::string>& args) {
         usage_lines,
         []() {
             bool current_status = ic_enable_completion_menu_start_expanded(true);
-            ic_enable_completion_menu_start_expanded(current_status);
+            (void)ic_enable_completion_menu_start_expanded(current_status);
             return current_status;
         },
-        [](bool enable) { ic_enable_completion_menu_start_expanded(enable); },
+        [](bool enable) { (void)ic_enable_completion_menu_start_expanded(enable); },
         "Completion menu default expansion",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -949,7 +949,7 @@ int completion_click_accept_command(const std::vector<std::string>& args) {
         "completion-click-accept",
         usage_lines,
         []() { return ic_completion_click_accept_is_enabled(); },
-        [](bool enable) { ic_enable_completion_click_accept(enable); },
+        [](bool enable) { (void)ic_enable_completion_click_accept(enable); },
         "Completion click-to-accept",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -1011,7 +1011,7 @@ int menu_highlighting_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    ic_set_menu_highlight_mode(*requested);
+    (void)ic_set_menu_highlight_mode(*requested);
 
     if (!cjsh_env::startup_active()) {
         std::cout << "Menu highlighting set to " << canonical_menu_highlight_token(*requested)
@@ -1035,10 +1035,10 @@ int visible_whitespace_command(const std::vector<std::string>& args) {
         usage_lines,
         []() {
             bool current_status = ic_enable_visible_whitespace(true);
-            ic_enable_visible_whitespace(current_status);
+            (void)ic_enable_visible_whitespace(current_status);
             return current_status;
         },
-        [](bool enable) { ic_enable_visible_whitespace(enable); },
+        [](bool enable) { (void)ic_enable_visible_whitespace(enable); },
         "Visible whitespace characters",
         true,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -1058,10 +1058,10 @@ int hint_command(const std::vector<std::string>& args) {
         usage_lines,
         []() {
             bool current_status = ic_enable_hint(true);
-            ic_enable_hint(current_status);
+            (void)ic_enable_hint(current_status);
             return current_status;
         },
-        [](bool enable) { ic_enable_hint(enable); },
+        [](bool enable) { (void)ic_enable_hint(enable); },
         "Inline hints",
         true,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -1083,10 +1083,10 @@ int multiline_indent_command(const std::vector<std::string>& args) {
         usage_lines,
         []() {
             bool current_status = ic_enable_multiline_indent(true);
-            ic_enable_multiline_indent(current_status);
+            (void)ic_enable_multiline_indent(current_status);
             return current_status;
         },
-        [](bool enable) { ic_enable_multiline_indent(enable); },
+        [](bool enable) { (void)ic_enable_multiline_indent(enable); },
         "Multiline auto-indent",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -1108,10 +1108,10 @@ int multiline_command(const std::vector<std::string>& args) {
         usage_lines,
         []() {
             bool current_status = ic_enable_multiline(true);
-            ic_enable_multiline(current_status);
+            (void)ic_enable_multiline(current_status);
             return current_status;
         },
-        [](bool enable) { ic_enable_multiline(enable); },
+        [](bool enable) { (void)ic_enable_multiline(enable); },
         "Multiline input",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -1133,10 +1133,10 @@ int inline_help_command(const std::vector<std::string>& args) {
         usage_lines,
         []() {
             bool current_status = ic_enable_inline_help(true);
-            ic_enable_inline_help(current_status);
+            (void)ic_enable_inline_help(current_status);
             return current_status;
         },
-        [](bool enable) { ic_enable_inline_help(enable); },
+        [](bool enable) { (void)ic_enable_inline_help(enable); },
         "Inline help messages",
         true,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -1525,7 +1525,7 @@ int mouse_clicking_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    ic_set_mouse_clicking_mode(*requested_mode);
+    (void)ic_set_mouse_clicking_mode(*requested_mode);
 
     if (!cjsh_env::startup_active()) {
         std::cout << "Mouse clicking mode set to " << canonical_mode_token(*requested_mode) << " ("
@@ -1549,10 +1549,10 @@ int mouse_clicking_status_line_command(const std::vector<std::string>& args) {
         usage_lines,
         []() {
             bool current_status = ic_enable_mouse_reporting_status_line(true);
-            ic_enable_mouse_reporting_status_line(current_status);
+            (void)ic_enable_mouse_reporting_status_line(current_status);
             return current_status;
         },
-        [](bool enable) { ic_enable_mouse_reporting_status_line(enable); },
+        [](bool enable) { (void)ic_enable_mouse_reporting_status_line(enable); },
         "Mouse clicking status indicator",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -1574,10 +1574,10 @@ int auto_tab_command(const std::vector<std::string>& args) {
         usage_lines,
         []() {
             bool current_status = ic_enable_auto_tab(true);
-            ic_enable_auto_tab(current_status);
+            (void)ic_enable_auto_tab(current_status);
             return current_status;
         },
-        [](bool enable) { ic_enable_auto_tab(enable); },
+        [](bool enable) { (void)ic_enable_auto_tab(enable); },
         "Automatic tab completion",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -1619,7 +1619,7 @@ int right_prompt_follow_cursor_command(const std::vector<std::string>& args) {
         "right-prompt-follow-cursor",
         usage_lines,
         []() { return ic_inline_right_prompt_follows_cursor(); },
-        [](bool enable) { ic_enable_inline_right_prompt_cursor_follow(enable); },
+        [](bool enable) { (void)ic_enable_inline_right_prompt_cursor_follow(enable); },
         "Right prompt cursor tracking",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",

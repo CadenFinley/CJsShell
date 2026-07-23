@@ -307,7 +307,7 @@ ic_public void ic_history_add_with_metadata(const char* entry,
     ic_env_t* env = ic_get_env();
     if (env == NULL)
         return;
-    history_push_with_metadata(env->history, entry, metadata, metadata_count);
+    (void)history_push_with_metadata(env->history, entry, metadata, metadata_count);
 }
 
 ic_public void ic_history_add(const char* entry) {

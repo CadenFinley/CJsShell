@@ -70,8 +70,8 @@ void Shell::register_hook(HookType hook_type, const std::string& function_name) 
 
 void Shell::unregister_hook(HookType hook_type, const std::string& function_name) {
     auto& hook_list = hooks[to_index(hook_type)];
-    hook_list.erase(std::remove(hook_list.begin(), hook_list.end(), function_name),
-                    hook_list.end());
+    (void)hook_list.erase(std::remove(hook_list.begin(), hook_list.end(), function_name),
+                          hook_list.end());
 }
 
 std::vector<std::string> Shell::get_hooks(HookType hook_type) const {
@@ -89,6 +89,6 @@ void Shell::execute_hooks(HookType hook_type) {
     }
 
     for (const auto& function_name : hook_list) {
-        execute(function_name);
+        (void)execute(function_name);
     }
 }

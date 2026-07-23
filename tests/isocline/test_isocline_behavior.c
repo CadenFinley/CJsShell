@@ -182,7 +182,7 @@ static bool test_multiline_toggle(void) {
     EXPECT_TRUE(env->singleline_only, "disabling multiline should set singleline_only flag");
 
     // Restore default state for later tests
-    ic_enable_multiline(true);
+    (void)ic_enable_multiline(true);
     return true;
 }
 
@@ -329,7 +329,7 @@ static bool test_visible_whitespace_marker(void) {
     EXPECT_STREQ(ic_get_whitespace_marker(), default_marker,
                  "resetting whitespace marker should restore default symbol");
 
-    ic_enable_visible_whitespace(false);
+    (void)ic_enable_visible_whitespace(false);
     return true;
 }
 
@@ -637,11 +637,11 @@ static bool test_history_dedup_snapshot(void) {
     history_load_from(history, history_path, 32);
     history_clear(history);
 
-    history_enable_duplicates(history, false);
+    (void)history_enable_duplicates(history, false);
     EXPECT_TRUE(history_push(history, "echo hi"), "initial history push should succeed");
     EXPECT_TRUE(history_push(history, "echo hi"), "duplicate push should rewrite last entry");
 
-    history_enable_duplicates(history, true);
+    (void)history_enable_duplicates(history, true);
     const ic_history_metadata_t duplicate_meta[] = {
         {"exit_code", "7"},
     };
@@ -904,13 +904,13 @@ static bool test_history_fuzzy_case_toggle(void) {
     ssize_t match_count = 0;
     bool metadata_filter_applied = false;
 
-    history_set_fuzzy_case_sensitive(history, true);
+    (void)history_set_fuzzy_case_sensitive(history, true);
     EXPECT_FALSE(
         history_fuzzy_search(history, "LS", matches, 4, &match_count, &metadata_filter_applied),
         "case-sensitive search should not match entries with different casing");
     EXPECT_TRUE(match_count == 0, "case-sensitive mismatch should produce zero matches");
 
-    history_set_fuzzy_case_sensitive(history, false);
+    (void)history_set_fuzzy_case_sensitive(history, false);
     EXPECT_TRUE(
         history_fuzzy_search(history, "LS", matches, 4, &match_count, &metadata_filter_applied),
         "case-insensitive search should find matching entries regardless of case");
@@ -957,12 +957,12 @@ static bool test_history_fuzzy_case_toggle_via_api(void) {
     history_match_t matches[4];
     ssize_t match_count = 0;
 
-    ic_enable_history_fuzzy_case_sensitive(true);
+    (void)ic_enable_history_fuzzy_case_sensitive(true);
     EXPECT_FALSE(history_fuzzy_search(temp_history, "LS", matches, 4, &match_count, NULL),
                  "case-sensitive env history should not match different casing");
     EXPECT_TRUE(match_count == 0, "case-sensitive env history should produce zero matches");
 
-    ic_enable_history_fuzzy_case_sensitive(false);
+    (void)ic_enable_history_fuzzy_case_sensitive(false);
     EXPECT_TRUE(history_fuzzy_search(temp_history, "LS", matches, 4, &match_count, NULL),
                 "case-insensitive env history should match irrespective of casing");
     EXPECT_TRUE(match_count > 0, "case-insensitive env history should yield matches");
@@ -978,7 +978,7 @@ static bool test_history_fuzzy_case_toggle_via_api(void) {
     env->history = original;
     history_free(temp_history);
     (void)remove(history_path);
-    ic_enable_history_fuzzy_case_sensitive(true);
+    (void)ic_enable_history_fuzzy_case_sensitive(true);
     return true;
 }
 
@@ -1374,7 +1374,7 @@ static bool test_tty_capture_pending_raw_preconditions(void) {
     struct tty_s tty_probe;
     memset(&tty_probe, 0, sizeof(tty_probe));
     tty_probe.fd_in = -1;
-    sbuf_append(out, "stale");
+    (void)sbuf_append(out, "stale");
     EXPECT_FALSE(tty_capture_pending_raw((tty_t*)&tty_probe, out),
                  "pending raw capture should reject non-tty file descriptors");
     EXPECT_TRUE(sbuf_len(out) == 0, "failed capture should clear stale output");
@@ -3822,11 +3822,11 @@ static bool test_history_snapshot_load_dedup_mode(void) {
     history_load_from(history, history_path, 16);
     history_clear(history);
 
-    history_enable_duplicates(history, true);
+    (void)history_enable_duplicates(history, true);
     EXPECT_TRUE(history_push(history, "dup"), "first duplicate entry should be stored");
     EXPECT_TRUE(history_push(history, "dup"), "second duplicate entry should be stored");
     EXPECT_TRUE(history_push(history, "unique"), "unique trailing entry should be stored");
-    history_enable_duplicates(history, false);
+    (void)history_enable_duplicates(history, false);
 
     history_snapshot_t deduped = {0};
     EXPECT_TRUE(history_snapshot_load(history, &deduped, true),
@@ -4101,8 +4101,7 @@ static const test_case_t kTests[] = {
     {"mouse_reporting_defaults", test_mouse_reporting_defaults},
     {"readline_disposition_name_mappings", test_readline_disposition_name_mappings},
     {"multiline_toggle", test_multiline_toggle},
-    {"multiline_continuation_retention_toggle",
-     test_multiline_continuation_retention_toggle},
+    {"multiline_continuation_retention_toggle", test_multiline_continuation_retention_toggle},
     {"line_number_modes", test_line_number_modes},
     {"line_number_continuation_prompt_toggle", test_line_number_continuation_prompt_toggle},
     {"line_number_prompt_replacement_toggle", test_line_number_prompt_replacement_toggle},

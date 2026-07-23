@@ -285,7 +285,7 @@ static void help_label_add(char labels[][HELP_LABEL_LEN], size_t* count, const c
         return;
     if (help_label_exists(labels, *count, label))
         return;
-    ic_strncpy(labels[*count], HELP_LABEL_LEN, label, HELP_LABEL_LEN - 1);
+    (void)ic_strncpy(labels[*count], HELP_LABEL_LEN, label, HELP_LABEL_LEN - 1);
     beautify_key_label(labels[*count]);
     (*count)++;
 }
@@ -300,7 +300,7 @@ static void format_binding_keys(ic_env_t* env, ic_key_action_t action, const cha
             return;
         if (format_first_default_binding(env, action, default_specs, buffer, buflen))
             return;
-        ic_strncpy(buffer, (ssize_t)buflen, "(unbound)", (ssize_t)buflen - 1);
+        (void)ic_strncpy(buffer, (ssize_t)buflen, "(unbound)", (ssize_t)buflen - 1);
         return;
     }
     char labels[HELP_MAX_LABELS][HELP_LABEL_LEN];
@@ -361,7 +361,7 @@ static void format_binding_keys(ic_env_t* env, ic_key_action_t action, const cha
     }
 
     if (label_count == 0) {
-        ic_strncpy(buffer, (ssize_t)buflen, "(unbound)", (ssize_t)buflen - 1);
+        (void)ic_strncpy(buffer, (ssize_t)buflen, "(unbound)", (ssize_t)buflen - 1);
         return;
     }
 
@@ -409,9 +409,9 @@ static void edit_show_help(ic_env_t* env, editor_t* eb) {
                         snprintf(mouse_suffix, sizeof(mouse_suffix),
                                  " (Mouse clicking is enabled; press %s to disable)", key_buffer);
                     } else {
-                        ic_strncpy(mouse_suffix, (ssize_t)sizeof(mouse_suffix),
-                                   " (Mouse clicking is enabled)",
-                                   (ssize_t)sizeof(mouse_suffix) - 1);
+                        (void)ic_strncpy(mouse_suffix, (ssize_t)sizeof(mouse_suffix),
+                                         " (Mouse clicking is enabled)",
+                                         (ssize_t)sizeof(mouse_suffix) - 1);
                     }
                 }
                 bbcode_printf(env->bbcode, "  [ic-emphasis]%-13s[/][ansi-lightgray]%s%s%s[/]\n",

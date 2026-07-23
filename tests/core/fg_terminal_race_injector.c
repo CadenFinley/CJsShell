@@ -62,7 +62,7 @@ static pid_t read_target_pgid(const char* path) {
     }
 
     ssize_t length = read(fd, buffer, sizeof(buffer) - 1);
-    close(fd);
+    (void)close(fd);
     if (length <= 0) {
         return -1;
     }
@@ -86,7 +86,7 @@ static void wait_until_child_status_is_ready(pid_t pid) {
             info.si_pid == pid) {
             return;
         }
-        nanosleep(&retry_delay, NULL);
+        (void)nanosleep(&retry_delay, NULL);
     }
 }
 
@@ -96,7 +96,7 @@ static void record_injection(const char* path) {
         return;
     }
     (void)write(fd, "triggered\n", 10);
-    close(fd);
+    (void)close(fd);
 }
 
 static int injected_tcsetpgrp(int fd, pid_t pgrp) {
