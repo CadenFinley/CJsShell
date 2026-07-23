@@ -1662,10 +1662,15 @@
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Limit visible multiline input rows (default: 15)</span>
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>cjshopt<span class="w"> </span>multiline-max-lines<span class="w"> </span>&lt;count<span class="p">|</span>status&gt;
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1"># Configure the multiline cursor margin (default: 3)</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>cjshopt<span class="w"> </span>multiline-bottom-lines<span class="w"> </span>&lt;count<span class="p">|</span>status&gt;
 </span></code></pre></div><p></p>
 <p>When a command exceeds the viewport limit, the visible rows scroll with the cursor while the full
 command remains available for editing and submission. Completion menus and other helper rows are
-laid out separately below the input viewport.</p>
+laid out separately below the input viewport. The symmetric cursor margin keeps the viewport fixed
+while the cursor moves within it, uses only rows that exist in the command, and never pads the
+display with blank lines.</p>
 <p><strong>Multiline Detection:</strong>
 CJ's Shell automatically enters multiline mode when:
 - A line ends with a backslash (<code>\</code>)
