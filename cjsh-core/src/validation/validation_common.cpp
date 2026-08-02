@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <cctype>
 #include <sstream>
+#include <string>
 
 using shell_script_interpreter::detail::trim;
 using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
@@ -492,7 +493,7 @@ bool check_for_loop_keywords(const std::vector<std::string>& tokens,
 
 std::pair<std::vector<std::string>, std::string> tokenize_and_get_first(
     const std::string& trimmed_line) {
-    auto tokens = tokenize_whitespace(trimmed_line);
+    std::vector<std::string> tokens = tokenize_whitespace(trimmed_line);
     std::string first_token = tokens.empty() ? "" : tokens[0];
     return {tokens, first_token};
 }
@@ -529,7 +530,7 @@ void append_function_name_errors(std::vector<SyntaxError>& errors, size_t displa
 
 size_t adjust_display_line(const std::string& text, size_t base_line, size_t offset) {
     size_t limit = std::min(offset, text.size());
-    auto end_it = text.begin();
+    std::string::const_iterator end_it = text.begin();
     std::advance(end_it, static_cast<std::string::difference_type>(limit));
     return base_line + static_cast<size_t>(std::count(text.begin(), end_it, '\n'));
 }

@@ -42,9 +42,11 @@
 #include "builtins_completions_handler.h"
 #include "cjsh_completions.h"
 #include "command_line_utils.h"
+#include "completion_spec.h"
 #include "completion_spell.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
+#include "external_sub_completions.h"
 extern "C" {
 #include "completions.h"
 #include "env.h"
@@ -942,6 +944,276 @@ static bool has_entry(const builtin_completions::CommandDoc* doc, const std::str
     return false;
 }
 
+static const completion_specs::CompletionEntry* find_spec_entry(
+    const std::vector<completion_specs::CompletionEntry>& entries, const std::string& text,
+    completion_specs::EntryKind kind) {
+    for (const auto& entry : entries) {
+        if (entry.kind == kind && completion_specs::entry_matches_token(entry, text)) {
+            return &entry;
+        }
+    }
+    return nullptr;
+}
+
+static bool test_completion_spec_round_trip(void) {
+    const char* test_name = "completion_spec_round_trip";
+    using namespace completion_specs;
+
+    CompletionEntry output{"--output", "Write a result, preserving 100% and\ttabs",
+                           EntryKind::Option};
+    output.aliases = {"-o"};
+    output.value.requirement = ValueRequirement::Required;
+    output.value.type = ValueType::File;
+    output.value.separator = ValueSeparator::Either;
+    output.value.name = "FILE";
+    output.value.dynamic_provider = "project-files";
+    output.conflicts = {"--stdout"};
+    output.dependencies = {"--format"};
+    output.repeatable = true;
+    output.deprecated = true;
+
+    CompletionEntry nested_option{"--mode", "Select mode", EntryKind::Option};
+    nested_option.value.requirement = ValueRequirement::Optional;
+    nested_option.value.type = ValueType::Enum;
+    nested_option.value.separator = ValueSeparator::Equals;
+    nested_option.value.name = "MODE";
+    nested_option.value.choices = {"fast", "safe,checked"};
+
+    CompletionEntry remote{"remote", "Manage remotes", EntryKind::Subcommand};
+    remote.aliases = {"rem"};
+    remote.children.push_back(nested_option);
+
+    CompletionEntry positional{"TARGET", "Destination", EntryKind::Positional};
+    positional.value.requirement = ValueRequirement::Required;
+    positional.value.type = ValueType::Branch;
+    positional.positional_index = 2;
+    positional.variadic = true;
+
+    CommandDoc doc;
+    doc.summary = "A rich completion spec";
+    doc.summary_present = true;
+    doc.executable_path = "/usr/bin/example";
+    doc.entries = {output, remote, positional};
+
+    std::string serialized = serialize_command_doc("example", doc);
+    EXPECT_TRUE(serialized.find("format: 2") != std::string::npos, test_name,
+                "serialized spec should declare format version 2");
+    auto parsed = parse_command_doc("example", serialized);
+    EXPECT_TRUE(parsed.has_value(), test_name, "serialized spec should parse");
+    EXPECT_TRUE(parsed->summary == doc.summary, test_name, "summary should round trip");
+    EXPECT_TRUE(parsed->executable_path == doc.executable_path, test_name,
+                "executable path should round trip");
+
+    const auto* parsed_output = find_spec_entry(parsed->entries, "-o", EntryKind::Option);
+    EXPECT_TRUE(parsed_output != nullptr, test_name, "option alias should round trip");
+    EXPECT_TRUE(parsed_output->text == "--output", test_name, "canonical option should round trip");
+    EXPECT_TRUE(parsed_output->value.requirement == ValueRequirement::Required, test_name,
+                "required value should round trip");
+    EXPECT_TRUE(parsed_output->value.type == ValueType::File, test_name,
+                "file value type should round trip");
+    EXPECT_TRUE(parsed_output->value.separator == ValueSeparator::Either, test_name,
+                "value separator should round trip");
+    EXPECT_TRUE(parsed_output->conflicts == output.conflicts, test_name,
+                "conflicts should round trip");
+    EXPECT_TRUE(parsed_output->dependencies == output.dependencies, test_name,
+                "dependencies should round trip");
+    EXPECT_TRUE(parsed_output->repeatable && parsed_output->deprecated, test_name,
+                "repeatability and deprecation should round trip");
+
+    const auto* parsed_remote = find_spec_entry(parsed->entries, "rem", EntryKind::Subcommand);
+    EXPECT_TRUE(parsed_remote != nullptr && parsed_remote->children.size() == 1, test_name,
+                "nested command tree should round trip");
+    EXPECT_TRUE(parsed_remote->children[0].value.choices.size() == 2, test_name,
+                "nested enum choices should round trip");
+    EXPECT_TRUE(parsed_remote->children[0].value.choices[1] == "safe,checked", test_name,
+                "commas in enum choices should round trip");
+
+    const auto* parsed_positional =
+        find_spec_entry(parsed->entries, "TARGET", EntryKind::Positional);
+    EXPECT_TRUE(parsed_positional != nullptr && parsed_positional->positional_index == 2 &&
+                    parsed_positional->variadic,
+                test_name, "positional metadata should round trip");
+    return true;
+}
+
+static bool test_completion_spec_legacy_compatibility(void) {
+    const char* test_name = "completion_spec_legacy_compatibility";
+    const std::string legacy =
+        "generated by cjsh from man page for legacy\n"
+        "summary: completes 100% of old entries\n"
+        "O\t--force\tForce work\n"
+        "S\trun\tRun work\n";
+    auto parsed = completion_specs::parse_command_doc("legacy", legacy);
+    EXPECT_TRUE(parsed.has_value(), test_name, "legacy cache should parse");
+    EXPECT_TRUE(parsed->summary == "completes 100% of old entries", test_name,
+                "legacy percent signs should remain literal");
+    const auto* option =
+        find_spec_entry(parsed->entries, "--force", completion_specs::EntryKind::Option);
+    EXPECT_TRUE(option != nullptr && option->repeatable, test_name,
+                "legacy options should preserve their previous repeatable behavior");
+    EXPECT_TRUE(
+        find_spec_entry(parsed->entries, "run", completion_specs::EntryKind::Subcommand) != nullptr,
+        test_name, "legacy subcommand should parse");
+    return true;
+}
+
+static bool test_man_page_value_metadata(void) {
+    const char* test_name = "man_page_value_metadata";
+    const std::string man_text =
+        "NAME\n"
+        "    sample - exercise rich completion parsing\n\n"
+        "OPTIONS\n"
+        "    -o FILE, --output=FILE  Write output to FILE\n"
+        "    --color[=WHEN]          Control color output\n"
+        "    --mode={fast,safe}      Select execution mode\n";
+
+    auto doc = parse_man_page_completion_spec("sample", man_text);
+    const auto* output = find_spec_entry(doc.entries, "-o", completion_specs::EntryKind::Option);
+    EXPECT_TRUE(output != nullptr && output->text == "--output", test_name,
+                "short and long options should be represented as aliases");
+    EXPECT_TRUE(output->value.requirement == completion_specs::ValueRequirement::Required,
+                test_name, "FILE should be preserved as a required value");
+    EXPECT_TRUE(output->value.type == completion_specs::ValueType::File, test_name,
+                "FILE should infer the file value type");
+    EXPECT_TRUE(output->value.name == "FILE", test_name, "FILE metavar should be retained");
+    EXPECT_TRUE(output->value.separator == completion_specs::ValueSeparator::Either, test_name,
+                "mixed short/long value syntax should accept spaces or equals");
+
+    const auto* color =
+        find_spec_entry(doc.entries, "--color", completion_specs::EntryKind::Option);
+    EXPECT_TRUE(color != nullptr &&
+                    color->value.requirement == completion_specs::ValueRequirement::Optional &&
+                    color->value.separator == completion_specs::ValueSeparator::Equals,
+                test_name, "optional equals value should be retained");
+
+    const auto* mode = find_spec_entry(doc.entries, "--mode", completion_specs::EntryKind::Option);
+    EXPECT_TRUE(mode != nullptr && mode->value.type == completion_specs::ValueType::Enum, test_name,
+                "choice lists should infer enum values");
+    EXPECT_TRUE(mode->value.choices == std::vector<std::string>({"fast", "safe"}), test_name,
+                "enum choices should be retained");
+    return true;
+}
+
+static bool test_rich_completion_runtime(void) {
+    const char* test_name = "rich_completion_runtime";
+    using namespace completion_specs;
+
+    CompletionEntry output{"--output", "Output format", EntryKind::Option};
+    output.aliases = {"-o"};
+    output.value.requirement = ValueRequirement::Required;
+    output.value.type = ValueType::Enum;
+    output.value.name = "FORMAT";
+    output.value.choices = {"json", "text"};
+    output.conflicts = {"--stdout"};
+
+    CompletionEntry stdout_option{"--stdout", "Write to stdout", EntryKind::Option};
+    CompletionEntry color{"--color", "Color output", EntryKind::Option};
+    color.value.requirement = ValueRequirement::Optional;
+    color.value.type = ValueType::Enum;
+    color.value.separator = ValueSeparator::Equals;
+    color.value.name = "WHEN";
+    color.value.choices = {"always", "auto", "never"};
+    CompletionEntry compress{"--compress", "Compress output", EntryKind::Option};
+    compress.dependencies = {"--output"};
+    CompletionEntry old{"--old", "Legacy option", EntryKind::Option};
+    old.deprecated = true;
+
+    CompletionEntry branch{"BRANCH", "Git branch", EntryKind::Positional};
+    branch.value.requirement = ValueRequirement::Required;
+    branch.value.type = ValueType::Branch;
+    branch.value.dynamic_provider = "completion-test-branches";
+    CompletionEntry remote{"remote", "Manage remotes", EntryKind::Subcommand};
+    remote.children = {branch};
+
+    CommandDoc doc;
+    doc.summary = "Runtime completion test";
+    doc.entries = {output, stdout_option, color, compress, old, remote};
+
+    EXPECT_TRUE(register_command_doc("richspec-test", doc), test_name,
+                "runtime command spec should register");
+    EXPECT_TRUE(register_dynamic_completion_provider(
+                    "completion-test-branches",
+                    [](const DynamicCompletionRequest& request) {
+                        if (request.command_path.size() != 2 || request.command_path[1] != "remote")
+                            return std::vector<DynamicCompletionCandidate>{};
+                        return std::vector<DynamicCompletionCandidate>{{"main", "default branch"},
+                                                                       {"feature", "topic branch"}};
+                    }),
+                test_name, "dynamic provider should register");
+
+    (void)run_completion_generation("richspec-test --out", &cjsh_default_completer, 256);
+    bool has_option = generated_completions_include_replacement("--output ");
+    clear_generated_completions();
+    EXPECT_TRUE(has_option, test_name, "canonical rich option should complete");
+
+    (void)run_completion_generation("richspec-test --output j", &cjsh_default_completer, 256);
+    bool has_enum = generated_completions_include_replacement("json ");
+    clear_generated_completions();
+    EXPECT_TRUE(has_enum, test_name, "required enum value should complete");
+
+    (void)run_completion_generation("richspec-test --output=j", &cjsh_default_completer, 256);
+    bool has_inline_enum = generated_completions_include_replacement("--output=json ");
+    clear_generated_completions();
+    EXPECT_TRUE(has_inline_enum, test_name, "inline enum value should complete");
+
+    (void)run_completion_generation("richspec-test --col", &cjsh_default_completer, 256);
+    bool has_optional_option = generated_completions_include_replacement("--color=");
+    clear_generated_completions();
+    EXPECT_TRUE(has_optional_option, test_name,
+                "optional equals value should retain its separator");
+
+    (void)run_completion_generation("richspec-test --color=a", &cjsh_default_completer, 256);
+    bool has_optional_value = generated_completions_include_replacement("--color=always ");
+    clear_generated_completions();
+    EXPECT_TRUE(has_optional_value, test_name, "optional enum value should complete");
+
+    (void)run_completion_generation("richspec-test --c", &cjsh_default_completer, 256);
+    bool dependency_hidden = !generated_completions_include_replacement("--compress ");
+    clear_generated_completions();
+    EXPECT_TRUE(dependency_hidden, test_name, "unsatisfied dependency should hide an option");
+
+    (void)run_completion_generation("richspec-test --output json --c", &cjsh_default_completer,
+                                    256);
+    bool dependency_visible = generated_completions_include_replacement("--compress ");
+    clear_generated_completions();
+    EXPECT_TRUE(dependency_visible, test_name, "satisfied dependency should expose an option");
+
+    (void)run_completion_generation("richspec-test --stdout --o", &cjsh_default_completer, 256);
+    bool conflict_hidden = !generated_completions_include_replacement("--output ");
+    clear_generated_completions();
+    EXPECT_TRUE(conflict_hidden, test_name, "conflicting option should be hidden");
+
+    (void)run_completion_generation("richspec-test --output json --s", &cjsh_default_completer,
+                                    256);
+    bool reverse_conflict_hidden = !generated_completions_include_replacement("--stdout ");
+    clear_generated_completions();
+    EXPECT_TRUE(reverse_conflict_hidden, test_name,
+                "a declared conflict should be enforced in both directions");
+
+    (void)run_completion_generation("richspec-test --stdout --s", &cjsh_default_completer, 256);
+    bool repeated_hidden = !generated_completions_include_replacement("--stdout ");
+    clear_generated_completions();
+    EXPECT_TRUE(repeated_hidden, test_name, "non-repeatable option should be hidden after use");
+
+    (void)run_completion_generation("richspec-test --output json remote f", &cjsh_default_completer,
+                                    256);
+    bool dynamic_nested = generated_completions_include_replacement("feature ");
+    clear_generated_completions();
+    EXPECT_TRUE(dynamic_nested, test_name,
+                "nested positional should invoke its provider after a global option value");
+
+    (void)run_completion_generation("richspec-test --ol", &cjsh_default_completer, 256);
+    bool deprecated_labeled = generated_completions_include_source("deprecated · Legacy option");
+    clear_generated_completions();
+    EXPECT_TRUE(deprecated_labeled, test_name, "deprecated candidates should be labeled");
+
+    EXPECT_TRUE(unregister_dynamic_completion_provider("completion-test-branches"), test_name,
+                "dynamic provider should unregister");
+    EXPECT_TRUE(unregister_command_doc("richspec-test"), test_name,
+                "runtime command spec should unregister");
+    return true;
+}
+
 static bool test_builtin_docs(void) {
     const char* test_name = "builtin_docs";
 
@@ -978,6 +1250,13 @@ static bool test_builtin_docs(void) {
                 test_name, "generate-completions should include --no-force");
     EXPECT_TRUE(has_entry(generate_doc, "--jobs", builtin_completions::EntryKind::Option),
                 test_name, "generate-completions should include --jobs");
+    const auto* jobs_entry =
+        find_spec_entry(generate_doc->entries, "-j", completion_specs::EntryKind::Option);
+    EXPECT_TRUE(jobs_entry != nullptr && jobs_entry->text == "--jobs", test_name,
+                "generate-completions should model -j as an alias");
+    EXPECT_TRUE(jobs_entry->value.requirement == completion_specs::ValueRequirement::Required &&
+                    jobs_entry->value.name == "JOBS",
+                test_name, "generate-completions should model the --jobs value");
     EXPECT_TRUE(has_entry(generate_doc, "--subcommands", builtin_completions::EntryKind::Option),
                 test_name, "generate-completions should include --subcommands");
 
@@ -1218,6 +1497,10 @@ static const test_case_t kTests[] = {
      test_completion_hint_suppresses_existing_multiline_suffix},
     {"completion_apply_consumes_existing_multiline_suffix",
      test_completion_apply_consumes_existing_multiline_suffix},
+    {"completion_spec_round_trip", test_completion_spec_round_trip},
+    {"completion_spec_legacy_compatibility", test_completion_spec_legacy_compatibility},
+    {"man_page_value_metadata", test_man_page_value_metadata},
+    {"rich_completion_runtime", test_rich_completion_runtime},
     {"builtin_docs", test_builtin_docs},
 };
 

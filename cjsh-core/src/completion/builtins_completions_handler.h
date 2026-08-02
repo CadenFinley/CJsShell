@@ -28,29 +28,19 @@
 
 #pragma once
 
-#include <cstdint>
 #include <string>
-#include <vector>
+
+#include "completion_spec.h"
 
 namespace builtin_completions {
 
-enum class EntryKind : std::uint8_t {
-    Option,
-    Subcommand
-};
-
-struct CompletionEntry {
-    std::string text;
-    std::string description;
-    EntryKind kind;
-};
-
-struct CommandDoc {
-    std::vector<CompletionEntry> entries;
-    std::string summary;
-    std::string executable_path;
-    bool summary_present{false};
-};
+using completion_specs::CommandDoc;
+using completion_specs::CompletionEntry;
+using completion_specs::CompletionValueSpec;
+using completion_specs::EntryKind;
+using completion_specs::ValueRequirement;
+using completion_specs::ValueSeparator;
+using completion_specs::ValueType;
 
 const CommandDoc* lookup_builtin_command_doc(const std::string& doc_target);
 std::string get_builtin_summary(const std::string& command);

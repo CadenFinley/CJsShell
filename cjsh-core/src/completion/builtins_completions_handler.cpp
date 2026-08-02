@@ -53,6 +53,30 @@ CompletionEntry make_option(std::string text, std::string description) {
     return CompletionEntry{std::move(text), std::move(description), EntryKind::Option};
 }
 
+CompletionEntry make_value_option(std::string text, std::vector<std::string> aliases,
+                                  std::string description, ValueRequirement requirement,
+                                  ValueType type, std::string value_name,
+                                  ValueSeparator separator = ValueSeparator::Space) {
+    CompletionEntry entry{std::move(text), std::move(description), EntryKind::Option};
+    entry.aliases = std::move(aliases);
+    entry.value.requirement = requirement;
+    entry.value.type = type;
+    entry.value.name = std::move(value_name);
+    entry.value.separator = separator;
+    return entry;
+}
+
+CompletionEntry make_positional(std::string name, std::string description, ValueType type,
+                                std::size_t index, bool variadic = false) {
+    CompletionEntry entry{std::move(name), std::move(description), EntryKind::Positional};
+    entry.value.requirement = ValueRequirement::Required;
+    entry.value.type = type;
+    entry.value.name = entry.text;
+    entry.positional_index = index;
+    entry.variadic = variadic;
+    return entry;
+}
+
 CompletionEntry make_subcommand(std::string text, std::string description) {
     return CompletionEntry{std::move(text), std::move(description), EntryKind::Subcommand};
 }
@@ -515,9 +539,12 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--no-force", "Reuse existing cache entries"),
                  make_option("--subcommands", "Also generate discovered subcommand caches"),
                  make_option("-s", "Also generate discovered subcommand caches"),
-                 make_option("-j", "Set the number of parallel jobs"),
-                 make_option("--jobs", "Set the number of parallel jobs"),
-                 make_option("--", "Treat remaining arguments as command names")});
+                 make_value_option("--jobs", {"-j"}, "Set the number of parallel jobs",
+                                   ValueRequirement::Required, ValueType::Text, "JOBS",
+                                   ValueSeparator::Either),
+                 make_option("--", "Treat remaining arguments as command names"),
+                 make_positional("COMMAND", "Command to generate completions for",
+                                 ValueType::Command, 1, true)});
 
         add_doc("hook", "Manage shell lifecycle hooks",
                 {make_subcommand("add", "Register a function for a hook"),

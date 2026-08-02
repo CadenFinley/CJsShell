@@ -31,9 +31,12 @@
 #include <functional>
 #include <string>
 
+#include "completion_spec.h"
 #include "isocline.h"
 
 void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_path_input);
+completion_specs::CommandDoc parse_man_page_completion_spec(const std::string& command,
+                                                            const std::string& man_text);
 std::string get_command_summary(const std::string& command, bool allow_fetch = true);
 using CompletionCacheProgressCallback =
     std::function<void(const std::string& target, bool generated, bool is_root_target)>;
