@@ -47,6 +47,7 @@
 #include "builtins_completions_handler.h"
 #include "cjsh_filesystem.h"
 #include "command_lookup.h"
+#include "completion_context.h"
 #include "completion_history.h"
 #include "completion_spell.h"
 #include "completion_tracker.h"
@@ -904,22 +905,14 @@ bool add_variable_completions(ic_completion_env_t* cenv, const std::string& pref
     return added;
 }
 
-CompletionContext detect_completion_context(const char* prefix) {
-    std::string prefix_str(prefix);
+CompletionContext detect_completion_context(
+    const completion_context::CommandLineContext& command_context) {
+    if (!command_context.cursor_in_command_position)
+        return CONTEXT_ARGUMENT;
 
-    if (prefix_str.find('/') == 0 || prefix_str.find("./") == 0 || prefix_str.find("../") == 0) {
+    const std::string& current = command_context.current_prefix;
+    if (current.find('/') == 0 || current.find("./") == 0 || current.find("../") == 0) {
         return CONTEXT_PATH;
-    }
-
-    std::vector<std::string> tokens = completion_utils::tokenize_command_line(prefix_str);
-
-    if (tokens.size() > 1) {
-        return CONTEXT_ARGUMENT;
-    }
-
-    size_t last_unquoted_space = completion_utils::find_last_unquoted_space(prefix_str);
-    if (last_unquoted_space != std::string::npos) {
-        return CONTEXT_ARGUMENT;
     }
     return CONTEXT_COMMAND;
 }
@@ -1258,6 +1251,15 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
     return false;
 }
 
+void add_command_token_completions(ic_completion_env_t* cenv, const std::string& decoded_prefix,
+                                   std::size_t raw_prefix_length) {
+    if (ic_stop_completing(cenv) || completion_tracker::completion_limit_hit())
+        return;
+
+    auto sources = collect_command_completion_sources(true);
+    add_command_name_completions(cenv, sources, decoded_prefix, raw_prefix_length);
+}
+
 }  // namespace
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
@@ -1266,8 +1268,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (!prepare_prefix_state(cenv, prefix, prefix_str, prefix_len))
         return;
 
-    auto sources = collect_command_completion_sources(true);
-    add_command_name_completions(cenv, sources, prefix_str, prefix_len);
+    add_command_token_completions(cenv, prefix_str, prefix_len);
 }
 
 bool looks_like_file_path(const std::string& str) {
@@ -1604,57 +1605,62 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     const char* effective_prefix = (prefix != nullptr) ? prefix : "";
     std::string completion_scope_prefix = extract_completion_scope_prefix(effective_prefix);
-    const char* current_line_prefix = completion_scope_prefix.c_str();
+    completion_context::CommandLineContext command_context =
+        completion_context::parse(completion_scope_prefix);
+    std::string active_prefix = command_context.segment_prefix;
+    const char* current_line_prefix = active_prefix.c_str();
 
     completion_tracker::completion_session_begin(cenv, effective_prefix);
 
-    CompletionContext context;
-    if (completion_scope_prefix.empty()) {
-        context = CONTEXT_COMMAND;
-    } else {
-        context = detect_completion_context(current_line_prefix);
-    }
+    CompletionContext context = detect_completion_context(command_context);
 
     switch (context) {
-        case CONTEXT_COMMAND:
-            (void)add_variable_completions(cenv, current_line_prefix);
+        case CONTEXT_COMMAND: {
+            const std::string& command_raw_prefix = command_context.current_raw_prefix;
+            const std::string& command_prefix = command_context.current_prefix;
+
+            (void)add_variable_completions(cenv, command_raw_prefix);
             if (ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
                 return;
             }
-            cjsh_filename_completer(cenv, current_line_prefix);
+            cjsh_filename_completer(cenv, command_raw_prefix.c_str());
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
                 return;
             }
 
-            cjsh_command_completer(cenv, current_line_prefix);
+            add_command_token_completions(cenv, command_prefix, command_raw_prefix.size());
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
                 return;
             }
 
-            cjsh_history_completer(cenv, current_line_prefix);
+            cjsh_history_completer(cenv, command_raw_prefix.c_str());
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
                 return;
             }
 
             break;
+        }
 
         case CONTEXT_PATH:
-            (void)add_variable_completions(cenv, current_line_prefix);
+            (void)add_variable_completions(cenv, command_context.current_raw_prefix);
             if (ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
                 return;
             }
-            cjsh_history_completer(cenv, current_line_prefix);
-            cjsh_filename_completer(cenv, current_line_prefix);
+            cjsh_history_completer(cenv, command_context.current_raw_prefix.c_str());
+            cjsh_filename_completer(cenv, command_context.current_raw_prefix.c_str());
             break;
 
         case CONTEXT_ARGUMENT: {
             std::string prefix_str(current_line_prefix);
-            std::vector<std::string> tokens = completion_utils::tokenize_command_line(prefix_str);
+            std::vector<std::string> tokens;
+            tokens.reserve(command_context.words.size());
+            for (const auto& word : command_context.words)
+                tokens.push_back(word.text);
 
             (void)add_variable_completions(cenv, prefix_str);
             if (ic_stop_completing(cenv)) {
@@ -1662,8 +1668,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
                 return;
             }
 
-            bool ends_with_space =
-                !prefix_str.empty() && std::isspace(static_cast<unsigned char>(prefix_str.back()));
+            bool ends_with_space = command_context.at_word_boundary;
 
             (void)add_job_control_argument_completions(cenv, tokens, ends_with_space);
 

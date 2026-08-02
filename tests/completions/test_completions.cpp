@@ -42,6 +42,7 @@
 #include "builtins_completions_handler.h"
 #include "cjsh_completions.h"
 #include "command_line_utils.h"
+#include "completion_context.h"
 #include "completion_spec.h"
 #include "completion_spell.h"
 #include "completion_tracker.h"
@@ -337,6 +338,64 @@ static bool test_tokenize_command_line_unterminated_quote(void) {
     EXPECT_TRUE(tokens[0] == "cmd", test_name, "first token should be command");
     EXPECT_TRUE(tokens[1] == "unterminated quote tail", test_name,
                 "quoted payload should preserve spaces even when quote is unmatched");
+    return true;
+}
+
+static bool test_completion_context_shell_state(void) {
+    const char* test_name = "completion_context_shell_state";
+    const std::string input =
+        "printf 'left|right' | FOO=bar sudo -u root env -C /tmp BAR=\"x y\" command -- "
+        "git -C repo checkout fe";
+    auto context = completion_context::parse(input);
+
+    const std::vector<std::string> expected = {"git", "-C", "repo", "checkout", "fe"};
+    EXPECT_TRUE(context.effective_tokens == expected, test_name,
+                "assignments and transparent wrappers should be removed from command state");
+    EXPECT_TRUE(context.current_prefix == "fe", test_name,
+                "the decoded token at the cursor should be retained");
+    EXPECT_TRUE(context.current_raw_prefix == "fe", test_name,
+                "the raw token at the cursor should be retained for replacement");
+    EXPECT_FALSE(context.cursor_in_command_position, test_name,
+                 "the cursor should be classified as an argument after the effective command");
+    EXPECT_TRUE(context.segment_prefix.find("printf") == std::string::npos, test_name,
+                "only the pipeline segment containing the cursor should remain active");
+    return true;
+}
+
+static bool test_completion_context_cursor_and_quotes(void) {
+    const char* test_name = "completion_context_cursor_and_quotes";
+    const std::string input = "echo ignored | git checkout \"feature branch\" trailing";
+    const std::size_t cursor = input.find(" trailing");
+    auto context = completion_context::parse(input, cursor);
+
+    const std::vector<std::string> expected = {"git", "checkout", "feature branch"};
+    EXPECT_TRUE(context.effective_tokens == expected, test_name,
+                "text after the cursor must not affect parsed command state");
+    EXPECT_TRUE(context.current_prefix == "feature branch", test_name,
+                "quoted current words should be decoded for semantic matching");
+    EXPECT_TRUE(context.current_raw_prefix == "\"feature branch\"", test_name,
+                "quoted current words should retain their raw replacement span");
+    EXPECT_FALSE(context.at_word_boundary, test_name,
+                 "a cursor touching a completed quoted word is still on that word");
+    return true;
+}
+
+static bool test_completion_context_wrapper_value_state(void) {
+    const char* test_name = "completion_context_wrapper_value_state";
+
+    auto value_context = completion_context::parse("sudo -u ro");
+    EXPECT_TRUE(value_context.effective_tokens.empty(), test_name,
+                "a sudo option value must not be mistaken for a command");
+    EXPECT_TRUE(value_context.cursor_in_wrapper_option_value, test_name,
+                "wrapper option-value state should be exposed");
+    EXPECT_FALSE(value_context.cursor_in_command_position, test_name,
+                 "wrapper option values are argument positions");
+
+    auto command_context = completion_context::parse("sudo -uroot ec");
+    EXPECT_TRUE(command_context.effective_tokens == std::vector<std::string>({"ec"}), test_name,
+                "attached wrapper option values should leave the next word as the command");
+    EXPECT_TRUE(command_context.cursor_in_command_position, test_name,
+                "the first effective word should be a command position");
     return true;
 }
 
@@ -1214,6 +1273,80 @@ static bool test_rich_completion_runtime(void) {
     return true;
 }
 
+static bool test_command_context_completion_runtime(void) {
+    const char* test_name = "command_context_completion_runtime";
+    using namespace completion_specs;
+
+    CompletionEntry output{"--output", "Output format", EntryKind::Option};
+    output.value.requirement = ValueRequirement::Required;
+    output.value.type = ValueType::Enum;
+    output.value.choices = {"json", "text"};
+
+    CompletionEntry detach{"--detach", "Detach checkout", EntryKind::Option};
+    CompletionEntry checkout{"checkout", "Switch branches", EntryKind::Subcommand};
+    checkout.children = {detach};
+
+    CommandDoc doc;
+    doc.entries = {output, checkout};
+    EXPECT_TRUE(register_command_doc("context-test", doc), test_name,
+                "runtime context command should register");
+
+    auto expect_completion = [&](const char* input, const char* replacement, const char* message) {
+        (void)run_completion_generation(input, &cjsh_default_completer, 256);
+        bool found = generated_completions_include_replacement(replacement);
+        clear_generated_completions();
+        if (!found)
+            log_failure(test_name, message);
+        return found;
+    };
+
+    EXPECT_TRUE(expect_completion("context-test --output json checkout --d", "--detach ",
+                                  "options before a subcommand should preserve nested state"),
+                test_name, "nested option completion should be generated");
+    EXPECT_TRUE(expect_completion("printf x | context-test --out", "--output ",
+                                  "pipeline state should begin after the last pipe"),
+                test_name, "pipeline completion should be generated");
+    EXPECT_TRUE(expect_completion("FOO=bar context-test --out", "--output ",
+                                  "leading assignments should not become the command"),
+                test_name, "assignment-prefixed completion should be generated");
+    EXPECT_TRUE(expect_completion("sudo -u root context-test --out", "--output ",
+                                  "sudo options and their values should be skipped"),
+                test_name, "sudo-wrapped completion should be generated");
+    EXPECT_TRUE(
+        expect_completion("env -u OLD FOO=\"x y\" command -- context-test --out", "--output ",
+                          "chained env and command wrappers should resolve the effective command"),
+        test_name, "wrapper-chain completion should be generated");
+    EXPECT_TRUE(expect_completion("\"context-test\" --output \"j", "json ",
+                                  "quoted commands and values should use decoded matching"),
+                test_name, "quoted value completion should be generated");
+
+    (void)run_completion_generation("context-test -- --out", &cjsh_default_completer, 256);
+    bool option_after_separator = generated_completions_include_replacement("--output ");
+    clear_generated_completions();
+    EXPECT_FALSE(option_after_separator, test_name,
+                 "the option separator should disable later option completion");
+
+    const std::string midline = "echo ignored | context-test --out trailing";
+    const std::size_t cursor = midline.find(" trailing");
+    (void)run_completion_generation_at(midline.c_str(), static_cast<ssize_t>(cursor),
+                                       &cjsh_default_completer, 256);
+    bool midline_option = generated_completions_include_replacement("--output ");
+    clear_generated_completions();
+    EXPECT_TRUE(midline_option, test_name,
+                "only input before the cursor should drive completion state");
+
+    EXPECT_TRUE(expect_completion("sudo ec", "echo ",
+                                  "a wrapper command operand should get command completions"),
+                test_name, "wrapper command completion should be generated");
+    EXPECT_TRUE(expect_completion("printf x | ec", "echo ",
+                                  "a pipeline command position should get command completions"),
+                test_name, "pipeline command completion should be generated");
+
+    EXPECT_TRUE(unregister_command_doc("context-test"), test_name,
+                "runtime context command should unregister");
+    return true;
+}
+
 static bool test_builtin_docs(void) {
     const char* test_name = "builtin_docs";
 
@@ -1454,6 +1587,9 @@ static const test_case_t kTests[] = {
     {"tokenize_command_line", test_tokenize_command_line},
     {"tokenize_command_line_escaped_quotes", test_tokenize_command_line_escaped_quotes},
     {"tokenize_command_line_unterminated_quote", test_tokenize_command_line_unterminated_quote},
+    {"completion_context_shell_state", test_completion_context_shell_state},
+    {"completion_context_cursor_and_quotes", test_completion_context_cursor_and_quotes},
+    {"completion_context_wrapper_value_state", test_completion_context_wrapper_value_state},
     {"tokenize_shell_words_preserve_literals", test_tokenize_shell_words_preserve_literals},
     {"default_completer_command_in_command_substitution",
      test_default_completer_command_in_command_substitution},
@@ -1501,6 +1637,7 @@ static const test_case_t kTests[] = {
     {"completion_spec_legacy_compatibility", test_completion_spec_legacy_compatibility},
     {"man_page_value_metadata", test_man_page_value_metadata},
     {"rich_completion_runtime", test_rich_completion_runtime},
+    {"command_context_completion_runtime", test_command_context_completion_runtime},
     {"builtin_docs", test_builtin_docs},
 };
 

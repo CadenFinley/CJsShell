@@ -45,6 +45,7 @@
 
 #include "builtins_completions_handler.h"
 #include "cjsh_filesystem.h"
+#include "completion_context.h"
 #include "completion_spec.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
@@ -1333,12 +1334,12 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
         return;
 
     std::string line(raw_path_input);
-    std::vector<std::string> tokens = completion_utils::tokenize_command_line(line);
+    completion_context::CommandLineContext command_context = completion_context::parse(line);
+    const std::vector<std::string>& tokens = command_context.effective_tokens;
     if (tokens.empty())
         return;
 
-    bool ends_with_space =
-        !line.empty() && std::isspace(static_cast<unsigned char>(line.back())) != 0;
+    bool ends_with_space = command_context.at_word_boundary;
 
     std::size_t stable_count = tokens.size();
     if (!ends_with_space && !tokens.empty()) {
@@ -1349,13 +1350,15 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
 
     std::string current_prefix;
     if (!ends_with_space && !tokens.empty())
-        current_prefix = tokens.back();
+        current_prefix = command_context.current_prefix;
 
     bool executable_found = !cjsh_filesystem::find_executable_in_path(tokens.front()).empty();
     bool allow_fetch = config::completion_learning_enabled && executable_found;
 
     auto context = resolve_completion_context(tokens, stable_count, allow_fetch);
-    long delete_before = current_prefix.empty() ? 0 : static_cast<long>(current_prefix.size());
+    long delete_before = command_context.current_raw_prefix.empty()
+                             ? 0
+                             : static_cast<long>(command_context.current_raw_prefix.size());
     std::size_t added = 0;
 
     auto add_value_completions = [&](const CompletionEntry& entry, const std::string& value_prefix,
