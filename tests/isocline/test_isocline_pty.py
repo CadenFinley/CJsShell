@@ -1489,7 +1489,7 @@ def main() -> int:
     mouse_release = b"\x1b[<3;1;1m"
     mouse_click_history_second = mouse_left_click(6, 4)
     mouse_click_completion_expanded_second = mouse_left_click(6, 4)
-    mouse_click_completion_collapsed_second = mouse_left_click(6, 3)
+    mouse_click_completion_collapsed_second = mouse_left_click(6, 4)
     mouse_click_inline_hint = mouse_left_click(10, 1)
 
     assert_smart_mouse_selection_suspends(
@@ -2002,15 +2002,32 @@ def main() -> int:
             f"completion_dual_common_prefix expected 'planet', got {comp_common!r}"
         )
 
-    comp_scroll_collapsed = run_case(
+    comp_scroll_collapsed, comp_scroll_collapsed_output = run_case(
         binary,
         "completion_many_menu",
         b"s\t" + mouse_wheel_down + b"\r\r",
+        capture_output=True,
     )
     if comp_scroll_collapsed != "s01":
         raise AssertionError(
             "completion_many_menu collapsed expected 's01', got "
             f"{comp_scroll_collapsed!r}"
+        )
+    normalized_comp_scroll_collapsed_output = normalize_terminal_output(
+        comp_scroll_collapsed_output
+    )
+    if "Showing 1-10 of 12 completions" not in normalized_comp_scroll_collapsed_output:
+        raise AssertionError(
+            "collapsed completion menu should use the expanded list header and show ten items, "
+            f"got normalized_output={normalized_comp_scroll_collapsed_output!r}"
+        )
+    if (
+        "s10" not in normalized_comp_scroll_collapsed_output
+        or "s11" in normalized_comp_scroll_collapsed_output
+    ):
+        raise AssertionError(
+            "collapsed completion menu should stop after its tenth item, got "
+            f"normalized_output={normalized_comp_scroll_collapsed_output!r}"
         )
 
     comp_click_collapsed_default = run_case(
