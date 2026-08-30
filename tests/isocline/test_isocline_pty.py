@@ -46,6 +46,7 @@ PROMPT_LINE_RE = re.compile(r"(?m)^pty> ")
 PTY_CASE_COUNT = 0
 IS_DARWIN = platform.system() == "Darwin"
 READLINE_STEP_MARKER = b"[IC_READLINE_STEP_DONE]"
+TYPEAHEAD_CAPTURE_READY_MARKER = b"[IC_TYPEAHEAD_CAPTURE_READY]"
 
 LEFT = b"\x1b[D"
 RIGHT = b"\x1b[C"
@@ -419,7 +420,11 @@ def run_case(
                 os.write(fd, b"\x1b[1;22R")
                 cursor_report_sent = True
 
-            if not sent and b"pty> " in output:
+            capture_ready = (
+                scenario.startswith("typeahead_capture_")
+                and TYPEAHEAD_CAPTURE_READY_MARKER in output
+            )
+            if not sent and (b"pty> " in output or capture_ready):
                 if key_bytes:
                     os.write(fd, key_bytes)
                 sent = True
@@ -969,6 +974,40 @@ def main() -> int:
         raise AssertionError(
             f"multiline_ctrl_j_insert_newline expected 'a\\nb', got {multiline_ctrl_j!r}"
         )
+
+    # Typeahead has a byte-level contract: CR is Return (submit), while LF is
+    # Ctrl+J (insert a multiline line feed). Most cases need no live keystroke;
+    # this proves a queued Return completes readline on its own. The one live
+    # Return case proves queued Ctrl+J did not accidentally submit first.
+    long_typeahead = (
+        "0123456789abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMNOPQRSTUVWXYZ-"
+        "typeahead-beyond-the-legacy-pushback-limit"
+    )
+    typeahead_cases = [
+        ("typeahead_capture_return", b"captured return\r", "captured return"),
+        (
+            "typeahead_capture_ctrl_j_then_return",
+            b"first\nsecond\r",
+            "first\nsecond",
+        ),
+        ("typeahead_return_submit", b"", "queued command"),
+        ("typeahead_ctrl_j_then_live_return", b"\r", "first\nsecond"),
+        ("typeahead_ctrl_j_then_queued_return", b"", "first\nsecond"),
+        ("typeahead_leading_ctrl_j", b"", "\nbody"),
+        ("typeahead_repeated_ctrl_j", b"", "a\n\nb"),
+        ("typeahead_empty_return", b"", ""),
+        ("typeahead_chunked_return", b"", "chunked command"),
+        ("typeahead_utf8_return", b"", "café €"),
+        ("typeahead_edited_return", b"", "abd"),
+        ("typeahead_long_return", b"", long_typeahead),
+        ("typeahead_two_returns", b"", "first|second"),
+        ("typeahead_return_then_ctrl_j", b"", "first|second\nthird"),
+        ("typeahead_crlf_distinct", b"", "first|\nsecond"),
+        ("vim_typeahead_return_submit", b"", "queued command"),
+        ("vim_typeahead_ctrl_j_then_queued_return", b"", "first\nsecond"),
+    ]
+    for scenario, live_keys, expected in typeahead_cases:
+        assert_case(binary, scenario, scenario, live_keys, expected)
 
     region_result, region_output = run_case(
         binary, "region_marking", b"ok\r", capture_output=True

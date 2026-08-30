@@ -76,6 +76,14 @@ ic_private void tty_end_raw(tty_t* tty);
 ic_private code_t tty_read(tty_t* tty);
 ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* c);
 ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out);
+// Preserve the distinction between Return and Ctrl+J while readline is idle.
+ic_private void tty_enable_typeahead_capture_mode(tty_t* tty, bool enable);
+// Queue raw typeahead bytes independently from the small parser pushback buffer.
+// The queue survives a readline boundary so bytes following Return are available
+// to the next readline cycle.
+ic_private bool tty_replay_typeahead(tty_t* tty, const uint8_t* data, size_t length);
+ic_private void tty_clear_typeahead_replay(tty_t* tty);
+ic_private ssize_t tty_typeahead_replay_count(const tty_t* tty);
 
 ic_private void tty_code_pushback(tty_t* tty, code_t c);
 ic_private bool code_is_ascii_char(code_t c, char* chr);

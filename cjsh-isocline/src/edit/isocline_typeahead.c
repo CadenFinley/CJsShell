@@ -87,12 +87,12 @@ static bool bytes_have_visible_typeahead(const uint8_t* bytes, size_t len) {
     return false;
 }
 
-static bool buffer_all_newlines(const char* bytes, ssize_t len) {
+static bool buffer_all_returns(const char* bytes, ssize_t len) {
     if (bytes == NULL || len <= 0) {
         return false;
     }
     for (ssize_t i = 0; i < len; ++i) {
-        if (bytes[i] != '\n') {
+        if (bytes[i] != '\r') {
             return false;
         }
     }
@@ -160,7 +160,14 @@ ic_private void ic_typeahead_normalize_line_edit_sequences_into(const char* inpu
             case 0x15: {
                 ssize_t len = sbuf_len(output);
                 if (len > 0) {
-                    ssize_t start = sbuf_find_line_start(output, len);
+                    ssize_t start = len;
+                    while (start > 0) {
+                        const char previous = sbuf_char_at(output, start - 1);
+                        if (previous == '\n' || previous == '\r') {
+                            break;
+                        }
+                        start--;
+                    }
                     sbuf_delete_from_to(output, start, len);
                 }
                 break;
@@ -185,7 +192,7 @@ ic_private void ic_typeahead_normalize_line_edit_sequences_into(const char* inpu
                         break;
                     }
                     char c = sbuf_char_at(output, prev);
-                    if (len - prev == 1 && (c == ' ' || c == '\t' || c == '\n')) {
+                    if (len - prev == 1 && (c == ' ' || c == '\t' || c == '\n' || c == '\r')) {
                         break;
                     }
                     (void)sbuf_delete_char_before(output, len);
@@ -222,19 +229,19 @@ static void assign_last_pending_segment(ic_env_t* env, stringbuf_t* normalized) 
         return;
     }
 
-    if (data[len - 1] == '\n') {
-        ssize_t last_non_newline = -1;
+    if (data[len - 1] == '\r') {
+        ssize_t last_non_return = -1;
         for (ssize_t i = len - 1; i >= 0; --i) {
-            if (data[i] != '\n') {
-                last_non_newline = i;
+            if (data[i] != '\r') {
+                last_non_return = i;
                 break;
             }
         }
 
         ssize_t segment_start = 0;
-        if (last_non_newline >= 0) {
-            for (ssize_t i = last_non_newline; i >= 0; --i) {
-                if (data[i] == '\n') {
+        if (last_non_return >= 0) {
+            for (ssize_t i = last_non_return; i >= 0; --i) {
+                if (data[i] == '\r') {
                     segment_start = i + 1;
                     break;
                 }
@@ -242,23 +249,23 @@ static void assign_last_pending_segment(ic_env_t* env, stringbuf_t* normalized) 
         }
         assign_input_view(env, data + segment_start, len - segment_start);
     } else {
-        ssize_t last_newline = -1;
+        ssize_t last_return = -1;
         for (ssize_t i = len - 1; i >= 0; --i) {
-            if (data[i] == '\n') {
-                last_newline = i;
+            if (data[i] == '\r') {
+                last_return = i;
                 break;
             }
         }
-        if (last_newline < 0) {
+        if (last_return < 0) {
             assign_input_view(env, data, len);
         } else {
-            assign_input_view(env, data + last_newline + 1, len - (last_newline + 1));
+            assign_input_view(env, data + last_return + 1, len - (last_return + 1));
         }
     }
 
     const ssize_t pending_len = sbuf_len(env->typeahead_input_buffer);
     const char* pending = sbuf_string(env->typeahead_input_buffer);
-    if (buffer_all_newlines(pending, pending_len)) {
+    if (buffer_all_returns(pending, pending_len)) {
         sbuf_clear(env->typeahead_input_buffer);
     }
 }
@@ -272,12 +279,10 @@ ic_private bool ic_typeahead_ingest_raw_input(const uint8_t* data, size_t length
     const bool has_visible_typeahead = bytes_have_visible_typeahead(data, length);
     stringbuf_t* combined = sbuf_new(env->mem);
     stringbuf_t* sanitized = sbuf_new(env->mem);
-    stringbuf_t* crlf_normalized = sbuf_new(env->mem);
     stringbuf_t* normalized = sbuf_new(env->mem);
-    if (combined == NULL || sanitized == NULL || crlf_normalized == NULL || normalized == NULL) {
+    if (combined == NULL || sanitized == NULL || normalized == NULL) {
         sbuf_free(combined);
         sbuf_free(sanitized);
-        sbuf_free(crlf_normalized);
         sbuf_free(normalized);
         return false;
     }
@@ -295,16 +300,12 @@ ic_private bool ic_typeahead_ingest_raw_input(const uint8_t* data, size_t length
     ssize_t combined_len = sbuf_len(combined);
     ic_typeahead_filter_escape_sequences_into(combined_data, (size_t)combined_len, sanitized);
 
+    // Keep CR and LF distinct through normalization: terminals report Return
+    // as CR, while Ctrl+J is LF and must remain a multiline editing action.
     const char* sanitized_data = sbuf_string(sanitized);
     const ssize_t sanitized_len = sbuf_len(sanitized);
-    for (ssize_t i = 0; i < sanitized_len; ++i) {
-        char ch = sanitized_data[i];
-        (void)sbuf_append_char(crlf_normalized, ch == '\r' ? '\n' : ch);
-    }
-
-    const char* crlf_data = sbuf_string(crlf_normalized);
-    const ssize_t crlf_len = sbuf_len(crlf_normalized);
-    ic_typeahead_normalize_line_edit_sequences_into(crlf_data, (size_t)crlf_len, normalized);
+    ic_typeahead_normalize_line_edit_sequences_into(sanitized_data, (size_t)sanitized_len,
+                                                    normalized);
 
     if (sbuf_len(normalized) <= 0) {
         sbuf_clear(env->typeahead_input_buffer);
@@ -313,7 +314,6 @@ ic_private bool ic_typeahead_ingest_raw_input(const uint8_t* data, size_t length
         }
         sbuf_free(combined);
         sbuf_free(sanitized);
-        sbuf_free(crlf_normalized);
         sbuf_free(normalized);
         return true;
     }
@@ -326,7 +326,6 @@ ic_private bool ic_typeahead_ingest_raw_input(const uint8_t* data, size_t length
 
     sbuf_free(combined);
     sbuf_free(sanitized);
-    sbuf_free(crlf_normalized);
     sbuf_free(normalized);
     return true;
 }
@@ -339,6 +338,7 @@ ic_public bool ic_enable_typeahead(bool enable) {
 
     bool previous = env->typeahead_enabled;
     env->typeahead_enabled = enable;
+    tty_enable_typeahead_capture_mode(env->tty, enable);
     if (enable != previous || !enable) {
         ic_typeahead_clear();
     }
@@ -394,7 +394,7 @@ static void typeahead_flush_pending_raw(ic_env_t* env) {
     }
 
     if (bytes_have_control(raw, raw_len)) {
-        if (ic_push_raw_input((const uint8_t*)raw, (size_t)raw_len)) {
+        if (tty_replay_typeahead(env->tty, (const uint8_t*)raw, (size_t)raw_len)) {
             sbuf_clear(env->typeahead_pending_raw_bytes);
             sbuf_clear(env->typeahead_input_buffer);
         } else {
@@ -443,4 +443,5 @@ ic_public void ic_typeahead_clear(void) {
     }
     sbuf_clear(env->typeahead_input_buffer);
     sbuf_clear(env->typeahead_pending_raw_bytes);
+    tty_clear_typeahead_replay(env->tty);
 }

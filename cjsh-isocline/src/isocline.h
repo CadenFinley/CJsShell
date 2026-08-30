@@ -259,7 +259,8 @@ typedef bool(ic_typeahead_capture_allowed_fun_t)(void* arg);
 
 /// Enable or disable typeahead buffering. Returns the previous enabled state.
 /// When enabled, isocline can capture bytes already queued on stdin and seed
-/// the next readline session with them.
+/// the next readline session with them. A captured carriage return is replayed
+/// as Return (submit), while a captured line feed retains Ctrl+J behavior.
 bool ic_enable_typeahead(bool enable);
 
 /// Returns true when typeahead buffering is enabled.

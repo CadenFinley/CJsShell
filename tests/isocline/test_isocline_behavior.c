@@ -1323,6 +1323,10 @@ struct tty_s {
     ssize_t push_count;
     uint8_t cpushbuf[32];
     ssize_t cpush_count;
+    stringbuf_t* typeahead_replay;
+    ssize_t typeahead_replay_pos;
+    bool typeahead_capture_mode;
+    bool typeahead_crlf_swapped;
 };
 
 static bool test_tty_character_pushback_capacity_guard(void) {
@@ -1588,6 +1592,19 @@ static bool test_typeahead_normalize_ctrl_u_keeps_previous_lines(void) {
     return true;
 }
 
+static bool test_typeahead_normalize_ctrl_u_stops_at_carriage_return(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char input[] = {'o', 'n', 'e', '\r', 't', 'w', 'o', 0x15, 'r', 'e', 'd', 'o'};
+    ic_typeahead_normalize_line_edit_sequences_into(input, sizeof(input), out);
+    EXPECT_STREQ(sbuf_string(out), "one\rredo",
+                 "Ctrl-U must not erase a command before a typeahead Return");
+
+    sbuf_free(out);
+    return true;
+}
+
 static bool test_typeahead_normalize_ctrl_w_deletes_previous_word(void) {
     stringbuf_t* out = new_stringbuf();
     EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
@@ -1617,6 +1634,19 @@ static bool test_typeahead_normalize_ctrl_w_deletes_utf8_word(void) {
     ic_typeahead_normalize_line_edit_sequences_into(input, sizeof(input), out);
     EXPECT_STREQ(sbuf_string(out), "cmd x",
                  "Ctrl-W should delete complete UTF-8 codepoints in the previous word");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_typeahead_normalize_ctrl_w_stops_at_carriage_return(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char input[] = {'o', 'n', 'e', '\r', 't', 'w', 'o', 0x17, 'x'};
+    ic_typeahead_normalize_line_edit_sequences_into(input, sizeof(input), out);
+    EXPECT_STREQ(sbuf_string(out), "one\rx",
+                 "Ctrl-W must not cross a typeahead Return into the previous command");
 
     sbuf_free(out);
     return true;
@@ -1697,7 +1727,7 @@ static bool test_typeahead_ingest_filters_escape_sequences_before_pending_input(
     return true;
 }
 
-static bool test_typeahead_ingest_carriage_return_becomes_submit_newline(void) {
+static bool test_typeahead_ingest_preserves_carriage_return_as_submit(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
         return false;
@@ -1705,14 +1735,14 @@ static bool test_typeahead_ingest_carriage_return_becomes_submit_newline(void) {
     reset_typeahead_test_state(true);
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"make test\r", strlen("make test\r")),
                 "CR-terminated input should ingest");
-    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "make test\n",
-                 "carriage return should normalize to a submit newline");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "make test\r",
+                 "carriage return should remain distinguishable as a full Return");
 
     reset_typeahead_test_state(false);
     return true;
 }
 
-static bool test_typeahead_ingest_keeps_last_incomplete_line_after_newline(void) {
+static bool test_typeahead_ingest_preserves_ctrl_j_as_line_feed(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
         return false;
@@ -1721,41 +1751,75 @@ static bool test_typeahead_ingest_keeps_last_incomplete_line_after_newline(void)
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"first command\nsecond",
                                               strlen("first command\nsecond")),
                 "multiline pending input should ingest");
-    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "second",
-                 "pending initial input should keep only text after the last newline");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "first command\nsecond",
+                 "Ctrl+J line feed should remain in the current multiline input");
 
     reset_typeahead_test_state(false);
     return true;
 }
 
-static bool test_typeahead_ingest_keeps_last_submitted_line_with_trailing_newline(void) {
+static bool test_typeahead_ingest_keeps_last_submitted_line_with_trailing_return(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
         return false;
 
     reset_typeahead_test_state(true);
-    const char* raw = "first\nsecond\n";
+    const char* raw = "first\rsecond\r";
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)raw, strlen(raw)),
-                "trailing-newline input should ingest");
-    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "second\n",
+                "trailing-Return input should ingest");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "second\r",
                  "pending initial input should keep the last submitted line");
 
     reset_typeahead_test_state(false);
     return true;
 }
 
-static bool test_typeahead_ingest_newlines_only_clear_pending_input(void) {
+static bool test_typeahead_ingest_returns_only_clear_pending_input(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
         return false;
 
     reset_typeahead_test_state(true);
-    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"\n\n", strlen("\n\n")),
-                "newlines-only input should ingest");
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"\r\r", strlen("\r\r")),
+                "returns-only input should ingest");
     EXPECT_TRUE(ic_typeahead_pending_initial_input(env) == NULL,
-                "newlines-only pending input should be cleared");
+                "returns-only pending input should be cleared");
     EXPECT_TRUE(ic_typeahead_pending_initial_input_len(env) == 0,
-                "newlines-only pending input length should be zero");
+                "returns-only pending input length should be zero");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_ingest_line_feeds_only_remain_editable(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    static const uint8_t raw[] = {'\n', '\n'};
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input(raw, sizeof(raw)), "Ctrl+J-only input should ingest");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "\n\n",
+                 "Ctrl+J line feeds must not be mistaken for Return");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_ingest_chunked_ctrl_j_then_return(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"alpha\n", 6),
+                "first chunk ending in Ctrl+J should ingest");
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"beta", 4),
+                "text following Ctrl+J should append");
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"\r", 1),
+                "final Return chunk should ingest");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "alpha\nbeta\r",
+                 "chunk boundaries must not blur Ctrl+J and Return semantics");
 
     reset_typeahead_test_state(false);
     return true;
@@ -1798,6 +1862,9 @@ static bool test_typeahead_prepare_replays_control_raw_bytes_in_original_order(v
 
     struct tty_s tty_probe;
     memset(&tty_probe, 0, sizeof(tty_probe));
+    tty_probe.typeahead_replay = new_stringbuf();
+    EXPECT_TRUE(tty_probe.typeahead_replay != NULL,
+                "typeahead replay queue allocation should succeed");
     tty_t* saved_tty = env->tty;
     env->tty = (tty_t*)&tty_probe;
 
@@ -1806,18 +1873,13 @@ static bool test_typeahead_prepare_replays_control_raw_bytes_in_original_order(v
                 "successful raw control replay should clear pending initial input");
     EXPECT_TRUE(ic_typeahead_pending_raw_byte_count(env) == 0,
                 "successful raw control replay should clear pending raw bytes");
-    EXPECT_TRUE(tty_probe.cpush_count == (ssize_t)sizeof(raw),
-                "raw replay should push every captured byte into the TTY character buffer");
-
-    uint8_t observed[sizeof(raw)];
-    for (size_t i = 0; i < sizeof(raw); ++i) {
-        EXPECT_TRUE(tty_cpop((tty_t*)&tty_probe, &observed[i]),
-                    "raw replay bytes should pop back from the TTY buffer");
-    }
-    EXPECT_TRUE(memcmp(observed, raw, sizeof(raw)) == 0,
-                "raw replay bytes should be read back in their original order");
+    EXPECT_TRUE(tty_typeahead_replay_count((tty_t*)&tty_probe) == (ssize_t)sizeof(raw),
+                "raw replay should queue every captured byte without using parser pushback");
+    EXPECT_TRUE(memcmp(sbuf_string(tty_probe.typeahead_replay), raw, sizeof(raw)) == 0,
+                "raw replay queue should preserve captured byte order");
 
     env->tty = saved_tty;
+    sbuf_free(tty_probe.typeahead_replay);
     reset_typeahead_test_state(false);
     return true;
 }
@@ -1831,15 +1893,15 @@ static bool test_typeahead_prepare_failed_control_replay_preserves_initial_input
     g_typeahead_capture_gate_result = false;
     ic_set_typeahead_capture_allowed_callback(stub_typeahead_capture_allowed, NULL);
 
-    static const uint8_t raw[] = {'r', 'u', 'n', '\n'};
-    EXPECT_TRUE(ic_typeahead_ingest_raw_input(raw, sizeof(raw)), "newline raw input should ingest");
+    static const uint8_t raw[] = {'r', 'u', 'n', '\r'};
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input(raw, sizeof(raw)), "Return raw input should ingest");
 
     tty_t* saved_tty = env->tty;
     env->tty = NULL;
     ic_typeahead_prepare_for_readline(env);
     env->tty = saved_tty;
 
-    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "run\n",
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "run\r",
                  "failed raw replay should preserve normalized initial input as fallback");
     EXPECT_TRUE(ic_typeahead_pending_raw_byte_count(env) == 0,
                 "failed raw replay should still clear pending raw bytes");
@@ -4153,10 +4215,14 @@ static const test_case_t kTests[] = {
      test_typeahead_normalize_backspace_deletes_full_utf8_codepoint},
     {"typeahead_normalize_ctrl_u_keeps_previous_lines",
      test_typeahead_normalize_ctrl_u_keeps_previous_lines},
+    {"typeahead_normalize_ctrl_u_stops_at_carriage_return",
+     test_typeahead_normalize_ctrl_u_stops_at_carriage_return},
     {"typeahead_normalize_ctrl_w_deletes_previous_word",
      test_typeahead_normalize_ctrl_w_deletes_previous_word},
     {"typeahead_normalize_ctrl_w_deletes_utf8_word",
      test_typeahead_normalize_ctrl_w_deletes_utf8_word},
+    {"typeahead_normalize_ctrl_w_stops_at_carriage_return",
+     test_typeahead_normalize_ctrl_w_stops_at_carriage_return},
     {"typeahead_ingest_rejects_disabled_null_and_empty_input",
      test_typeahead_ingest_rejects_disabled_null_and_empty_input},
     {"typeahead_ingest_plain_text_sets_pending_initial_input",
@@ -4165,14 +4231,18 @@ static const test_case_t kTests[] = {
      test_typeahead_ingest_appends_to_existing_pending_input},
     {"typeahead_ingest_filters_escape_sequences_before_pending_input",
      test_typeahead_ingest_filters_escape_sequences_before_pending_input},
-    {"typeahead_ingest_carriage_return_becomes_submit_newline",
-     test_typeahead_ingest_carriage_return_becomes_submit_newline},
-    {"typeahead_ingest_keeps_last_incomplete_line_after_newline",
-     test_typeahead_ingest_keeps_last_incomplete_line_after_newline},
-    {"typeahead_ingest_keeps_last_submitted_line_with_trailing_newline",
-     test_typeahead_ingest_keeps_last_submitted_line_with_trailing_newline},
-    {"typeahead_ingest_newlines_only_clear_pending_input",
-     test_typeahead_ingest_newlines_only_clear_pending_input},
+    {"typeahead_ingest_preserves_carriage_return_as_submit",
+     test_typeahead_ingest_preserves_carriage_return_as_submit},
+    {"typeahead_ingest_preserves_ctrl_j_as_line_feed",
+     test_typeahead_ingest_preserves_ctrl_j_as_line_feed},
+    {"typeahead_ingest_keeps_last_submitted_line_with_trailing_return",
+     test_typeahead_ingest_keeps_last_submitted_line_with_trailing_return},
+    {"typeahead_ingest_returns_only_clear_pending_input",
+     test_typeahead_ingest_returns_only_clear_pending_input},
+    {"typeahead_ingest_line_feeds_only_remain_editable",
+     test_typeahead_ingest_line_feeds_only_remain_editable},
+    {"typeahead_ingest_chunked_ctrl_j_then_return",
+     test_typeahead_ingest_chunked_ctrl_j_then_return},
     {"typeahead_prepare_clears_raw_without_controls_and_keeps_initial_input",
      test_typeahead_prepare_clears_raw_without_controls_and_keeps_initial_input},
     {"typeahead_prepare_replays_control_raw_bytes_in_original_order",

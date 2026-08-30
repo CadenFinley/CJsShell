@@ -43,6 +43,7 @@
 #include "env.h"
 #include "history.h"
 #include "isocline.h"
+#include "isocline_typeahead.h"
 
 typedef enum completion_mode_e {
     COMPLETION_MODE_NONE = 0,
@@ -137,6 +138,11 @@ static void emit_result(const char* line) {
 
 static void emit_readline_step_done(void) {
     (void)printf("\n[IC_READLINE_STEP_DONE]\n");
+    (void)fflush(stdout);
+}
+
+static void emit_typeahead_capture_ready(void) {
+    (void)printf("\n[IC_TYPEAHEAD_CAPTURE_READY]\n");
     (void)fflush(stdout);
 }
 
@@ -291,7 +297,8 @@ static int run_case(const char* scenario) {
          strcmp(scenario, "region_marking_transient_prompt_components") == 0 ||
          strcmp(scenario, "prompt_guard_region_marking_external_visible") == 0);
     bool multiline_mode =
-        (strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
+        (strncmp(scenario, "typeahead_", 10) == 0 ||
+         strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
          strcmp(scenario, "multiline_backslash_continuation") == 0 ||
          strcmp(scenario, "multiline_backslash_continuation_retained") == 0 ||
          strcmp(scenario, "multiline_backslash_submit_with_following_content") == 0 ||
@@ -337,6 +344,8 @@ static int run_case(const char* scenario) {
     bool history_interactive_triplet = false;
     bool history_sort_cycle_nonpersistent = false;
     bool external_pre_prompt_output = false;
+    bool typeahead_two_readlines = false;
+    const bool capture_typeahead_from_pty = (strncmp(scenario, "typeahead_capture_", 18) == 0);
     if (strcmp(scenario, "cursor_move_insert") == 0) {
         initial_input = "ab";
     } else if (strcmp(scenario, "home_insert") == 0) {
@@ -658,6 +667,10 @@ static int run_case(const char* scenario) {
     } else if (strcmp(scenario, "prompt_guard_region_marking_external_visible") == 0) {
         pre_prompt_output = "visible-before-prompt";
         external_pre_prompt_output = true;
+    } else if (strncmp(scenario, "typeahead_", 10) == 0) {
+        // Input is staged below, immediately before readline. Keeping these as
+        // named scenarios makes each byte-level Return/Ctrl+J contract visible
+        // in the PTY integration harness.
     } else {
         return 2;
     }
@@ -679,6 +692,96 @@ static int run_case(const char* scenario) {
     } else if (strcmp(scenario, "multiline_max_lines_prompt_reset") == 0) {
         ic_set_check_for_continuation_or_return_callback(
             apply_transient_prompt_on_submit, "VIEWPORT-FINAL-TOP\nVIEWPORT-FINAL-MIDDLE\nfinal");
+    }
+
+    if (strncmp(scenario, "typeahead_", 10) == 0) {
+        static const uint8_t return_submit[] = "queued command\r";
+        static const uint8_t ctrl_j_then_live_return[] = "first\nsecond";
+        static const uint8_t ctrl_j_then_queued_return[] = "first\nsecond\r";
+        static const uint8_t leading_ctrl_j[] = "\nbody\r";
+        static const uint8_t repeated_ctrl_j[] = "a\n\nb\r";
+        static const uint8_t empty_return[] = "\r";
+        static const uint8_t utf8_return[] = "caf\xC3\xA9 \xE2\x82\xAC\r";
+        static const uint8_t edited_return[] = {'a', 'b', 'c', 0x7F, 'd', '\r'};
+        static const uint8_t two_returns[] = "first\rsecond\r";
+        static const uint8_t return_then_ctrl_j[] = "first\rsecond\nthird\r";
+        static const uint8_t crlf_distinct[] = "first\r\nsecond\r";
+        static const uint8_t long_return[] =
+            "0123456789abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMNOPQRSTUVWXYZ-"
+            "typeahead-beyond-the-legacy-pushback-limit\r";
+
+        const uint8_t* staged = NULL;
+        size_t staged_len = 0;
+        if (capture_typeahead_from_pty) {
+            if (strcmp(scenario, "typeahead_capture_return") != 0 &&
+                strcmp(scenario, "typeahead_capture_ctrl_j_then_return") != 0) {
+                return 2;
+            }
+            (void)ic_enable_typeahead(true);
+            emit_typeahead_capture_ready();
+#if !defined(_WIN32)
+            const struct timespec capture_delay = {.tv_sec = 0, .tv_nsec = 200000000L};
+            (void)nanosleep(&capture_delay, NULL);
+#endif
+            if (!ic_typeahead_capture_available_input()) {
+                return 9;
+            }
+        } else if (strcmp(scenario, "typeahead_return_submit") == 0) {
+            staged = return_submit;
+            staged_len = sizeof(return_submit) - 1;
+        } else if (strcmp(scenario, "typeahead_ctrl_j_then_live_return") == 0) {
+            staged = ctrl_j_then_live_return;
+            staged_len = sizeof(ctrl_j_then_live_return) - 1;
+        } else if (strcmp(scenario, "typeahead_ctrl_j_then_queued_return") == 0) {
+            staged = ctrl_j_then_queued_return;
+            staged_len = sizeof(ctrl_j_then_queued_return) - 1;
+        } else if (strcmp(scenario, "typeahead_leading_ctrl_j") == 0) {
+            staged = leading_ctrl_j;
+            staged_len = sizeof(leading_ctrl_j) - 1;
+        } else if (strcmp(scenario, "typeahead_repeated_ctrl_j") == 0) {
+            staged = repeated_ctrl_j;
+            staged_len = sizeof(repeated_ctrl_j) - 1;
+        } else if (strcmp(scenario, "typeahead_empty_return") == 0) {
+            staged = empty_return;
+            staged_len = sizeof(empty_return) - 1;
+        } else if (strcmp(scenario, "typeahead_utf8_return") == 0) {
+            staged = utf8_return;
+            staged_len = sizeof(utf8_return) - 1;
+        } else if (strcmp(scenario, "typeahead_edited_return") == 0) {
+            staged = edited_return;
+            staged_len = sizeof(edited_return);
+        } else if (strcmp(scenario, "typeahead_long_return") == 0) {
+            staged = long_return;
+            staged_len = sizeof(long_return) - 1;
+        } else if (strcmp(scenario, "typeahead_two_returns") == 0) {
+            staged = two_returns;
+            staged_len = sizeof(two_returns) - 1;
+            typeahead_two_readlines = true;
+        } else if (strcmp(scenario, "typeahead_return_then_ctrl_j") == 0) {
+            staged = return_then_ctrl_j;
+            staged_len = sizeof(return_then_ctrl_j) - 1;
+            typeahead_two_readlines = true;
+        } else if (strcmp(scenario, "typeahead_crlf_distinct") == 0) {
+            staged = crlf_distinct;
+            staged_len = sizeof(crlf_distinct) - 1;
+            typeahead_two_readlines = true;
+        } else if (strcmp(scenario, "typeahead_chunked_return") == 0) {
+            (void)ic_enable_typeahead(true);
+            if (!ic_typeahead_ingest_raw_input((const uint8_t*)"chunked ", 8) ||
+                !ic_typeahead_ingest_raw_input((const uint8_t*)"command", 7) ||
+                !ic_typeahead_ingest_raw_input((const uint8_t*)"\r", 1)) {
+                return 7;
+            }
+        } else {
+            return 2;
+        }
+
+        if (staged != NULL) {
+            (void)ic_enable_typeahead(true);
+            if (!ic_typeahead_ingest_raw_input(staged, staged_len)) {
+                return 7;
+            }
+        }
     }
 
     char* line = NULL;
@@ -726,6 +829,29 @@ static int run_case(const char* scenario) {
         ic_free(first);
         ic_free(second);
         emit_result(payload);
+        return 0;
+    } else if (typeahead_two_readlines) {
+        char* first = ic_readline(prompt_text, NULL, NULL);
+        if (first == NULL)
+            return 4;
+        char* second = ic_readline(prompt_text, NULL, NULL);
+        if (second == NULL) {
+            ic_free(first);
+            return 4;
+        }
+
+        const size_t payload_len = strlen(first) + strlen(second) + 2;
+        char* payload = (char*)malloc(payload_len);
+        if (payload == NULL) {
+            ic_free(first);
+            ic_free(second);
+            return 8;
+        }
+        (void)snprintf(payload, payload_len, "%s|%s", first, second);
+        ic_free(first);
+        ic_free(second);
+        emit_result(payload);
+        free(payload);
         return 0;
     } else {
         line = ic_readline(prompt_text, inline_right_text, initial_input);

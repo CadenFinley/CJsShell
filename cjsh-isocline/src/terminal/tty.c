@@ -71,6 +71,10 @@ struct tty_s {
     ssize_t push_count;
     uint8_t cpushbuf[TTY_PUSH_MAX];
     ssize_t cpush_count;
+    stringbuf_t* typeahead_replay;
+    ssize_t typeahead_replay_pos;
+    bool typeahead_capture_mode;
+    bool typeahead_crlf_swapped;
     long esc_initial_timeout;
 
     long esc_timeout;
@@ -80,6 +84,7 @@ struct tty_s {
 #else
     struct termios orig_ios;
     struct termios raw_ios;
+    struct termios typeahead_ios;
     int wake_pipe[2];
 #endif
     bool wake_pipe_initialized;
@@ -457,6 +462,61 @@ ic_private bool tty_cpop(tty_t* tty, uint8_t* c) {
     }
 }
 
+static bool tty_typeahead_replay_pop(tty_t* tty, uint8_t* c) {
+    if (tty == NULL || c == NULL || tty->typeahead_replay == NULL) {
+        return false;
+    }
+
+    const ssize_t len = sbuf_len(tty->typeahead_replay);
+    if (tty->typeahead_replay_pos < 0 || tty->typeahead_replay_pos >= len) {
+        sbuf_clear(tty->typeahead_replay);
+        tty->typeahead_replay_pos = 0;
+        return false;
+    }
+
+    *c = (uint8_t)sbuf_char_at(tty->typeahead_replay, tty->typeahead_replay_pos);
+    tty->typeahead_replay_pos++;
+    if (tty->typeahead_replay_pos >= len) {
+        sbuf_clear(tty->typeahead_replay);
+        tty->typeahead_replay_pos = 0;
+    }
+    return true;
+}
+
+ic_private bool tty_replay_typeahead(tty_t* tty, const uint8_t* data, size_t length) {
+    if (tty == NULL || tty->typeahead_replay == NULL || (data == NULL && length > 0)) {
+        return false;
+    }
+    if (length == 0) {
+        return true;
+    }
+
+    if (tty->typeahead_replay_pos > 0) {
+        sbuf_delete_from_to(tty->typeahead_replay, 0, tty->typeahead_replay_pos);
+        tty->typeahead_replay_pos = 0;
+    }
+    const ssize_t old_len = sbuf_len(tty->typeahead_replay);
+    const ssize_t new_len =
+        sbuf_append_n(tty->typeahead_replay, (const char*)data, (ssize_t)length);
+    return (new_len == old_len + (ssize_t)length);
+}
+
+ic_private void tty_clear_typeahead_replay(tty_t* tty) {
+    if (tty == NULL || tty->typeahead_replay == NULL) {
+        return;
+    }
+    sbuf_clear(tty->typeahead_replay);
+    tty->typeahead_replay_pos = 0;
+}
+
+ic_private ssize_t tty_typeahead_replay_count(const tty_t* tty) {
+    if (tty == NULL || tty->typeahead_replay == NULL) {
+        return 0;
+    }
+    const ssize_t remaining = sbuf_len(tty->typeahead_replay) - tty->typeahead_replay_pos;
+    return (remaining > 0 ? remaining : 0);
+}
+
 static void tty_cpush(tty_t* tty, const char* s) {
     ssize_t len = ic_strlen(s);
     if (tty->cpush_count + len > TTY_PUSH_MAX) {
@@ -555,6 +615,12 @@ ic_private tty_t* tty_new(alloc_t* mem, int fd_in) {
 #endif
     tty->esc_timeout = 10;
     tty->paste_mode = false;
+    tty->typeahead_replay = sbuf_new(mem);
+    if (tty->typeahead_replay == NULL) {
+        mem_free(mem, tty);
+        return NULL;
+    }
+    tty->typeahead_replay_pos = 0;
     tty->wake_pipe_initialized = false;
     if (!tty_setup_wakeup_channel(tty)) {
         debug_msg("tty: failed to create wakeup pipe\n");
@@ -572,6 +638,7 @@ ic_private void tty_free(tty_t* tty) {
     tty_end_raw(tty);
     tty_done_raw(tty);
     tty_close_wakeup_channel(tty);
+    sbuf_free(tty->typeahead_replay);
     mem_free(tty->mem, tty);
 }
 
@@ -590,7 +657,7 @@ ic_private bool tty_is_raw_enabled(const tty_t* tty) {
 ic_private bool tty_input_pending(const tty_t* tty) {
     if (tty == NULL)
         return false;
-    if (tty->push_count > 0 || tty->cpush_count > 0)
+    if (tty->push_count > 0 || tty->cpush_count > 0 || tty_typeahead_replay_count(tty) > 0)
         return true;
 #if defined(FIONREAD)
     int navail = 0;
@@ -631,12 +698,15 @@ ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
         restore_flags = true;
     }
 
+    const bool decode_swapped_crlf = tty->typeahead_crlf_swapped;
     struct termios original_termios;
     memset(&original_termios, 0, sizeof(original_termios));
     bool restore_termios = false;
     if (tcgetattr(tty->fd_in, &original_termios) == 0) {
         struct termios raw_termios = original_termios;
-        raw_termios.c_iflag &= (tcflag_t)(~ICRNL);
+        if (!decode_swapped_crlf) {
+            raw_termios.c_iflag &= (tcflag_t)(~(ICRNL | INLCR));
+        }
         raw_termios.c_lflag &= (tcflag_t)(~(ICANON | ECHO));
         raw_termios.c_cc[VMIN] = 0;
         raw_termios.c_cc[VTIME] = 0;
@@ -649,6 +719,15 @@ ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
     for (;;) {
         ssize_t bytes_read = read(tty->fd_in, buffer, sizeof(buffer));
         if (bytes_read > 0) {
+            if (decode_swapped_crlf) {
+                for (ssize_t i = 0; i < bytes_read; ++i) {
+                    if (buffer[i] == '\n') {
+                        buffer[i] = '\r';
+                    } else if (buffer[i] == '\r') {
+                        buffer[i] = '\n';
+                    }
+                }
+            }
             (void)sbuf_append_n(out, buffer, bytes_read);
             if (bytes_read < (ssize_t)sizeof(buffer)) {
                 break;
@@ -795,6 +874,8 @@ static tty_event_t tty_wait_for_tty_event(tty_t* tty) {
 static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
     if (tty_cpop(tty, c))
         return true;
+    if (tty_typeahead_replay_pop(tty, c))
+        return true;
 
     while (true) {
         tty_event_t event = tty_wait_for_tty_event(tty);
@@ -814,6 +895,8 @@ static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
 
 ic_private bool tty_readc_noblock(tty_t* tty, uint8_t* c, long timeout_ms) {
     if (tty_cpop(tty, c))
+        return true;
+    if (tty_typeahead_replay_pop(tty, c))
         return true;
 
     if (timeout_ms < 0) {
@@ -994,6 +1077,7 @@ ic_private bool tty_start_raw(tty_t* tty) {
     if (tcsetattr(tty->fd_in, TCSANOW, &tty->raw_ios) < 0)
         return false;
     tty->raw_enabled = true;
+    tty->typeahead_crlf_swapped = false;
     return true;
 }
 
@@ -1003,17 +1087,49 @@ ic_private void tty_end_raw(tty_t* tty) {
     if (!tty->raw_enabled)
         return;
     tty->cpush_count = 0;
-    if (tcsetattr(tty->fd_in, TCSANOW, &tty->orig_ios) < 0)
+    const struct termios* restore_ios =
+        (tty->typeahead_capture_mode ? &tty->typeahead_ios : &tty->orig_ios);
+    if (tcsetattr(tty->fd_in, TCSANOW, restore_ios) < 0)
         return;
     tty->raw_enabled = false;
+    tty->typeahead_crlf_swapped =
+        (tty->typeahead_capture_mode && (tty->orig_ios.c_iflag & ICRNL) != 0 &&
+         (tty->orig_ios.c_iflag & IGNCR) == 0);
+}
+
+ic_private void tty_enable_typeahead_capture_mode(tty_t* tty, bool enable) {
+    if (tty == NULL) {
+        return;
+    }
+    tty->typeahead_capture_mode = enable;
+    if (tty->raw_enabled) {
+        tty->typeahead_crlf_swapped = false;
+        return;
+    }
+
+    const struct termios* target = (enable ? &tty->typeahead_ios : &tty->orig_ios);
+    if (tcsetattr(tty->fd_in, TCSANOW, target) < 0) {
+        tty->typeahead_crlf_swapped = false;
+        return;
+    }
+    tty->typeahead_crlf_swapped =
+        (enable && (tty->orig_ios.c_iflag & ICRNL) != 0 && (tty->orig_ios.c_iflag & IGNCR) == 0);
 }
 
 static bool tty_init_raw(tty_t* tty) {
     if (tcgetattr(tty->fd_in, &tty->orig_ios) == -1)
         return false;
     tty->raw_ios = tty->orig_ios;
+    tty->typeahead_ios = tty->orig_ios;
 
-    tty->raw_ios.c_iflag &= ~(unsigned long)(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    // With both mappings enabled, the line discipline maps terminal Return
+    // (CR) to LF and Ctrl+J (LF) to CR. Capture swaps them back before replay.
+    // This preserves normal cooked-mode Enter behavior for foreground tools.
+    if ((tty->orig_ios.c_iflag & ICRNL) != 0 && (tty->orig_ios.c_iflag & IGNCR) == 0) {
+        tty->typeahead_ios.c_iflag |= INLCR;
+    }
+
+    tty->raw_ios.c_iflag &= ~(unsigned long)(BRKINT | ICRNL | INLCR | INPCK | ISTRIP | IXON);
 
     tty->raw_ios.c_cflag |= CS8;
 
@@ -1044,6 +1160,8 @@ static void tty_waitc_console(tty_t* tty, long timeout_ms);
 
 ic_private bool tty_readc_noblock(tty_t* tty, uint8_t* c, long timeout_ms) {
     if (tty_cpop(tty, c))
+        return true;
+    if (tty_typeahead_replay_pop(tty, c))
         return true;
 
     tty_waitc_console(tty, timeout_ms);
@@ -1220,6 +1338,14 @@ ic_private bool tty_start_raw(tty_t* tty) {
     SetConsoleMode(tty->hcon, mode);
     tty->raw_enabled = true;
     return true;
+}
+
+ic_private void tty_enable_typeahead_capture_mode(tty_t* tty, bool enable) {
+    if (tty == NULL) {
+        return;
+    }
+    tty->typeahead_capture_mode = enable;
+    tty->typeahead_crlf_swapped = false;
 }
 
 ic_private void tty_end_raw(tty_t* tty) {
