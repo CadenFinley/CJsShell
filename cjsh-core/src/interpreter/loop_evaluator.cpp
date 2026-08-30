@@ -698,7 +698,10 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
     if (first != keyword && first.rfind(keyword + " ", 0) != 0)
         return 1;
 
-    auto abort_pending = [&]() { return should_abort_execution && should_abort_execution(); };
+    auto abort_pending = [&]() {
+        return cjsh_env::exit_requested() ||
+               (should_abort_execution && should_abort_execution());
+    };
 
     // parse the loop header and detect inline do/body placement
     auto parse_cond_from = [&](const std::string& s, std::string& cond, bool& inline_do,
@@ -1002,7 +1005,10 @@ int handle_for_block(
     std::string var;
     std::vector<std::string> items;
     CStyleForHeader c_style_header;
-    auto abort_pending = [&]() { return should_abort_execution && should_abort_execution(); };
+    auto abort_pending = [&]() {
+        return cjsh_env::exit_requested() ||
+               (should_abort_execution && should_abort_execution());
+    };
 
     struct RangeInfo {
         bool is_range = false;
@@ -1285,7 +1291,10 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
 
     std::string var;
     std::vector<std::string> items;
-    auto abort_pending = [&]() { return should_abort_execution && should_abort_execution(); };
+    auto abort_pending = [&]() {
+        return cjsh_env::exit_requested() ||
+               (should_abort_execution && should_abort_execution());
+    };
 
     auto finalize_with_trailing_commands = [&](int loop_rc, const std::string& trailing_commands) {
         return execute_loop_trailing_commands(loop_rc, trailing_commands,

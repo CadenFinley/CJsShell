@@ -238,6 +238,15 @@ else
     fail "Exit in conditional should work, expected 99, got $?"
 fi
 
+log_test "Exit in while loop body"
+loop_output=$("$SHELL_TO_TEST" -c "while true; do exit 37; done; echo unreachable" 2>/dev/null)
+loop_status=$?
+if [ $loop_status -eq 37 ] && [ -z "$loop_output" ]; then
+    pass
+else
+    fail "Exit should terminate a while loop immediately (status=$loop_status, output=$loop_output)"
+fi
+
 log_test "Exit with background process handling"
 "$SHELL_TO_TEST" -c "sleep 1 & exit 33" 2>/dev/null &
 shell_pid=$!
