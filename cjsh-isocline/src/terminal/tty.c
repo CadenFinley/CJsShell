@@ -1087,6 +1087,24 @@ ic_private void tty_end_raw(tty_t* tty) {
     if (!tty->raw_enabled)
         return;
     tty->cpush_count = 0;
+
+    // Preserve bytes that arrived under raw-mode CR/LF semantics before
+    // switching to the swapped capture termios. Otherwise a raw Return still
+    // waiting in the kernel queue is later decoded as if it had been swapped
+    // by typeahead_ios, turning it into Ctrl+J. This is especially visible
+    // when input immediately follows Ctrl+C at a readline boundary.
+    if (tty->typeahead_capture_mode) {
+        stringbuf_t* pending = sbuf_new(tty->mem);
+        if (pending != NULL) {
+            if (tty_capture_pending_raw(tty, pending)) {
+                const char* bytes = sbuf_string(pending);
+                const ssize_t length = sbuf_len(pending);
+                (void)tty_replay_typeahead(tty, (const uint8_t*)bytes, (size_t)length);
+            }
+            sbuf_free(pending);
+        }
+    }
+
     const struct termios* restore_ios =
         (tty->typeahead_capture_mode ? &tty->typeahead_ios : &tty->orig_ios);
     if (tcsetattr(tty->fd_in, TCSANOW, restore_ios) < 0)

@@ -765,6 +765,9 @@ static int run_case(const char* scenario) {
             staged = crlf_distinct;
             staged_len = sizeof(crlf_distinct) - 1;
             typeahead_two_readlines = true;
+        } else if (strcmp(scenario, "typeahead_interrupt_then_return") == 0) {
+            (void)ic_enable_typeahead(true);
+            typeahead_two_readlines = true;
         } else if (strcmp(scenario, "typeahead_chunked_return") == 0) {
             (void)ic_enable_typeahead(true);
             if (!ic_typeahead_ingest_raw_input((const uint8_t*)"chunked ", 8) ||

@@ -1003,6 +1003,11 @@ def main() -> int:
         ("typeahead_two_returns", b"", "first|second"),
         ("typeahead_return_then_ctrl_j", b"", "first|second\nthird"),
         ("typeahead_crlf_distinct", b"", "first|\nsecond"),
+        (
+            "typeahead_interrupt_then_return",
+            b"\x03queued command\r",
+            "<CTRL+C>|queued command",
+        ),
         ("vim_typeahead_return_submit", b"", "queued command"),
         ("vim_typeahead_ctrl_j_then_queued_return", b"", "first\nsecond"),
     ]
