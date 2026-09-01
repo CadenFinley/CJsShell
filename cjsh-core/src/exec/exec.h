@@ -163,4 +163,8 @@ CommandOutput execute_command_for_output(const std::string& command);
 
 CommandOutput execute_command_vector_for_output(const std::vector<std::string>& args);
 
+CommandOutput execute_command_vector_for_output_with_progress(
+    const std::vector<std::string>& args, const std::function<void()>& progress_callback,
+    unsigned int progress_interval_ms = 250);
+
 }  // namespace exec_utils

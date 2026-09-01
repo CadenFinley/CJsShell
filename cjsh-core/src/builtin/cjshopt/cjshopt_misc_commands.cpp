@@ -73,6 +73,12 @@ std::string style_preview_sample(const std::string& token_type) {
     if (token_type == "unknown-command") {
         return "notarealcmd";
     }
+    if (token_type == "agent-prefix") {
+        return "ai: ";
+    }
+    if (token_type == "agent-request") {
+        return "list files changed today";
+    }
     if (token_type == "colon") {
         return ":";
     }

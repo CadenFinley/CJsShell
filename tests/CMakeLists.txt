@@ -69,10 +69,14 @@ add_executable(
 )
 target_link_libraries(history_expansion_tests PRIVATE cjsh_core cjsh_isocline)
 
+add_executable(agent_mode_tests "${CMAKE_CURRENT_SOURCE_DIR}/core/test_agent_mode.cpp")
+target_link_libraries(agent_mode_tests PRIVATE cjsh_core cjsh_isocline)
+
 add_test(NAME isocline_behavior_tests COMMAND isocline_behavior_tests)
 add_test(NAME completion_tests COMMAND completion_tests)
 add_test(NAME syntax_highlighting_tests COMMAND syntax_highlighting_tests)
 add_test(NAME history_expansion_tests COMMAND history_expansion_tests)
+add_test(NAME agent_mode_tests COMMAND agent_mode_tests)
 
 if(Python3_Interpreter_FOUND)
     add_test(
@@ -90,6 +94,12 @@ if(Python3_Interpreter_FOUND)
     add_test(
         NAME interactive_shutdown_hangup_tests
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_interactive_shutdown.py"
+                $<TARGET_FILE:cjsh>
+    )
+
+    add_test(
+        NAME agent_mode_interactive_tests
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_agent_mode_interactive.py"
                 $<TARGET_FILE:cjsh>
     )
 

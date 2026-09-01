@@ -635,6 +635,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("auto-tab", "Toggle automatic tab completion"),
              make_subcommand("prompt-newline", "Toggle newline after command execution"),
              make_subcommand("right-prompt-follow-cursor", "Move the right prompt with the cursor"),
+             make_subcommand("agent-mode", "Configure agent-assisted command writing"),
              make_subcommand("keybind", "Inspect or modify key bindings"),
              make_subcommand("generate-profile", "Generate ~/.cjprofile"),
              make_subcommand("generate-env", "Generate ~/.cjshenv"),
@@ -680,6 +681,31 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_subcommand("reset", "Restore default key bindings"),
                  make_subcommand("profile", "Manage key binding profiles"),
                  make_subcommand("ext", "Manage command key bindings")});
+
+        add_doc("cjshopt-agent-mode", "Configure agent-assisted command writing",
+                {make_subcommand("set", "Add or replace an agent executor"),
+                 make_subcommand("list", "Show configured executors"),
+                 make_subcommand("status", "Show agent-mode status"),
+                 make_subcommand("on", "Enable agent command writing"),
+                 make_subcommand("off", "Disable agent command writing"),
+                 make_subcommand("key", "Configure the activation key"),
+                 make_subcommand("clear", "Remove executor configuration"),
+                 make_subcommand("reset", "Restore agent-mode defaults")});
+
+        add_doc("cjshopt-agent-mode-set", "Add or replace an agent executor",
+                {make_option("--command", "Executor command; the request is its final argument"),
+                 make_option("--system-prompt", "Guidance added after CJSH's protocol prompt"),
+                 make_option("--trigger-prefix", "Input prefix that selects this executor")});
+
+        add_doc("cjshopt-agent-mode-key", "Configure the agent activation key",
+                {make_subcommand("default", "Restore the default Alt+A binding"),
+                 make_subcommand("off", "Disable direct key activation"),
+                 make_subcommand("status", "Show the activation key")});
+
+        add_doc("cjshopt-agent-mode-clear", "Remove agent executor configuration",
+                {make_option("--default", "Remove the fallback executor"),
+                 make_option("--trigger-prefix", "Remove the executor for a prefix"),
+                 make_option("--all", "Remove every executor")});
 
         add_doc("cjshopt-keybind-profile", "Manage key binding profiles",
                 {make_subcommand("list", "List available key binding profiles"),

@@ -67,6 +67,9 @@ Powered by the embedded [isocline](https://github.com/cadenfinley/isocline) edit
 - **Custom key bindings** – An Emacs-inspired default profile, an optional `vim` profile that adds
     `Alt+H/J/K/L/W` navigation, and fine-grained overrides via `cjshopt keybind` (including
     command-driven bindings through `cjsh-widget`). The `vim` profile is not a modal Vi/Vim mode.
+- **Agent-assisted command writing** – Route editor text to user-configured AI executors through
+    `cjshopt agent-mode`, select their JSON command suggestions in an isocline menu, and review the
+    result before execution. CJSH does not manage provider credentials.
 - **Mouse-aware editing** – Configure capture with `cjshopt mouse-clicking`: `all-off` disables it
     everywhere, `off` limits it to expanded/interactive menus, and `simple`/`smart` also support
     prompt cursor placement. Collapsed completions are not clickable in `off`; clicks can select
@@ -107,6 +110,7 @@ for full details.
          `cjshopt status-line`, `cjshopt status-reporting`, `cjshopt visible-whitespace`
      - `cjshopt mouse-clicking`, `cjshopt mouse-clicking-status-line`
      - `cjshopt prompt-newline`, `cjshopt right-prompt-follow-cursor`
+     - `cjshopt agent-mode …` for user-provided command-writing executors
      - `cjshopt keybind …` and `cjshopt keybind ext …` for keymap management
     - `cjshopt set-history-max` to adjust persistent history size (0 or more entries; no upper limit)
     - `set -o huponexit` mirrors bash's option for sending SIGHUP to background jobs when the

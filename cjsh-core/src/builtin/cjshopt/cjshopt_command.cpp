@@ -37,6 +37,7 @@
 #include <string>
 #include <vector>
 
+#include "agent_mode.h"
 #include "cjshopt_command.h"
 #include "error_out.h"
 #include "shell_env.h"
@@ -80,6 +81,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     AutoTab,
     PromptNewline,
     RightPromptFollowCursor,
+    AgentMode,
     Keybind,
     GenerateProfile,
     GenerateEnv,
@@ -149,6 +151,7 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
          {CjshoptSubcommand::PromptNewline, "prompt-newline", prompt_newline_command},
          {CjshoptSubcommand::RightPromptFollowCursor, "right-prompt-follow-cursor",
           right_prompt_follow_cursor_command},
+         {CjshoptSubcommand::AgentMode, "agent-mode", agent_mode::command},
          {CjshoptSubcommand::Keybind, "keybind", keybind_command},
          {CjshoptSubcommand::GenerateProfile, "generate-profile", generate_profile_command},
          {CjshoptSubcommand::GenerateEnv, "generate-env", generate_env_command},
@@ -245,6 +248,7 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "(default: disabled)",
         std::string("  right-prompt-follow-cursor <on|off|status>  Re-anchor the inline right ") +
             "prompt to the cursor row (default: disabled)",
+        "  agent-mode <subcommand> [...]  Configure agent-assisted command writing",
         "  keybind <subcommand> [...]       Inspect or modify key bindings",
         "    - Changes apply immediately; add the same command to ~/.cjshrc to persist",
         "    - Use 'cjshopt keybind ext' for custom command keybindings",
@@ -302,7 +306,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                   "status-hints, status-line, status-reporting, status-line-callback, "
                   "mouse-clicking, mouse-clicking-status-line, auto-tab, prompt-newline, "
                   "right-prompt-follow-cursor, "
-                  "keybind, "
+                  "agent-mode, keybind, "
                   "generate-profile, generate-env, generate-rc, generate-logout, set-history-max, "
                   "set-completion-max"}});
 

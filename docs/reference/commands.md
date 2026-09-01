@@ -730,6 +730,7 @@ Available subcommands:
 - `auto-tab` - Configure automatic tab completion
 - `prompt-newline` - Force a blank line after each command
 - `right-prompt-follow-cursor` - Keep the inline right prompt aligned with the active cursor row
+- `agent-mode` - Configure user-provided executors for agent-assisted command writing
 - `keybind` - Inspect or modify key bindings (changes apply immediately; add to `~/.cjshrc` to persist)
 - `generate-env` - Create or overwrite ~/.cjshenv (use `--alt` for `~/.config/cjsh/.cjshenv`)
 - `generate-profile` - Create or overwrite ~/.cjprofile (use `--alt` for `~/.config/cjsh/.cjprofile`)
@@ -737,6 +738,21 @@ Available subcommands:
 - `generate-logout` - Create or overwrite ~/.cjlogout (use `--alt` for `~/.config/cjsh/.cjlogout`)
 - `set-history-max` - Configure history persistence limits
 - `set-completion-max` - Limit the maximum number of completion suggestions shown
+
+#### agent-mode
+
+Configure user-provided AI executors without giving CJSH provider credentials. See
+[Agent-Assisted Command Writing](editing.md#agent-assisted-command-writing) for the executor JSON
+protocol, trigger prefixes, menu behavior, and complete examples.
+
+```bash
+cjshopt agent-mode set --command <command> [--system-prompt <text>] [--trigger-prefix <prefix>]
+cjshopt agent-mode status
+cjshopt agent-mode on|off
+cjshopt agent-mode key <key|default|off|status>
+cjshopt agent-mode clear [--default|--trigger-prefix <prefix>|--all]
+cjshopt agent-mode reset
+```
 
 ### cjsh-widget
 Interact with the embedded line editor (isocline) to drive advanced key bindings.

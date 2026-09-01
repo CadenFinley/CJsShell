@@ -34,6 +34,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "agent_mode.h"
 #include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "command_analysis.h"
@@ -427,6 +428,17 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         return;
 
     std::string raw_input(input, len);
+
+    const auto agent_prefix_length = agent_mode::matching_trigger_prefix_length(raw_input);
+    if (agent_prefix_length.has_value()) {
+        ic_highlight(henv, 0L, static_cast<long>(*agent_prefix_length), "cjsh-agent-prefix");
+        if (*agent_prefix_length < len) {
+            ic_highlight(henv, static_cast<long>(*agent_prefix_length),
+                         static_cast<long>(len - *agent_prefix_length), "cjsh-agent-request");
+        }
+        return;
+    }
+
     std::vector<command_analysis::CommentRange> comment_ranges;
     std::string sanitized_input =
         command_analysis::sanitize_input_for_analysis(raw_input, &comment_ranges);

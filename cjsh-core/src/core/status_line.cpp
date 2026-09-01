@@ -149,6 +149,7 @@ struct ScopedBoolFlag {
 };
 
 std::string g_user_status_callback_function;
+std::string g_transient_status_message;
 thread_local bool g_user_status_callback_active = false;
 
 std::string sanitize_for_status(const std::string& text) {
@@ -817,6 +818,11 @@ bool previous_passed_buffer_valid = false;
 const char* create_below_syntax_message(const char* input_buffer, void*) {
     static thread_local std::string status_message;
 
+    if (!g_transient_status_message.empty()) {
+        status_message = g_transient_status_message;
+        return status_message.c_str();
+    }
+
     if (!config::status_line_enabled) {
         status_message.clear();
         previous_passed_buffer.clear();
@@ -854,6 +860,18 @@ const char* create_below_syntax_message(const char* input_buffer, void*) {
     }
 
     return status_message.c_str();
+}
+
+void set_transient_status_message(const std::string& message) {
+    g_transient_status_message = message;
+    previous_passed_buffer.clear();
+    previous_passed_buffer_valid = false;
+}
+
+void clear_transient_status_message() {
+    g_transient_status_message.clear();
+    previous_passed_buffer.clear();
+    previous_passed_buffer_valid = false;
 }
 
 void set_user_status_callback_function(const std::string& function_name) {

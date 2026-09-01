@@ -41,6 +41,7 @@ extern "C" {
 #include "isocline.h"
 }
 
+#include "agent_mode.h"
 #include "cjsh_syntax_highlighter.h"
 #include "command_analysis.h"
 #include "shell.h"
@@ -1529,6 +1530,59 @@ static bool test_existing_directory_argument_highlighting(void) {
     return ok;
 }
 
+static bool test_agent_trigger_prefix_highlighting(void) {
+    const char* test_name = "agent_trigger_prefix_highlighting";
+    cjsh_env::set_startup_active(true);
+    const bool configured = agent_mode::command({"agent-mode", "reset"}) == 0 &&
+                            agent_mode::command({"agent-mode", "set", "--command", "true",
+                                                 "--trigger-prefix", "ai:"}) == 0 &&
+                            agent_mode::command({"agent-mode", "set", "--command", "true",
+                                                 "--trigger-prefix", "ai: "}) == 0;
+    cjsh_env::set_startup_active(false);
+    EXPECT_TRUE(configured, test_name, "agent trigger prefixes should configure successfully");
+
+    const std::string input = "ai: list files # this is natural language";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    const size_t prefix_length = std::string("ai: ").size();
+    bool ok =
+        expect_style_range(attrs, env->bbcode, 0, prefix_length, "cjsh-agent-prefix", test_name,
+                           "the longest matching trigger should use the agent-prefix style") &&
+        expect_style_range(attrs, env->bbcode, prefix_length, input.size() - prefix_length,
+                           "cjsh-agent-request", test_name,
+                           "the complete natural-language request should use one style") &&
+        expect_not_style_range(attrs, env->bbcode, input.find('#'), input.size() - input.find('#'),
+                               "cjsh-comment", test_name,
+                               "shell syntax rules should not run inside an agent request");
+    attrbuf_free(attrs);
+
+    cjsh_env::set_startup_active(true);
+    const bool disabled = agent_mode::command({"agent-mode", "off"}) == 0;
+    cjsh_env::set_startup_active(false);
+    EXPECT_TRUE(disabled, test_name, "agent mode should disable successfully");
+    attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+    ok = ok && expect_not_style_range(attrs, env->bbcode, 0, prefix_length, "cjsh-agent-prefix",
+                                      test_name,
+                                      "disabled agent mode should use normal shell highlighting");
+    attrbuf_free(attrs);
+
+    cjsh_env::set_startup_active(true);
+    (void)agent_mode::command({"agent-mode", "reset"});
+    cjsh_env::set_startup_active(false);
+    return ok;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -1590,6 +1644,7 @@ static const test_case_t kTests[] = {
     {"c_style_for_header_command_boundary", test_c_style_for_header_command_boundary},
     {"existing_file_argument_highlighting", test_existing_file_argument_highlighting},
     {"existing_directory_argument_highlighting", test_existing_directory_argument_highlighting},
+    {"agent_trigger_prefix_highlighting", test_agent_trigger_prefix_highlighting},
 };
 
 int main(void) {

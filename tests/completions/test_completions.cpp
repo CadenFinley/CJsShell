@@ -1433,6 +1433,8 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(
         has_entry(cjshopt_doc, "status-line-callback", builtin_completions::EntryKind::Subcommand),
         test_name, "cjshopt should include status-line-callback subcommand");
+    EXPECT_TRUE(has_entry(cjshopt_doc, "agent-mode", builtin_completions::EntryKind::Subcommand),
+                test_name, "cjshopt should include agent-mode subcommand");
     EXPECT_TRUE(has_entry(cjshopt_doc, "completion-menu-expanded",
                           builtin_completions::EntryKind::Subcommand),
                 test_name, "cjshopt should include completion-menu-expanded subcommand");
@@ -1456,6 +1458,29 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(
         has_entry(multiline_max_lines_doc, "status", builtin_completions::EntryKind::Subcommand),
         test_name, "multiline-max-lines should include status subcommand");
+
+    const auto* agent_mode_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-agent-mode");
+    EXPECT_TRUE(agent_mode_doc != nullptr, test_name, "cjshopt-agent-mode doc should exist");
+    EXPECT_TRUE(has_entry(agent_mode_doc, "set", builtin_completions::EntryKind::Subcommand),
+                test_name, "agent-mode should include set subcommand");
+    EXPECT_TRUE(has_entry(agent_mode_doc, "key", builtin_completions::EntryKind::Subcommand),
+                test_name, "agent-mode should include key subcommand");
+    EXPECT_TRUE(has_entry(agent_mode_doc, "clear", builtin_completions::EntryKind::Subcommand),
+                test_name, "agent-mode should include clear subcommand");
+
+    const auto* agent_mode_set_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-agent-mode-set");
+    EXPECT_TRUE(agent_mode_set_doc != nullptr, test_name,
+                "cjshopt-agent-mode-set doc should exist");
+    EXPECT_TRUE(has_entry(agent_mode_set_doc, "--command", builtin_completions::EntryKind::Option),
+                test_name, "agent-mode set should include --command");
+    EXPECT_TRUE(
+        has_entry(agent_mode_set_doc, "--system-prompt", builtin_completions::EntryKind::Option),
+        test_name, "agent-mode set should include --system-prompt");
+    EXPECT_TRUE(
+        has_entry(agent_mode_set_doc, "--trigger-prefix", builtin_completions::EntryKind::Option),
+        test_name, "agent-mode set should include --trigger-prefix");
 
     EXPECT_TRUE(has_entry(cjshopt_doc, "multiline-bottom-lines",
                           builtin_completions::EntryKind::Subcommand),

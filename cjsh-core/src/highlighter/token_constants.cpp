@@ -101,6 +101,8 @@ const std::unordered_set<std::string>& redirection_operators() {
 const std::unordered_map<std::string, std::string>& default_styles() {
     static const std::unordered_map<std::string, std::string> kDefaultStyles = {
         {"unknown-command", "color=#FFFFFF underline underline-color=#FF0000"},
+        {"agent-prefix", "bold color=#8BE9FD"},
+        {"agent-request", "color=#F8F8F2"},
         {"colon", "bold color=#8BE9FD"},
         {"file-argument", "color=#8BE9FD"},
         {"path-exists", "color=#50FA7B"},

@@ -40,6 +40,7 @@
 #include <utility>
 #include <vector>
 
+#include "agent_mode.h"
 #include "error_out.h"
 #include "isocline.h"
 #include "shell_env.h"
@@ -504,6 +505,7 @@ int keybind_profile_set_command(const std::vector<std::string>& args) {
         std::cout << "Add `cjshopt keybind profile set " << profile_name
                   << "` to your ~/.cjshrc to persist this change.\n";
     }
+    agent_mode::apply_key_bindings();
     return 0;
 }
 
@@ -734,6 +736,7 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
 
 int keybind_reset_command() {
     ic_reset_key_bindings();
+    agent_mode::apply_key_bindings();
     if (!cjsh_env::startup_active()) {
         std::cout << "All custom key bindings cleared.\n";
     }

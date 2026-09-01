@@ -178,7 +178,7 @@ cjshopt style_def <token_type> <style>
 ```
 
 **Available Style Names:**
-- `keyword`, `builtin`, `system`, `unknown-command`
+- `keyword`, `builtin`, `system`, `unknown-command`, `agent-prefix`, `agent-request`
 - `string`, `comment`, `variable`, `number`, `operator`
 - `file-argument`, `path-exists`, `path-not-exists`, `glob-pattern`, `assignment-value`
 - `command-substitution`, `arithmetic`, `option`, `function-definition`, `history-expansion`
@@ -484,6 +484,74 @@ Control whether the fuzzy history search menu matches case-sensitively with `cjs
 
 History search results are sorted newest-first by default. Press `Alt+S` inside the menu to cycle the current menu through available sort arrangements such as command text and metadata keys present in the matching history entries. This only changes the open menu; the default sort can be changed by callers through the isocline history search sort API.
 
+## Agent-Assisted Command Writing
+
+CJSH can pass the current editor buffer to any command-line AI executor and present the returned
+commands in an isocline selection menu. CJSH does not choose a provider, store API keys, or execute
+the selected suggestion. The chosen command replaces the editor buffer so you can inspect or edit
+it before pressing `Enter`.
+
+Configure an executor in `~/.cjshrc`:
+
+```bash
+cjshopt agent-mode set \
+  --trigger-prefix ': ' \
+  --system-prompt 'Prefer portable commands and flag destructive behavior.' \
+  --command 'copilot --reasoning-effort low --prompt'
+```
+
+With that example, type `: describe what the command should do` and press `Enter`. The trigger
+prefix is removed before the request is sent. While an enabled trigger prefix matches, the syntax
+highlighter styles the prefix and the remaining natural-language request with `agent-prefix` and
+`agent-request`; it does not interpret request punctuation as shell syntax. Both styles can be
+changed with `cjshopt style_def`. A transient **Waiting for agent response.** status
+animates through one, two, and three dots while the executor is running, then clears before its
+results or an error are displayed.
+Use `Up`/`Down` and `Enter` in the menu to place a suggestion in the editor, or `Esc` to keep the
+original buffer.
+
+Invoking the agent activation key with an empty or whitespace-only buffer, or pressing `Enter`
+after typing only a configured prefix and optional whitespace, does not start the executor. It
+submits an empty editor buffer and immediately advances to a fresh prompt.
+
+The executor command is parsed into an executable and arguments; shell operators are not evaluated.
+CJSH appends one final argument containing its embedded protocol and safety prompt, runtime context,
+the optional user-configured system prompt as additional instructions, and the current input as the
+command request. Runtime context is generated for each request and includes local and UTC time,
+working directory, hostname, operating system and kernel, architecture, CJSH version and mode, and
+the previous command's exit status. CJSH does not copy arbitrary environment variables or credentials
+into the prompt. The embedded prompt always takes precedence and requires one to three command
+suggestions. The executor must print a JSON array, although the parser tolerates surrounding
+explanatory text or a Markdown fence:
+
+```json
+[
+  {"command": "find . -name '*.log' -delete", "description": "Delete log files recursively"},
+  {"command": "find . -name '*.log' -print", "description": "Preview matching log files"}
+]
+```
+
+Omit `--trigger-prefix` to configure the fallback executor. Multiple prefix executors are supported;
+the longest matching prefix wins. Press `Alt+A` to invoke agent writing on any current buffer (using
+the matching prefix, then the fallback, then the first configured executor), or choose **Write
+command with agent** from the command palette. Change the key with
+`cjshopt agent-mode key <key>`, for example `cjshopt agent-mode key F3`.
+An explicit `cjshopt keybind ext` command on the same key takes precedence.
+
+Useful controls:
+
+```bash
+cjshopt agent-mode status
+cjshopt agent-mode on
+cjshopt agent-mode off
+cjshopt agent-mode key default
+cjshopt agent-mode key off
+cjshopt agent-mode clear --trigger-prefix ': '
+cjshopt agent-mode clear --default
+cjshopt agent-mode clear --all
+cjshopt agent-mode reset
+```
+
 ## Key Bindings
 
 CJ's Shell supports customizable key bindings with multiple profiles.
@@ -547,6 +615,7 @@ action.
 - `Enter`: Execute command
 - `F1`: Show help / key binding cheat sheet
 - `F2`: Toggle mouse clicking for the current prompt
+- `Alt+A`: Invoke agent-assisted command writing (when enabled)
 - `Esc`: Cancel an open menu or search; at the main prompt, clear non-empty input
 
 ### Custom Key Bindings
@@ -766,6 +835,7 @@ All visual aspects of the editor can be customized through style definitions.
 - `builtin`: Builtin commands
 - `system`: External commands resolved from PATH
 - `unknown-command`: Unresolved command names
+- `agent-prefix`, `agent-request`: Agent trigger prefixes and their natural-language requests
 - `string`, `comment`, `variable`, `number`, `operator`
 - `file-argument`, `path-exists`, `path-not-exists`, `glob-pattern`, `assignment-value`
 - `command-substitution`, `arithmetic`, `option`, `function-definition`, `history-expansion`

@@ -29,6 +29,7 @@
 #include "exec.h"
 
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -39,6 +40,7 @@
 #include <array>
 #include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
@@ -2668,8 +2670,12 @@ int Exec::run_with_command_redirections(Command cmd, const std::function<int()>&
 
 namespace exec_utils {
 
-CommandOutput execute_with_stdout_capture(const std::function<int()>& child_executor,
-                                          bool capture_stderr, bool suppress_stderr) {
+namespace {
+
+CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child_executor,
+                                               bool capture_stderr, bool suppress_stderr,
+                                               const std::function<void()>& progress_callback,
+                                               unsigned int progress_interval_ms) {
     CommandOutput result{"", -1, false};
 
     if (!child_executor) {
@@ -2719,18 +2725,86 @@ CommandOutput execute_with_stdout_capture(const std::function<int()>& child_exec
 
     cjsh_filesystem::safe_close(pipefd[1]);
 
-    char buffer[4096];
-    ssize_t bytes_read;
-    while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
-        buffer[bytes_read] = '\0';
-        result.output += buffer;
-    }
+    int status = 0;
+    if (!progress_callback) {
+        char buffer[4096];
+        ssize_t bytes_read;
+        while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
+            result.output.append(buffer, static_cast<size_t>(bytes_read));
+        }
+        cjsh_filesystem::safe_close(pipefd[0]);
+        if (waitpid(pid, &status, 0) == -1) {
+            return result;
+        }
+    } else {
+        const int interval_ms =
+            static_cast<int>(std::max(1U, std::min(progress_interval_ms, 60000U)));
+        auto last_progress = std::chrono::steady_clock::now();
+        bool pipe_open = true;
+        bool child_reaped = false;
+        bool io_failed = false;
 
-    cjsh_filesystem::safe_close(pipefd[0]);
+        while (pipe_open || !child_reaped) {
+            pollfd descriptor{pipefd[0], static_cast<short>(POLLIN | POLLHUP | POLLERR), 0};
+            int poll_result =
+                poll(pipe_open ? &descriptor : nullptr, pipe_open ? 1 : 0, interval_ms);
+            if (poll_result < 0 && errno != EINTR) {
+                io_failed = true;
+                break;
+            }
+            if (pipe_open && poll_result > 0 && (descriptor.revents & POLLNVAL) != 0) {
+                io_failed = true;
+                break;
+            }
 
-    int status;
-    if (waitpid(pid, &status, 0) == -1) {
-        return result;
+            if (pipe_open && poll_result > 0 &&
+                (descriptor.revents & (POLLIN | POLLHUP | POLLERR)) != 0) {
+                char buffer[4096];
+                ssize_t bytes_read = read(pipefd[0], buffer, sizeof(buffer));
+                if (bytes_read > 0) {
+                    result.output.append(buffer, static_cast<size_t>(bytes_read));
+                } else if (bytes_read == 0) {
+                    cjsh_filesystem::safe_close(pipefd[0]);
+                    pipe_open = false;
+                } else if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                    io_failed = true;
+                    break;
+                }
+            }
+
+            if (!child_reaped) {
+                pid_t waited = waitpid(pid, &status, WNOHANG);
+                if (waited == pid) {
+                    child_reaped = true;
+                } else if (waited < 0 && errno != EINTR) {
+                    io_failed = true;
+                    break;
+                }
+            }
+
+            auto now = std::chrono::steady_clock::now();
+            if (!child_reaped &&
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - last_progress)
+                        .count() >= interval_ms) {
+                progress_callback();
+                last_progress = now;
+            }
+        }
+
+        if (pipe_open) {
+            cjsh_filesystem::safe_close(pipefd[0]);
+        }
+        if (!child_reaped) {
+            while (waitpid(pid, &status, 0) < 0) {
+                if (errno != EINTR) {
+                    io_failed = true;
+                    break;
+                }
+            }
+        }
+        if (io_failed) {
+            return result;
+        }
     }
 
     result.exit_code = extract_exit_code(status);
@@ -2738,29 +2812,44 @@ CommandOutput execute_with_stdout_capture(const std::function<int()>& child_exec
     return result;
 }
 
-static CommandOutput execute_args_for_output_impl(const std::vector<std::string>& args) {
+CommandOutput execute_args_for_output_impl(const std::vector<std::string>& args,
+                                           const std::function<void()>& progress_callback,
+                                           unsigned int progress_interval_ms) {
     if (args.empty()) {
         return {"", -1, false};
     }
 
     std::string cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(args[0]);
-    return execute_with_stdout_capture(
+    return execute_with_stdout_capture_impl(
         [&]() -> int {
             const char* exec_override =
                 cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
             exec_external_child(args, exec_override);
             return 127;
         },
-        false, true);
+        false, true, progress_callback, progress_interval_ms);
+}
+
+}  // namespace
+
+CommandOutput execute_with_stdout_capture(const std::function<int()>& child_executor,
+                                          bool capture_stderr, bool suppress_stderr) {
+    return execute_with_stdout_capture_impl(child_executor, capture_stderr, suppress_stderr, {}, 0);
 }
 
 CommandOutput execute_command_for_output(const std::string& command) {
     std::vector<std::string> args = cjsh_env::parse_shell_command(command);
-    return execute_args_for_output_impl(args);
+    return execute_args_for_output_impl(args, {}, 0);
 }
 
 CommandOutput execute_command_vector_for_output(const std::vector<std::string>& args) {
-    return execute_args_for_output_impl(args);
+    return execute_args_for_output_impl(args, {}, 0);
+}
+
+CommandOutput execute_command_vector_for_output_with_progress(
+    const std::vector<std::string>& args, const std::function<void()>& progress_callback,
+    unsigned int progress_interval_ms) {
+    return execute_args_for_output_impl(args, progress_callback, progress_interval_ms);
 }
 
 }  // namespace exec_utils

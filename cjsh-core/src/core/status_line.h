@@ -34,6 +34,10 @@ namespace status_line {
 
 const char* create_below_syntax_message(const char* input_buffer, void* user_data);
 
+// Temporarily replace the normal status content with operation feedback.
+void set_transient_status_message(const std::string& message);
+void clear_transient_status_message();
+
 void set_user_status_callback_function(const std::string& function_name);
 void clear_user_status_callback_function();
 std::string get_user_status_callback_function();
