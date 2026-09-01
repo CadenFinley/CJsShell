@@ -2024,9 +2024,11 @@ want history expansion to happen as part of command submission.</p>
 <p>History search results are sorted newest-first by default. Press <code>Alt+S</code> inside the menu to cycle the current menu through available sort arrangements such as command text and metadata keys present in the matching history entries. This only changes the open menu; the default sort can be changed by callers through the isocline history search sort API.</p>
 <h2 id="agent-assisted-command-writing">Agent-Assisted Command Writing</h2>
 <p>CJSH can pass the current editor buffer to any command-line AI executor and present the returned
-commands in an isocline selection menu. CJSH does not choose a provider, store API keys, or execute
-the selected suggestion. The chosen command replaces the editor buffer so you can inspect or edit
-it before pressing <code>Enter</code>.</p>
+commands in an isocline selection menu. CJSH does not choose a provider or store API keys. Press
+<code>Tab</code> to place the chosen command in a fresh editor buffer for inspection, or <code>Enter</code> to submit it
+immediately. In either case, the original natural-language request remains visible on the preceding
+prompt line. If <code>PS1_FINAL</code> or <code>RPS1_FINAL</code> is configured, those final-prompt values restyle the
+preserved request; the generated command still uses the normal active <code>PS1</code> and <code>RPS1</code>.</p>
 <p>Configure an executor in <code>~/.cjshrc</code>:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>cjshopt<span class="w"> </span>agent-mode<span class="w"> </span><span class="nb">set</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span>--trigger-prefix<span class="w"> </span><span class="s1">': '</span><span class="w"> </span><span class="se">\</span>
@@ -2040,8 +2042,8 @@ highlighter styles the prefix and the remaining natural-language request with <c
 changed with <code>cjshopt style_def</code>. A transient <strong>Waiting for agent response.</strong> status
 animates through one, two, and three dots while the executor is running, then clears before its
 results or an error are displayed.
-Use <code>Up</code>/<code>Down</code> and <code>Enter</code> in the menu to place a suggestion in the editor, or <code>Esc</code> to keep the
-original buffer.</p>
+Use <code>Up</code>/<code>Down</code> to select a suggestion, <code>Tab</code> to insert it for review, <code>Enter</code> to submit it, or <code>Esc</code>
+to keep the original buffer.</p>
 <p>Invoking the agent activation key with an empty or whitespace-only buffer, or pressing <code>Enter</code>
 after typing only a configured prefix and optional whitespace, does not start the executor. It
 submits an empty editor buffer and immediately advances to a fresh prompt.</p>
