@@ -56,6 +56,38 @@ cmake --build --preset release --parallel
 - `src/terminal/` - terminal rendering, bbcode/attributes, TTY I/O, and Unicode helpers
 - `src/utils/` - reusable utilities shared across components
 
+## Custom menus from keybindings
+
+Applications can bind any key to the `runoff` action and open a searchable Isocline menu from the
+unhandled-key callback. `ic_show_menu()` returns the selected index from the original item array and
+restores the current readline buffer when the menu closes.
+
+```c
+static bool handle_custom_key(ic_keycode_t key, void* arg) {
+    (void)arg;
+    if (key != IC_KEY_F3) return false;
+
+    static const ic_menu_item_t items[] = {
+        { "Show status", "inspect the working tree", "git changes" },
+        { "Restart service", "restart the background worker", "reload daemon" },
+        { "Open logs", "view recent service output", "tail diagnostics" },
+    };
+
+    size_t selected = 0;
+    if (ic_show_menu("actions: ", items, 3, &selected)) {
+        /* Execute the application action identified by selected. */
+    }
+    return true; /* The F3 key itself was handled, including menu cancellation. */
+}
+
+ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_RUNOFF);
+ic_set_unhandled_key_handler(handle_custom_key, NULL);
+```
+
+Users can type to fuzzy-filter labels, descriptions, and keywords. Up/Down, Ctrl+P/Ctrl+N,
+Shift+Up/Down, Enter/Tab, Escape, Alt+C, and menu mouse interactions follow the existing Isocline
+menu controls.
+
 ## Upstream and license
 
 This module is distributed under the MIT License as part of CJ's Shell.

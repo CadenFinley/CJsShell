@@ -4112,6 +4112,27 @@ static bool test_command_palette_handler_registration(void) {
     return true;
 }
 
+static bool test_custom_menu_rejects_calls_without_active_editor(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    env->current_editor = NULL;
+    const ic_menu_item_t items[] = {
+        {"Status", "show repository status", "git working tree"},
+    };
+    size_t selected = 42;
+    EXPECT_FALSE(ic_show_menu("actions: ", items, 1, &selected),
+                 "custom menu should require an active readline editor");
+    EXPECT_TRUE(selected == 42,
+                "failed custom menu calls should leave the selected index unchanged");
+    EXPECT_FALSE(ic_show_menu("actions: ", NULL, 1, &selected),
+                 "custom menu should reject a NULL item array");
+    EXPECT_FALSE(ic_show_menu("actions: ", items, 0, &selected),
+                 "custom menu should reject an empty item array");
+    return true;
+}
+
 static bool test_status_message_callback_registration(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -4322,6 +4343,8 @@ static const test_case_t kTests[] = {
     {"command_palette_entry_registration_and_listing",
      test_command_palette_entry_registration_and_listing},
     {"command_palette_handler_registration", test_command_palette_handler_registration},
+    {"custom_menu_rejects_calls_without_active_editor",
+     test_custom_menu_rejects_calls_without_active_editor},
     {"status_message_callback_registration", test_status_message_callback_registration},
     {"term_color_bits_and_toggle_roundtrip", test_term_color_bits_and_toggle_roundtrip},
 };

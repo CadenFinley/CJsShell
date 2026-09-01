@@ -3286,6 +3286,12 @@ static void edit_disable_menu_mouse_scroll(ic_env_t* env, bool enabled) {
 #include "editline_command_palette.c"
 
 //-------------------------------------------------------------
+// Application-provided menus
+//-------------------------------------------------------------
+
+#include "editline_custom_menu.c"
+
+//-------------------------------------------------------------
 // Completion
 //-------------------------------------------------------------
 
@@ -4243,6 +4249,28 @@ ic_public bool ic_request_submit(void) {
     editor_t* eb = env->current_editor;
     eb->request_submit = true;
     return true;
+}
+
+ic_public bool ic_show_menu(const char* prompt_text, const ic_menu_item_t* items, size_t count,
+                            size_t* selected_index) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL || env->tty == NULL || items == NULL ||
+        count == 0) {
+        return false;
+    }
+
+    const ssize_t item_count = to_ssize_t(count);
+    if (item_count <= 0) {
+        return false;
+    }
+    for (ssize_t i = 0; i < item_count; ++i) {
+        if (items[i].label == NULL || items[i].label[0] == '\0') {
+            return false;
+        }
+    }
+
+    const char* prompt = (prompt_text != NULL ? prompt_text : "select: ");
+    return edit_custom_menu(env, env->current_editor, prompt, items, item_count, selected_index);
 }
 
 ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_prompt,

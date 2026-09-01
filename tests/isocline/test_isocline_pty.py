@@ -1918,6 +1918,42 @@ def main() -> int:
             f"got {palette_multiline_prompt_result!r}"
         )
 
+    custom_menu_result, custom_menu_output = run_case(
+        binary, "custom_menu_runoff", F3 + DOWN + b"\r\r", capture_output=True
+    )
+    if custom_menu_result != "restart":
+        raise AssertionError(
+            "runoff custom menu should return the selected original item index, "
+            f"got {custom_menu_result!r}"
+        )
+    normalized_custom_menu_output = normalize_terminal_output(custom_menu_output)
+    if "custom actions:" not in normalized_custom_menu_output or not all(
+        label in normalized_custom_menu_output
+        for label in ("Show status", "Restart service", "Open logs")
+    ):
+        raise AssertionError(
+            "runoff custom menu should render the application-provided prompt and items, "
+            f"got {normalized_custom_menu_output!r}"
+        )
+
+    custom_menu_filtered = run_case(
+        binary, "custom_menu_runoff", F3 + b"daemon\r\r"
+    )
+    if custom_menu_filtered != "restart":
+        raise AssertionError(
+            "custom menu should filter on hidden keywords and preserve source indices, "
+            f"got {custom_menu_filtered!r}"
+        )
+
+    custom_menu_cancelled = run_case_timed(
+        binary, "custom_menu_runoff", [F3, b"\x1b", b"\r"], step_delay_s=0.2
+    )
+    if custom_menu_cancelled != "keep":
+        raise AssertionError(
+            "cancelling a runoff custom menu should restore the original readline buffer, "
+            f"got {custom_menu_cancelled!r}"
+        )
+
     comp_single = run_case(binary, "completion_single_tab", b"hel\t\r")
     if comp_single != "hello":
         raise AssertionError(

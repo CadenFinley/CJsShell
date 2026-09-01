@@ -59,6 +59,25 @@ typedef enum completion_mode_e {
 
 static completion_mode_t g_completion_mode = COMPLETION_MODE_NONE;
 
+static bool pty_custom_menu_runoff_handler(ic_keycode_t key, void* arg) {
+    (void)arg;
+    if (key != IC_KEY_F3) {
+        return false;
+    }
+
+    static const ic_menu_item_t items[] = {
+        {"Show status", "inspect the working tree", "git changes"},
+        {"Restart service", "restart the background worker", "reload daemon"},
+        {"Open logs", "view recent service output", "tail diagnostics"},
+    };
+    static const char* const values[] = {"status", "restart", "logs"};
+    size_t selected = 0;
+    if (ic_show_menu("custom actions: ", items, sizeof(items) / sizeof(items[0]), &selected)) {
+        (void)ic_set_buffer(values[selected]);
+    }
+    return true;
+}
+
 static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* prefix) {
     if (g_completion_mode == COMPLETION_MODE_SINGLE) {
         static const char* single_words[] = {"hello", NULL};
@@ -510,6 +529,12 @@ static int run_case(const char* scenario) {
         prompt_text = "MENU-BASE-TOP\nMENU-BASE-MIDDLE\npty";
         inline_right_text = "MENU-BASE-RIGHT";
         initial_input = "keep";
+    } else if (strcmp(scenario, "custom_menu_runoff") == 0) {
+        initial_input = "keep";
+        if (!ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_RUNOFF)) {
+            return 6;
+        }
+        ic_set_unhandled_key_handler(pty_custom_menu_runoff_handler, NULL);
     } else if (strcmp(scenario, "transient_prompt_multiline_clear") == 0) {
         prompt_text = "ORIGINAL-TOP\nORIGINAL-MIDDLE\npty";
     } else if (strcmp(scenario, "history_search_sort_alt_s") == 0) {

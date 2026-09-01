@@ -154,23 +154,53 @@ bool ic_push_key_event(ic_keycode_t key);
 /// Safe to call from a signal handler; triggers a wakeup of the input loop.
 void ic_notify_resize(void);
 
-/// Callback function type for unhandled key events.
-/// This callback is invoked when a key is pressed that is not bound to any
-/// isocline action. The callback receives the keycode and can return true
+/// Callback function type for runoff key events.
+/// This callback is invoked when a key is bound to `IC_KEY_ACTION_RUNOFF`.
+/// The callback receives the keycode and can return true
 /// to indicate the key was handled, or false to let isocline's default
 /// behavior continue.
-/// @param key The keycode that was not handled by isocline
+/// @param key The keycode bound to the runoff action
 /// @param arg User-provided argument passed when setting the callback
 /// @returns true if the key was handled by the callback, false otherwise
 typedef bool(ic_unhandled_key_fun_t)(ic_keycode_t key, void* arg);
 
-/// Set a callback for unhandled key events.
+/// Set a callback for runoff key events.
 /// This allows applications to handle custom keybindings that are not
-/// directly tied to isocline's built-in actions. The callback will be
-/// invoked for any key press that doesn't match an isocline keybinding.
-/// @param callback The callback function to invoke for unhandled keys, or NULL to disable
+/// directly tied to isocline's built-in actions. Bind each custom key to
+/// `IC_KEY_ACTION_RUNOFF` (or the named action `"runoff"`) to invoke it.
+/// @param callback The callback function to invoke for runoff keys, or NULL to disable
 /// @param arg User-provided argument that will be passed to the callback
 void ic_set_unhandled_key_handler(ic_unhandled_key_fun_t* callback, void* arg);
+
+/// An item displayed by ic_show_menu().
+typedef struct ic_menu_item_s {
+    /// Primary text displayed for the item. Must not be NULL or empty.
+    const char* label;
+    /// Optional secondary text displayed after the label and included in searches.
+    const char* description;
+    /// Optional additional searchable text that is not displayed.
+    const char* keywords;
+} ic_menu_item_t;
+
+/// Show a searchable selection menu in the active readline editor.
+/// This function is intended to be called synchronously from an unhandled-key
+/// callback after binding a custom key to `IC_KEY_ACTION_RUNOFF`. The current
+/// input and cursor position are restored when the menu closes.
+///
+/// Users can navigate with Up/Down (or Ctrl+P/Ctrl+N), page with Shift+Up/Down,
+/// filter by typing, toggle case sensitivity with Alt+C, accept with Enter or
+/// Tab, and cancel with Escape or Ctrl+C. Mouse selection follows the current
+/// mouse-clicking mode.
+///
+/// The item strings only need to remain valid for the duration of this call.
+/// @param prompt_text Prompt shown while filtering, or NULL for `"select: "`.
+/// @param items Items to display.
+/// @param count Number of items. Must be greater than zero.
+/// @param selected_index Optional destination for the selected original item index.
+/// @returns true when an item was selected; false on cancellation, invalid input,
+///          allocation failure, or when no readline editor is active.
+bool ic_show_menu(const char* prompt_text, const ic_menu_item_t* items, size_t count,
+                  size_t* selected_index);
 
 /// Callback that produces a transient status message below the current input.
 /// The callback runs before each key read while readline is active. The returned
