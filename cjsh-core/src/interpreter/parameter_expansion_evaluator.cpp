@@ -30,19 +30,21 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <optional>
 #include <stdexcept>
 
 ParameterExpansionEvaluator::ParameterExpansionEvaluator(
     VariableReader var_reader, VariableWriter var_writer, VariableChecker var_checker,
     PatternMatcher pattern_matcher, ArrayLengthReader array_length_reader,
-    ArrayKeysReader array_keys_reader, WordExpander word_expander)
+    ArrayKeysReader array_keys_reader, WordExpander word_expander, IndirectReader indirect_reader)
     : read_variable(std::move(var_reader)),
       write_variable(std::move(var_writer)),
       is_variable_set(std::move(var_checker)),
       matches_pattern(std::move(pattern_matcher)),
       read_array_length(std::move(array_length_reader)),
       read_array_keys(std::move(array_keys_reader)),
-      expand_word(std::move(word_expander)) {
+      expand_word(std::move(word_expander)),
+      read_indirect(std::move(indirect_reader)) {
 }
 
 std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
@@ -63,6 +65,9 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         }
 
         std::string var_name = param_expr.substr(1);
+        if (read_indirect) {
+            return read_indirect(var_name);
+        }
         std::string indirect_name = read_variable(var_name);
         return read_variable(indirect_name);
     }
@@ -337,7 +342,22 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
         return value;
     }
 
-    size_t slash_pos = replacement_expr.find('/');
+    size_t slash_pos = std::string::npos;
+    bool escaped = false;
+    for (size_t i = 0; i < replacement_expr.size(); ++i) {
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+        if (replacement_expr[i] == '\\') {
+            escaped = true;
+            continue;
+        }
+        if (replacement_expr[i] == '/') {
+            slash_pos = i;
+            break;
+        }
+    }
     if (slash_pos == std::string::npos) {
         return value;
     }
@@ -345,13 +365,24 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
     std::string pattern = replacement_expr.substr(0, slash_pos);
     std::string replacement = replacement_expr.substr(slash_pos + 1);
 
+    auto unescape_slashes = [](std::string text) {
+        size_t position = 0;
+        while ((position = text.find("\\/", position)) != std::string::npos) {
+            (void)text.erase(position, 1);
+            ++position;
+        }
+        return text;
+    };
+    pattern = unescape_slashes(std::move(pattern));
+    replacement = unescape_slashes(std::move(replacement));
+
     if (pattern.empty()) {
         return value;
     }
 
     bool anchor_prefix = false;
     bool anchor_suffix = false;
-    if (!pattern.empty() && (pattern[0] == '#' || pattern[0] == '%')) {
+    if (!global && !pattern.empty() && (pattern[0] == '#' || pattern[0] == '%')) {
         anchor_prefix = pattern[0] == '#';
         anchor_suffix = pattern[0] == '%';
         (void)pattern.erase(0, 1);
@@ -359,13 +390,6 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
             return value;
         }
     }
-
-    std::string result = value;
-
-    auto has_wildcards = [](const std::string& text) {
-        return text.find('*') != std::string::npos || text.find('?') != std::string::npos ||
-               text.find('[') != std::string::npos;
-    };
 
     if (anchor_prefix) {
         std::string remainder = pattern_match_prefix(value, pattern, true);
@@ -383,22 +407,55 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
         return value;
     }
 
-    if (!has_wildcards(pattern)) {
-        if (global) {
-            size_t pos = 0;
-            while ((pos = result.find(pattern, pos)) != std::string::npos) {
-                (void)result.replace(pos, pattern.length(), replacement);
-                pos += replacement.length();
-            }
-        } else {
-            size_t pos = result.find(pattern);
-            if (pos != std::string::npos) {
-                (void)result.replace(pos, pattern.length(), replacement);
+    struct MatchSpan {
+        size_t begin;
+        size_t end;
+    };
+
+    auto find_leftmost_longest = [&](size_t search_begin) -> std::optional<MatchSpan> {
+        for (size_t begin = search_begin; begin <= value.size(); ++begin) {
+            for (size_t end = value.size(); end >= begin; --end) {
+                if (matches_pattern(value.substr(begin, end - begin), pattern)) {
+                    return MatchSpan{begin, end};
+                }
+                if (end == begin) {
+                    break;
+                }
             }
         }
-    } else {
-        if (!global && matches_pattern(result, pattern)) {
-            result = replacement;
+        return std::nullopt;
+    };
+
+    std::string result;
+    result.reserve(value.size() + replacement.size());
+    size_t cursor = 0;
+
+    while (cursor <= value.size()) {
+        auto match = find_leftmost_longest(cursor);
+        if (!match.has_value()) {
+            result += value.substr(cursor);
+            break;
+        }
+
+        result += value.substr(cursor, match->begin - cursor);
+        result += replacement;
+
+        if (!global) {
+            result += value.substr(match->end);
+            break;
+        }
+
+        if (match->end == match->begin) {
+            if (match->end >= value.size()) {
+                break;
+            }
+            result.push_back(value[match->end]);
+            cursor = match->end + 1;
+        } else {
+            cursor = match->end;
+            if (cursor >= value.size()) {
+                break;
+            }
         }
     }
 

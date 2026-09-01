@@ -31,6 +31,7 @@
 #include "builtin_help.h"
 #include "error_out.h"
 #include "pattern_matcher.h"
+#include "shell_env.h"
 #include "test_expression_utils.h"
 
 #include <sys/stat.h>
@@ -45,8 +46,15 @@ namespace {
 PatternMatcher g_pattern_matcher;
 
 bool has_pattern_syntax(const std::string& pattern) {
-    return pattern.find('*') != std::string::npos || pattern.find('?') != std::string::npos ||
-           pattern.find('[') != std::string::npos;
+    if (pattern.find('*') != std::string::npos || pattern.find('?') != std::string::npos ||
+        pattern.find('[') != std::string::npos) {
+        return true;
+    }
+    if (!config::extglob_enabled) {
+        return false;
+    }
+    return pattern.find("+(") != std::string::npos || pattern.find("@(") != std::string::npos ||
+           pattern.find("!(") != std::string::npos;
 }
 
 int evaluate_expression(const std::vector<std::string>& tokens) {

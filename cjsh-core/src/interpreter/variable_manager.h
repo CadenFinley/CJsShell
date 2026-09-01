@@ -41,6 +41,11 @@ class VariableManager {
     using IndexedArray = std::map<long long, std::string>;
     using ArrayMap = std::unordered_map<std::string, IndexedArray>;
     using ArrayStack = std::vector<ArrayMap>;
+    using AssociativeArray = std::map<std::string, std::string>;
+    using AssociativeArrayMap = std::unordered_map<std::string, AssociativeArray>;
+    using AssociativeArrayStack = std::vector<AssociativeArrayMap>;
+    using NamerefMap = std::unordered_map<std::string, std::string>;
+    using NamerefStack = std::vector<NamerefMap>;
     using ExportedLocalsStack = std::vector<std::vector<std::string>>;
 
     VariableManager() = default;
@@ -62,6 +67,19 @@ class VariableManager {
                               bool append = false);
     bool assign_global_array_literal(const std::string& name, const std::vector<std::string>& words,
                                      bool append = false);
+    bool assign_associative_literal(const std::string& name, const std::vector<std::string>& words,
+                                    bool append = false);
+    bool assign_global_associative_literal(const std::string& name,
+                                           const std::vector<std::string>& words,
+                                           bool append = false);
+    bool set_nameref(const std::string& name, const std::string& target, bool force_global = false);
+    bool is_nameref(const std::string& name) const;
+    std::string get_nameref_target(const std::string& name) const;
+    bool unset_nameref(const std::string& name);
+    bool is_indexed_array(const std::string& name) const;
+    bool is_associative_array(const std::string& name) const;
+    std::vector<std::pair<std::string, std::string>> get_array_entries(
+        const std::string& name) const;
     bool is_local_variable(const std::string& name) const;
     bool unset_local_variable(const std::string& name);
     bool unset_variable(const std::string& target);
@@ -69,6 +87,7 @@ class VariableManager {
     bool in_function_scope() const;
 
     std::string get_variable_value(const std::string& var_name) const;
+    std::string get_indirect_value(const std::string& var_name) const;
     bool variable_is_set(const std::string& var_name) const;
     std::optional<size_t> get_array_length(const std::string& var_name) const;
     std::string get_array_keys(const std::string& var_name) const;
@@ -84,6 +103,10 @@ class VariableManager {
     VariableStack local_variable_stack;
     ArrayStack local_array_stack;
     ArrayMap global_array_variables;
+    AssociativeArrayStack local_associative_array_stack;
+    AssociativeArrayMap global_associative_array_variables;
+    NamerefStack local_nameref_stack;
+    NamerefMap global_nameref_variables;
     ExportedLocalsStack exported_locals_stack;
 
     std::vector<std::vector<std::pair<std::string, std::string>>> saved_env_stack;
@@ -93,12 +116,16 @@ class VariableManager {
 
     std::string join_array_values(const IndexedArray& array) const;
     std::string join_array_keys(const IndexedArray& array) const;
+    std::string join_associative_values(const AssociativeArray& array) const;
+    std::string join_associative_keys(const AssociativeArray& array) const;
     std::string get_array_element_value(const IndexedArray& array,
                                         const std::string& index_expr) const;
     std::string get_scalar_element_value(const std::string& value,
                                          const std::string& index_expr) const;
 
     bool has_local_array_binding(const std::string& name) const;
+    bool has_local_associative_array_binding(const std::string& name) const;
+    bool has_local_nameref_binding(const std::string& name) const;
     bool has_local_binding(const std::string& name) const;
     bool should_assign_to_local_scope(const std::string& name) const;
 
@@ -106,6 +133,10 @@ class VariableManager {
     const IndexedArray* get_local_array(const std::string& name) const;
     IndexedArray* get_global_array(const std::string& name);
     const IndexedArray* get_global_array(const std::string& name) const;
+    AssociativeArray* get_local_associative_array(const std::string& name);
+    const AssociativeArray* get_local_associative_array(const std::string& name) const;
+    AssociativeArray* get_global_associative_array(const std::string& name);
+    const AssociativeArray* get_global_associative_array(const std::string& name) const;
 
     bool assign_scalar_value(const std::string& name, const std::string& value, bool append,
                              bool local_scope);
@@ -113,6 +144,10 @@ class VariableManager {
                                     const std::string& value, bool append, bool local_scope);
     bool assign_array_words(IndexedArray& target_array, const std::vector<std::string>& words,
                             bool append);
+    bool assign_associative_words(AssociativeArray& target_array,
+                                  const std::vector<std::string>& words, bool append);
+    std::string normalize_associative_key(const std::string& key) const;
+    std::string resolve_nameref_reference(const std::string& reference) const;
     bool has_global_scalar_binding(const std::string& name) const;
     std::string get_global_scalar_value(const std::string& name) const;
     void remove_global_scalar_binding(const std::string& name);

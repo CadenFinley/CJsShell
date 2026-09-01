@@ -303,11 +303,21 @@ std::optional<int> wait_for_job_and_remove(const std::shared_ptr<JobControlJob>&
                                            JobManager& job_manager) {
     int status = 0;
     std::optional<int> last_exit_status;
+    const JobState initial_state = job->state.load(std::memory_order_relaxed);
+    if (initial_state == JobState::DONE || initial_state == JobState::TERMINATED) {
+        last_exit_status = job->exit_status;
+        (void)job_manager.consume_completed_pid_status(job->last_pid);
+    }
     for (pid_t pid : job->pids) {
         if (waitpid(pid, &status, 0) > 0) {
             auto interpreted = interpret_wait_status(status);
             if (interpreted.has_value()) {
                 last_exit_status = interpreted;
+            }
+        } else if (errno == ECHILD) {
+            auto completed_status = job_manager.consume_completed_pid_status(pid);
+            if (completed_status.has_value()) {
+                last_exit_status = completed_status;
             }
         }
     }
@@ -670,6 +680,11 @@ void JobManager::handle_child_status(pid_t pid, int status) {
         return;
     }
 
+    if (completed_pid_statuses.size() >= 256) {
+        completed_pid_statuses.erase(completed_pid_statuses.begin());
+    }
+    completed_pid_statuses[pid] = wait_status_utils::to_exit_code(status);
+
     if (pid == job->last_pid || job->last_pid <= 0) {
         if (WIFSIGNALED(status)) {
             job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
@@ -766,9 +781,20 @@ void JobManager::clear_stdin_signal(pid_t pid) {
 
 void JobManager::clear_all_jobs() {
     jobs.clear();
+    completed_pid_statuses.clear();
     current_job = -1;
     previous_job = -1;
     last_background_pid = -1;
+}
+
+std::optional<int> JobManager::consume_completed_pid_status(pid_t pid) {
+    auto it = completed_pid_statuses.find(pid);
+    if (it == completed_pid_statuses.end()) {
+        return std::nullopt;
+    }
+    int status = it->second;
+    completed_pid_statuses.erase(it);
+    return status;
 }
 
 void JobManager::mark_pid_completed(pid_t pid, int status) {

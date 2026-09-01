@@ -725,6 +725,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             bool reported_pipe_amp = false;
             bool reported_amp_caret = false;
             bool reported_amp_gt = false;
+            bool reported_case_fallthrough = false;
 
             for (size_t i = 0; i + 1 < sanitized_line_without_comments.size(); ++i) {
                 char c = sanitized_line_without_comments[i];
@@ -785,6 +786,21 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                     "'&>' redirections are disabled in POSIX mode",
                                     "Redirect stdout and stderr separately (e.g., '>file 2>&1')");
                     reported_amp_gt = true;
+                }
+
+                if (!reported_case_fallthrough && c == ';' &&
+                    sanitized_line_without_comments[i + 1] == '&') {
+                    add_posix_error("POSIX013", i, i + 2,
+                                    "case fall-through is disabled in POSIX mode",
+                                    "Use ';;' to terminate each case clause");
+                    reported_case_fallthrough = true;
+                } else if (!reported_case_fallthrough &&
+                           i + 2 < sanitized_line_without_comments.size() &&
+                           sanitized_line_without_comments.compare(i, 3, ";;&") == 0) {
+                    add_posix_error("POSIX013", i, i + 3,
+                                    "case fall-through is disabled in POSIX mode",
+                                    "Use ';;' to terminate each case clause");
+                    reported_case_fallthrough = true;
                 }
             }
 

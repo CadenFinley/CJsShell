@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
@@ -38,10 +39,18 @@ class Parser;
 
 namespace case_evaluator {
 
+enum class CaseTerminator : std::uint8_t {
+    Break,
+    FallThrough,
+    ContinueMatching,
+    End
+};
+
 struct CaseSectionData {
     std::string raw_pattern;
     std::string pattern;
     std::string command;
+    CaseTerminator terminator = CaseTerminator::End;
 };
 
 std::pair<std::string, size_t> collect_case_body(const std::vector<std::string>& src_lines,

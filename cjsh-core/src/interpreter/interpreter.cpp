@@ -56,6 +56,7 @@
 #include "case_evaluator.h"
 #include "command_substitution_evaluator.h"
 #include "conditional_evaluator.h"
+#include "coproc_command.h"
 #include "error_out.h"
 #include "exec.h"
 #include "flags.h"
@@ -752,6 +753,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             }
 
             const std::string& program = quick_args[0];
+            if (program == "coproc") {
+                return std::nullopt;
+            }
             if (should_interpret_as_cjsh_script(program)) {
                 std::ifstream f(program);
                 if (!f) {
@@ -875,6 +879,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 }
                 return last_code;
             }
+        }
+
+        if (text == "coproc" || (text.size() > 6 && text.rfind("coproc", 0) == 0 &&
+                                 std::isspace(static_cast<unsigned char>(text[6])) != 0)) {
+            return set_last_status(coproc_script_command(text, g_shell.get()));
         }
 
         std::vector<std::string> parsed_args;
@@ -1166,7 +1175,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                  const std::string& candidate,
                                  bool allow_command_substitution) -> std::optional<int> {
         auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
-            return pattern_matcher.matches_pattern(text, pattern);
+            return pattern_matcher.matches_pattern(text, pattern, true);
         };
         auto cmd_sub_expander = [this, &execute_simple_or_pipeline](const std::string& input) {
             std::string expanded = expand_all_substitutions(input, execute_simple_or_pipeline);
@@ -1323,7 +1332,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         auto case_pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
-            return pattern_matcher.matches_pattern(text, pattern);
+            return pattern_matcher.matches_pattern(text, pattern, true);
         };
 
         auto case_result = case_evaluator::evaluate_case_patterns(
@@ -2118,8 +2127,13 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         return expanded;
     };
 
+    auto indirect_reader = [this](const std::string& name) -> std::string {
+        return variable_manager.get_indirect_value(name);
+    };
+
     ParameterExpansionEvaluator evaluator(var_reader, var_writer, var_checker, pattern_match_fn,
-                                          array_length_reader, array_keys_reader, word_expander);
+                                          array_length_reader, array_keys_reader, word_expander,
+                                          indirect_reader);
     return evaluator.expand(param_expr);
 }
 

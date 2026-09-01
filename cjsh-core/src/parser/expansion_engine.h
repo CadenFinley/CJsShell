@@ -48,5 +48,5 @@ class ExpansionEngine {
 
     template <typename T>
     void expand_range(T start, T end, const std::string& prefix, const std::string& suffix,
-                      std::vector<std::string>& result);
+                      std::vector<std::string>& result, T stride = 1, size_t numeric_width = 0);
 };

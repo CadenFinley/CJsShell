@@ -377,6 +377,16 @@ int wait_command(const std::vector<std::string>& args) {
             pid_t pid = *parsed_pid;
             int status = 0;
             if (waitpid(pid, &status, 0) < 0) {
+                if (errno == ECHILD) {
+                    auto completed_status = job_manager.consume_completed_pid_status(pid);
+                    if (completed_status.has_value()) {
+                        last_exit_status = *completed_status;
+                        if (auto completed_job = job_manager.get_job_by_pgid(pid)) {
+                            job_manager.remove_job(completed_job->job_id);
+                        }
+                        continue;
+                    }
+                }
                 print_error_errno({ErrorType::RUNTIME_ERROR, "wait", "waitpid", {}});
                 return 1;
             }

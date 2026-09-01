@@ -343,15 +343,18 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc(":", "No-op that always succeeds", {});
 
         add_doc("local", "Declare variables local to the current function", {});
-        add_doc("declare", "Set variable attributes and values",
-                {make_option("-a", "Declare indexed arrays"),
-                 make_option("-f", "Operate on shell functions"),
-                 make_option("-F", "List function names"),
-                 make_option("-g", "Force global scope inside functions"),
-                 make_option("-p", "Print declarations"), make_option("-r", "Mark names readonly"),
-                 make_option("-x", "Mark names exported"),
-                 make_option("+x", "Remove export attribute")});
+        add_doc(
+            "declare", "Set variable attributes and values",
+            {make_option("-a", "Declare indexed arrays"),
+             make_option("-A", "Declare associative arrays"), make_option("-n", "Declare namerefs"),
+             make_option("-f", "Operate on shell functions"),
+             make_option("-F", "List function names"),
+             make_option("-g", "Force global scope inside functions"),
+             make_option("-p", "Print declarations"), make_option("-r", "Mark names readonly"),
+             make_option("-x", "Mark names exported"),
+             make_option("+x", "Remove export attribute")});
         add_alias("typeset", "declare");
+        add_doc("coproc", "Run a command asynchronously with a two-way pipe", {});
         add_doc("export", "Export environment variables", {});
         add_doc("unset", "Remove variables from the environment", {});
         add_doc("set", "Configure shell options or positional parameters",
@@ -483,6 +486,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("read", "Read a line from standard input",
                 {make_option("-r", "Disable backslash escapes"),
                  make_option("-n", "Read a specific number of characters"),
+                 make_option("-u", "Read from a file descriptor"),
                  make_option("-p", "Display a prompt"), make_option("-d", "Use a custom delimiter"),
                  make_option("-t", "Set a timeout in seconds")});
 
@@ -592,6 +596,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                              "Auto-apply a single spell correction when pressing Enter"),
              make_subcommand("completion-learning", "Toggle completion learning"),
              make_subcommand("smart-cd", "Toggle smart cd auto-jumps"),
+             make_subcommand("extglob", "Toggle extended glob patterns"),
              make_subcommand("script-extension-interpreter",
                              "Toggle extension-based script runners"),
              make_subcommand("line-numbers", "Configure multiline line numbers"),
@@ -733,6 +738,10 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-smart-cd", "",
                 {make_subcommand("on", "Enable smart cd auto-jumps"),
                  make_subcommand("off", "Disable smart cd auto-jumps"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-extglob", "",
+                {make_subcommand("on", "Enable extended glob patterns"),
+                 make_subcommand("off", "Disable extended glob patterns"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-script-extension-interpreter", "",
                 {make_subcommand("on", "Enable extension-based script runners"),

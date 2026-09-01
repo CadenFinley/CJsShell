@@ -189,8 +189,19 @@ bool contains_tilde_character(std::string_view token) {
 }
 
 bool requires_glob_expansion_or_unescape(std::string_view token) {
-    return token.find_first_of("*?[") != std::string_view::npos ||
-           token.find('\x1F') != std::string_view::npos;
+    if (token.find_first_of("*?[") != std::string_view::npos ||
+        token.find('\x1F') != std::string_view::npos) {
+        return true;
+    }
+    if (!config::extglob_enabled) {
+        return false;
+    }
+    for (size_t i = 0; i + 1 < token.size(); ++i) {
+        if ((token[i] == '+' || token[i] == '@' || token[i] == '!') && token[i + 1] == '(') {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool parse_simple_dollar_parameter(std::string_view token, std::string& parameter_name_out) {
@@ -1512,6 +1523,14 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             std::string left = token.substr(0, pos);
             std::string right = token.substr(pos + 2);
 
+            if (!right.empty() && right.front() == '$') {
+                try {
+                    expand_env_vars(right);
+                } catch (const std::exception&) {
+                    return false;
+                }
+            }
+
             if (right.empty()) {
                 return false;
             }
@@ -1705,7 +1724,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 std::vector<std::string> brace_expansions = expansionEngine->expand_braces(val);
                 for (const auto& expanded_val : brace_expansions) {
                     if (!is_double_bracket_cmd &&
-                        expanded_val.find_first_of("*?[]") != std::string::npos) {
+                        requires_glob_expansion_or_unescape(expanded_val)) {
                         auto wildcard_expanded = expansionEngine->expand_wildcards(expanded_val);
                         (void)final_args_local.insert(final_args_local.end(),
                                                       wildcard_expanded.begin(),
@@ -1716,7 +1735,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 }
             } else if (qi.is_unquoted() && !is_double_bracket_cmd &&
                        !looks_like_assignment(qi.value) &&
-                       val.find_first_of("*?[]") != std::string::npos) {
+                       requires_glob_expansion_or_unescape(val)) {
                 if (!expansionEngine) {
                     expansionEngine = std::make_unique<ExpansionEngine>(shell);
                 }

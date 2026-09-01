@@ -56,6 +56,8 @@ struct DeclareOptions {
     AttributeAction export_action = AttributeAction::NoChange;
     AttributeAction readonly_action = AttributeAction::NoChange;
     AttributeAction array_action = AttributeAction::NoChange;
+    AttributeAction associative_action = AttributeAction::NoChange;
+    AttributeAction nameref_action = AttributeAction::NoChange;
     bool print_mode = false;
     bool function_mode = false;
     bool function_name_only = false;
@@ -108,6 +110,13 @@ bool apply_option_char(char prefix, char option, const std::string& command_name
             return true;
         case 'a':
             opts.array_action = (prefix == '-') ? AttributeAction::Set : AttributeAction::Clear;
+            return true;
+        case 'A':
+            opts.associative_action =
+                (prefix == '-') ? AttributeAction::Set : AttributeAction::Clear;
+            return true;
+        case 'n':
+            opts.nameref_action = (prefix == '-') ? AttributeAction::Set : AttributeAction::Clear;
             return true;
         case 'x':
             opts.export_action = (prefix == '-') ? AttributeAction::Set : AttributeAction::Clear;
@@ -166,9 +175,35 @@ bool parse_declare_options(const std::vector<std::string>& args, const std::stri
                      {"Array attributes cannot be removed"}});
         return false;
     }
+    if (opts.associative_action == AttributeAction::Clear) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     command_name,
+                     "cannot unset associative array attribute",
+                     {"Associative array attributes cannot be removed"}});
+        return false;
+    }
+    if (opts.array_action == AttributeAction::Set &&
+        opts.associative_action == AttributeAction::Set) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     command_name,
+                     "cannot combine indexed and associative array attributes",
+                     {}});
+        return false;
+    }
+    if (opts.nameref_action == AttributeAction::Set &&
+        (opts.array_action == AttributeAction::Set ||
+         opts.associative_action == AttributeAction::Set)) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     command_name,
+                     "cannot combine nameref and array attributes",
+                     {}});
+        return false;
+    }
 
     if (opts.function_mode) {
-        if (opts.array_action == AttributeAction::Set || opts.global_scope ||
+        if (opts.array_action == AttributeAction::Set ||
+            opts.associative_action == AttributeAction::Set ||
+            opts.nameref_action == AttributeAction::Set || opts.global_scope ||
             opts.export_action != AttributeAction::NoChange) {
             print_error({ErrorType::INVALID_ARGUMENT,
                          command_name,
@@ -284,6 +319,21 @@ bool variable_matches_print_filter(const std::string& name, const DeclareOptions
 
 void print_variable_declaration(const std::string& name, ShellScriptInterpreter* interpreter) {
     std::string attrs;
+    auto* variable_manager =
+        interpreter == nullptr ? nullptr : &interpreter->get_variable_manager();
+    const bool is_nameref = variable_manager != nullptr && variable_manager->is_nameref(name);
+    const bool is_associative =
+        !is_nameref && variable_manager != nullptr && variable_manager->is_associative_array(name);
+    const bool is_indexed =
+        !is_nameref && variable_manager != nullptr && variable_manager->is_indexed_array(name);
+    if (is_associative) {
+        attrs.push_back('A');
+    } else if (is_indexed) {
+        attrs.push_back('a');
+    }
+    if (is_nameref) {
+        attrs.push_back('n');
+    }
     if (readonly_manager_is(name)) {
         attrs.push_back('r');
     }
@@ -298,7 +348,22 @@ void print_variable_declaration(const std::string& name, ShellScriptInterpreter*
 
     std::string value;
     bool has_value = false;
-    if (interpreter != nullptr && interpreter->is_local_variable(name)) {
+    if (is_nameref) {
+        value = variable_manager->get_nameref_target(name);
+        has_value = !value.empty();
+    } else if ((is_associative || is_indexed) && variable_manager != nullptr) {
+        std::cout << ' ' << name << "=(";
+        bool first = true;
+        for (const auto& [key, element] : variable_manager->get_array_entries(name)) {
+            if (!first) {
+                std::cout << ' ';
+            }
+            first = false;
+            std::cout << '[' << single_quote_value(key) << "]=" << single_quote_value(element);
+        }
+        std::cout << ")\n";
+        return;
+    } else if (interpreter != nullptr && interpreter->is_local_variable(name)) {
         value = interpreter->get_variable_value(name);
         has_value = true;
     } else if (cjsh_env::shell_variable_is_set(name)) {
@@ -420,6 +485,29 @@ bool assign_array_literal_for_scope(ShellScriptInterpreter* interpreter, bool lo
     return variable_manager.assign_array_literal(base_name, words, append);
 }
 
+bool assign_associative_literal_for_scope(ShellScriptInterpreter* interpreter, bool local_scope,
+                                          bool force_global, const std::string& base_name,
+                                          const std::vector<std::string>& words, bool append,
+                                          const std::string& command_name) {
+    if (interpreter == nullptr) {
+        print_error(
+            {ErrorType::RUNTIME_ERROR, command_name, "shell interpreter not available", {}});
+        return false;
+    }
+
+    auto& variable_manager = interpreter->get_variable_manager();
+    if (local_scope) {
+        if (!interpreter->is_local_variable(base_name)) {
+            interpreter->set_local_variable(base_name, "");
+        }
+        return variable_manager.assign_associative_literal(base_name, words, append);
+    }
+    if (force_global) {
+        return variable_manager.assign_global_associative_literal(base_name, words, append);
+    }
+    return variable_manager.assign_associative_literal(base_name, words, append);
+}
+
 bool assign_value_for_scope(VariableManager& variable_manager, bool force_global,
                             const std::string& target, const std::string& value, bool append) {
     return force_global ? variable_manager.assign_global_variable(target, value, append)
@@ -433,8 +521,9 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
         args.empty() ? std::string("declare") : preferred_command_name(args[0]);
 
     if (builtin_handle_help(
-            args, {"Usage: " + command_name + " [-aFfgprx] [NAME[=VALUE] ...]",
+            args, {"Usage: " + command_name + " [-aAnFfgprx] [NAME[=VALUE] ...]",
                    "Set variable attributes and values.", "-a declare indexed arrays.",
+                   "-A declare associative arrays.", "-n make names references to variables.",
                    "-f/-F operate on shell functions.", "-g force global scope inside functions.",
                    "-p print declarations.", "-r mark names readonly.", "-x mark names exported.",
                    "+x remove export attribute."})) {
@@ -513,8 +602,15 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
 
         bool assignment_ok = true;
 
-        if (operand.has_assignment && operand.value.empty() && i + 1 < args.size() &&
-            args[i + 1] == "(") {
+        if (opts.nameref_action == AttributeAction::Set) {
+            assignment_ok = variable_manager.set_nameref(
+                base_name, operand.has_assignment ? operand.value : std::string{},
+                force_global_scope);
+            ++i;
+        } else
+
+            if (operand.has_assignment && operand.value.empty() && i + 1 < args.size() &&
+                args[i + 1] == "(") {
             size_t close_index = find_closing_parenthesis_token(args, i + 1);
 
             if (close_index == std::string::npos) {
@@ -536,10 +632,45 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
             std::vector<std::string> words(args.begin() + static_cast<std::ptrdiff_t>(i + 2),
                                            args.begin() + static_cast<std::ptrdiff_t>(close_index));
 
-            assignment_ok =
-                assign_array_literal_for_scope(interpreter, local_scope, force_global_scope,
-                                               base_name, words, append, command_name);
+            if (opts.associative_action == AttributeAction::Set ||
+                variable_manager.is_associative_array(base_name)) {
+                assignment_ok = assign_associative_literal_for_scope(interpreter, local_scope,
+                                                                     force_global_scope, base_name,
+                                                                     words, append, command_name);
+            } else {
+                assignment_ok =
+                    assign_array_literal_for_scope(interpreter, local_scope, force_global_scope,
+                                                   base_name, words, append, command_name);
+            }
             i = close_index + 1;
+        } else if (opts.associative_action == AttributeAction::Set) {
+            if (!local_scope && operand.has_assignment &&
+                !readonly_manager_can_assign(base_name, command_name)) {
+                all_successful = false;
+                ++i;
+                continue;
+            }
+            if (operand.has_assignment && target_has_index(normalized_target)) {
+                if (local_scope && !interpreter->is_local_variable(base_name)) {
+                    interpreter->set_local_variable(base_name, "");
+                    (void)variable_manager.assign_associative_literal(base_name, {}, false);
+                } else if (!variable_manager.is_associative_array(base_name)) {
+                    (void)assign_associative_literal_for_scope(interpreter, local_scope,
+                                                               force_global_scope, base_name, {},
+                                                               false, command_name);
+                }
+                assignment_ok = assign_value_for_scope(variable_manager, force_global_scope,
+                                                       normalized_target, operand.value, append);
+            } else {
+                std::vector<std::string> words;
+                if (operand.has_assignment) {
+                    words.push_back(operand.value);
+                }
+                assignment_ok = assign_associative_literal_for_scope(interpreter, local_scope,
+                                                                     force_global_scope, base_name,
+                                                                     words, append, command_name);
+            }
+            ++i;
         } else if (opts.array_action == AttributeAction::Set) {
             if (!local_scope && operand.has_assignment &&
                 !readonly_manager_can_assign(base_name, command_name)) {

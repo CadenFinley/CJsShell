@@ -202,7 +202,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 int unset_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args, {"Usage: unset NAME [NAME ...]",
+    if (builtin_handle_help(args, {"Usage: unset [-n] NAME [NAME ...]",
                                    "Remove variables from the environment and shell state."})) {
         return 0;
     }
@@ -214,8 +214,16 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
     bool success = true;
     auto& env_vars = cjsh_env::env_vars();
     auto* script_interpreter = shell->get_shell_script_interpreter();
+    bool nameref_only = false;
+    size_t operand_start = 1;
+    if (args.size() > 1 && args[1] == "-n") {
+        nameref_only = true;
+        operand_start = 2;
+    } else if (args.size() > 1 && (args[1] == "-v" || args[1] == "--")) {
+        operand_start = 2;
+    }
 
-    for (size_t i = 1; i < args.size(); ++i) {
+    for (size_t i = operand_start; i < args.size(); ++i) {
         const std::string& name = args[i];
         std::string base_name;
         bool has_index = false;
@@ -232,6 +240,10 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (script_interpreter != nullptr) {
+            if (nameref_only) {
+                (void)script_interpreter->get_variable_manager().unset_nameref(base_name);
+                continue;
+            }
             bool removed = script_interpreter->get_variable_manager().unset_variable(name);
             if (removed || has_index) {
                 continue;

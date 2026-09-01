@@ -31,6 +31,7 @@
 #include "builtin_help.h"
 #include "builtin_option_parser.h"
 
+#include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
 #include <algorithm>
@@ -68,11 +69,12 @@ struct ReadOptions {
     std::string delim = kDefaultDelimiter;
     bool has_timeout = false;
     double timeout_seconds = 0.0;
+    int input_fd = STDIN_FILENO;
 };
 
 const std::vector<std::string>& read_help_lines() {
     static const std::vector<std::string> kHelpLines = {
-        "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [-t timeout] [name ...]",
+        "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [-t timeout] [-u fd] [name ...]",
         "Read a line from standard input and split it into fields.",
         "",
         "Options:",
@@ -82,7 +84,8 @@ const std::vector<std::string>& read_help_lines() {
         "newline",
         "  -d delim      continue until the first character of DELIM is read, rather than "
         "newline",
-        "  -t timeout    time out after TIMEOUT seconds (fractional allowed)"};
+        "  -t timeout    time out after TIMEOUT seconds (fractional allowed)",
+        "  -u fd         read from file descriptor FD instead of standard input"};
     return kHelpLines;
 }
 
@@ -98,10 +101,11 @@ bool parse_read_options(const std::vector<std::string>& args, size_t& start_inde
         args, start_index, kReadCommandName,
         [](char option) {
             return option == 'r' || option == 'n' || option == 'p' || option == 'd' ||
-                   option == 't';
+                   option == 't' || option == 'u';
         },
         [](char option) {
-            return option == 'n' || option == 'p' || option == 'd' || option == 't';
+            return option == 'n' || option == 'p' || option == 'd' || option == 't' ||
+                   option == 'u';
         },
         parsed_options);
     if (!options_ok) {
@@ -148,6 +152,16 @@ bool parse_read_options(const std::vector<std::string>& args, size_t& start_inde
                 }
                 options.has_timeout = true;
                 break;
+            case 'u':
+                if (!numeric_utils::parse_int_strict(option_value, options.input_fd) ||
+                    options.input_fd < 0 || fcntl(options.input_fd, F_GETFD) < 0) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 kReadCommandName,
+                                 "invalid file descriptor: " + option_value,
+                                 {}});
+                    return false;
+                }
+                break;
             default:
                 break;
         }
@@ -156,7 +170,8 @@ bool parse_read_options(const std::vector<std::string>& args, size_t& start_inde
     return true;
 }
 
-bool wait_for_input(const std::optional<std::chrono::steady_clock::time_point>& deadline) {
+bool wait_for_input(const std::optional<std::chrono::steady_clock::time_point>& deadline,
+                    int input_fd) {
     if (!deadline.has_value()) {
         return true;
     }
@@ -175,7 +190,7 @@ bool wait_for_input(const std::optional<std::chrono::steady_clock::time_point>& 
     const int timeout_ms =
         static_cast<int>(std::min<long long>(remaining_ms, std::numeric_limits<int>::max()));
 
-    struct pollfd pfd{STDIN_FILENO, POLLIN, 0};
+    struct pollfd pfd{input_fd, POLLIN, 0};
 
     int poll_result = 0;
     do {
@@ -194,12 +209,18 @@ ReadInputStatus collect_input(const ReadOptions& options, std::string& input) {
     }
 
     bool timed_out = false;
+    bool reached_eof = false;
     auto read_char = [&](char& out) -> bool {
-        if (!wait_for_input(deadline)) {
+        if (!wait_for_input(deadline, options.input_fd)) {
             timed_out = true;
             return false;
         }
-        return static_cast<bool>(std::cin.get(out));
+        ssize_t count = 0;
+        do {
+            count = read(options.input_fd, &out, 1);
+        } while (count < 0 && errno == EINTR);
+        reached_eof = count == 0;
+        return count == 1;
     };
 
     char c = 0;
@@ -223,7 +244,7 @@ ReadInputStatus collect_input(const ReadOptions& options, std::string& input) {
         return ReadInputStatus::TimeoutNoData;
     }
 
-    if (std::cin.eof() && input.empty()) {
+    if (reached_eof && input.empty()) {
         return ReadInputStatus::EndOfFileNoData;
     }
 
@@ -404,7 +425,7 @@ bool assign_fields_to_variables(const std::vector<std::string>& var_names,
             }
         }
 
-        if (!cjsh_env::set_shell_variable_value(var_name, value)) {
+        if (!cjsh_env::set_shell_or_local_variable_value(shell, var_name, value)) {
             print_error(
                 {ErrorType::FATAL_ERROR, kReadCommandName, "shell not initialized properly", {}});
             return false;

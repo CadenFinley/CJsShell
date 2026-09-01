@@ -173,14 +173,15 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
 
                     if (redir_op_kind == redirection_utils::RedirectionOperator::DupInput ||
                         redir_op_kind == redirection_utils::RedirectionOperator::DupOutput) {
+                        const bool expanded_descriptor = !target.empty() && target.front() == '$';
                         if (target.empty() ||
                             (!std::isdigit(static_cast<unsigned char>(target[0])) &&
-                             target != "-")) {
+                             target != "-" && !expanded_descriptor)) {
                             line_errors.push_back(SyntaxError(
                                 {display_line, target_start, target_end, 0}, ErrorSeverity::ERROR,
                                 ErrorCategory::REDIRECTION, "RED002",
-                                "File descriptor redirection requires digit or '-'", line,
-                                "Use format like 2>&1 or 2>&-"));
+                                "File descriptor redirection requires digit, variable, or '-'",
+                                line, "Use format like 2>&1, 2>&$fd, or 2>&-"));
                         }
                     } else if (redir_op_kind == redirection_utils::RedirectionOperator::HereDoc ||
                                redir_op_kind ==

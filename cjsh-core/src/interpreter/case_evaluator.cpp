@@ -73,14 +73,49 @@ std::vector<std::string> split_case_sections(const std::string& input, bool trim
     sections.reserve(4);
     size_t start = 0;
     while (start < input.length()) {
-        size_t sep_pos = input.find(";;", start);
+        size_t sep_pos = std::string::npos;
+        size_t terminator_length = 0;
+        char quote = '\0';
+        bool escaped = false;
+        for (size_t i = start; i < input.size(); ++i) {
+            const char ch = input[i];
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (ch == '\\' && quote != '\'') {
+                escaped = true;
+                continue;
+            }
+            if (ch == '\'' || ch == '"') {
+                if (quote == '\0') {
+                    quote = ch;
+                } else if (quote == ch) {
+                    quote = '\0';
+                }
+                continue;
+            }
+            if (quote != '\0') {
+                continue;
+            }
+            if (input.compare(i, 3, ";;&") == 0) {
+                sep_pos = i;
+                terminator_length = 3;
+                break;
+            }
+            if (input.compare(i, 2, ";;") == 0 || input.compare(i, 2, ";&") == 0) {
+                sep_pos = i;
+                terminator_length = 2;
+                break;
+            }
+        }
         std::string section;
         if (sep_pos == std::string::npos) {
             (void)section.assign(input, start, std::string::npos);
             start = input.length();
         } else {
-            (void)section.assign(input, start, sep_pos - start);
-            start = sep_pos + 2;
+            (void)section.assign(input, start, sep_pos - start + terminator_length);
+            start = sep_pos + terminator_length;
         }
         if (trim_sections)
             section = trim(section);
@@ -113,13 +148,54 @@ std::string normalize_case_value(std::string value, Parser* parser) {
 }
 
 bool parse_case_section(const std::string& section, CaseSectionData& out, Parser* parser) {
-    size_t paren_pos = section.find(')');
+    size_t paren_pos = std::string::npos;
+    int pattern_group_depth = 0;
+    bool escaped = false;
+    for (size_t i = 0; i < section.size(); ++i) {
+        char ch = section[i];
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+        if (ch == '\\') {
+            escaped = true;
+            continue;
+        }
+        if (ch == '(' &&
+            (pattern_group_depth > 0 ||
+             (i > 0 && (section[i - 1] == '?' || section[i - 1] == '*' || section[i - 1] == '+' ||
+                        section[i - 1] == '@' || section[i - 1] == '!')))) {
+            ++pattern_group_depth;
+            continue;
+        }
+        if (ch == ')' && pattern_group_depth > 0) {
+            --pattern_group_depth;
+            continue;
+        }
+        if (ch == ')') {
+            paren_pos = i;
+            break;
+        }
+    }
     if (paren_pos == std::string::npos)
         return false;
     out.raw_pattern = trim(section.substr(0, paren_pos));
+    if (!out.raw_pattern.empty() && out.raw_pattern.front() == '(') {
+        (void)out.raw_pattern.erase(0, 1);
+        out.raw_pattern = trim(out.raw_pattern);
+    }
     out.command = trim(section.substr(paren_pos + 1));
-    if (out.command.length() >= 2 && out.command.substr(out.command.length() - 2) == ";;") {
+    if (out.command.length() >= 3 && out.command.substr(out.command.length() - 3) == ";;&") {
+        out.terminator = CaseTerminator::ContinueMatching;
+        out.command = trim(out.command.substr(0, out.command.length() - 3));
+    } else if (out.command.length() >= 2 && out.command.substr(out.command.length() - 2) == ";&") {
+        out.terminator = CaseTerminator::FallThrough;
         out.command = trim(out.command.substr(0, out.command.length() - 2));
+    } else if (out.command.length() >= 2 && out.command.substr(out.command.length() - 2) == ";;") {
+        out.terminator = CaseTerminator::Break;
+        out.command = trim(out.command.substr(0, out.command.length() - 2));
+    } else {
+        out.terminator = CaseTerminator::End;
     }
     out.pattern = normalize_case_pattern(out.raw_pattern, parser);
     return true;
@@ -138,14 +214,19 @@ bool execute_case_sections(
             filtered_sections.push_back(trimmed_section);
     }
 
+    bool matched_any = false;
+    bool execute_unconditionally = false;
+
     for (const auto& section : filtered_sections) {
         CaseSectionData data;
         if (!parse_case_section(section, data, parser))
             continue;
 
-        bool pattern_matches = pattern_matcher(case_value, data.pattern);
+        bool pattern_matches = execute_unconditionally || pattern_matcher(case_value, data.pattern);
         if (!pattern_matches)
             continue;
+
+        matched_any = true;
 
         if (!data.command.empty()) {
             if (parser != nullptr) {
@@ -160,10 +241,20 @@ bool execute_case_sections(
             }
         }
 
-        return true;
+        switch (data.terminator) {
+            case CaseTerminator::FallThrough:
+                execute_unconditionally = true;
+                break;
+            case CaseTerminator::ContinueMatching:
+                execute_unconditionally = false;
+                break;
+            case CaseTerminator::Break:
+            case CaseTerminator::End:
+                return true;
+        }
     }
 
-    return false;
+    return matched_any;
 }
 
 std::string sanitize_case_patterns(const std::string& patterns) {

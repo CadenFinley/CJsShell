@@ -62,6 +62,8 @@ void assign_string_value(std::string& target, const std::string& value, bool app
 void VariableManager::push_scope() {
     (void)local_variable_stack.emplace_back();
     (void)local_array_stack.emplace_back();
+    (void)local_associative_array_stack.emplace_back();
+    (void)local_nameref_stack.emplace_back();
     (void)exported_locals_stack.emplace_back();
     (void)saved_env_stack.emplace_back();
 }
@@ -88,11 +90,23 @@ void VariableManager::pop_scope() {
     if (!local_array_stack.empty()) {
         local_array_stack.pop_back();
     }
+    if (!local_associative_array_stack.empty()) {
+        local_associative_array_stack.pop_back();
+    }
+    if (!local_nameref_stack.empty()) {
+        local_nameref_stack.pop_back();
+    }
 }
 
 void VariableManager::set_local_variable(const std::string& name, const std::string& value) {
     if (local_variable_stack.empty()) {
         (void)assign_variable(name, value, false);
+        return;
+    }
+
+    std::string resolved_name = resolve_nameref_reference(name);
+    if (resolved_name != name) {
+        (void)assign_variable(resolved_name, value, false);
         return;
     }
 
@@ -103,6 +117,10 @@ void VariableManager::set_local_variable(const std::string& name, const std::str
     }
 
     if (has_local_array_binding(name)) {
+        (void)assign_scalar_value(name, value, false, true);
+        return;
+    }
+    if (has_local_associative_array_binding(name)) {
         (void)assign_scalar_value(name, value, false, true);
         return;
     }
@@ -117,6 +135,8 @@ void VariableManager::set_environment_variable(const std::string& name, const st
         cjsh_env::mirror_set_to_process_env(name, value);
 
         (void)global_array_variables.erase(name);
+        (void)global_associative_array_variables.erase(name);
+        (void)global_nameref_variables.erase(name);
 
         if (auto* parser = g_shell->get_parser()) {
             parser->set_env_var(name, value);
@@ -126,8 +146,9 @@ void VariableManager::set_environment_variable(const std::string& name, const st
 
 bool VariableManager::assign_variable(const std::string& target, const std::string& value,
                                       bool append) {
+    std::string resolved_target = resolve_nameref_reference(target);
     ParsedArrayReference parsed;
-    if (!parse_array_reference(target, parsed)) {
+    if (!parse_array_reference(resolved_target, parsed)) {
         return false;
     }
 
@@ -141,8 +162,9 @@ bool VariableManager::assign_variable(const std::string& target, const std::stri
 
 bool VariableManager::assign_global_variable(const std::string& target, const std::string& value,
                                              bool append) {
+    std::string resolved_target = resolve_nameref_reference(target);
     ParsedArrayReference parsed;
-    if (!parse_array_reference(target, parsed)) {
+    if (!parse_array_reference(resolved_target, parsed)) {
         return false;
     }
 
@@ -155,8 +177,15 @@ bool VariableManager::assign_global_variable(const std::string& target, const st
 
 bool VariableManager::assign_array_literal(const std::string& name,
                                            const std::vector<std::string>& words, bool append) {
+    std::string resolved_name = resolve_nameref_reference(name);
+    if (resolved_name != name) {
+        return assign_array_literal(resolved_name, words, append);
+    }
     if (!is_valid_identifier(name)) {
         return false;
+    }
+    if (is_associative_array(name)) {
+        return assign_associative_literal(name, words, append);
     }
 
     bool local_scope = should_assign_to_local_scope(name);
@@ -206,8 +235,15 @@ bool VariableManager::assign_array_literal(const std::string& name,
 bool VariableManager::assign_global_array_literal(const std::string& name,
                                                   const std::vector<std::string>& words,
                                                   bool append) {
+    std::string resolved_name = resolve_nameref_reference(name);
+    if (resolved_name != name) {
+        return assign_global_array_literal(resolved_name, words, append);
+    }
     if (!is_valid_identifier(name)) {
         return false;
+    }
+    if (is_associative_array(name)) {
+        return assign_global_associative_literal(name, words, append);
     }
 
     auto [array_it, inserted] = global_array_variables.emplace(name, IndexedArray{});
@@ -224,6 +260,225 @@ bool VariableManager::assign_global_array_literal(const std::string& name,
     }
 
     return assign_array_words(*target_array, words, append);
+}
+
+bool VariableManager::assign_associative_literal(const std::string& name,
+                                                 const std::vector<std::string>& words,
+                                                 bool append) {
+    std::string resolved_name = resolve_nameref_reference(name);
+    if (resolved_name != name) {
+        return assign_associative_literal(resolved_name, words, append);
+    }
+    if (!is_valid_identifier(name)) {
+        return false;
+    }
+
+    const bool local_scope = should_assign_to_local_scope(name);
+    AssociativeArray* target_array = nullptr;
+    if (local_scope) {
+        if (local_associative_array_stack.empty()) {
+            return false;
+        }
+        auto& arrays = local_associative_array_stack.back();
+        auto [array_it, inserted] = arrays.emplace(name, AssociativeArray{});
+        target_array = &array_it->second;
+        auto& scalars = local_variable_stack.back();
+        auto scalar_it = scalars.find(name);
+        if (append && inserted && scalar_it != scalars.end()) {
+            (*target_array)["0"] = scalar_it->second;
+        }
+        if (!append) {
+            target_array->clear();
+        }
+        (void)scalars.erase(name);
+        (void)local_array_stack.back().erase(name);
+        (void)local_nameref_stack.back().erase(name);
+    } else {
+        auto [array_it, inserted] =
+            global_associative_array_variables.emplace(name, AssociativeArray{});
+        target_array = &array_it->second;
+        if (append && inserted && has_global_scalar_binding(name)) {
+            (*target_array)["0"] = get_global_scalar_value(name);
+        }
+        if (!append) {
+            target_array->clear();
+        }
+        remove_global_scalar_binding(name);
+        (void)global_array_variables.erase(name);
+        (void)global_nameref_variables.erase(name);
+    }
+    return target_array != nullptr && assign_associative_words(*target_array, words, append);
+}
+
+bool VariableManager::assign_global_associative_literal(const std::string& name,
+                                                        const std::vector<std::string>& words,
+                                                        bool append) {
+    std::string resolved_name = resolve_nameref_reference(name);
+    if (resolved_name != name) {
+        return assign_global_associative_literal(resolved_name, words, append);
+    }
+    if (!is_valid_identifier(name)) {
+        return false;
+    }
+
+    auto [array_it, inserted] =
+        global_associative_array_variables.emplace(name, AssociativeArray{});
+    AssociativeArray& target = array_it->second;
+    if (append && inserted && has_global_scalar_binding(name)) {
+        target["0"] = get_global_scalar_value(name);
+    }
+    if (!append) {
+        target.clear();
+    }
+    remove_global_scalar_binding(name);
+    (void)global_array_variables.erase(name);
+    (void)global_nameref_variables.erase(name);
+    return assign_associative_words(target, words, append);
+}
+
+bool VariableManager::assign_associative_words(AssociativeArray& target_array,
+                                               const std::vector<std::string>& words, bool append) {
+    size_t cursor = target_array.size();
+    for (const std::string& word : words) {
+        bool element_append = false;
+        std::string key;
+        std::string value;
+
+        if (!word.empty() && word.front() == '[') {
+            size_t close_bracket = word.find(']');
+            if (close_bracket != std::string::npos && close_bracket > 1) {
+                if (close_bracket + 1 < word.size() && word[close_bracket + 1] == '=') {
+                    key = word.substr(1, close_bracket - 1);
+                    value = word.substr(close_bracket + 2);
+                } else if (close_bracket + 2 < word.size() && word[close_bracket + 1] == '+' &&
+                           word[close_bracket + 2] == '=') {
+                    element_append = true;
+                    key = word.substr(1, close_bracket - 1);
+                    value = word.substr(close_bracket + 3);
+                }
+            }
+        }
+
+        if (key.empty()) {
+            key = std::to_string(cursor++);
+            value = word;
+        } else {
+            key = normalize_associative_key(key);
+        }
+        if (key.empty()) {
+            return false;
+        }
+        assign_string_value(target_array[key], value, element_append);
+    }
+    return true;
+}
+
+bool VariableManager::set_nameref(const std::string& name, const std::string& target,
+                                  bool force_global) {
+    if (!is_valid_identifier(name) || name == target) {
+        return false;
+    }
+    std::string normalized_target = trim_whitespace(target);
+    if (normalized_target.size() >= 2 &&
+        ((normalized_target.front() == '\'' && normalized_target.back() == '\'') ||
+         (normalized_target.front() == '"' && normalized_target.back() == '"'))) {
+        normalized_target = normalized_target.substr(1, normalized_target.size() - 2);
+    }
+    ParsedArrayReference parsed;
+    if (!normalized_target.empty() && !parse_array_reference(normalized_target, parsed)) {
+        return false;
+    }
+
+    const bool local_scope = !force_global && !local_nameref_stack.empty();
+    if (local_scope) {
+        local_nameref_stack.back()[name] = normalized_target;
+        (void)local_variable_stack.back().erase(name);
+        (void)local_array_stack.back().erase(name);
+        (void)local_associative_array_stack.back().erase(name);
+    } else {
+        global_nameref_variables[name] = normalized_target;
+        remove_global_scalar_binding(name);
+        (void)global_array_variables.erase(name);
+        (void)global_associative_array_variables.erase(name);
+    }
+    return true;
+}
+
+bool VariableManager::is_nameref(const std::string& name) const {
+    if (!local_nameref_stack.empty() &&
+        local_nameref_stack.back().find(name) != local_nameref_stack.back().end()) {
+        return true;
+    }
+    return global_nameref_variables.find(name) != global_nameref_variables.end();
+}
+
+std::string VariableManager::get_nameref_target(const std::string& name) const {
+    if (!local_nameref_stack.empty()) {
+        auto local_it = local_nameref_stack.back().find(name);
+        if (local_it != local_nameref_stack.back().end()) {
+            return local_it->second;
+        }
+    }
+    auto global_it = global_nameref_variables.find(name);
+    return global_it == global_nameref_variables.end() ? std::string{} : global_it->second;
+}
+
+bool VariableManager::unset_nameref(const std::string& name) {
+    if (!local_nameref_stack.empty() && local_nameref_stack.back().erase(name) > 0) {
+        return true;
+    }
+    return global_nameref_variables.erase(name) > 0;
+}
+
+bool VariableManager::is_indexed_array(const std::string& name) const {
+    if (get_local_array(name) != nullptr || get_global_array(name) != nullptr) {
+        return true;
+    }
+    std::string resolved = resolve_nameref_reference(name);
+    return resolved != name &&
+           (get_local_array(resolved) != nullptr || get_global_array(resolved) != nullptr);
+}
+
+bool VariableManager::is_associative_array(const std::string& name) const {
+    if (get_local_associative_array(name) != nullptr ||
+        get_global_associative_array(name) != nullptr) {
+        return true;
+    }
+    std::string resolved = resolve_nameref_reference(name);
+    return resolved != name && (get_local_associative_array(resolved) != nullptr ||
+                                get_global_associative_array(resolved) != nullptr);
+}
+
+std::vector<std::pair<std::string, std::string>> VariableManager::get_array_entries(
+    const std::string& name) const {
+    std::string resolved = resolve_nameref_reference(name);
+    const std::string& array_name = resolved.empty() ? name : resolved;
+
+    std::vector<std::pair<std::string, std::string>> entries;
+    if (const IndexedArray* indexed = get_local_array(array_name); indexed != nullptr) {
+        entries.reserve(indexed->size());
+        for (const auto& [index, value] : *indexed) {
+            entries.emplace_back(std::to_string(index), value);
+        }
+        return entries;
+    }
+    if (const IndexedArray* indexed = get_global_array(array_name); indexed != nullptr) {
+        entries.reserve(indexed->size());
+        for (const auto& [index, value] : *indexed) {
+            entries.emplace_back(std::to_string(index), value);
+        }
+        return entries;
+    }
+    if (const AssociativeArray* associative = get_local_associative_array(array_name);
+        associative != nullptr) {
+        entries.assign(associative->begin(), associative->end());
+        return entries;
+    }
+    if (const AssociativeArray* associative = get_global_associative_array(array_name);
+        associative != nullptr) {
+        entries.assign(associative->begin(), associative->end());
+    }
+    return entries;
 }
 
 bool VariableManager::assign_array_words(IndexedArray& target_array,
@@ -292,7 +547,8 @@ bool VariableManager::is_local_variable(const std::string& name) const {
         return true;
     }
 
-    return has_local_array_binding(name);
+    return has_local_array_binding(name) || has_local_associative_array_binding(name) ||
+           has_local_nameref_binding(name);
 }
 
 bool VariableManager::unset_local_variable(const std::string& name) {
@@ -317,10 +573,21 @@ bool VariableManager::unset_local_variable(const std::string& name) {
         }
     }
 
+    if (!local_associative_array_stack.empty()) {
+        removed = local_associative_array_stack.back().erase(name) > 0 || removed;
+    }
+    if (!local_nameref_stack.empty()) {
+        removed = local_nameref_stack.back().erase(name) > 0 || removed;
+    }
+
     return removed;
 }
 
 bool VariableManager::unset_variable(const std::string& target) {
+    std::string resolved_target = resolve_nameref_reference(target);
+    if (resolved_target != target) {
+        return unset_variable(resolved_target);
+    }
     ParsedArrayReference parsed;
     if (!parse_array_reference(target, parsed)) {
         return false;
@@ -339,6 +606,9 @@ bool VariableManager::unset_variable(const std::string& target) {
             if (global_array_variables.erase(parsed.name) > 0) {
                 removed = true;
             }
+            if (global_associative_array_variables.erase(parsed.name) > 0) {
+                removed = true;
+            }
             if (has_global_scalar_binding(parsed.name)) {
                 remove_global_scalar_binding(parsed.name);
                 removed = true;
@@ -347,11 +617,14 @@ bool VariableManager::unset_variable(const std::string& target) {
         }
 
         auto index = evaluate_array_index_expression(parsed.index);
-        if (!index.has_value()) {
-            return false;
-        }
-
         if (local_scope) {
+            AssociativeArray* associative = get_local_associative_array(parsed.name);
+            if (associative != nullptr) {
+                return associative->erase(normalize_associative_key(parsed.index)) > 0;
+            }
+            if (!index.has_value()) {
+                return false;
+            }
             IndexedArray* array = get_local_array(parsed.name);
             if (array == nullptr) {
                 return false;
@@ -359,6 +632,13 @@ bool VariableManager::unset_variable(const std::string& target) {
             return array->erase(*index) > 0;
         }
 
+        AssociativeArray* associative = get_global_associative_array(parsed.name);
+        if (associative != nullptr) {
+            return associative->erase(normalize_associative_key(parsed.index)) > 0;
+        }
+        if (!index.has_value()) {
+            return false;
+        }
         IndexedArray* array = get_global_array(parsed.name);
         if (array == nullptr) {
             return false;
@@ -372,6 +652,12 @@ bool VariableManager::unset_variable(const std::string& target) {
 
     bool removed = false;
     if (global_array_variables.erase(parsed.name) > 0) {
+        removed = true;
+    }
+    if (global_associative_array_variables.erase(parsed.name) > 0) {
+        removed = true;
+    }
+    if (global_nameref_variables.erase(parsed.name) > 0) {
         removed = true;
     }
     if (has_global_scalar_binding(parsed.name)) {
@@ -397,12 +683,25 @@ bool VariableManager::in_function_scope() const {
 }
 
 std::string VariableManager::get_variable_value(const std::string& var_name) const {
+    std::string resolved_name = resolve_nameref_reference(var_name);
+    if (resolved_name != var_name) {
+        return get_variable_value(resolved_name);
+    }
     ParsedArrayReference parsed;
     if (parse_array_reference(var_name, parsed) && parsed.has_index) {
         if (!local_array_stack.empty()) {
             const auto& local_scalars = local_variable_stack.back();
             auto local_scalar_it = local_scalars.find(parsed.name);
             const IndexedArray* local_array = get_local_array(parsed.name);
+            const AssociativeArray* local_associative = get_local_associative_array(parsed.name);
+
+            if (local_associative != nullptr) {
+                if (is_array_join_index(parsed.index)) {
+                    return join_associative_values(*local_associative);
+                }
+                auto value_it = local_associative->find(normalize_associative_key(parsed.index));
+                return value_it == local_associative->end() ? std::string{} : value_it->second;
+            }
 
             if (local_array != nullptr) {
                 return get_array_element_value(*local_array, parsed.index);
@@ -414,6 +713,14 @@ std::string VariableManager::get_variable_value(const std::string& var_name) con
         }
 
         const IndexedArray* global_array = get_global_array(parsed.name);
+        const AssociativeArray* global_associative = get_global_associative_array(parsed.name);
+        if (global_associative != nullptr) {
+            if (is_array_join_index(parsed.index)) {
+                return join_associative_values(*global_associative);
+            }
+            auto value_it = global_associative->find(normalize_associative_key(parsed.index));
+            return value_it == global_associative->end() ? std::string{} : value_it->second;
+        }
         if (global_array != nullptr) {
             return get_array_element_value(*global_array, parsed.index);
         }
@@ -439,6 +746,11 @@ std::string VariableManager::get_variable_value(const std::string& var_name) con
                 return zero_it->second;
             }
         }
+        const AssociativeArray* local_associative = get_local_associative_array(var_name);
+        if (local_associative != nullptr) {
+            auto zero_it = local_associative->find("0");
+            return zero_it == local_associative->end() ? std::string{} : zero_it->second;
+        }
     }
 
     std::string special_var = get_special_variable(var_name);
@@ -459,6 +771,11 @@ std::string VariableManager::get_variable_value(const std::string& var_name) con
         }
         return "";
     }
+    const AssociativeArray* global_associative = get_global_associative_array(var_name);
+    if (global_associative != nullptr) {
+        auto zero_it = global_associative->find("0");
+        return zero_it == global_associative->end() ? std::string{} : zero_it->second;
+    }
 
     if (g_shell) {
         const auto& env_vars = cjsh_env::env_vars();
@@ -473,7 +790,18 @@ std::string VariableManager::get_variable_value(const std::string& var_name) con
     return (env_val != nullptr) ? env_val : "";
 }
 
+std::string VariableManager::get_indirect_value(const std::string& var_name) const {
+    if (is_nameref(var_name)) {
+        return get_nameref_target(var_name);
+    }
+    return get_variable_value(get_variable_value(var_name));
+}
+
 bool VariableManager::variable_is_set(const std::string& var_name) const {
+    std::string resolved_name = resolve_nameref_reference(var_name);
+    if (resolved_name != var_name) {
+        return variable_is_set(resolved_name);
+    }
     ParsedArrayReference parsed;
     if (parse_array_reference(var_name, parsed) && parsed.has_index) {
         const bool is_join = is_array_join_index(parsed.index);
@@ -482,6 +810,15 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
             const auto& local_scalars = local_variable_stack.back();
             auto scalar_it = local_scalars.find(parsed.name);
             const IndexedArray* local_array = get_local_array(parsed.name);
+            const AssociativeArray* local_associative = get_local_associative_array(parsed.name);
+
+            if (local_associative != nullptr) {
+                if (is_join) {
+                    return !local_associative->empty();
+                }
+                return local_associative->find(normalize_associative_key(parsed.index)) !=
+                       local_associative->end();
+            }
 
             if (local_array != nullptr) {
                 if (is_join) {
@@ -503,6 +840,14 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
         }
 
         const IndexedArray* global_array = get_global_array(parsed.name);
+        const AssociativeArray* global_associative = get_global_associative_array(parsed.name);
+        if (global_associative != nullptr) {
+            if (is_join) {
+                return !global_associative->empty();
+            }
+            return global_associative->find(normalize_associative_key(parsed.index)) !=
+                   global_associative->end();
+        }
         if (global_array != nullptr) {
             if (is_join) {
                 return !global_array->empty();
@@ -532,6 +877,11 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
 
         const IndexedArray* local_array = get_local_array(var_name);
         if (local_array != nullptr && local_array->find(0) != local_array->end()) {
+            return true;
+        }
+        const AssociativeArray* local_associative = get_local_associative_array(var_name);
+        if (local_associative != nullptr &&
+            local_associative->find("0") != local_associative->end()) {
             return true;
         }
     }
@@ -564,6 +914,11 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
     if (global_array != nullptr && global_array->find(0) != global_array->end()) {
         return true;
     }
+    const AssociativeArray* global_associative = get_global_associative_array(var_name);
+    if (global_associative != nullptr &&
+        global_associative->find("0") != global_associative->end()) {
+        return true;
+    }
 
     if (g_shell) {
         const auto& env_vars = cjsh_env::env_vars();
@@ -577,6 +932,10 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
 }
 
 std::optional<size_t> VariableManager::get_array_length(const std::string& var_name) const {
+    std::string resolved_name = resolve_nameref_reference(var_name);
+    if (resolved_name != var_name) {
+        return get_array_length(resolved_name);
+    }
     ParsedArrayReference parsed;
     if (!parse_array_reference(var_name, parsed) || !parsed.has_index ||
         !is_array_join_index(parsed.index)) {
@@ -587,6 +946,10 @@ std::optional<size_t> VariableManager::get_array_length(const std::string& var_n
     if (local_array != nullptr) {
         return local_array->size();
     }
+    const AssociativeArray* local_associative = get_local_associative_array(parsed.name);
+    if (local_associative != nullptr) {
+        return local_associative->size();
+    }
     if (!local_variable_stack.empty() &&
         local_variable_stack.back().find(parsed.name) != local_variable_stack.back().end()) {
         return 1;
@@ -596,6 +959,10 @@ std::optional<size_t> VariableManager::get_array_length(const std::string& var_n
     if (global_array != nullptr) {
         return global_array->size();
     }
+    const AssociativeArray* global_associative = get_global_associative_array(parsed.name);
+    if (global_associative != nullptr) {
+        return global_associative->size();
+    }
     if (has_global_scalar_binding(parsed.name)) {
         return 1;
     }
@@ -604,6 +971,10 @@ std::optional<size_t> VariableManager::get_array_length(const std::string& var_n
 }
 
 std::string VariableManager::get_array_keys(const std::string& var_name) const {
+    std::string resolved_name = resolve_nameref_reference(var_name);
+    if (resolved_name != var_name) {
+        return get_array_keys(resolved_name);
+    }
     ParsedArrayReference parsed;
     if (!parse_array_reference(var_name, parsed) || !parsed.has_index ||
         !is_array_join_index(parsed.index)) {
@@ -614,6 +985,10 @@ std::string VariableManager::get_array_keys(const std::string& var_name) const {
     if (local_array != nullptr) {
         return join_array_keys(*local_array);
     }
+    const AssociativeArray* local_associative = get_local_associative_array(parsed.name);
+    if (local_associative != nullptr) {
+        return join_associative_keys(*local_associative);
+    }
     if (!local_variable_stack.empty() &&
         local_variable_stack.back().find(parsed.name) != local_variable_stack.back().end()) {
         return "0";
@@ -622,6 +997,10 @@ std::string VariableManager::get_array_keys(const std::string& var_name) const {
     const IndexedArray* global_array = get_global_array(parsed.name);
     if (global_array != nullptr) {
         return join_array_keys(*global_array);
+    }
+    const AssociativeArray* global_associative = get_global_associative_array(parsed.name);
+    if (global_associative != nullptr) {
+        return join_associative_keys(*global_associative);
     }
     if (has_global_scalar_binding(parsed.name)) {
         return "0";
@@ -643,8 +1022,24 @@ std::vector<std::string> VariableManager::get_variable_names() const {
             (void)name_set.insert(entry.first);
         }
     }
+    for (const auto& scope : local_associative_array_stack) {
+        for (const auto& entry : scope) {
+            (void)name_set.insert(entry.first);
+        }
+    }
+    for (const auto& scope : local_nameref_stack) {
+        for (const auto& entry : scope) {
+            (void)name_set.insert(entry.first);
+        }
+    }
 
     for (const auto& entry : global_array_variables) {
+        (void)name_set.insert(entry.first);
+    }
+    for (const auto& entry : global_associative_array_variables) {
+        (void)name_set.insert(entry.first);
+    }
+    for (const auto& entry : global_nameref_variables) {
         (void)name_set.insert(entry.first);
     }
 
@@ -767,6 +1162,28 @@ std::string VariableManager::join_array_keys(const IndexedArray& array) const {
     return joined;
 }
 
+std::string VariableManager::join_associative_values(const AssociativeArray& array) const {
+    std::string joined;
+    for (const auto& [_, value] : array) {
+        if (!joined.empty()) {
+            joined.push_back(' ');
+        }
+        joined += value;
+    }
+    return joined;
+}
+
+std::string VariableManager::join_associative_keys(const AssociativeArray& array) const {
+    std::string joined;
+    for (const auto& [key, _] : array) {
+        if (!joined.empty()) {
+            joined.push_back(' ');
+        }
+        joined += key;
+    }
+    return joined;
+}
+
 std::string VariableManager::get_array_element_value(const IndexedArray& array,
                                                      const std::string& index_expr) const {
     if (is_array_join_index(index_expr)) {
@@ -799,6 +1216,17 @@ bool VariableManager::has_local_array_binding(const std::string& name) const {
     return local_array_stack.back().find(name) != local_array_stack.back().end();
 }
 
+bool VariableManager::has_local_associative_array_binding(const std::string& name) const {
+    return !local_associative_array_stack.empty() &&
+           local_associative_array_stack.back().find(name) !=
+               local_associative_array_stack.back().end();
+}
+
+bool VariableManager::has_local_nameref_binding(const std::string& name) const {
+    return !local_nameref_stack.empty() &&
+           local_nameref_stack.back().find(name) != local_nameref_stack.back().end();
+}
+
 bool VariableManager::has_local_binding(const std::string& name) const {
     if (local_variable_stack.empty()) {
         return false;
@@ -806,7 +1234,8 @@ bool VariableManager::has_local_binding(const std::string& name) const {
     if (local_variable_stack.back().find(name) != local_variable_stack.back().end()) {
         return true;
     }
-    return has_local_array_binding(name);
+    return has_local_array_binding(name) || has_local_associative_array_binding(name) ||
+           has_local_nameref_binding(name);
 }
 
 bool VariableManager::should_assign_to_local_scope(const std::string& name) const {
@@ -856,11 +1285,47 @@ const VariableManager::IndexedArray* VariableManager::get_global_array(
     return &it->second;
 }
 
+VariableManager::AssociativeArray* VariableManager::get_local_associative_array(
+    const std::string& name) {
+    if (local_associative_array_stack.empty()) {
+        return nullptr;
+    }
+    auto it = local_associative_array_stack.back().find(name);
+    return it == local_associative_array_stack.back().end() ? nullptr : &it->second;
+}
+
+const VariableManager::AssociativeArray* VariableManager::get_local_associative_array(
+    const std::string& name) const {
+    if (local_associative_array_stack.empty()) {
+        return nullptr;
+    }
+    auto it = local_associative_array_stack.back().find(name);
+    return it == local_associative_array_stack.back().end() ? nullptr : &it->second;
+}
+
+VariableManager::AssociativeArray* VariableManager::get_global_associative_array(
+    const std::string& name) {
+    auto it = global_associative_array_variables.find(name);
+    return it == global_associative_array_variables.end() ? nullptr : &it->second;
+}
+
+const VariableManager::AssociativeArray* VariableManager::get_global_associative_array(
+    const std::string& name) const {
+    auto it = global_associative_array_variables.find(name);
+    return it == global_associative_array_variables.end() ? nullptr : &it->second;
+}
+
 bool VariableManager::assign_scalar_value(const std::string& name, const std::string& value,
                                           bool append, bool local_scope) {
     if (local_scope) {
         if (local_variable_stack.empty()) {
             return false;
+        }
+
+        AssociativeArray* local_associative = get_local_associative_array(name);
+        if (local_associative != nullptr) {
+            assign_string_value((*local_associative)["0"], value, append);
+            return true;
         }
 
         IndexedArray* local_array = get_local_array(name);
@@ -871,6 +1336,12 @@ bool VariableManager::assign_scalar_value(const std::string& name, const std::st
 
         auto& scalars = local_variable_stack.back();
         assign_string_value(scalars[name], value, append);
+        return true;
+    }
+
+    AssociativeArray* global_associative = get_global_associative_array(name);
+    if (global_associative != nullptr) {
+        assign_string_value((*global_associative)["0"], value, append);
         return true;
     }
 
@@ -898,13 +1369,23 @@ bool VariableManager::assign_array_element_value(const std::string& name,
         return false;
     }
 
-    auto index = evaluate_array_index_expression(index_expr);
-    if (!index.has_value()) {
-        return false;
-    }
-
     if (local_scope) {
         if (local_array_stack.empty()) {
+            return false;
+        }
+
+        AssociativeArray* associative = get_local_associative_array(name);
+        if (associative != nullptr) {
+            std::string key = normalize_associative_key(index_expr);
+            if (key.empty()) {
+                return false;
+            }
+            assign_string_value((*associative)[key], value, append);
+            return true;
+        }
+
+        auto index = evaluate_array_index_expression(index_expr);
+        if (!index.has_value()) {
             return false;
         }
 
@@ -921,6 +1402,21 @@ bool VariableManager::assign_array_element_value(const std::string& name,
 
         assign_string_value(target[*index], value, append);
         return true;
+    }
+
+    AssociativeArray* associative = get_global_associative_array(name);
+    if (associative != nullptr) {
+        std::string key = normalize_associative_key(index_expr);
+        if (key.empty()) {
+            return false;
+        }
+        assign_string_value((*associative)[key], value, append);
+        return true;
+    }
+
+    auto index = evaluate_array_index_expression(index_expr);
+    if (!index.has_value()) {
+        return false;
     }
 
     auto [array_it, inserted] = global_array_variables.emplace(name, IndexedArray{});
@@ -974,6 +1470,45 @@ void VariableManager::remove_global_scalar_binding(const std::string& name) {
 
     (void)unsetenv(name.c_str());
     cjsh_env::mirror_unset_from_process_env(name);
+}
+
+std::string VariableManager::normalize_associative_key(const std::string& key) const {
+    std::string normalized = trim_whitespace(key);
+    if (normalized.size() >= 2 && ((normalized.front() == '\'' && normalized.back() == '\'') ||
+                                   (normalized.front() == '"' && normalized.back() == '"'))) {
+        normalized = normalized.substr(1, normalized.size() - 2);
+    }
+    if (normalized.size() >= 3 && normalized.front() == '$' && normalized[1] == '{' &&
+        normalized.back() == '}') {
+        normalized = get_variable_value(normalized.substr(2, normalized.size() - 3));
+    } else if (normalized.size() >= 2 && normalized.front() == '$' &&
+               is_valid_identifier(normalized.substr(1))) {
+        normalized = get_variable_value(normalized.substr(1));
+    }
+    return normalized;
+}
+
+std::string VariableManager::resolve_nameref_reference(const std::string& reference) const {
+    std::string current = trim_whitespace(reference);
+    std::unordered_set<std::string> visited;
+
+    for (size_t depth = 0; depth < 64; ++depth) {
+        ParsedArrayReference parsed;
+        if (!parse_array_reference(current, parsed) || !is_nameref(parsed.name) ||
+            !visited.insert(parsed.name).second) {
+            break;
+        }
+
+        std::string target = get_nameref_target(parsed.name);
+        if (target.empty()) {
+            break;
+        }
+        if (parsed.has_index && target.find('[') == std::string::npos) {
+            target += '[' + parsed.index + ']';
+        }
+        current = std::move(target);
+    }
+    return current;
 }
 
 std::string VariableManager::get_special_variable(const std::string& var_name) const {

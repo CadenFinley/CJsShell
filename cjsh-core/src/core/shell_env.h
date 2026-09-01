@@ -49,6 +49,7 @@ extern bool source_enabled;
 extern bool completions_enabled;
 extern bool completion_learning_enabled;
 extern bool smart_cd_enabled;
+extern bool extglob_enabled;
 extern bool syntax_highlighting_enabled;
 extern bool show_version;
 extern bool show_help;

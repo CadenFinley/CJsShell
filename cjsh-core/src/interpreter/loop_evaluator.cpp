@@ -297,9 +297,11 @@ bool collect_loop_body_lines(const std::vector<std::string>& src_lines, size_t s
     return depth == 0;
 }
 
-int iterate_numeric_range(int start, int end, bool is_ascending,
+int iterate_numeric_range(int start, int end, int step,
                           const std::function<LoopCommandOutcome(int)>& run_iteration) {
-    int step = is_ascending ? 1 : -1;
+    if (step == 0) {
+        step = start <= end ? 1 : -1;
+    }
     int value = start;
     int rc_local = 0;
     while (step > 0 ? value <= end : value >= end) {
@@ -699,8 +701,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
         return 1;
 
     auto abort_pending = [&]() {
-        return cjsh_env::exit_requested() ||
-               (should_abort_execution && should_abort_execution());
+        return cjsh_env::exit_requested() || (should_abort_execution && should_abort_execution());
     };
 
     // parse the loop header and detect inline do/body placement
@@ -1006,15 +1007,14 @@ int handle_for_block(
     std::vector<std::string> items;
     CStyleForHeader c_style_header;
     auto abort_pending = [&]() {
-        return cjsh_env::exit_requested() ||
-               (should_abort_execution && should_abort_execution());
+        return cjsh_env::exit_requested() || (should_abort_execution && should_abort_execution());
     };
 
     struct RangeInfo {
         bool is_range = false;
         int start = 0;
         int end = 0;
-        bool is_ascending = true;
+        int step = 1;
     } range_info;
 
     auto finalize_with_trailing_commands = [&](int loop_rc, const std::string& trailing_commands) {
@@ -1079,12 +1079,22 @@ int handle_for_block(
                 size_t dots_pos = range_content.find("..");
                 if (dots_pos != std::string::npos) {
                     std::string start_str = range_content.substr(0, dots_pos);
-                    std::string end_str = range_content.substr(dots_pos + 2);
+                    std::string range_tail = range_content.substr(dots_pos + 2);
+                    size_t stride_pos = range_tail.find("..");
+                    std::string end_str = range_tail.substr(0, stride_pos);
+                    std::string stride_str = stride_pos == std::string::npos
+                                                 ? std::string{}
+                                                 : range_tail.substr(stride_pos + 2);
                     try {
                         range_info.start = std::stoi(start_str);
                         range_info.end = std::stoi(end_str);
+                        int magnitude = stride_str.empty() ? 1 : std::abs(std::stoi(stride_str));
+                        if (magnitude == 0) {
+                            magnitude = 1;
+                        }
+                        range_info.step =
+                            range_info.start <= range_info.end ? magnitude : -magnitude;
                         range_info.is_range = true;
-                        range_info.is_ascending = range_info.start <= range_info.end;
                         return !var.empty();
                     } catch (...) {
                         return false;
@@ -1193,7 +1203,7 @@ int handle_for_block(
                 }
             }
         } else if (range_info.is_range) {
-            rc = iterate_numeric_range(range_info.start, range_info.end, range_info.is_ascending,
+            rc = iterate_numeric_range(range_info.start, range_info.end, range_info.step,
                                        [&](int value) -> LoopCommandOutcome {
                                            assign_loop_variable(std::to_string(value));
                                            return run_iteration();
@@ -1292,8 +1302,7 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
     std::string var;
     std::vector<std::string> items;
     auto abort_pending = [&]() {
-        return cjsh_env::exit_requested() ||
-               (should_abort_execution && should_abort_execution());
+        return cjsh_env::exit_requested() || (should_abort_execution && should_abort_execution());
     };
 
     auto finalize_with_trailing_commands = [&](int loop_rc, const std::string& trailing_commands) {

@@ -29,6 +29,7 @@
 #include "local_command.h"
 
 #include "builtin_help.h"
+#include "declare_command.h"
 
 #include "error_out.h"
 #include "interpreter.h"
@@ -37,7 +38,7 @@
 #include "shell_env.h"
 
 int local_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args, {"Usage: local NAME[=VALUE] ...",
+    if (builtin_handle_help(args, {"Usage: local [-aAn] NAME[=VALUE] ...",
                                    "Define local variables within a function scope."})) {
         return 0;
     }
@@ -58,6 +59,13 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
 
     if (args.size() == 1) {
         return 0;
+    }
+
+    if (args[1].size() > 1 && args[1].front() == '-' &&
+        args[1].find_first_not_of("-aAnrx") == std::string::npos) {
+        std::vector<std::string> declare_args = args;
+        declare_args[0] = "declare";
+        return declare_command(declare_args, shell);
     }
 
     bool all_successful = true;

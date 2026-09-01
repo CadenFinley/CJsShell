@@ -28,9 +28,255 @@
 
 #include "pattern_matcher.h"
 
-#include <string>
+#include <fnmatch.h>
 
-bool PatternMatcher::matches_pattern(const std::string& text, const std::string& pattern) const {
+#include <algorithm>
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "shell_env.h"
+
+namespace {
+
+enum class PatternNodeKind : std::uint8_t {
+    Literal,
+    AnyCharacter,
+    AnyString,
+    CharacterClass,
+    ExtendedGroup
+};
+
+struct PatternNode {
+    PatternNodeKind kind = PatternNodeKind::Literal;
+    char value = '\0';
+    std::string character_class;
+    std::vector<std::vector<PatternNode>> alternatives;
+};
+
+void append_unique(std::vector<size_t>& values, size_t value) {
+    if (std::find(values.begin(), values.end(), value) == values.end()) {
+        values.push_back(value);
+    }
+}
+
+class GlobPatternParser {
+   public:
+    explicit GlobPatternParser(const std::string& pattern, bool top_level_alternatives)
+        : pattern_(pattern), top_level_alternatives_(top_level_alternatives) {
+    }
+
+    std::vector<std::vector<PatternNode>> parse() {
+        return parse_alternatives(false);
+    }
+
+   private:
+    const std::string& pattern_;
+    bool top_level_alternatives_ = false;
+    size_t position_ = 0;
+
+    static bool is_extglob_operator(char ch) {
+        return ch == '?' || ch == '*' || ch == '+' || ch == '@' || ch == '!';
+    }
+
+    std::vector<std::vector<PatternNode>> parse_alternatives(bool stop_at_close) {
+        std::vector<std::vector<PatternNode>> alternatives;
+        alternatives.emplace_back();
+
+        while (position_ < pattern_.size()) {
+            char ch = pattern_[position_];
+            if ((ch == '|' && (stop_at_close || top_level_alternatives_)) ||
+                (stop_at_close && ch == ')')) {
+                if (ch == '|') {
+                    ++position_;
+                    alternatives.emplace_back();
+                    continue;
+                }
+                break;
+            }
+
+            PatternNode node;
+            if (ch == '\\' && position_ + 1 < pattern_.size()) {
+                node.kind = PatternNodeKind::Literal;
+                node.value = pattern_[position_ + 1];
+                position_ += 2;
+            } else if (config::extglob_enabled && is_extglob_operator(ch) &&
+                       position_ + 1 < pattern_.size() && pattern_[position_ + 1] == '(') {
+                node.kind = PatternNodeKind::ExtendedGroup;
+                node.value = ch;
+                position_ += 2;
+                node.alternatives = parse_alternatives(true);
+                if (position_ < pattern_.size() && pattern_[position_] == ')') {
+                    ++position_;
+                } else {
+                    node.kind = PatternNodeKind::Literal;
+                    node.value = ch;
+                    node.alternatives.clear();
+                }
+            } else if (ch == '*') {
+                node.kind = PatternNodeKind::AnyString;
+                ++position_;
+            } else if (ch == '?') {
+                node.kind = PatternNodeKind::AnyCharacter;
+                ++position_;
+            } else if (ch == '[') {
+                size_t close = position_ + 1;
+                if (close < pattern_.size() && (pattern_[close] == '!' || pattern_[close] == '^')) {
+                    ++close;
+                }
+                if (close < pattern_.size() && pattern_[close] == ']') {
+                    ++close;
+                }
+                for (; close < pattern_.size(); ++close) {
+                    if (pattern_[close] == '[' && close + 1 < pattern_.size() &&
+                        (pattern_[close + 1] == ':' || pattern_[close + 1] == '.' ||
+                         pattern_[close + 1] == '=')) {
+                        const char marker = pattern_[close + 1];
+                        size_t nested_close = pattern_.find(std::string{marker, ']'}, close + 2);
+                        if (nested_close == std::string::npos) {
+                            close = pattern_.size();
+                            break;
+                        }
+                        close = nested_close + 1;
+                        continue;
+                    }
+                    if (pattern_[close] == ']') {
+                        break;
+                    }
+                }
+                if (close >= pattern_.size()) {
+                    close = std::string::npos;
+                }
+                if (close != std::string::npos) {
+                    node.kind = PatternNodeKind::CharacterClass;
+                    node.character_class = pattern_.substr(position_, close - position_ + 1);
+                    position_ = close + 1;
+                } else {
+                    node.kind = PatternNodeKind::Literal;
+                    node.value = ch;
+                    ++position_;
+                }
+            } else {
+                node.kind = PatternNodeKind::Literal;
+                node.value = ch;
+                ++position_;
+            }
+            alternatives.back().push_back(std::move(node));
+        }
+
+        return alternatives;
+    }
+};
+
+bool character_class_matches(char character, const std::string& pattern) {
+    if (pattern.size() < 3 || pattern.front() != '[' || pattern.back() != ']') {
+        return false;
+    }
+    const std::string candidate(1, character);
+    return fnmatch(pattern.c_str(), candidate.c_str(), 0) == 0;
+}
+
+std::vector<size_t> match_sequence(const std::vector<PatternNode>& sequence, size_t node_index,
+                                   const std::string& text, size_t text_index);
+
+std::vector<size_t> match_alternatives(const std::vector<std::vector<PatternNode>>& alternatives,
+                                       const std::string& text, size_t text_index) {
+    std::vector<size_t> endpoints;
+    for (const auto& alternative : alternatives) {
+        for (size_t endpoint : match_sequence(alternative, 0, text, text_index)) {
+            append_unique(endpoints, endpoint);
+        }
+    }
+    return endpoints;
+}
+
+std::vector<size_t> repeat_group(const PatternNode& node, const std::string& text,
+                                 const std::vector<size_t>& initial) {
+    std::vector<size_t> endpoints = initial;
+    for (size_t cursor = 0; cursor < endpoints.size(); ++cursor) {
+        size_t begin = endpoints[cursor];
+        for (size_t endpoint : match_alternatives(node.alternatives, text, begin)) {
+            if (endpoint != begin) {
+                append_unique(endpoints, endpoint);
+            }
+        }
+    }
+    return endpoints;
+}
+
+std::vector<size_t> match_node(const PatternNode& node, const std::string& text,
+                               size_t text_index) {
+    switch (node.kind) {
+        case PatternNodeKind::Literal:
+            return text_index < text.size() && text[text_index] == node.value
+                       ? std::vector<size_t>{text_index + 1}
+                       : std::vector<size_t>{};
+        case PatternNodeKind::AnyCharacter:
+            return text_index < text.size() ? std::vector<size_t>{text_index + 1}
+                                            : std::vector<size_t>{};
+        case PatternNodeKind::AnyString: {
+            std::vector<size_t> endpoints;
+            endpoints.reserve(text.size() - text_index + 1);
+            for (size_t endpoint = text_index; endpoint <= text.size(); ++endpoint) {
+                endpoints.push_back(endpoint);
+            }
+            return endpoints;
+        }
+        case PatternNodeKind::CharacterClass:
+            return text_index < text.size() &&
+                           character_class_matches(text[text_index], node.character_class)
+                       ? std::vector<size_t>{text_index + 1}
+                       : std::vector<size_t>{};
+        case PatternNodeKind::ExtendedGroup:
+            break;
+    }
+
+    std::vector<size_t> direct = match_alternatives(node.alternatives, text, text_index);
+    if (node.value == '@') {
+        return direct;
+    }
+    if (node.value == '?') {
+        append_unique(direct, text_index);
+        return direct;
+    }
+    if (node.value == '*') {
+        return repeat_group(node, text, {text_index});
+    }
+    if (node.value == '+') {
+        return repeat_group(node, text, direct);
+    }
+    if (node.value == '!') {
+        std::vector<size_t> endpoints;
+        for (size_t endpoint = text_index; endpoint <= text.size(); ++endpoint) {
+            if (std::find(direct.begin(), direct.end(), endpoint) == direct.end()) {
+                endpoints.push_back(endpoint);
+            }
+        }
+        return endpoints;
+    }
+    return {};
+}
+
+std::vector<size_t> match_sequence(const std::vector<PatternNode>& sequence, size_t node_index,
+                                   const std::string& text, size_t text_index) {
+    if (node_index >= sequence.size()) {
+        return {text_index};
+    }
+
+    std::vector<size_t> endpoints;
+    for (size_t next_index : match_node(sequence[node_index], text, text_index)) {
+        for (size_t endpoint : match_sequence(sequence, node_index + 1, text, next_index)) {
+            append_unique(endpoints, endpoint);
+        }
+    }
+    return endpoints;
+}
+
+}  // namespace
+
+bool PatternMatcher::matches_pattern(const std::string& text, const std::string& pattern,
+                                     bool top_level_alternatives) const {
     auto sanitize_quotes = [](const std::string& raw_pattern) {
         std::string cleaned;
         cleaned.reserve(raw_pattern.size());
@@ -68,138 +314,13 @@ bool PatternMatcher::matches_pattern(const std::string& text, const std::string&
 
     std::string sanitized_pattern = sanitize_quotes(pattern);
 
-    if (sanitized_pattern.find('|') != std::string::npos) {
-        size_t start = 0;
-        while (start < sanitized_pattern.length()) {
-            size_t pipe_pos = start;
-            while (pipe_pos < sanitized_pattern.length()) {
-                if (sanitized_pattern[pipe_pos] == '|' &&
-                    (pipe_pos == 0 || sanitized_pattern[pipe_pos - 1] != '\\')) {
-                    break;
-                }
-                ++pipe_pos;
-            }
-            std::string sub_pattern;
-            if (pipe_pos >= sanitized_pattern.length()) {
-                sub_pattern = sanitized_pattern.substr(start);
-                start = sanitized_pattern.length();
-            } else {
-                sub_pattern = sanitized_pattern.substr(start, pipe_pos - start);
-                start = pipe_pos + 1;
-            }
-
-            if (matches_single_pattern(text, sub_pattern)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    return matches_single_pattern(text, sanitized_pattern);
-}
-
-bool PatternMatcher::matches_single_pattern(const std::string& text,
-                                            const std::string& pattern) const {
-    size_t ti = 0;
-    size_t pi = 0;
-    size_t star_idx = std::string::npos;
-    size_t match_idx = 0;
-    const auto backtrack_to_star = [&]() {
-        if (star_idx == std::string::npos) {
-            return false;
-        }
-        pi = star_idx + 1;
-        ti = ++match_idx;
-        return true;
-    };
-
-    while (ti < text.length() || pi < pattern.length()) {
-        if (ti >= text.length()) {
-            while (pi < pattern.length() && pattern[pi] == '*') {
-                pi++;
-            }
-            return pi == pattern.length();
-        }
-
-        if (pi >= pattern.length()) {
-            if (!backtrack_to_star()) {
-                return false;
-            }
-        } else if (pattern[pi] == '[') {
-            size_t class_end = pattern.find(']', pi);
-            if (class_end != std::string::npos) {
-                std::string char_class = pattern.substr(pi, class_end - pi + 1);
-                if (matches_char_class(text[ti], char_class)) {
-                    ti++;
-                    pi = class_end + 1;
-                } else if (!backtrack_to_star()) {
-                    return false;
-                }
-            } else {
-                if (pattern[pi] == text[ti]) {
-                    ti++;
-                    pi++;
-                } else if (!backtrack_to_star()) {
-                    return false;
-                }
-            }
-        } else if (pattern[pi] == '\\' && pi + 1 < pattern.length()) {
-            char escaped_char = pattern[pi + 1];
-            if (escaped_char == text[ti]) {
-                ti++;
-                pi += 2;
-            } else if (!backtrack_to_star()) {
-                return false;
-            }
-        } else if (pattern[pi] == '?') {
-            ti++;
-            pi++;
-        } else if (pattern[pi] == '*') {
-            star_idx = pi;
-            match_idx = ti;
-            pi++;
-        } else if (pattern[pi] == text[ti]) {
-            ti++;
-            pi++;
-        } else if (!backtrack_to_star()) {
-            return false;
+    GlobPatternParser parser(sanitized_pattern, top_level_alternatives);
+    auto alternatives = parser.parse();
+    for (const auto& alternative : alternatives) {
+        auto endpoints = match_sequence(alternative, 0, text, 0);
+        if (std::find(endpoints.begin(), endpoints.end(), text.size()) != endpoints.end()) {
+            return true;
         }
     }
-
-    return true;
-}
-
-bool PatternMatcher::matches_char_class(char c, const std::string& char_class) const {
-    if (char_class.length() < 3 || char_class[0] != '[' || char_class.back() != ']') {
-        return false;
-    }
-
-    std::string class_content = char_class.substr(1, char_class.length() - 2);
-    bool negated = false;
-
-    if (!class_content.empty() && (class_content[0] == '^' || class_content[0] == '!')) {
-        negated = true;
-        class_content = class_content.substr(1);
-    }
-
-    bool matches = false;
-
-    for (size_t i = 0; i < class_content.length(); ++i) {
-        if (i + 2 < class_content.length() && class_content[i + 1] == '-') {
-            char start = class_content[i];
-            char end = class_content[i + 2];
-            if (c >= start && c <= end) {
-                matches = true;
-                break;
-            }
-            i += 2;
-        } else {
-            if (c == class_content[i]) {
-                matches = true;
-                break;
-            }
-        }
-    }
-
-    return negated ? !matches : matches;
+    return false;
 }

@@ -35,9 +35,12 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <iomanip>
+#include <sstream>
 #include <system_error>
 #include <type_traits>
 
+#include "pattern_matcher.h"
 #include "shell.h"
 #include "shell_env.h"
 
@@ -47,6 +50,7 @@ struct GlobComponent {
     std::string text;
     bool is_globstar{false};
     bool has_wildcards{false};
+    bool has_extglob{false};
     bool allows_hidden{false};
 };
 
@@ -54,11 +58,26 @@ struct ParsedGlobPattern {
     bool absolute{false};
     bool trailing_slash{false};
     bool contains_globstar{false};
+    bool contains_extglob{false};
     std::vector<GlobComponent> components;
 };
 
 bool component_has_wildcards(const std::string& text) {
     return text.find_first_of("*?[") != std::string::npos;
+}
+
+bool component_has_extglob(const std::string& text) {
+    if (!config::extglob_enabled) {
+        return false;
+    }
+    for (size_t i = 0; i + 1 < text.size(); ++i) {
+        if ((text[i] == '?' || text[i] == '*' || text[i] == '+' || text[i] == '@' ||
+             text[i] == '!') &&
+            text[i + 1] == '(') {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool is_hidden_name(const std::string& name) {
@@ -72,11 +91,14 @@ void append_component(ParsedGlobPattern& pattern, std::string component) {
     GlobComponent parsed_component;
     parsed_component.text = std::move(component);
     parsed_component.is_globstar = parsed_component.text == "**";
-    parsed_component.has_wildcards =
-        parsed_component.is_globstar || component_has_wildcards(parsed_component.text);
+    parsed_component.has_extglob = component_has_extglob(parsed_component.text);
+    parsed_component.has_wildcards = parsed_component.is_globstar ||
+                                     component_has_wildcards(parsed_component.text) ||
+                                     parsed_component.has_extglob;
     parsed_component.allows_hidden =
         !parsed_component.text.empty() && parsed_component.text.front() == '.';
     pattern.contains_globstar = pattern.contains_globstar || parsed_component.is_globstar;
+    pattern.contains_extglob = pattern.contains_extglob || parsed_component.has_extglob;
     pattern.components.push_back(std::move(parsed_component));
 }
 
@@ -220,9 +242,17 @@ void globstar_recurse(const ParsedGlobPattern& pattern, size_t index,
     }
 
     int fnmatch_flags = FNM_PERIOD;
+    PatternMatcher pattern_matcher;
     for (const auto& entry : dir_it) {
         std::string name = entry.path().filename().string();
-        if (fnmatch(component.text.c_str(), name.c_str(), fnmatch_flags) == 0) {
+        if (!component.allows_hidden && is_hidden_name(name)) {
+            continue;
+        }
+        bool component_matches =
+            component.has_extglob
+                ? pattern_matcher.matches_pattern(name, component.text)
+                : fnmatch(component.text.c_str(), name.c_str(), fnmatch_flags) == 0;
+        if (component_matches) {
             globstar_recurse(pattern, index + 1, entry.path(), matches);
         }
     }
@@ -297,7 +327,11 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
     size_t range_pos = content.find("..");
     if (range_pos != std::string::npos) {
         std::string start_str = content.substr(0, range_pos);
-        std::string end_str = content.substr(range_pos + 2);
+        std::string range_tail = content.substr(range_pos + 2);
+        size_t stride_pos = range_tail.find("..");
+        std::string end_str = range_tail.substr(0, stride_pos);
+        std::string stride_str =
+            stride_pos == std::string::npos ? std::string{} : range_tail.substr(stride_pos + 2);
 
         auto is_numeric = [](const std::string& str) {
             if (str.empty())
@@ -312,18 +346,53 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
             return std::all_of(start_it, str.end(), [](char c) { return std::isdigit(c); });
         };
 
+        if (stride_pos != std::string::npos &&
+            (stride_str.empty() || !is_numeric(stride_str) ||
+             range_tail.find("..", stride_pos + 2) != std::string::npos)) {
+            result.push_back(pattern);
+            return result;
+        }
+
         bool is_numeric_range = is_numeric(start_str) && is_numeric(end_str);
 
         if (is_numeric_range) {
-            int start_int = std::stoi(start_str);
-            int end_int = std::stoi(end_str);
-            size_t range_size = static_cast<size_t>(std::abs(end_int - start_int)) + 1U;
+            int start_int = 0;
+            int end_int = 0;
+            int stride = 1;
+            try {
+                start_int = std::stoi(start_str);
+                end_int = std::stoi(end_str);
+                if (!stride_str.empty()) {
+                    stride = std::stoi(stride_str);
+                }
+            } catch (const std::exception&) {
+                result.push_back(pattern);
+                return result;
+            }
+            if (stride == 0) {
+                stride = 1;
+            }
+            stride = std::abs(stride);
+            const long long distance =
+                std::llabs(static_cast<long long>(end_int) - static_cast<long long>(start_int));
+            size_t range_size = static_cast<size_t>(distance / stride) + 1U;
             if (range_size > MAX_EXPANSION_SIZE) {
                 result.push_back(pattern);
                 return result;
             }
+            auto digit_width = [](const std::string& value) {
+                size_t offset = (!value.empty() && (value.front() == '-' || value.front() == '+'));
+                return value.size() - offset;
+            };
+            const bool preserve_width =
+                (digit_width(start_str) > 1 &&
+                 start_str[start_str.front() == '-' || start_str.front() == '+'] == '0') ||
+                (digit_width(end_str) > 1 &&
+                 end_str[end_str.front() == '-' || end_str.front() == '+'] == '0');
+            const size_t numeric_width =
+                preserve_width ? std::max(digit_width(start_str), digit_width(end_str)) : 0;
             result.reserve(range_size);
-            expand_range(start_int, end_int, prefix, suffix, result);
+            expand_range(start_int, end_int, prefix, suffix, result, stride, numeric_width);
             return result;
         }
 
@@ -336,14 +405,28 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
             bool both_upper = std::isupper(start_char) && std::isupper(end_char);
 
             if (both_lower || both_upper) {
+                int stride = 1;
+                if (!stride_str.empty()) {
+                    try {
+                        stride = std::stoi(stride_str);
+                    } catch (const std::exception&) {
+                        result.push_back(pattern);
+                        return result;
+                    }
+                }
+                if (stride == 0) {
+                    stride = 1;
+                }
+                stride = std::abs(stride);
                 int char_diff = end_char - start_char;
-                size_t char_range_size = static_cast<size_t>(std::abs(char_diff)) + 1U;
+                size_t char_range_size = static_cast<size_t>(std::abs(char_diff) / stride) + 1U;
                 if (char_range_size > MAX_EXPANSION_SIZE) {
                     result.push_back(pattern);
                     return result;
                 }
                 result.reserve(char_range_size);
-                expand_range(start_char, end_char, prefix, suffix, result);
+                expand_range(start_char, end_char, prefix, suffix, result,
+                             static_cast<char>(stride));
                 return result;
             }
         }
@@ -427,6 +510,11 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
             has_wildcards = true;
             break;
         }
+        if (config::extglob_enabled && i + 1 < pattern.length() && pattern[i + 1] == '(' &&
+            (c == '+' || c == '@' || c == '!')) {
+            has_wildcards = true;
+            break;
+        }
     }
 
     std::string unescaped;
@@ -450,9 +538,10 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
 
     bool globstar_enabled =
         shell != nullptr && shell->get_shell_option(ShellOption::Globstar) && !config::posix_mode;
-    if (globstar_enabled) {
+    if (globstar_enabled || config::extglob_enabled) {
         ParsedGlobPattern parsed_pattern = parse_glob_pattern(unescaped);
-        if (parsed_pattern.contains_globstar) {
+        if ((globstar_enabled && parsed_pattern.contains_globstar) ||
+            parsed_pattern.contains_extglob) {
             std::vector<std::string> globstar_matches = expand_globstar_pattern(parsed_pattern);
             if (!globstar_matches.empty()) {
                 return globstar_matches;
@@ -487,13 +576,24 @@ void ExpansionEngine::expand_and_append_results(const std::string& combined,
 
 template <typename T>
 void ExpansionEngine::expand_range(T start, T end, const std::string& prefix,
-                                   const std::string& suffix, std::vector<std::string>& result) {
+                                   const std::string& suffix, std::vector<std::string>& result,
+                                   T stride, size_t numeric_width) {
     auto append_value = [&](T value) {
         std::string combined;
         if constexpr (std::is_same_v<T, int>) {
             combined.reserve(prefix.size() + 12 + suffix.size());
             combined = prefix;
-            combined += std::to_string(value);
+            if (numeric_width > 0) {
+                std::ostringstream formatted;
+                if (value < 0) {
+                    formatted << '-';
+                }
+                formatted << std::setw(static_cast<int>(numeric_width)) << std::setfill('0')
+                          << std::abs(value);
+                combined += formatted.str();
+            } else {
+                combined += std::to_string(value);
+            }
             combined += suffix;
         } else if constexpr (std::is_same_v<T, char>) {
             combined.reserve(prefix.size() + 1 + suffix.size());
@@ -505,23 +605,41 @@ void ExpansionEngine::expand_range(T start, T end, const std::string& prefix,
     };
 
     if constexpr (std::is_same_v<T, int>) {
+        const int magnitude = std::max(1, std::abs(stride));
         if (start <= end) {
-            for (T i = start; i <= end; ++i) {
+            for (T i = start; i <= end;) {
                 append_value(i);
+                if (i > end - magnitude) {
+                    break;
+                }
+                i += magnitude;
             }
         } else {
-            for (T i = start; i >= end; --i) {
+            for (T i = start; i >= end;) {
                 append_value(i);
+                if (i < end + magnitude) {
+                    break;
+                }
+                i -= magnitude;
             }
         }
     } else if constexpr (std::is_same_v<T, char>) {
+        const int magnitude = std::max(1, std::abs(static_cast<int>(stride)));
         if (start <= end) {
-            for (T c = start; c <= end; ++c) {
+            for (T c = start; c <= end;) {
                 append_value(c);
+                if (static_cast<int>(c) > static_cast<int>(end) - magnitude) {
+                    break;
+                }
+                c = static_cast<T>(static_cast<int>(c) + magnitude);
             }
         } else {
-            for (T c = start; c >= end; --c) {
+            for (T c = start; c >= end;) {
                 append_value(c);
+                if (static_cast<int>(c) < static_cast<int>(end) + magnitude) {
+                    break;
+                }
+                c = static_cast<T>(static_cast<int>(c) - magnitude);
             }
         }
     }
@@ -529,7 +647,9 @@ void ExpansionEngine::expand_range(T start, T end, const std::string& prefix,
 
 template void ExpansionEngine::expand_range<int>(int start, int end, const std::string& prefix,
                                                  const std::string& suffix,
-                                                 std::vector<std::string>& result);
+                                                 std::vector<std::string>& result, int stride,
+                                                 size_t numeric_width);
 template void ExpansionEngine::expand_range<char>(char start, char end, const std::string& prefix,
                                                   const std::string& suffix,
-                                                  std::vector<std::string>& result);
+                                                  std::vector<std::string>& result, char stride,
+                                                  size_t numeric_width);

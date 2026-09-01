@@ -73,6 +73,7 @@ bool source_enabled = true;
 bool completions_enabled = true;
 bool completion_learning_enabled = true;
 bool smart_cd_enabled = true;
+bool extglob_enabled = false;
 bool syntax_highlighting_enabled = true;
 bool show_version = false;
 bool show_help = false;

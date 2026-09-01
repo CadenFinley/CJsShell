@@ -1,5 +1,5 @@
 /*
-  pattern_matcher.h
+  coproc_command.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -29,17 +29,9 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
-class PatternMatcher {
-   public:
-    PatternMatcher() = default;
-    ~PatternMatcher() = default;
+class Shell;
 
-    PatternMatcher(const PatternMatcher&) = delete;
-    PatternMatcher& operator=(const PatternMatcher&) = delete;
-    PatternMatcher(PatternMatcher&&) = default;
-    PatternMatcher& operator=(PatternMatcher&&) = default;
-
-    bool matches_pattern(const std::string& text, const std::string& pattern,
-                         bool top_level_alternatives = false) const;
-};
+int coproc_command(const std::vector<std::string>& args, Shell* shell);
+int coproc_script_command(const std::string& command_text, Shell* shell);

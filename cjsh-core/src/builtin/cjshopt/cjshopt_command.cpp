@@ -52,6 +52,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     CompletionSpellEnter,
     CompletionLearning,
     SmartCd,
+    Extglob,
     ScriptExtensionInterpreter,
     LineNumbers,
     LineNumbersContinuation,
@@ -109,6 +110,7 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
          {CjshoptSubcommand::CompletionLearning, "completion-learning",
           completion_learning_command},
          {CjshoptSubcommand::SmartCd, "smart-cd", smart_cd_command},
+         {CjshoptSubcommand::Extglob, "extglob", extglob_command},
          {CjshoptSubcommand::ScriptExtensionInterpreter, "script-extension-interpreter",
           script_extension_interpreter_command},
          {CjshoptSubcommand::LineNumbers, "line-numbers", line_numbers_command},
@@ -183,6 +185,8 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "Enter (default: disabled)",
         std::string("  smart-cd <on|off|status>         Configure smart cd auto-jumps ") +
             "(default: enabled)",
+        std::string("  extglob <on|off|status>          Configure extended glob patterns ") +
+            "(default: disabled)",
         std::string("  script-extension-interpreter <on|off|status> Configure extension-based ") +
             "script runners (default: enabled)",
         std::string("  completion-learning <on|off|status> Toggle automatic completion learning ") +

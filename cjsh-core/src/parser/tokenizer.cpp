@@ -54,6 +54,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
     int arith_depth = 0;
     int brace_depth = 0;
     int bracket_depth = 0;
+    int extglob_depth = 0;
     bool in_subst_literal = false;
 
     bool token_saw_single = false;
@@ -129,7 +130,24 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
             in_quotes = false;
             quote_char = '\0';
         } else if (!in_quotes) {
-            if (c == '{' && current_token.length() >= 1 && current_token.back() == '$') {
+            if (extglob_depth > 0) {
+                if (c == '(') {
+                    ++extglob_depth;
+                } else if (c == ')') {
+                    --extglob_depth;
+                }
+                current_token += c;
+            }
+
+            else if (config::extglob_enabled && c == '(' && !current_token.empty() &&
+                     (current_token.back() == '?' || current_token.back() == '*' ||
+                      current_token.back() == '+' || current_token.back() == '@' ||
+                      current_token.back() == '!')) {
+                extglob_depth = 1;
+                current_token += c;
+            }
+
+            else if (c == '{' && current_token.length() >= 1 && current_token.back() == '$') {
                 brace_depth++;
                 current_token += c;
             }
@@ -358,8 +376,18 @@ std::vector<std::string> Tokenizer::merge_redirection_tokens(
         }
 
         else if (token == "<" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
-                 tokens[i + 2].length() > 0 && (std::isdigit(tokens[i + 2][0]) != 0)) {
+                 !tokens[i + 2].empty() &&
+                 ((std::isdigit(static_cast<unsigned char>(tokens[i + 2][0])) != 0) ||
+                  tokens[i + 2][0] == '$')) {
             result.push_back("<&" + tokens[i + 2]);
+            i += 2;
+        }
+
+        else if (token == ">" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
+                 !tokens[i + 2].empty() &&
+                 ((std::isdigit(static_cast<unsigned char>(tokens[i + 2][0])) != 0) ||
+                  tokens[i + 2][0] == '$')) {
+            result.push_back(">&" + tokens[i + 2]);
             i += 2;
         }
 
