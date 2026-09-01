@@ -29,16 +29,20 @@
 # Features Overview
 
 CJ's Shell (cjsh) pairs a standards-focused POSIX shell engine with a modern interactive
-experience. The goal is zero-compromise scripting compatibility backed by rich editing tools that
-require no third-party plugins.
+experience. It aims for broad portable-script compatibility while documenting the places where
+POSIX, Bash, or Zsh behavior is not identical.
 
 ## Core Shell Engine
 
-- **POSIX-first semantics** – Roughly 95% POSIX coverage with >1700 standards-focused tests.
+- **POSIX-first semantics** – Standards-focused behavior backed by more than 1700 shell tests.
+  This is an engineering target, not a claim of complete POSIX certification; see the
+  [Language Compatibility Inventory](language-compatibility.md).
 - **Bourne-compatible surface** – Classic constructs (`if`, `case`, `for`, `while`, functions,
     redirections, here-documents, command substitution) behave the way portable scripts expect.
-- **POSIX+ extensions** – `[[ … ]]`, arithmetic contexts, brace expansion, here-strings, and
-    process substitution are supported. History expansion stays interactive-only by default.
+- **POSIX+ extensions** – `[[ … ]]`, arithmetic contexts, indexed and associative arrays,
+    namerefs, coprocesses, brace expansion (including strides), case fall-through, here-strings,
+    and process substitution are supported. Extended globs are enabled with
+    `cjshopt extglob on`. History expansion stays interactive-only by default.
 - **Job control** – Background jobs, `fg`, `bg`, `jobs`, `wait`, `disown`, and `trap` integrate with
     the internal process manager so interactive sessions stay responsive. Append `&^` to a command
     to auto-background it on `Ctrl+Z`, or `&^!` to auto-background and discard stdout/stderr after

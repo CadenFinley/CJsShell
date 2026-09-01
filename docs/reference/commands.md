@@ -218,8 +218,8 @@ local name[=value] [name[=value]...]
 Set variable attributes and values.
 
 ```bash
-declare [-aFfgprx] [name[=value] ...]
-typeset [-aFfgprx] [name[=value] ...]
+declare [-aAnFfgprx] [name[=value] ...]
+typeset [-aAnFfgprx] [name[=value] ...]
 ```
 
 - `typeset` is an alias for `declare`
@@ -227,6 +227,8 @@ typeset [-aFfgprx] [name[=value] ...]
 - `-x` marks variables exported (`+x` removes export)
 - `-r` marks variables readonly
 - `-a` declares indexed arrays
+- `-A` declares associative arrays
+- `-n` declares namerefs; `unset -n name` removes the reference rather than its target
 - `-f`/`-F` operate on shell functions
 - `-p` prints declarations
 
@@ -247,6 +249,19 @@ set [options] [args...]
 - `set -o huponexit` mirrors bash's hangup behavior toggle; when enabled the shell sends
   SIGHUP to managed background jobs as it exits. Leave it off (the default) to keep helpers
   like dev servers alive until you explicitly stop them.
+
+### coproc
+
+Run a command asynchronously with a two-way pipe.
+
+```bash
+coproc command [args...]
+coproc NAME { command; }
+```
+
+The read and write descriptors are assigned to `COPROC[0]` and `COPROC[1]`, or to the named
+array. The child PID is available as `COPROC_PID` or `NAME_PID`. Use `read -u fd` or dynamic
+descriptor redirections such as `>&${COPROC[1]}` to communicate with it.
 
 ### shift
 Rotate positional parameters to the left.
@@ -534,6 +549,9 @@ Read user input into variables.
 read [options] name [name...]
 ```
 
+Use `read -u fd name` to read from a numeric file descriptor, including a descriptor published by
+`coproc`.
+
 ### getopts
 Parse positional parameters as short options.
 
@@ -684,6 +702,7 @@ Available subcommands:
 - `completion-spell-enter` - Toggle Enter-triggered spell autocorrection when exactly one spell match exists
 - `completion-learning` - Toggle automatic completion learning from man pages
 - `smart-cd` - Toggle fuzzy auto-jumps for `cd`
+- `extglob` - Toggle Bash-style extended glob patterns (`?()`, `*()`, `+()`, `@()`, `!()`)
 - `script-extension-interpreter` - Toggle extension-based script runners
 - `line-numbers` - Configure line numbers in multiline input (on/off/relative/absolute)
 - `line-numbers-continuation` - Keep line numbers when a continuation prompt is set

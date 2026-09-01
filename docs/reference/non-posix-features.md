@@ -72,6 +72,15 @@ See [Prompt Markup and Styling](../themes/thedetails.md) for the full markup ref
 
 - **Brace expansion** – Expand comma-separated terms or ranges before globbing.
   - Example: `echo {alpha,beta}` → `alpha beta`
+  - Strides and zero padding are supported: `echo {01..10..3}` → `01 04 07 10`
+- **Arrays and namerefs** – `declare -a`, `declare -A`, and `declare -n` provide indexed arrays,
+  associative arrays, and reference variables.
+- **Extended globs** – `?()`, `*()`, `+()`, `@()`, and `!()` work in pathname expansion,
+  `[[ … ]]`, `case`, and parameter patterns after `cjshopt extglob on`.
+- **Case fall-through** – `;&` executes the following clause body and `;;&` resumes pattern
+  testing at the following clause.
+- **Coprocesses** – `coproc command` and `coproc NAME { command; }` expose two-way descriptors in
+  `COPROC`/`NAME` and a waitable `COPROC_PID`/`NAME_PID`. `read -u fd` reads from a descriptor.
 - **Here-strings** – Feed a single string into a command's stdin.
   - Example: `grep foo <<< "foo bar"`
 - **Process substitution** – Treat command output/input as a file-like path.
@@ -79,6 +88,8 @@ See [Prompt Markup and Styling](../themes/thedetails.md) for the full markup ref
 
 These syntax extensions are available in both scripts and interactive sessions. History expansion
 remains interactive-only by default; see the History section below.
+See the [Language Compatibility Inventory](language-compatibility.md) for exact support and known
+differences from Bash and Zsh.
 
 ## Completion Engine
 
