@@ -58,6 +58,8 @@ void execute_prompt_command();
 
 bool apply_transient_final_prompt_if_configured();
 
+bool advance_with_transient_final_prompt(const std::string& new_buffer);
+
 void initialize_colors();
 
 void apply_terminal_window_title();

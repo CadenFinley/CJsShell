@@ -4135,6 +4135,10 @@ static bool test_custom_menu_rejects_calls_without_active_editor(void) {
                  "extended custom menu should require an active readline editor");
     EXPECT_TRUE(accept == IC_MENU_ACCEPT_NONE,
                 "failed extended custom menu calls should clear the accept result");
+    EXPECT_FALSE(ic_current_loop_advance("replacement"),
+                 "advancing the editor should require an active readline operation");
+    EXPECT_FALSE(ic_current_loop_advance_with_prompt("replacement", "final> ", NULL),
+                 "advancing with a replacement prompt should require an active editor");
     return true;
 }
 

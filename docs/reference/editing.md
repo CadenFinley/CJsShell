@@ -487,9 +487,11 @@ History search results are sorted newest-first by default. Press `Alt+S` inside 
 ## Agent-Assisted Command Writing
 
 CJSH can pass the current editor buffer to any command-line AI executor and present the returned
-commands in an isocline selection menu. CJSH does not choose a provider, store API keys, or execute
-the selected suggestion. The chosen command replaces the editor buffer so you can inspect or edit
-it before pressing `Enter`.
+commands in an isocline selection menu. CJSH does not choose a provider or store API keys. Press
+`Tab` to place the chosen command in a fresh editor buffer for inspection, or `Enter` to submit it
+immediately. In either case, the original natural-language request remains visible on the preceding
+prompt line. If `PS1_FINAL` or `RPS1_FINAL` is configured, those final-prompt values restyle the
+preserved request; the generated command still uses the normal active `PS1` and `RPS1`.
 
 Configure an executor in `~/.cjshrc`:
 
@@ -507,8 +509,8 @@ highlighter styles the prefix and the remaining natural-language request with `a
 changed with `cjshopt style_def`. A transient **Waiting for agent response.** status
 animates through one, two, and three dots while the executor is running, then clears before its
 results or an error are displayed.
-Use `Up`/`Down` and `Enter` in the menu to place a suggestion in the editor, or `Esc` to keep the
-original buffer.
+Use `Up`/`Down` to select a suggestion, `Tab` to insert it for review, `Enter` to submit it, or `Esc`
+to keep the original buffer.
 
 Invoking the agent activation key with an empty or whitespace-only buffer, or pressing `Enter`
 after typing only a configured prefix and optional whitespace, does not start the executor. It

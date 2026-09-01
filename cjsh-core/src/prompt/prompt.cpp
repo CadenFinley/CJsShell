@@ -1077,6 +1077,29 @@ bool apply_transient_final_prompt_if_configured() {
     return ic_current_loop_reset(nullptr, final_prompt_ptr, final_right_prompt_ptr);
 }
 
+bool advance_with_transient_final_prompt(const std::string& new_buffer) {
+    const char* final_prompt_ptr = nullptr;
+    const char* final_right_prompt_ptr = nullptr;
+    std::string final_prompt_text;
+    std::string final_right_prompt_text;
+
+    if (config::prompt_vars_enabled) {
+        if (cjsh_env::shell_variable_is_set("PS1_FINAL")) {
+            final_prompt_text = expand_prompt_string(
+                cjsh_env::get_shell_variable_value("PS1_FINAL"), PromptContext::Final);
+            final_prompt_ptr = final_prompt_text.c_str();
+        }
+        if (cjsh_env::shell_variable_is_set("RPS1_FINAL")) {
+            final_right_prompt_text = expand_prompt_string(
+                cjsh_env::get_shell_variable_value("RPS1_FINAL"), PromptContext::Right);
+            final_right_prompt_ptr = final_right_prompt_text.c_str();
+        }
+    }
+
+    return ic_current_loop_advance_with_prompt(new_buffer.c_str(), final_prompt_ptr,
+                                               final_right_prompt_ptr);
+}
+
 void execute_prompt_command() {
     if (!g_shell) {
         return;

@@ -41,10 +41,24 @@ import time
 
 CURSOR_QUERY = b"\x1b[6n"
 CURSOR_RESPONSE = b"\x1b[1;1R"
+ANSI_CSI_RE = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
+ANSI_OSC_RE = re.compile(rb"\x1b\].*?(?:\x07|\x1b\\)", re.S)
+
+
+def normalize_terminal_output(output: bytes) -> bytes:
+    normalized = output.replace(b"\r", b"")
+    normalized = ANSI_OSC_RE.sub(b"", normalized)
+    return ANSI_CSI_RE.sub(b"", normalized)
 
 
 class Session:
-    def __init__(self, binary: str, home: str, cwd: str | None = None) -> None:
+    def __init__(
+        self,
+        binary: str,
+        home: str,
+        cwd: str | None = None,
+        prompt_vars: bool = False,
+    ) -> None:
         self.master_fd, slave_fd = os.openpty()
         flags = fcntl.fcntl(self.master_fd, fcntl.F_GETFL)
         fcntl.fcntl(self.master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
@@ -52,12 +66,11 @@ class Session:
         env["TERM"] = "xterm-256color"
         env["HOME"] = home
         env["XDG_CONFIG_HOME"] = os.path.join(home, ".config")
+        arguments = [binary, "--no-titleline"]
+        if not prompt_vars:
+            arguments.append("--no-prompt-vars")
         self.process = subprocess.Popen(
-            [
-                binary,
-                "--no-titleline",
-                "--no-prompt-vars",
-            ],
+            arguments,
             stdin=slave_fd,
             stdout=slave_fd,
             stderr=slave_fd,
@@ -168,6 +181,8 @@ def main() -> int:
             cancel_command = shlex.quote(f"{executor} cancel")
             missing_command = shlex.quote(os.path.join(temp_dir, "missing-executor"))
             rc_file.write(
+                "export PS1='normal> '\n"
+                "export PS1_FINAL='final> '\n"
                 f"cjshopt agent-mode set --command {default_command}\n"
                 "cjshopt agent-mode set --trigger-prefix ':' "
                 "--system-prompt 'system instructions' --command "
@@ -370,10 +385,31 @@ def main() -> int:
                         f"route={route!r}, context={runtime_context!r}"
                     )
             # Tab accepts the suggestion into the buffer without running it.
+            tab_accept_start = len(session.output)
             session.write(b"\t")
             session.pump(0.2)
             if os.path.exists(first_result):
                 raise AssertionError("Tab-accepting an agent suggestion must not execute it")
+            accepted_output = bytes(session.output[tab_accept_start:])
+            request_tail = b"use the longest prefix"
+            generated_command_start = b"touch "
+            request_index = accepted_output.rfind(request_tail)
+            command_index = accepted_output.find(
+                generated_command_start, request_index + len(request_tail)
+            )
+            if (
+                request_index < 0
+                or command_index <= request_index
+                or b"\r\n"
+                not in accepted_output[
+                    request_index + len(request_tail) : command_index
+                ]
+            ):
+                raise AssertionError(
+                    "accepting an agent suggestion did not preserve the request above the "
+                    "generated command: "
+                    f"{normalize_terminal_output(accepted_output)!r}"
+                )
             session.write(b"\r")
             session.wait_for_file(first_result)
             session.pump(0.3)
@@ -494,6 +530,58 @@ def main() -> int:
                 )
         finally:
             session.close()
+
+        # A configured PS1_FINAL restyles only the preserved request. The generated
+        # command continues on the original active PS1.
+        styled_session = Session(
+            sys.argv[1], configured_home, cwd=context_workspace, prompt_vars=True
+        )
+        try:
+            styled_session.wait_for(b"normal> ")
+            styled_session.pump(0.5)
+            styled_start = len(styled_session.output)
+            styled_session.write(b":final prompt request\r")
+            styled_session.wait_for(b"agent command:", start=styled_start)
+            accept_start = len(styled_session.output)
+            styled_session.write(b"\t")
+            styled_session.pump(0.2)
+
+            accepted_render = normalize_terminal_output(
+                bytes(styled_session.output[accept_start:])
+            )
+            final_request = b"final> :final prompt request"
+            final_request_index = accepted_render.rfind(final_request)
+            active_prompt_index = accepted_render.find(
+                b"normal> ", final_request_index + len(final_request)
+            )
+            generated_command_index = accepted_render.find(
+                b"touch ", active_prompt_index + len(b"normal> ")
+            )
+            if (
+                final_request_index < 0
+                or active_prompt_index <= final_request_index
+                or generated_command_index <= active_prompt_index
+                or b"\n"
+                not in accepted_render[
+                    final_request_index + len(final_request) : active_prompt_index
+                ]
+            ):
+                raise AssertionError(
+                    "PS1_FINAL did not restyle only the preserved agent request: "
+                    f"{accepted_render!r}"
+                )
+
+            styled_session.write(b"\x15exit 0\r")
+            deadline = time.monotonic() + 4.0
+            while time.monotonic() < deadline and styled_session.process.poll() is None:
+                styled_session.pump()
+            if styled_session.process.poll() != 0:
+                raise AssertionError(
+                    "final-prompt agent session did not exit cleanly: "
+                    f"{bytes(styled_session.output)!r}"
+                )
+        finally:
+            styled_session.close()
 
     print("Agent-mode interactive test passed.")
     return 0

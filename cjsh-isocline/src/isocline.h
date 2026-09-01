@@ -365,6 +365,21 @@ bool ic_set_cursor_pos(size_t pos);
 
 bool ic_request_submit(void);
 
+/// Preserve the current prompt and input as terminal output, then continue the
+/// active readline operation on a fresh copy of the same prompt.
+/// @param new_buffer Buffer for the fresh prompt. Pass NULL for an empty buffer.
+/// @returns true if the editor was advanced, false if no readline operation is active.
+bool ic_current_loop_advance(const char* new_buffer);
+
+/// Like ic_current_loop_advance(), but optionally redraw the prompt being preserved before
+/// advancing. The fresh editable prompt restores the prompt and right prompt that were active
+/// before this call.
+/// @param preserved_prompt Replacement prompt for the preserved input, or NULL to keep it.
+/// @param preserved_inline_right Replacement right prompt for the preserved input, or NULL to
+/// keep it. Pass an empty string to clear it.
+bool ic_current_loop_advance_with_prompt(const char* new_buffer, const char* preserved_prompt,
+                                         const char* preserved_inline_right);
+
 bool ic_current_loop_reset(const char* new_buffer, const char* new_prompt,
                            const char* new_inline_right);
 

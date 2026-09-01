@@ -4251,6 +4251,83 @@ ic_public bool ic_request_submit(void) {
     return true;
 }
 
+ic_public bool ic_current_loop_advance_with_prompt(const char* new_buffer,
+                                                   const char* preserved_prompt,
+                                                   const char* preserved_inline_right) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL)
+        return false;
+
+    editor_t* eb = env->current_editor;
+    const char* original_inline_right = eb->inline_right_text;
+    stringbuf_t* original_prompt = NULL;
+
+    if (preserved_prompt != NULL) {
+        original_prompt = sbuf_new(env->mem);
+        if (original_prompt == NULL)
+            return false;
+        if (eb->prompt_prefix_text != NULL) {
+            (void)sbuf_append(original_prompt, eb->prompt_prefix_text);
+        }
+        (void)sbuf_append(original_prompt, eb->prompt_text);
+    }
+
+    if ((preserved_prompt != NULL || preserved_inline_right != NULL) &&
+        !ic_current_loop_reset(NULL, preserved_prompt, preserved_inline_right)) {
+        sbuf_free(original_prompt);
+        return false;
+    }
+
+    // Leave only the prompt and real input behind. Transient menu, status, and hint rows
+    // belong to the active editor and should not become terminal output.
+    sbuf_clear(eb->extra);
+    sbuf_clear(eb->status);
+    sbuf_clear(eb->hint);
+    sbuf_clear(eb->hint_help);
+    edit_refresh(env, eb);
+
+    // Move below the complete rendered editor without clearing it. Prompt prefix lines live
+    // above the viewport, so the visible cursor offset is sufficient to reach its last row.
+    const ssize_t visible_cursor_row = edit_view_cursor_row(eb);
+    const ssize_t rendered_rows = (eb->view_rows > 0 ? eb->view_rows : 1);
+    term_start_of_line(env->term);
+    term_down(env->term, rendered_rows - visible_cursor_row - 1);
+    term_writeln(env->term, "");
+
+    sbuf_replace(eb->input, (new_buffer != NULL ? new_buffer : ""));
+    eb->pos = sbuf_len(eb->input);
+    eb->modified = true;
+    eb->cur_rows = 1;
+    eb->input_rows = 1;
+    eb->cur_row = 0;
+    eb->view_first_row = 0;
+    eb->view_rows = 1;
+    eb->view_input_rows = 1;
+
+    if (original_prompt != NULL) {
+        const char* prompt_text = sbuf_string(original_prompt);
+        mem_free(env->mem, (void*)eb->prompt_text);
+        eb->prompt_text = extract_last_prompt_line(env->mem, prompt_text);
+        eb->prompt_prefix_lines = print_prompt_prefix_lines(env, eb, prompt_text);
+        eb->prompt_begins_with_newline = (prompt_text[0] == '\n');
+        eb->replace_prompt_line_with_number = prompt_line_should_use_line_numbers(env, eb);
+    } else if (eb->prompt_prefix_lines > 0) {
+        redraw_prompt_prefix_lines(env, eb);
+    }
+    if (preserved_inline_right != NULL) {
+        eb->inline_right_text = original_inline_right;
+        eb->inline_right_width = 0;
+    }
+    edit_write_prompt(env, eb, 0, false, 0, 0, 0, false);
+    edit_refresh(env, eb);
+    sbuf_free(original_prompt);
+    return true;
+}
+
+ic_public bool ic_current_loop_advance(const char* new_buffer) {
+    return ic_current_loop_advance_with_prompt(new_buffer, NULL, NULL);
+}
+
 ic_public bool ic_show_menu(const char* prompt_text, const ic_menu_item_t* items, size_t count,
                             size_t* selected_index) {
     return ic_show_menu_ex(prompt_text, items, count, selected_index, NULL);

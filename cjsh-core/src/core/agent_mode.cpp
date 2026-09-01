@@ -51,6 +51,7 @@
 #include "exec.h"
 #include "help_command.h"
 #include "isocline.h"
+#include "prompt.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "status_line.h"
@@ -830,10 +831,7 @@ bool run_agent(bool require_prefix) {
         return true;
     }
     const std::string& selected_command = suggestions[selected].command;
-    if (!ic_set_buffer(selected_command.c_str())) {
-        return false;
-    }
-    if (!ic_set_cursor_pos(selected_command.size())) {
+    if (!prompt::advance_with_transient_final_prompt(selected_command)) {
         return false;
     }
     return accept != IC_MENU_ACCEPT_SUBMIT || ic_request_submit();
@@ -869,7 +867,8 @@ void print_usage() {
         "  Print a JSON array of objects with string fields `command` and `description`.",
         "  CJSH sends its protocol prompt, runtime context, optional user instructions, and input",
         "  as one final argument. Context includes time, PWD, host, OS, architecture, and status.",
-        "  CJSH does not manage provider credentials or execute the selected suggestion.",
+        "  CJSH does not manage provider credentials. Tab inserts a suggestion for review; Enter",
+        "  submits it immediately. The original request remains visible above the command.",
         "",
         "Example:",
         "  cjshopt agent-mode set --trigger-prefix ': ' \\",
