@@ -169,8 +169,7 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
     (void)sbuf_appendf(eb->extra, "%s ", (selected ? arrow : " "));
 
     bool display_has_line_break = edit_menu_contains_line_break(display);
-    bool apply_width_constraint =
-        (width_remaining > 0) && (!selected || display_has_line_break);
+    bool apply_width_constraint = (width_remaining > 0) && (!selected || display_has_line_break);
     if (apply_width_constraint) {
         (void)sbuf_appendf(eb->extra, "[width=\"%zd;left; ;on\"]", width_remaining);
     }
@@ -364,8 +363,8 @@ static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, s
     return edit_visible_input_row_count(env, eb, preview_rows);
 }
 
-static ssize_t edit_completion_collapsed_item_limit(ic_env_t* env, editor_t* eb,
-                                                    ssize_t input_rows, ssize_t count) {
+static ssize_t edit_completion_collapsed_item_limit(ic_env_t* env, editor_t* eb, ssize_t input_rows,
+                                                    ssize_t count) {
     if (count <= 0) {
         return 0;
     }
@@ -425,8 +424,7 @@ static bool completion_menu_mouse_select(ic_env_t* env, editor_t* eb, ssize_t sc
         return false;
     }
 
-    const ssize_t visible_rows =
-        (last_rows_visible > 0 ? last_rows_visible : count_displayed);
+    const ssize_t visible_rows = (last_rows_visible > 0 ? last_rows_visible : count_displayed);
     if (item_row >= visible_rows) {
         return false;
     }
