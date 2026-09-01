@@ -182,6 +182,16 @@ typedef struct ic_menu_item_s {
     const char* keywords;
 } ic_menu_item_t;
 
+/// How a selection was accepted from an Isocline custom menu.
+typedef enum ic_menu_accept_e {
+    /// No item was accepted (the menu was cancelled or could not be shown).
+    IC_MENU_ACCEPT_NONE = 0,
+    /// The item was accepted for insertion with Tab or a mouse selection.
+    IC_MENU_ACCEPT_INSERT,
+    /// The item was accepted for immediate submission with Enter.
+    IC_MENU_ACCEPT_SUBMIT,
+} ic_menu_accept_t;
+
 /// Show a searchable selection menu in the active readline editor.
 /// This function is intended to be called synchronously from an unhandled-key
 /// callback after binding a custom key to `IC_KEY_ACTION_RUNOFF`. The current
@@ -201,6 +211,13 @@ typedef struct ic_menu_item_s {
 ///          allocation failure, or when no readline editor is active.
 bool ic_show_menu(const char* prompt_text, const ic_menu_item_t* items, size_t count,
                   size_t* selected_index);
+
+/// Show a custom menu and report how its selected item was accepted.
+/// This has the same behavior as ic_show_menu(), with `accept` set to
+/// IC_MENU_ACCEPT_INSERT for Tab/mouse, IC_MENU_ACCEPT_SUBMIT for Enter, and
+/// IC_MENU_ACCEPT_NONE when no item was selected.
+bool ic_show_menu_ex(const char* prompt_text, const ic_menu_item_t* items, size_t count,
+                     size_t* selected_index, ic_menu_accept_t* accept);
 
 /// Callback that produces a transient status message below the current input.
 /// The callback runs before each key read while readline is active. The returned

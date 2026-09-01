@@ -141,6 +141,7 @@ CommandProcessResult process_command_line(const std::string& command) {
     // actually execute the command now
     const auto command_start_time = std::chrono::steady_clock::now();
     int exit_code = g_shell->execute(expanded_command);
+    g_shell->set_last_interactive_command(expanded_command);
     const auto command_end_time = std::chrono::steady_clock::now();
     const auto elapsed_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(command_end_time - command_start_time)

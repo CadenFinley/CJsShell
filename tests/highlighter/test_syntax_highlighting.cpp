@@ -1564,6 +1564,26 @@ static bool test_agent_trigger_prefix_highlighting(void) {
                                "shell syntax rules should not run inside an agent request");
     attrbuf_free(attrs);
 
+    const std::string prefix_only = "ai: ";
+    attrs = highlight_input(prefix_only, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+    ok = ok && expect_style_range(attrs, env->bbcode, 0, prefix_only.size(), "cjsh-agent-prefix",
+                                  test_name,
+                                  "a prefix-only request should retain the agent-prefix style");
+    attrbuf_free(attrs);
+
+    const std::string nonmatching = "echo ai: request";
+    attrs = highlight_input(nonmatching, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+    ok = ok && expect_not_style_range(attrs, env->bbcode, 0, nonmatching.size(),
+                                      "cjsh-agent-request", test_name,
+                                      "agent prefixes should only match at the start of input");
+    attrbuf_free(attrs);
+
     cjsh_env::set_startup_active(true);
     const bool disabled = agent_mode::command({"agent-mode", "off"}) == 0;
     cjsh_env::set_startup_active(false);

@@ -151,7 +151,7 @@ static void custom_menu_render_item(ic_env_t* env, editor_t* eb, stringbuf_t* di
 
 static bool edit_custom_menu(ic_env_t* env, editor_t* eb, const char* prompt_text,
                              const ic_menu_item_t* items, ssize_t item_count,
-                             size_t* selected_index) {
+                             size_t* selected_index, ic_menu_accept_t* accept) {
     if (env == NULL || eb == NULL || env->tty == NULL || items == NULL || item_count <= 0 ||
         item_count > SSIZE_MAX / ssizeof(custom_menu_match_t)) {
         return false;
@@ -175,7 +175,8 @@ static bool edit_custom_menu(ic_env_t* env, editor_t* eb, const char* prompt_tex
     ssize_t last_display_count = 0;
     ssize_t last_max_scroll = 0;
     bool session_case_sensitive = false;
-    bool accepted = false;
+    ic_menu_accept_t accepted = IC_MENU_ACCEPT_NONE;
+    bool accepted_with_mouse = false;
 
 again:;
 
@@ -238,6 +239,7 @@ again:;
     }
     edit_refresh(env, eb);
 
+    accepted_with_mouse = false;
     code_t c = tty_read(env->tty);
     if (tty_term_resize_event(env->tty)) {
         (void)edit_resize(env, eb);
@@ -250,6 +252,7 @@ again:;
         if (edit_menu_mouse_select_vertical(env, eb, match_count, scroll_offset, last_display_count,
                                             1, &selected_idx, &accept_selection)) {
             if (accept_selection) {
+                accepted_with_mouse = true;
                 c = KEY_ENTER;
                 key_no_mods = KEY_ENTER;
             } else {
@@ -276,7 +279,8 @@ again:;
         if (selected_index != NULL) {
             *selected_index = to_size_t(item_idx);
         }
-        accepted = true;
+        accepted = (c == KEY_ENTER && !accepted_with_mouse ? IC_MENU_ACCEPT_SUBMIT
+                                                           : IC_MENU_ACCEPT_INSERT);
         goto done;
     }
 
@@ -327,5 +331,8 @@ done:
     sbuf_free(display_buffer);
     mem_free(env->mem, matches);
     edit_menu_finish(env, eb, &menu_session, true, true);
-    return accepted;
+    if (accept != NULL) {
+        *accept = accepted;
+    }
+    return accepted != IC_MENU_ACCEPT_NONE;
 }

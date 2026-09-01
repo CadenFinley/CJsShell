@@ -4130,6 +4130,11 @@ static bool test_custom_menu_rejects_calls_without_active_editor(void) {
                  "custom menu should reject a NULL item array");
     EXPECT_FALSE(ic_show_menu("actions: ", items, 0, &selected),
                  "custom menu should reject an empty item array");
+    ic_menu_accept_t accept = IC_MENU_ACCEPT_SUBMIT;
+    EXPECT_FALSE(ic_show_menu_ex("actions: ", items, 1, &selected, &accept),
+                 "extended custom menu should require an active readline editor");
+    EXPECT_TRUE(accept == IC_MENU_ACCEPT_NONE,
+                "failed extended custom menu calls should clear the accept result");
     return true;
 }
 

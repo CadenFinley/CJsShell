@@ -118,6 +118,8 @@ class Shell {
 
     std::vector<std::string>& get_directory_stack();
     const std::vector<std::string>& get_directory_stack() const;
+    void set_last_interactive_command(const std::string& command);
+    const std::string& get_last_interactive_command() const;
 
     void register_hook(HookType hook_type, const std::string& function_name);
     void unregister_hook(HookType hook_type, const std::string& function_name);
@@ -160,6 +162,7 @@ class Shell {
     std::unordered_map<std::string, std::string> aliases;
     std::array<bool, static_cast<size_t>(ShellOption::Count)> shell_options{};
     std::vector<std::string> directory_stack;
+    std::string last_interactive_command;
     ErrorSeverity errexit_severity_level = ErrorSeverity::ERROR;
 
     std::array<std::vector<std::string>, static_cast<size_t>(HookType::Count)> hooks;

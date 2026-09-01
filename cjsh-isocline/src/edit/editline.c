@@ -4253,6 +4253,14 @@ ic_public bool ic_request_submit(void) {
 
 ic_public bool ic_show_menu(const char* prompt_text, const ic_menu_item_t* items, size_t count,
                             size_t* selected_index) {
+    return ic_show_menu_ex(prompt_text, items, count, selected_index, NULL);
+}
+
+ic_public bool ic_show_menu_ex(const char* prompt_text, const ic_menu_item_t* items, size_t count,
+                               size_t* selected_index, ic_menu_accept_t* accept) {
+    if (accept != NULL) {
+        *accept = IC_MENU_ACCEPT_NONE;
+    }
     ic_env_t* env = ic_get_env();
     if (env == NULL || env->current_editor == NULL || env->tty == NULL || items == NULL ||
         count == 0) {
@@ -4270,7 +4278,8 @@ ic_public bool ic_show_menu(const char* prompt_text, const ic_menu_item_t* items
     }
 
     const char* prompt = (prompt_text != NULL ? prompt_text : "select: ");
-    return edit_custom_menu(env, env->current_editor, prompt, items, item_count, selected_index);
+    return edit_custom_menu(env, env->current_editor, prompt, items, item_count, selected_index,
+                            accept);
 }
 
 ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_prompt,

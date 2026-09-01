@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <iterator>
@@ -49,6 +50,7 @@
 #include "error_out.h"
 #include "exec.h"
 #include "isocline.h"
+#include "shell.h"
 #include "shell_env.h"
 #include "status_line.h"
 #include "version_command.h"
@@ -58,6 +60,7 @@ namespace {
 
 constexpr const char* kDefaultKeySpec = "alt-a";
 constexpr size_t kMaxSuggestions = 3;
+constexpr size_t kMaxDirectoryEntries = 256;
 constexpr std::string_view kMasterSystemPrompt =
     "You are CJSH's command-writing assistant.\n"
     "Return only a valid JSON array containing 1 to 3 objects. Every object must contain "
@@ -169,16 +172,76 @@ std::string format_context_time(std::time_t now, bool utc) {
     return length == 0 ? "unknown" : std::string(buffer, length);
 }
 
+struct RuntimeDirectoryEntry {
+    std::string name;
+    std::string type;
+};
+
+struct RuntimeDirectoryListing {
+    std::vector<RuntimeDirectoryEntry> entries;
+    bool truncated{false};
+};
+
+RuntimeDirectoryListing list_runtime_directory(const std::string& directory) {
+    RuntimeDirectoryListing listing;
+    std::error_code error;
+    std::filesystem::directory_iterator iterator(
+        directory, std::filesystem::directory_options::skip_permission_denied, error);
+    const std::filesystem::directory_iterator end;
+    if (error) {
+        listing.truncated = true;
+        return listing;
+    }
+
+    while (iterator != end) {
+        if (listing.entries.size() >= kMaxDirectoryEntries) {
+            listing.truncated = true;
+            break;
+        }
+
+        std::error_code status_error;
+        const std::filesystem::file_status status = iterator->symlink_status(status_error);
+        std::string type = "other";
+        if (!status_error) {
+            if (std::filesystem::is_directory(status)) {
+                type = "directory";
+            } else if (std::filesystem::is_regular_file(status)) {
+                type = "file";
+            } else if (std::filesystem::is_symlink(status)) {
+                type = "symlink";
+            }
+        }
+        listing.entries.push_back({iterator->path().filename().string(), std::move(type)});
+        iterator.increment(error);
+        if (error) {
+            listing.truncated = true;
+            break;
+        }
+    }
+
+    std::sort(listing.entries.begin(), listing.entries.end(),
+              [](const RuntimeDirectoryEntry& left, const RuntimeDirectoryEntry& right) {
+                  return left.name < right.name;
+              });
+    return listing;
+}
+
 std::string build_runtime_context() {
     const std::time_t now = std::time(nullptr);
     utsname machine{};
     const bool have_machine = uname(&machine) == 0;
     const std::string previous_status = cjsh_env::get_shell_variable_value("?");
+    const std::string working_directory = cjsh_filesystem::safe_current_directory();
+    const RuntimeDirectoryListing directory_listing = list_runtime_directory(working_directory);
+    const std::string previous_command =
+        (g_shell == nullptr || g_shell->get_last_interactive_command().empty())
+            ? "unknown"
+            : g_shell->get_last_interactive_command();
 
     const std::pair<const char*, std::string> fields[] = {
         {"local_datetime", format_context_time(now, false)},
         {"utc_datetime", format_context_time(now, true)},
-        {"working_directory", cjsh_filesystem::safe_current_directory()},
+        {"working_directory", working_directory},
         {"hostname", have_machine ? machine.nodename : "unknown"},
         {"operating_system", have_machine ? machine.sysname : "unknown"},
         {"kernel_release", have_machine ? machine.release : "unknown"},
@@ -186,6 +249,7 @@ std::string build_runtime_context() {
         {"shell", "cjsh " + get_version()},
         {"shell_mode", config::posix_mode ? "posix" : "default"},
         {"previous_exit_status", previous_status.empty() ? "unknown" : previous_status},
+        {"previous_command", previous_command},
     };
 
     std::ostringstream context;
@@ -198,6 +262,17 @@ std::string build_runtime_context() {
                 << "  " << json_quote(fields[index].first) << ": "
                 << json_quote(fields[index].second);
     }
+    context << ",\n  \"working_directory_entries\": [";
+    for (size_t index = 0; index < directory_listing.entries.size(); ++index) {
+        const RuntimeDirectoryEntry& entry = directory_listing.entries[index];
+        context << (index == 0 ? "\n" : ",\n") << "    {\"name\": " << json_quote(entry.name)
+                << ", \"type\": " << json_quote(entry.type) << '}';
+    }
+    if (!directory_listing.entries.empty()) {
+        context << '\n' << "  ";
+    }
+    context << "],\n  \"working_directory_entries_truncated\": "
+            << (directory_listing.truncated ? "true" : "false");
     context << "\n}";
     return context.str();
 }
@@ -628,12 +703,16 @@ bool show_setup_help() {
     const std::string description = "Agent mode is not configured; insert the setup command";
     ic_menu_item_t item = {command_text.c_str(), description.c_str(), "agent ai setup configure"};
     size_t selected = 0;
-    if (ic_show_menu("agent setup: ", &item, 1, &selected)) {
+    ic_menu_accept_t accept = IC_MENU_ACCEPT_NONE;
+    if (ic_show_menu_ex("agent setup: ", &item, 1, &selected, &accept)) {
         (void)selected;
         if (!ic_set_buffer(command_text.c_str())) {
             return false;
         }
-        return ic_set_cursor_pos(command_text.size());
+        if (!ic_set_cursor_pos(command_text.size())) {
+            return false;
+        }
+        return accept != IC_MENU_ACCEPT_SUBMIT || ic_request_submit();
     }
     return true;
 }
@@ -736,7 +815,9 @@ bool run_agent(bool require_prefix) {
     }
 
     size_t selected = 0;
-    if (!ic_show_menu("agent command: ", menu_items.data(), menu_items.size(), &selected)) {
+    ic_menu_accept_t accept = IC_MENU_ACCEPT_NONE;
+    if (!ic_show_menu_ex("agent command: ", menu_items.data(), menu_items.size(), &selected,
+                         &accept)) {
         return true;
     }
     if (selected >= suggestions.size()) {
@@ -746,8 +827,10 @@ bool run_agent(bool require_prefix) {
     if (!ic_set_buffer(selected_command.c_str())) {
         return false;
     }
-    (void)ic_set_cursor_pos(selected_command.size());
-    return true;
+    if (!ic_set_cursor_pos(selected_command.size())) {
+        return false;
+    }
+    return accept != IC_MENU_ACCEPT_SUBMIT || ic_request_submit();
 }
 
 void release_binding(std::optional<ic_keycode_t> key) {

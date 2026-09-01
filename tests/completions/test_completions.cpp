@@ -1468,6 +1468,16 @@ static bool test_builtin_docs(void) {
                 test_name, "agent-mode should include key subcommand");
     EXPECT_TRUE(has_entry(agent_mode_doc, "clear", builtin_completions::EntryKind::Subcommand),
                 test_name, "agent-mode should include clear subcommand");
+    EXPECT_TRUE(has_entry(agent_mode_doc, "list", builtin_completions::EntryKind::Subcommand),
+                test_name, "agent-mode should include list subcommand");
+    EXPECT_TRUE(has_entry(agent_mode_doc, "status", builtin_completions::EntryKind::Subcommand),
+                test_name, "agent-mode should include status subcommand");
+    EXPECT_TRUE(has_entry(agent_mode_doc, "on", builtin_completions::EntryKind::Subcommand),
+                test_name, "agent-mode should include on subcommand");
+    EXPECT_TRUE(has_entry(agent_mode_doc, "off", builtin_completions::EntryKind::Subcommand),
+                test_name, "agent-mode should include off subcommand");
+    EXPECT_TRUE(has_entry(agent_mode_doc, "reset", builtin_completions::EntryKind::Subcommand),
+                test_name, "agent-mode should include reset subcommand");
 
     const auto* agent_mode_set_doc =
         builtin_completions::lookup_builtin_command_doc("cjshopt-agent-mode-set");
@@ -1481,6 +1491,31 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(
         has_entry(agent_mode_set_doc, "--trigger-prefix", builtin_completions::EntryKind::Option),
         test_name, "agent-mode set should include --trigger-prefix");
+
+    const auto* agent_mode_key_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-agent-mode-key");
+    EXPECT_TRUE(agent_mode_key_doc != nullptr, test_name,
+                "cjshopt-agent-mode-key doc should exist");
+    EXPECT_TRUE(
+        has_entry(agent_mode_key_doc, "default", builtin_completions::EntryKind::Subcommand),
+        test_name, "agent-mode key should include default");
+    EXPECT_TRUE(has_entry(agent_mode_key_doc, "off", builtin_completions::EntryKind::Subcommand),
+                test_name, "agent-mode key should include off");
+    EXPECT_TRUE(has_entry(agent_mode_key_doc, "status", builtin_completions::EntryKind::Subcommand),
+                test_name, "agent-mode key should include status");
+
+    const auto* agent_mode_clear_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-agent-mode-clear");
+    EXPECT_TRUE(agent_mode_clear_doc != nullptr, test_name,
+                "cjshopt-agent-mode-clear doc should exist");
+    EXPECT_TRUE(
+        has_entry(agent_mode_clear_doc, "--default", builtin_completions::EntryKind::Option),
+        test_name, "agent-mode clear should include --default");
+    EXPECT_TRUE(
+        has_entry(agent_mode_clear_doc, "--trigger-prefix", builtin_completions::EntryKind::Option),
+        test_name, "agent-mode clear should include --trigger-prefix");
+    EXPECT_TRUE(has_entry(agent_mode_clear_doc, "--all", builtin_completions::EntryKind::Option),
+                test_name, "agent-mode clear should include --all");
 
     EXPECT_TRUE(has_entry(cjshopt_doc, "multiline-bottom-lines",
                           builtin_completions::EntryKind::Subcommand),

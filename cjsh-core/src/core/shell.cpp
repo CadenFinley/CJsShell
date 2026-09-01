@@ -580,6 +580,14 @@ const std::vector<std::string>& Shell::get_directory_stack() const {
     return directory_stack;
 }
 
+void Shell::set_last_interactive_command(const std::string& command) {
+    last_interactive_command = command;
+}
+
+const std::string& Shell::get_last_interactive_command() const {
+    return last_interactive_command;
+}
+
 void Shell::apply_abbreviations_to_line_editor() {
     if (!interactive_mode) {
         return;
