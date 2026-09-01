@@ -30,26 +30,28 @@
 
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "usage.h"
 #include "version_command.h"
 
-int help_command() {
+std::string get_help() {
     const std::string separator(80, '-');
+    std::ostringstream output;
 
     auto heading = [&](const std::string& title) {
-        std::cout << "\n" << title << "\n" << separator << "\n";
+        output << "\n" << title << "\n" << separator << "\n";
     };
 
-    std::cout << "\nCJSH QUICK REFERENCE\n" << separator << "\n";
-    (void)version_command({});
-    std::cout << "POSIX shell scripting meets modern shell features\n";
+    output << "\nCJSH QUICK REFERENCE\n" << separator << "\n";
+    output << get_version_message();
+    output << "POSIX shell scripting meets modern shell features\n";
 
     heading("Project source");
-    std::cout << "  Git repository:  https://github.com/CadenFinley/CJsShell\n";
-    std::cout << "  Documentation:   https://cadenfinley.github.io/CJsShell/\n";
+    output << "  Git repository:  https://github.com/CadenFinley/CJsShell\n";
+    output << "  Documentation:   https://cadenfinley.github.io/CJsShell/\n";
 
     heading("Built-in commands");
     struct BuiltinInfo {
@@ -144,58 +146,63 @@ int help_command() {
         {"cjsh-widget", "Drive the line editor from shell code"},
         {"hook", "Manage shell hooks (precmd, preexec, chpwd)"}};
 
-    std::cout << std::left;
+    output << std::left;
     constexpr int column_width = 20;
     for (const auto& item : builtins) {
-        std::cout << "  " << std::setw(column_width) << item.name << item.description << "\n";
+        output << "  " << std::setw(column_width) << item.name << item.description << "\n";
     }
-    std::cout << "\n  Note: Use '<command> --help' to see detailed usage.\n";
+    output << "\n  Note: Use '<command> --help' to see detailed usage.\n";
 
     heading("Shell scripting features");
-    std::cout << "  - POSIX-style functions with local variables and return codes.\n";
-    std::cout << "  - Conditionals with if/elif/else/fi plus test, [, and [[ expressions.\n";
-    std::cout << "  - Loop constructs (for/while/until) and loop controls (break/continue).\n";
-    std::cout << "  - Command substitution $(...), pipelines, redirection, and here-strings.\n";
-    std::cout << "  - Script tooling: source plus built-in inspection utilities like 'type',\n"
-                 "    'which', and 'hash' for verifying commands before execution.\n";
+    output << "  - POSIX-style functions with local variables and return codes.\n";
+    output << "  - Conditionals with if/elif/else/fi plus test, [, and [[ expressions.\n";
+    output << "  - Loop constructs (for/while/until) and loop controls (break/continue).\n";
+    output << "  - Command substitution $(...), pipelines, redirection, and here-strings.\n";
+    output << "  - Script tooling: source plus built-in inspection utilities like 'type',\n"
+              "    'which', and 'hash' for verifying commands before execution.\n";
 
     heading("Startup and shutdown");
-    std::cout << "  Startup sequence:\n";
-    std::cout << "    1. ~/.cjshenv is sourced if present (or CJSH_ENV if set).\n";
-    std::cout << "    2. Login shells load ~/.cjprofile (if present).\n";
-    std::cout << "    3. Stored startup flags from 'cjshopt login-startup-arg' are applied.\n";
-    std::cout << "    4. Interactive mode initializes colors, completions, and sources ~/.cjshrc\n"
-                 "       unless disabled with --no-source or secure mode.\n";
-    std::cout << "  Shutdown sequence:\n";
-    std::cout << "    - Registered EXIT traps run before teardown.\n";
-    std::cout << "    - ~/.cjlogout is sourced for login shells (when it exists).\n";
-    std::cout << "    - History and themes are flushed before exit.\n";
+    output << "  Startup sequence:\n";
+    output << "    1. ~/.cjshenv is sourced if present (or CJSH_ENV if set).\n";
+    output << "    2. Login shells load ~/.cjprofile (if present).\n";
+    output << "    3. Stored startup flags from 'cjshopt login-startup-arg' are applied.\n";
+    output << "    4. Interactive mode initializes colors, completions, and sources ~/.cjshrc\n"
+              "       unless disabled with --no-source or secure mode.\n";
+    output << "  Shutdown sequence:\n";
+    output << "    - Registered EXIT traps run before teardown.\n";
+    output << "    - ~/.cjlogout is sourced for login shells (when it exists).\n";
+    output << "    - History and themes are flushed before exit.\n";
 
     heading("Primary cjsh directories");
-    std::cout << "  ~/.cjshenv          Optional environment script sourced at startup.\n";
-    std::cout << "  ~/.cjprofile        Login configuration and persisted startup flags.\n";
-    std::cout << "  ~/.cjshrc           Interactive configuration (aliases, themes).\n";
-    std::cout << "  ~/.cjlogout         Optional logout script sourced on exit.\n";
-    std::cout << "  ~/.config/cjsh/     Optional alternate config root for generated files.\n";
-    std::cout << "  ~/.cache/cjsh/      Cache directory (history.txt, exec cache).\n";
-    std::cout << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";
-    std::cout << "  approot [target]    Jump directly to cjsh config/cache/history/"
-                 "firstboot/completion/bin dirs,\n"
-                 "                      or print one with approot --print/--file.\n";
+    output << "  ~/.cjshenv          Optional environment script sourced at startup.\n";
+    output << "  ~/.cjprofile        Login configuration and persisted startup flags.\n";
+    output << "  ~/.cjshrc           Interactive configuration (aliases, themes).\n";
+    output << "  ~/.cjlogout         Optional logout script sourced on exit.\n";
+    output << "  ~/.config/cjsh/     Optional alternate config root for generated files.\n";
+    output << "  ~/.cache/cjsh/      Cache directory (history.txt, exec cache).\n";
+    output << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";
+    output << "  approot [target]    Jump directly to cjsh config/cache/history/"
+              "firstboot/completion/bin dirs,\n"
+              "                      or print one with approot --print/--file.\n";
 
     heading("cjsh invocation and startup flags");
-    (void)print_usage(false, false, false);
+    output << get_usage();
 
     heading("Isocline line editing");
-    std::cout << "  - cjsh embeds the isocline line editor for multiline input, highlighting,\n"
-                 "    and completion popups.\n";
-    std::cout << "  - Press <Tab> for context-aware completions and suggestions.\n";
-    std::cout << "  - Press F1 to open isocline's interactive cheat sheet of key bindings.\n";
-    std::cout << "  - Incremental history search (Ctrl+R) and other readline-style shortcuts are "
-                 "available.\n";
-    std::cout
+    output << "  - cjsh embeds the isocline line editor for multiline input, highlighting,\n"
+              "    and completion popups.\n";
+    output << "  - Press <Tab> for context-aware completions and suggestions.\n";
+    output << "  - Press F1 to open isocline's interactive cheat sheet of key bindings.\n";
+    output << "  - Incremental history search (Ctrl+R) and other readline-style shortcuts are "
+              "available.\n";
+    output
         << "  - Configuration such as syntax colors can be adjusted via 'cjshopt style_def'.\n";
 
-    std::cout << "\n" << separator << "\n";
+    output << "\n" << separator << "\n";
+    return output.str();
+}
+
+int help_command() {
+    std::cout << get_help();
     return 0;
 }

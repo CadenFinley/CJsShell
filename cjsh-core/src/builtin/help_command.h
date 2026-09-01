@@ -28,4 +28,7 @@
 
 #pragma once
 
+#include <string>
+
+std::string get_help();
 int help_command();

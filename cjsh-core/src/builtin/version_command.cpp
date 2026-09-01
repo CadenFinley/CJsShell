@@ -42,10 +42,30 @@
 #define CJSH_VERSION_BASE "0.0.0"
 #endif
 
+#ifndef CJSH_BUILD_ARCH
+#define CJSH_BUILD_ARCH "unknown"
+#endif
+#ifndef CJSH_BUILD_PLATFORM
+#define CJSH_BUILD_PLATFORM "unknown"
+#endif
+#ifndef CJSH_GIT_HASH
+#define CJSH_GIT_HASH "unknown"
+#endif
+
 std::string get_version() {
     static std::string cached_version =
         std::string(CJSH_VERSION_BASE) + (CJSH_PRE_RELEASE ? " (pre-release)" : "");
     return cached_version;
+}
+
+std::string get_version_message() {
+    std::string build_tags;
+#ifdef CJSH_ENABLE_DEBUG
+    build_tags += " (debug)";
+#endif
+    return "cjsh v" + get_version() + build_tags + " (git " + CJSH_GIT_HASH + ") (" +
+           CJSH_BUILD_ARCH + "-" + CJSH_BUILD_PLATFORM +
+           ")\nCopyright (c) 2026 Caden Finley MIT License\n";
 }
 
 int version_command(const std::vector<std::string>& args) {
@@ -80,17 +100,6 @@ int version_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, help_lines)) {
         return 0;
     }
-
-#ifndef CJSH_BUILD_ARCH
-#define CJSH_BUILD_ARCH "unknown"
-#endif
-#ifndef CJSH_BUILD_PLATFORM
-#define CJSH_BUILD_PLATFORM "unknown"
-#endif
-
-#ifndef CJSH_GIT_HASH
-#define CJSH_GIT_HASH "unknown"
-#endif
 
 #ifndef CJSH_GIT_HASH_FULL
 #define CJSH_GIT_HASH_FULL "unknown"
@@ -171,13 +180,6 @@ int version_command(const std::vector<std::string>& args) {
         }
     }
 
-    const std::string version = get_version();
-
-    std::string build_tags;
-#ifdef CJSH_ENABLE_DEBUG
-    build_tags += " (debug)";
-#endif
-
     if (show_fields && !show_all) {
         int field_count = 0;
         field_count += show_tag ? 1 : 0;
@@ -230,9 +232,7 @@ int version_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    (void)std::fprintf(stdout, "cjsh v%s%s (git %s) (%s-%s)\n", version.c_str(), build_tags.c_str(),
-                       CJSH_GIT_HASH, CJSH_BUILD_ARCH, CJSH_BUILD_PLATFORM);
-    (void)std::fputs("Copyright (c) 2026 Caden Finley MIT License\n", stdout);
+    (void)std::fputs(get_version_message().c_str(), stdout);
     if (show_all) {
         (void)std::fputs("Build details:\n", stdout);
         (void)std::fprintf(stdout, "  Build time: %s\n", CJSH_BUILD_TIME);

@@ -49,10 +49,12 @@
 #include "cjshopt_command.h"
 #include "error_out.h"
 #include "exec.h"
+#include "help_command.h"
 #include "isocline.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "status_line.h"
+#include "usage.h"
 #include "version_command.h"
 
 namespace agent_mode {
@@ -776,6 +778,10 @@ bool run_agent(bool require_prefix) {
     std::string final_prompt(kMasterSystemPrompt);
     final_prompt += "\n\n";
     final_prompt += build_runtime_context();
+    final_prompt += "\n\nCJSH invocation usage:\n";
+    final_prompt += get_usage();
+    final_prompt += "\nCJSH help reference:\n";
+    final_prompt += get_help();
     if (!resolved->executor->system_prompt.empty()) {
         final_prompt += "\n\nAdditional user instructions:\n";
         final_prompt += resolved->executor->system_prompt;

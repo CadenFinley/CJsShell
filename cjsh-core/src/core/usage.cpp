@@ -29,16 +29,13 @@
 #include "usage.h"
 
 #include <iostream>
+#include <sstream>
 
 #include "version_command.h"
 
-int print_usage(bool print_version, bool print_hook, bool print_footer) {
-    if (print_version) {
-        (void)version_command({});
-    }
-    if (print_hook)
-        std::cout << "POSIX shell scripting meets modern shell features\n";
-    std::cout
+std::string get_usage() {
+    std::ostringstream usage_text;
+    usage_text
         << "Usage: cjsh [options] [script_file [args...]]\n"
         << "       cjsh -c command_string [args...]\n"
         << "\n"
@@ -95,11 +92,21 @@ int print_usage(bool print_version, bool print_hook, bool print_footer) {
         << "  cjsh -l                    Start login shell\n"
         << "  cjsh -m                    Start with minimal features\n"
         << "\n";
-    if (print_footer)
+    return usage_text.str();
+}
+
+int print_usage(bool print_version, bool print_hook, bool print_footer) {
+    if (print_version) {
+        (void)version_command({});
+    }
+    if (print_hook)
+        std::cout << "POSIX shell scripting meets modern shell features\n";
+    std::cout << get_usage();
+    if (print_footer) {
         std::cout << "For more information:\n"
                   << "  Documentation: https://cadenfinley.github.io/CJsShell/\n"
                   << "  Repository:    https://github.com/CadenFinley/CJsShell\n"
                   << "  Run 'help' inside cjsh for built-in command reference\n";
-
+    }
     return 0;
 }
