@@ -122,6 +122,7 @@ nav:
     - Features Overview: reference/features.md
     - Interactive Editing: reference/editing.md
     - Completion Authoring: reference/completions.md
+    - Language Compatibility: reference/language-compatibility.md
     - Non-POSIX Features: reference/non-posix-features.md
     - Hooks: reference/hooks.md
     - Built-in Commands: reference/commands.md

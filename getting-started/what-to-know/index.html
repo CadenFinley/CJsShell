@@ -1068,6 +1068,8 @@
       
         
       
+        
+      
     
     
     
@@ -1186,6 +1188,34 @@
     
   
     Completion Authoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/language-compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language Compatibility
   
 
     
@@ -1610,7 +1640,7 @@ falls back to the default search paths.</p>
 </span></code></pre></div>
 <p>Supported flags: <code>--login</code>, <code>--interactive</code>, <code>--posix</code>, <code>--no-exec</code>, <code>--no-colors</code>, <code>--no-titleline</code>, <code>--show-startup-time</code>, <code>--no-source</code>, <code>--no-completions</code>, <code>--no-completion-learning</code>, <code>--no-smart-cd</code>, <code>--no-script-extension-interpreter</code>, <code>--no-syntax-highlighting</code>, <code>--no-error-suggestions</code>, <code>--no-prompt-vars</code>, <code>--no-history</code>, <code>--no-history-expansion</code>, <code>--no-sh-warning</code>, <code>--minimal</code>, <code>--secure</code>, and <code>--startup-test</code>.</p>
 <h3 id="posix-bash-compatibility">POSIX &amp; Bash Compatibility</h3>
-<p>cjsh targets high POSIX coverage for scripting while providing POSIX+ extensions such as <code>[[ ... ]]</code>, brace expansion, here-strings, process substitution, and rich redirection semantics. Syntax extensions are available in scripts and interactive sessions; interactive-only features like history expansion, completions, and prompt styling disable themselves automatically when stdin is not a tty. Use <code>--minimal</code> or <code>--secure</code> when you want fewer extras in interactive shells.</p>
+<p>cjsh targets broad POSIX compatibility for scripting while providing POSIX+ extensions such as <code>[[ ... ]]</code>, arrays, namerefs, coprocesses, extended globs, brace expansion, here-strings, process substitution, and rich redirection semantics. This is not a formal conformance or complete Bash/Zsh-emulation claim; consult the <a href="../../reference/language-compatibility/">Language Compatibility Inventory</a> for precise support. Syntax extensions are available in scripts and interactive sessions; interactive-only features like history expansion, completions, and prompt styling disable themselves automatically when stdin is not a tty. Use <code>--minimal</code> or <code>--secure</code> when you want fewer extras in interactive shells.</p>
 <h3 id="completion-learning-paths">Completion Learning Paths</h3>
 <p>When cjsh scrapes man pages for completions, it uses <code>man</code> from <code>PATH</code> by default. Set
 <code>CJSH_MAN_PATH</code> to force a specific <code>man</code> binary. In secure mode (<code>--secure</code>), cjsh only uses
