@@ -137,6 +137,10 @@ run_expect_posix_code "source builtin syntax disabled" "source '$tmp_source_file
 run_expect_posix_code "local builtin syntax disabled" "local foo=1" "POSIX010"
 run_expect_posix_code "declare builtin syntax disabled" "declare foo=1" "POSIX011"
 run_expect_posix_code "typeset builtin syntax disabled" "typeset foo=1" "POSIX011"
+run_expect_posix_code "case ;& fall-through disabled" \
+    "case x in x) echo one ;& y) echo two ;; esac" "POSIX013"
+run_expect_posix_code "case ;;& pattern continuation disabled" \
+    "case x in x) echo one ;;& x) echo two ;; esac" "POSIX013"
 run_expect_fail "source builtin disabled at runtime" \
     "if true; then source '$tmp_source_file'; fi" \
     "'source' is disabled in POSIX mode"
@@ -166,6 +170,7 @@ run_expect_fail "type builtin disabled" "type echo" "not available in POSIX mode
 run_expect_fail "which builtin disabled" "which echo" "not available in POSIX mode"
 run_expect_fail "jobname builtin disabled" "jobname %1 test-name" "not available in POSIX mode"
 run_expect_fail "disown builtin disabled" "disown" "not available in POSIX mode"
+run_expect_fail "coproc builtin disabled" "coproc echo hi" "not available in POSIX mode"
 run_expect_fail "cjshopt builtin disabled" "cjshopt" "not available in POSIX mode"
 run_expect_fail "hook builtin disabled" "hook" "not available in POSIX mode"
 run_expect_fail "abbr builtin disabled" "abbr" "not available in POSIX mode"

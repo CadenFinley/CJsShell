@@ -216,7 +216,7 @@ else
 fi
 
 OUT=$("$CJSH_PATH" -c "echo {01..03}" 2>&1)
-if [ "$OUT" = "1 2 3" ]; then
+if [ "$OUT" = "01 02 03" ]; then
     pass_test "range with leading zeros {01..03}"
 else
     fail_test "range with leading zeros {01..03} (got: '$OUT')"

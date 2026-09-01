@@ -1422,6 +1422,8 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(
         has_entry(cjshopt_doc, "completion-case", builtin_completions::EntryKind::Subcommand),
         test_name, "cjshopt should include completion-case subcommand");
+    EXPECT_TRUE(has_entry(cjshopt_doc, "extglob", builtin_completions::EntryKind::Subcommand),
+                test_name, "cjshopt should include extglob subcommand");
     EXPECT_TRUE(
         has_entry(cjshopt_doc, "mouse-clicking", builtin_completions::EntryKind::Subcommand),
         test_name, "cjshopt should include mouse-clicking subcommand");
