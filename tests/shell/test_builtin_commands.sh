@@ -161,6 +161,38 @@ else
     exit 1
 fi
 
+FC_TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/cjsh-fc-security.XXXXXX")
+FC_EDITOR="$FC_TEST_DIR/editor.sh"
+FC_PATH_RECORD="$FC_TEST_DIR/path-record"
+mkdir -p "$FC_TEST_DIR/home"
+cat > "$FC_EDITOR" <<'EOF'
+#!/bin/sh
+temp_file=$1
+file_mode=$(stat -f %Lp "$temp_file" 2>/dev/null || stat -c %a "$temp_file" 2>/dev/null)
+printf '%s|%s\n' "$temp_file" "$file_mode" > "$FC_PATH_RECORD"
+printf '%s\n' 'printf secure-fc' > "$temp_file"
+EOF
+chmod +x "$FC_EDITOR"
+
+FCEDIT="$FC_EDITOR" FC_PATH_RECORD="$FC_PATH_RECORD" HOME="$FC_TEST_DIR/home" \
+    "$CJSH_PATH" --no-source --no-history -c "fc -c 'printf original'" >/dev/null 2>&1
+FC_STATUS=$?
+FC_TEMP_FILE=$(cut -d '|' -f 1 "$FC_PATH_RECORD" 2>/dev/null)
+FC_TEMP_MODE=$(cut -d '|' -f 2 "$FC_PATH_RECORD" 2>/dev/null)
+case "$(basename "$FC_TEMP_FILE" 2>/dev/null)" in
+    fc_edit_??????) FC_RANDOM_NAME=true ;;
+    *) FC_RANDOM_NAME=false ;;
+esac
+if [ "$FC_STATUS" -eq 0 ] && [ "$FC_RANDOM_NAME" = true ] && \
+    [ "$FC_TEMP_MODE" = 600 ] && [ ! -e "$FC_TEMP_FILE" ]; then
+    pass_test "fc uses a private, exclusively created temporary file"
+else
+    fail_test "fc temporary file hardening"
+    rm -rf "$FC_TEST_DIR"
+    exit 1
+fi
+rm -rf "$FC_TEST_DIR"
+
 OUT=$("$CJSH_PATH" -c "help" 2>/dev/null)
 if [ -z "$OUT" ]; then
     fail_test "help command should return help text"

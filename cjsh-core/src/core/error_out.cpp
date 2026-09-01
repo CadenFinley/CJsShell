@@ -27,7 +27,6 @@
 */
 
 #include <unistd.h>
-#include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -129,23 +128,7 @@ void append_fatal_error_context(std::ostream& out, const ErrorInfo& error) {
         return;
     }
 
-    out << "(fatal error, cjsh will exit)";
-    out << " that was your environment when cjsh exited:\n";
-    const auto& env_vars = cjsh_env::env_vars();
-    if (!env_vars.empty()) {
-        std::vector<std::string> names;
-        names.reserve(env_vars.size());
-        for (const auto& entry : env_vars) {
-            names.push_back(entry.first);
-        }
-        std::sort(names.begin(), names.end());
-        for (const auto& name : names) {
-            auto it = env_vars.find(name);
-            if (it != env_vars.end()) {
-                out << name << '=' << it->second << '\n';
-            }
-        }
-    }
+    out << "(fatal error, cjsh will exit)\n";
 }
 
 void append_error_suggestions(std::ostream& out, const ErrorInfo& error) {

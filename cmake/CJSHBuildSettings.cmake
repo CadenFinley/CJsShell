@@ -155,6 +155,12 @@ function(cjsh_apply_build_profile)
         )
 
         if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_compile_definitions(
+                ${CJSH_PROFILE_TARGET}
+                INTERFACE
+                    "$<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>"
+            )
+
             set(
                 _cjsh_non_debug_c_opts
                 -ffunction-sections
@@ -162,7 +168,6 @@ function(cjsh_apply_build_profile)
                 -fomit-frame-pointer
                 -fmerge-all-constants
                 -fvisibility=hidden
-                -U_FORTIFY_SOURCE
             )
             foreach(_cjsh_opt IN LISTS _cjsh_non_debug_c_opts)
                 target_compile_options(
@@ -181,7 +186,6 @@ function(cjsh_apply_build_profile)
                 -fno-rtti
                 -fvisibility=hidden
                 -fvisibility-inlines-hidden
-                -U_FORTIFY_SOURCE
             )
             foreach(_cjsh_opt IN LISTS _cjsh_non_debug_cxx_opts)
                 target_compile_options(

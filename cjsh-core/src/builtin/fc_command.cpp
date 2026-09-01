@@ -34,7 +34,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
-#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -210,16 +209,24 @@ int edit_and_execute_content(const std::string& initial_content, const std::stri
                              Shell* shell) {
     (void)cjsh_filesystem::initialize_cjsh_directories();
     const auto& temp_dir = cjsh_filesystem::g_cjsh_cache_path();
-    auto temp_file = temp_dir / ("fc_edit_" + std::to_string(getpid()) + ".sh");
+    std::string temp_template = (temp_dir / "fc_edit_XXXXXX").string();
+    std::vector<char> temp_template_buffer(temp_template.begin(), temp_template.end());
+    temp_template_buffer.push_back('\0');
 
-    std::ofstream out(temp_file);
-    if (!out) {
+    int temp_fd = mkstemp(temp_template_buffer.data());
+    if (temp_fd == -1) {
         print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to create temporary file", {}});
         return 1;
     }
+    std::filesystem::path temp_file(temp_template_buffer.data());
 
-    out << initial_content;
-    out.close();
+    auto write_result = cjsh_filesystem::write_all(temp_fd, initial_content);
+    cjsh_filesystem::safe_close(temp_fd);
+    if (write_result.is_error()) {
+        (void)std::filesystem::remove(temp_file);
+        print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to write temporary file", {}});
+        return 1;
+    }
 
     std::vector<std::string> editor_args = {editor, temp_file.string()};
     int editor_exit_code = shell->execute_command(editor_args, false);

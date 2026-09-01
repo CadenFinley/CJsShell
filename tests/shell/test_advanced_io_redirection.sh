@@ -151,6 +151,23 @@ else
     exit 1
 fi
 
+OUT=$("$CJSH_PATH" -c \
+    "sh -c 'path=\$1; directory=\${path%/*}; mode=\$(stat -f %Lp \"\$directory\" 2>/dev/null || stat -c %a \"\$directory\" 2>/dev/null); cat \"\$path\" >/dev/null; printf \"%s|%s\\n\" \"\$path\" \"\$mode\"' sh <(printf secure)" \
+    2>&1)
+PROCESS_SUB_PATH=${OUT%%|*}
+PROCESS_SUB_MODE=${OUT##*|}
+case "$PROCESS_SUB_PATH" in
+    */cjsh_procsub_??????/fifo_0) PROCESS_SUB_RANDOM_NAME=true ;;
+    *) PROCESS_SUB_RANDOM_NAME=false ;;
+esac
+if [ "$PROCESS_SUB_RANDOM_NAME" = true ] && [ "$PROCESS_SUB_MODE" = 700 ]; then
+    echo "PASS: process substitution uses a private temporary directory"
+else
+    echo "FAIL: process substitution temporary directory is not private (got: '$OUT')"
+    rm -rf "$TEST_DIR"
+    exit 1
+fi
+
 "$CJSH_PATH" -c "echo stdout; echo stderr >&2" > "$TEST_DIR/multi_stdout.txt" 2> "$TEST_DIR/multi_stderr.txt"
 if [ -f "$TEST_DIR/multi_stdout.txt" ] && [ -f "$TEST_DIR/multi_stderr.txt" ]; then
     STDOUT_CONTENT=$(cat "$TEST_DIR/multi_stdout.txt")

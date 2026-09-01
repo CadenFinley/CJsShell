@@ -44,7 +44,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -284,6 +283,7 @@ std::string command_text_for_interpretation(const Command& cmd) {
 }
 
 struct ProcessSubstitutionResources {
+    std::string directory_path;
     std::vector<std::string> fifo_paths;
     std::vector<pid_t> child_pids;
 };
@@ -291,14 +291,33 @@ struct ProcessSubstitutionResources {
 void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
                                    bool terminate_children = false);
 
-std::string generate_process_substitution_fifo_path(size_t index) {
-    static std::atomic<uint64_t> counter{0};
-    uint64_t sequence = counter.fetch_add(1, std::memory_order_relaxed);
+std::string create_process_substitution_directory() {
+    const char* configured_temp_dir = std::getenv("TMPDIR");
+    std::string temp_dir = configured_temp_dir != nullptr && configured_temp_dir[0] != '\0'
+                               ? configured_temp_dir
+                               : "/tmp";
+    while (temp_dir.size() > 1 && temp_dir.back() == '/') {
+        temp_dir.pop_back();
+    }
 
-    std::ostringstream path;
-    path << "/tmp/cjsh_procsub_" << getpid() << "_" << std::time(nullptr) << "_" << index << "_"
-         << sequence;
-    return path.str();
+    std::string directory_template = temp_dir + "/cjsh_procsub_XXXXXX";
+    std::vector<char> directory_buffer(directory_template.begin(), directory_template.end());
+    directory_buffer.push_back('\0');
+
+    char* created_directory = mkdtemp(directory_buffer.data());
+    if (created_directory == nullptr) {
+        throw std::runtime_error("cjsh: failed to create private process substitution directory: " +
+                                 std::string(strerror(errno)));
+    }
+
+    if (chmod(created_directory, S_IRWXU) == -1) {
+        int saved_errno = errno;
+        (void)rmdir(created_directory);
+        throw std::runtime_error("cjsh: failed to secure process substitution directory: " +
+                                 std::string(strerror(saved_errno)));
+    }
+
+    return created_directory;
 }
 
 void replace_all_instances(std::string& target, const std::string& from, const std::string& to) {
@@ -553,6 +572,10 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
     }
 
     try {
+        resources.directory_path = create_process_substitution_directory();
+        resources.fifo_paths.reserve(cmd.process_substitutions.size());
+        resources.child_pids.reserve(cmd.process_substitutions.size());
+
         for (size_t i = 0; i < cmd.process_substitutions.size(); ++i) {
             const std::string& proc_sub = cmd.process_substitutions[i];
 
@@ -564,7 +587,7 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
             bool is_input = proc_sub[0] == '<';
             std::string command = proc_sub.substr(2, proc_sub.length() - 3);
 
-            std::string fifo_path = generate_process_substitution_fifo_path(i);
+            std::string fifo_path = resources.directory_path + "/fifo_" + std::to_string(i);
             if (mkfifo(fifo_path.c_str(), 0600) == -1) {
                 throw std::runtime_error("cjsh: failed to create FIFO for process substitution '" +
                                          proc_sub + "': " + std::string(strerror(errno)));
@@ -693,9 +716,13 @@ void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
     for (const std::string& path : resources.fifo_paths) {
         (void)unlink(path.c_str());
     }
+    if (!resources.directory_path.empty()) {
+        (void)rmdir(resources.directory_path.c_str());
+    }
 
     resources.child_pids.clear();
     resources.fifo_paths.clear();
+    resources.directory_path.clear();
 }
 
 enum class FdOperationErrorType : std::uint8_t {

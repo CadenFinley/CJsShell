@@ -699,6 +699,8 @@ class BuildSystemConfigurationTests(unittest.TestCase):
         self.assertIn("IC_NO_DEBUG_MSG", definitions)
         self.assertNotIn("DEBUG", definitions)
         self.assertNotIn("CJSH_MINIMAL_BUILD", definitions)
+        self.assertEqual(definitions.get("_FORTIFY_SOURCE"), "2")
+        self.assertNotIn("-U_FORTIFY_SOURCE", args)
 
     def test_debug_preset_settings(self) -> None:
         build_dir = self.configure_project(["-DCMAKE_BUILD_TYPE=Debug"])
@@ -712,6 +714,8 @@ class BuildSystemConfigurationTests(unittest.TestCase):
         self.assertIn("DEBUG", definitions)
         self.assertNotIn("IC_NO_DEBUG_MSG", definitions)
         self.assertNotIn("NDEBUG", definitions)
+        self.assertNotIn("_FORTIFY_SOURCE", definitions)
+        self.assertNotIn("-U_FORTIFY_SOURCE", args)
 
     def test_minimal_preset_settings(self) -> None:
         build_dir = self.configure_project(
