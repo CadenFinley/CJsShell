@@ -152,7 +152,7 @@ else
 fi
 
 OUT=$("$CJSH_PATH" -c \
-    "sh -c 'path=\$1; directory=\${path%/*}; mode=\$(stat -f %Lp \"\$directory\" 2>/dev/null || stat -c %a \"\$directory\" 2>/dev/null); cat \"\$path\" >/dev/null; printf \"%s|%s\\n\" \"\$path\" \"\$mode\"' sh <(printf secure)" \
+    "sh -c 'path=\$1; directory=\${path%/*}; if mode=\$(stat -c %a \"\$directory\" 2>/dev/null); then :; else mode=\$(stat -f %Lp \"\$directory\" 2>/dev/null); fi; cat \"\$path\" >/dev/null; printf \"%s|%s\\n\" \"\$path\" \"\$mode\"' sh <(printf secure)" \
     2>&1)
 PROCESS_SUB_PATH=${OUT%%|*}
 PROCESS_SUB_MODE=${OUT##*|}

@@ -168,7 +168,11 @@ mkdir -p "$FC_TEST_DIR/home"
 cat > "$FC_EDITOR" <<'EOF'
 #!/bin/sh
 temp_file=$1
-file_mode=$(stat -f %Lp "$temp_file" 2>/dev/null || stat -c %a "$temp_file" 2>/dev/null)
+if file_mode=$(stat -c %a "$temp_file" 2>/dev/null); then
+    :
+else
+    file_mode=$(stat -f %Lp "$temp_file" 2>/dev/null)
+fi
 printf '%s|%s\n' "$temp_file" "$file_mode" > "$FC_PATH_RECORD"
 printf '%s\n' 'printf secure-fc' > "$temp_file"
 EOF
