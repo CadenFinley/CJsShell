@@ -1946,7 +1946,7 @@ def main() -> int:
         )
 
     custom_menu_cancelled = run_case_timed(
-        binary, "custom_menu_runoff", [F3, b"\x1b", b"\r"], step_delay_s=0.2
+        binary, "custom_menu_runoff", [F3, b"\x1b", b"\r"], step_delay_s=0.5
     )
     if custom_menu_cancelled != "keep":
         raise AssertionError(
