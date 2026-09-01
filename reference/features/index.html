@@ -1202,6 +1202,9 @@ POSIX, Bash, or Zsh behavior is not identical.</p>
 <li><strong>Custom key bindings</strong> – An Emacs-inspired default profile, an optional <code>vim</code> profile that adds
     <code>Alt+H/J/K/L/W</code> navigation, and fine-grained overrides via <code>cjshopt keybind</code> (including
     command-driven bindings through <code>cjsh-widget</code>). The <code>vim</code> profile is not a modal Vi/Vim mode.</li>
+<li><strong>Agent-assisted command writing</strong> – Route editor text to user-configured AI executors through
+    <code>cjshopt agent-mode</code>, select their JSON command suggestions in an isocline menu, and review the
+    result before execution. CJSH does not manage provider credentials.</li>
 <li><strong>Mouse-aware editing</strong> – Configure capture with <code>cjshopt mouse-clicking</code>: <code>all-off</code> disables it
     everywhere, <code>off</code> limits it to expanded/interactive menus, and <code>simple</code>/<code>smart</code> also support
     prompt cursor placement. Collapsed completions are not clickable in <code>off</code>; clicks can select
@@ -1241,6 +1244,7 @@ for full details.</p>
      <code>cjshopt status-line</code>, <code>cjshopt status-reporting</code>, <code>cjshopt visible-whitespace</code></li>
 <li><code>cjshopt mouse-clicking</code>, <code>cjshopt mouse-clicking-status-line</code></li>
 <li><code>cjshopt prompt-newline</code>, <code>cjshopt right-prompt-follow-cursor</code></li>
+<li><code>cjshopt agent-mode …</code> for user-provided command-writing executors</li>
 <li><code>cjshopt keybind …</code> and <code>cjshopt keybind ext …</code> for keymap management</li>
 <li><code>cjshopt set-history-max</code> to adjust persistent history size (0 or more entries; no upper limit)</li>
 <li><code>set -o huponexit</code> mirrors bash's option for sending SIGHUP to background jobs when the
