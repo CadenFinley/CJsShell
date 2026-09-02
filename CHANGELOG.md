@@ -1,6 +1,22 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.2`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.3`.
+
+## 1.4.3 - 2026-09-02
+
+Range: `v1.4.2..HEAD` (1 commit, 7 files changed)
+
+### Fixed
+
+- Fixed quoted command-substitution output containing escaped quotes and pipeline syntax being reparsed as outer-shell structure, including installer commands such as `/bin/bash -c "$(curl ...)"`.
+- Preserved parameter, arithmetic, command, and brace syntax emitted by command substitutions instead of expanding it a second time in the parent shell.
+- Kept unquoted substitution output opaque until the correct field-splitting and pathname-expansion stages, including within pipelines and `case` values.
+- Corrected delimiter matching for quoted substitution commands whose content ends with an even run of backslashes.
+
+### Internal and Tests
+
+- Expanded command-substitution regression coverage to 40 cases spanning escaped operators, nested and backtick substitutions, quoted and unquoted output, `nounset`, brace expansion, pipelines, multiline Bash scripts, and byte-exact installer payloads.
+- Verified the Homebrew installer payload remains byte-identical through command substitution and parses successfully when passed to Bash.
 
 ## 1.4.2 - 2026-09-02
 
