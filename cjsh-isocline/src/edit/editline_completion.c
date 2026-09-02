@@ -364,7 +364,7 @@ static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, s
 }
 
 static ssize_t edit_completion_collapsed_item_limit(ic_env_t* env, editor_t* eb, ssize_t input_rows,
-                                                    ssize_t count) {
+                                                    ssize_t count, ssize_t reserved_rows) {
     if (count <= 0) {
         return 0;
     }
@@ -375,8 +375,7 @@ static ssize_t edit_completion_collapsed_item_limit(ic_env_t* env, editor_t* eb,
         item_limit = IC_COLLAPSED_COMPLETION_MAX_ITEMS;
     }
 
-    // Leave one row for the same header used by the expanded menu.
-    ssize_t rows_for_items = available_rows - 1;
+    ssize_t rows_for_items = available_rows - reserved_rows;
     if (rows_for_items < 1) {
         rows_for_items = 1;
     }
@@ -384,16 +383,45 @@ static ssize_t edit_completion_collapsed_item_limit(ic_env_t* env, editor_t* eb,
         item_limit = rows_for_items;
     }
 
-    // If candidates remain hidden, also preserve a row for the expansion hint.
-    if (count > item_limit && item_limit > 1 && item_limit + 2 > available_rows) {
-        item_limit--;
-    }
     return item_limit;
+}
+
+static const char* edit_completion_menu_footer(bool expanded_mode, bool more_available,
+                                               bool hidden_completions) {
+    if (!expanded_mode) {
+        if (hidden_completions) {
+            return "[ic-diminish](↑↓/tab:move enter/right:accept pgdn/ctrl+j:expand "
+                   "esc:cancel)[/]";
+        }
+        return "[ic-diminish](↑↓/tab:move enter/right:accept esc:cancel)[/]";
+    }
+    if (more_available) {
+        return "[ic-diminish](↑↓/tab/wheel:move shift+↑/↓:page enter/right:accept "
+               "pgdn:load ctrl+j:collapse esc:cancel)[/]";
+    }
+    return "[ic-diminish](↑↓/tab/wheel:move shift+↑/↓:page enter/right:accept "
+           "pgup/pgdn:page ctrl+j:collapse esc:cancel)[/]";
+}
+
+static ssize_t edit_completion_menu_header_rows(ic_env_t* env, editor_t* eb, ssize_t count,
+                                                bool expanded_mode, bool more_available,
+                                                const char* mouse_suffix) {
+    const char* hint_suffix = "";
+    if (expanded_mode) {
+        hint_suffix = (more_available ? " (more available; PgUp/PgDn or wheel to scroll)"
+                                      : " (PgUp/PgDn or wheel to scroll)");
+    }
+
+    char header[384];
+    snprintf(header, sizeof(header), "[ic-info]Showing %zd-%zd of %zd completions%s%s[/]", count,
+             count, count, hint_suffix, (mouse_suffix != NULL ? mouse_suffix : ""));
+    return edit_menu_rendered_rows(env, eb, header);
 }
 
 static bool completion_menu_mouse_select(ic_env_t* env, editor_t* eb, ssize_t scroll_offset,
                                          ssize_t count_displayed, ssize_t last_rows_visible,
-                                         ssize_t* selected, bool* accept_selection) {
+                                         ssize_t status_rows, ssize_t* selected,
+                                         bool* accept_selection) {
     if (env == NULL || eb == NULL || env->tty == NULL || selected == NULL ||
         accept_selection == NULL) {
         return false;
@@ -418,7 +446,7 @@ static bool completion_menu_mouse_select(ic_env_t* env, editor_t* eb, ssize_t sc
     }
 
     const ssize_t input_rows = (eb->input_rows > 0 ? eb->input_rows : 1);
-    const ssize_t items_first_row = input_rows + 1;
+    const ssize_t items_first_row = input_rows + status_rows;
     const ssize_t item_row = target_row - items_first_row;
     if (item_row < 0) {
         return false;
@@ -511,6 +539,7 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
     ssize_t scroll_offset = 0;
     ssize_t last_rows_visible = 0;
     ssize_t last_max_scroll_offset = 0;
+    ssize_t last_header_rows = 1;
     ssize_t count_displayed = count;
     code_t c = 0;
 
@@ -518,6 +547,7 @@ again:
     sbuf_clear(eb->extra);
     last_rows_visible = 0;
     last_max_scroll_offset = 0;
+    last_header_rows = 1;
 
     if (count <= 0) {
         edit_refresh(env, eb);
@@ -536,9 +566,40 @@ again:
                                            &menu_mouse_focus_reporting_added);
 
     const ssize_t rendered_input_rows = edit_completion_preview_input_rows(env, eb, selected);
+    const bool menu_mouse_click_enabled =
+        (menu_mouse_scroll_enabled || eb->mouse_reporting_enabled);
+    char mouse_suffix[EDIT_STATUS_HINT_BUFFER_LEN];
+    mouse_suffix[0] = '\0';
+    if (menu_mouse_click_enabled) {
+        char mouse_status_text[EDIT_STATUS_HINT_BUFFER_LEN];
+        const bool can_disable_mouse_here = (!expanded_mode && eb->mouse_reporting_enabled);
+        edit_format_mouse_enabled_status_hint(env, can_disable_mouse_here, mouse_status_text,
+                                              sizeof(mouse_status_text));
+        if (snprintf(mouse_suffix, sizeof(mouse_suffix), " (%s)", mouse_status_text) < 0) {
+            mouse_suffix[0] = '\0';
+        }
+    }
+
+    bool hidden_completions =
+        (!expanded_mode && (count > IC_COLLAPSED_COMPLETION_MAX_ITEMS || more_available));
+    const char* footer =
+        edit_completion_menu_footer(expanded_mode, more_available, hidden_completions);
+    ssize_t footer_rows = edit_menu_rendered_rows(env, eb, footer);
+    ssize_t header_rows = edit_completion_menu_header_rows(env, eb, count, expanded_mode,
+                                                           more_available, mouse_suffix);
     count_displayed =
         (expanded_mode ? count
-                       : edit_completion_collapsed_item_limit(env, eb, rendered_input_rows, count));
+                       : edit_completion_collapsed_item_limit(env, eb, rendered_input_rows, count,
+                                                              header_rows + footer_rows));
+
+    bool final_hidden_completions = (!expanded_mode && (count > count_displayed || more_available));
+    if (final_hidden_completions != hidden_completions) {
+        hidden_completions = final_hidden_completions;
+        footer = edit_completion_menu_footer(expanded_mode, more_available, hidden_completions);
+        footer_rows = edit_menu_rendered_rows(env, eb, footer);
+        count_displayed = edit_completion_collapsed_item_limit(env, eb, rendered_input_rows, count,
+                                                               header_rows + footer_rows);
+    }
     if (count_displayed <= 0) {
         count_displayed = count;
     }
@@ -551,7 +612,6 @@ again:
 
     ssize_t twidth = term_get_width(env->term) - 1;
     ssize_t colwidth = -1;
-    bool show_instructions = false;
     ssize_t visible_count = 0;
     ssize_t max_display_width =
         edit_completions_max_width(env, count_displayed, IC_LARGE_MENU_SOURCE_LIMIT);
@@ -570,16 +630,9 @@ again:
     if (expanded_mode) {
         ssize_t available_rows =
             edit_completion_available_rows_for_input(env, eb, rendered_input_rows);
-        ssize_t rows_for_items = available_rows - 1;
+        ssize_t rows_for_items = available_rows - header_rows - footer_rows;
         if (rows_for_items < 1) {
             rows_for_items = 1;
-        }
-
-        const bool need_scroll_hint = (total_rows > rows_for_items);
-        const bool need_more_hint = more_available;
-        if ((need_scroll_hint || need_more_hint) && rows_for_items > 1) {
-            rows_for_items--;
-            show_instructions = true;
         }
 
         rows_visible = (rows_for_items < total_rows ? rows_for_items : total_rows);
@@ -589,7 +642,6 @@ again:
         max_scroll_offset = (total_rows > rows_visible ? total_rows - rows_visible : 0);
     } else {
         scroll_offset = 0;
-        show_instructions = (count > count_displayed || more_available);
     }
 
     if (scroll_offset > max_scroll_offset) {
@@ -639,25 +691,10 @@ again:
         visible_count = 1;
     }
 
-    if (show_instructions) {
-        if (sbuf_len(eb->extra) > 0) {
-            (void)sbuf_append(eb->extra, "\n");
-        }
-        if (!expanded_mode) {
-            (void)sbuf_append(
-                eb->extra,
-                "[ic-info]Press PgDn or ctrl-j to expand; ctrl-j again collapses the list[/]");
-        } else if (more_available) {
-            (void)sbuf_append(
-                eb->extra,
-                "[ic-info]Press PgDn to load more completions; ctrl-j collapses the list[/]");
-        } else {
-            (void)sbuf_append(
-                eb->extra,
-                "[ic-info]Use up/down, tab/shift-tab, or wheel to move; Shift+Up/Down "
-                "to page; PgUp/PgDn to scroll[/]");
-        }
+    if (sbuf_len(eb->extra) > 0) {
+        (void)sbuf_append(eb->extra, "\n");
     }
+    (void)sbuf_append(eb->extra, footer);
 
     ssize_t visible_start = 0;
     ssize_t visible_end = 0;
@@ -681,20 +718,6 @@ again:
         }
     }
 
-    const bool menu_mouse_click_enabled =
-        (menu_mouse_scroll_enabled || eb->mouse_reporting_enabled);
-    char mouse_suffix[EDIT_STATUS_HINT_BUFFER_LEN];
-    mouse_suffix[0] = '\0';
-    if (menu_mouse_click_enabled) {
-        char mouse_status_text[EDIT_STATUS_HINT_BUFFER_LEN];
-        const bool can_disable_mouse_here = (!expanded_mode && eb->mouse_reporting_enabled);
-        edit_format_mouse_enabled_status_hint(env, can_disable_mouse_here, mouse_status_text,
-                                              sizeof(mouse_status_text));
-        if (snprintf(mouse_suffix, sizeof(mouse_suffix), " (%s)", mouse_status_text) < 0) {
-            mouse_suffix[0] = '\0';
-        }
-    }
-
     if (visible_start > 0 && visible_end >= visible_start) {
         snprintf(header, sizeof(header), "[ic-info]Showing %zd-%zd of %zd completions%s%s[/]\n",
                  visible_start, visible_end, count, hint_suffix, mouse_suffix);
@@ -704,6 +727,7 @@ again:
                  mouse_suffix);
     }
     (void)sbuf_insert_at(eb->extra, header, 0);
+    last_header_rows = edit_menu_rendered_rows(env, eb, header);
 
     last_rows_visible = rows_visible;
     last_max_scroll_offset = max_scroll_offset;
@@ -750,7 +774,8 @@ read_key:
         if (click_selection_enabled) {
             bool accept_selection = false;
             if (completion_menu_mouse_select(env, eb, scroll_offset, count_displayed,
-                                             last_rows_visible, &selected, &accept_selection)) {
+                                             last_rows_visible, last_header_rows, &selected,
+                                             &accept_selection)) {
                 if (accept_selection && edit_completion_click_accept_enabled(env)) {
                     c = KEY_ENTER;
                     key_no_mods = KEY_ENTER;
@@ -987,7 +1012,7 @@ read_key:
             expanded_mode = false;
             scroll_offset = 0;
             const ssize_t collapsed_limit = edit_completion_collapsed_item_limit(
-                env, eb, edit_completion_preview_input_rows(env, eb, selected), count);
+                env, eb, edit_completion_preview_input_rows(env, eb, selected), count, 1);
             if (collapsed_limit <= 0) {
                 selected = -1;
             } else if (selected >= collapsed_limit) {

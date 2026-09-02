@@ -650,6 +650,28 @@ static ssize_t edit_menu_available_lines(ic_env_t* env, editor_t* eb, ssize_t re
     return available_lines;
 }
 
+static ssize_t edit_menu_rendered_rows(ic_env_t* env, editor_t* eb, const char* text) {
+    if (env == NULL || eb == NULL || text == NULL || text[0] == '\0') {
+        return 0;
+    }
+
+    stringbuf_t* rendered = sbuf_new(env->mem);
+    if (rendered == NULL) {
+        return 1;
+    }
+
+    bbcode_append(env->bbcode, text, rendered, NULL);
+    rowcol_t rc_dummy;
+    memset(&rc_dummy, 0, sizeof(rc_dummy));
+    ssize_t rows = sbuf_get_rc_at_pos(rendered, term_get_width(env->term), 0, 0, sbuf_len(rendered),
+                                      &rc_dummy);
+    if (sbuf_ends_with_newline(rendered) && rows > 0) {
+        rows--;
+    }
+    sbuf_free(rendered);
+    return (rows > 0 ? rows : 1);
+}
+
 static edit_menu_window_t edit_menu_window_for(ssize_t item_count, ssize_t requested_rows,
                                                ssize_t selected_idx, ssize_t scroll_offset) {
     edit_menu_window_t window = {0};

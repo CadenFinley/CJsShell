@@ -492,7 +492,8 @@ static int run_case(const char* scenario) {
         }
     } else if (strcmp(scenario, "history_search_scroll") == 0 ||
                strcmp(scenario, "history_search_menu_off") == 0 ||
-               strcmp(scenario, "history_search_all_off") == 0) {
+               strcmp(scenario, "history_search_all_off") == 0 ||
+               strcmp(scenario, "history_search_footer") == 0) {
         initial_input = "history";
         if (strcmp(scenario, "history_search_menu_off") == 0) {
             (void)ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_MENU_ONLY);
@@ -502,8 +503,17 @@ static int run_case(const char* scenario) {
             (void)ic_enable_mouse_clicking(true);
         }
         ic_history_clear();
-        ic_history_add("history alpha");
-        ic_history_add("history beta");
+        if (strcmp(scenario, "history_search_footer") == 0) {
+            (void)ic_enable_inline_help(true);
+            for (int i = 1; i <= 30; ++i) {
+                char entry[32];
+                (void)snprintf(entry, sizeof(entry), "history entry %02d", i);
+                ic_history_add(entry);
+            }
+        } else {
+            ic_history_add("history alpha");
+            ic_history_add("history beta");
+        }
     } else if (strcmp(scenario, "history_search_typed_buffer") == 0) {
         ic_history_clear();
         ic_history_add("history alpha");
@@ -641,13 +651,15 @@ static int run_case(const char* scenario) {
                strcmp(scenario, "completion_single_tab") == 0 ||
                strcmp(scenario, "completion_single_then_type") == 0 ||
                strcmp(scenario, "completion_no_match") == 0 ||
-               strcmp(scenario, "completion_dual_common_prefix") == 0) {
+               strcmp(scenario, "completion_dual_common_prefix") == 0 ||
+               strcmp(scenario, "completion_dual_footer") == 0) {
         if (strcmp(scenario, "completion_single_tab") == 0 ||
             strcmp(scenario, "completion_single_then_type") == 0 ||
             strcmp(scenario, "completion_no_match") == 0) {
             g_completion_mode = COMPLETION_MODE_SINGLE;
             ic_set_default_completer(pty_completion_dispatcher, NULL);
-        } else if (strcmp(scenario, "completion_dual_common_prefix") == 0) {
+        } else if (strcmp(scenario, "completion_dual_common_prefix") == 0 ||
+                   strcmp(scenario, "completion_dual_footer") == 0) {
             g_completion_mode = COMPLETION_MODE_DUAL;
             ic_set_default_completer(pty_completion_dispatcher, NULL);
         }

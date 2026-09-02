@@ -1,6 +1,20 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.0`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.1`.
+
+## 1.4.1 - 2026-09-02
+
+Range: `v1.4.0..HEAD` (1 commit, 7 files changed)
+
+### Fixed
+
+- Restored navigation footers across completion menus, including menus where every candidate fits.
+- Fixed history-search footers being clipped when headers, mouse status, or footer text wrap across terminal rows.
+- Corrected completion and history mouse targeting when wrapped menu headers shift candidate rows.
+
+### Internal and Tests
+
+- Added PTY regression coverage for completion and history footers in standard-width and short multiline viewports.
 
 ## 1.4.0 - 2026-09-02
 

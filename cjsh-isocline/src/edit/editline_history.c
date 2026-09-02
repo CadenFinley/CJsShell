@@ -979,6 +979,10 @@ static void edit_yank_last_arg(ic_env_t* env, editor_t* eb) {
 
 #define MAX_FUZZY_RESULTS 5000
 
+static const char* const k_history_menu_footer =
+    "[ic-diminish](↑↓/wheel:navigate shift+↑/↓:page enter:run tab:edit alt+c:case "
+    "alt+s:sort esc:cancel)[/]";
+
 static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial) {
     history_snapshot_t snap = {0};
     if (!history_snapshot_load(env->history, &snap, true)) {
@@ -1020,6 +1024,7 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
     ssize_t scroll_offset = 0;
     ssize_t last_display_count = 0;
     ssize_t last_max_scroll = 0;
+    ssize_t last_status_rows = 1;
     bool session_case_sensitive = ic_history_fuzzy_search_is_case_sensitive();
     const char* configured_sort_key = NULL;
     ic_history_search_sort_t session_sort = ic_get_history_search_sort(&configured_sort_key);
@@ -1044,6 +1049,7 @@ again:;
 
     last_display_count = 0;
     last_max_scroll = 0;
+    last_status_rows = 1;
 
     bool showing_all_due_to_no_matches = false;
     bool metadata_filter_applied = false;
@@ -1164,10 +1170,11 @@ again:;
         }
 
         ssize_t term_width = term_get_width(env->term);
-        ssize_t available_lines = edit_menu_available_lines(env, eb, 4, 3);
-        if (show_empty_selection && available_lines > 1) {
-            available_lines--;
-        }
+        last_status_rows = edit_menu_rendered_rows(env, eb, sbuf_string(eb->extra));
+        ssize_t footer_rows =
+            (!env->no_help ? edit_menu_rendered_rows(env, eb, k_history_menu_footer) : 0);
+        ssize_t reserved_rows = edit_menu_input_rows(env, eb) + last_status_rows + footer_rows + 1;
+        ssize_t available_lines = edit_menu_available_lines(env, eb, reserved_rows, 1);
 
         ssize_t rows_for_items = available_lines;
         if (selected_multiline_preview_rows > 1) {
@@ -1334,10 +1341,7 @@ again:;
     }
 
     if (!env->no_help) {
-        (void)sbuf_append(
-            eb->extra,
-            "[ic-diminish](↑↓/wheel:navigate shift+↑/↓:page enter:run tab:edit alt+c:case "
-            "alt+s:sort esc:cancel)[/]");
+        (void)sbuf_append(eb->extra, k_history_menu_footer);
     }
 
     edit_refresh(env, eb);
@@ -1355,9 +1359,8 @@ again:;
     }
     if (menu_session.mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
         bool accept_selection = false;
-        const ssize_t mouse_status_rows = (has_live_input && selected_idx < 0 ? 2 : 1);
         if (edit_menu_mouse_select_vertical(env, eb, match_count, scroll_offset, last_display_count,
-                                            mouse_status_rows, &selected_idx, &accept_selection)) {
+                                            last_status_rows, &selected_idx, &accept_selection)) {
             if (accept_selection) {
                 c = KEY_TAB;
                 key_no_mods = KEY_TAB;

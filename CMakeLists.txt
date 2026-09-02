@@ -26,7 +26,7 @@
 
 cmake_minimum_required(VERSION 3.25)
 
-project(cjsh VERSION 1.4.0 LANGUAGES C CXX)
+project(cjsh VERSION 1.4.1 LANGUAGES C CXX)
 option(CJSH_PRE_RELEASE "Mark builds as pre-release versions" OFF)
 
 set(CMAKE_C_STANDARD 11)

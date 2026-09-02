@@ -1748,6 +1748,28 @@ def main() -> int:
             f"normalized_output={normalized_hist_scroll_output!r}"
         )
 
+    hist_footer, hist_footer_output = run_case(
+        binary,
+        "history_search_footer",
+        b"\x12\x03\r",
+        capture_output=True,
+        initial_rows=24,
+        initial_cols=80,
+    )
+    if hist_footer != "history":
+        raise AssertionError(
+            f"history_search_footer expected 'history', got {hist_footer!r}"
+        )
+    normalized_hist_footer_output = normalize_terminal_output(hist_footer_output)
+    if (
+        "alt+s:sort" not in normalized_hist_footer_output
+        or ":cancel)" not in normalized_hist_footer_output
+    ):
+        raise AssertionError(
+            "history search should keep its footer inside an 80-column viewport, got "
+            f"normalized_output={normalized_hist_footer_output!r}"
+        )
+
     hist_scroll_toggle = run_case(
         binary, "history_search_scroll", F2 + b"\x12" + mouse_wheel_down + b"\r"
     )
@@ -2134,6 +2156,25 @@ def main() -> int:
             f"completion_dual_common_prefix expected 'planet', got {comp_common!r}"
         )
 
+    comp_footer, comp_footer_output = run_case(
+        binary,
+        "completion_dual_footer",
+        b"pla\t\r\r",
+        capture_output=True,
+        initial_rows=24,
+        initial_cols=80,
+    )
+    if comp_footer != "planet":
+        raise AssertionError(
+            f"completion_dual_footer expected 'planet', got {comp_footer!r}"
+        )
+    normalized_comp_footer_output = normalize_terminal_output(comp_footer_output)
+    if "enter/right:accept esc:cancel" not in normalized_comp_footer_output:
+        raise AssertionError(
+            "completion menus should show a footer even when every candidate fits, got "
+            f"normalized_output={normalized_comp_footer_output!r}"
+        )
+
     comp_preview_first = run_case(binary, "completion_many_menu_preview", b"s\t\r\r")
     if comp_preview_first != "s01":
         raise AssertionError(
@@ -2319,14 +2360,19 @@ def main() -> int:
     normalized_comp_multiline_replacement_output = normalize_terminal_output(
         comp_multiline_replacement_output
     )
-    if "Showing 1-4 of 12 completions" not in normalized_comp_multiline_replacement_output:
+    if "Showing 1-3 of 12 completions" not in normalized_comp_multiline_replacement_output:
         raise AssertionError(
-            "expanded completion menu should size against the multiline preview buffer, got "
+            "expanded completion menu should reserve its footer below the multiline preview, got "
+            f"normalized_output={normalized_comp_multiline_replacement_output!r}"
+        )
+    if "esc:cancel)" not in normalized_comp_multiline_replacement_output:
+        raise AssertionError(
+            "expanded completion menu should keep its footer inside a short viewport, got "
             f"normalized_output={normalized_comp_multiline_replacement_output!r}"
         )
     preview_menu_prefix = "pty> m02 first line\n   > m02 second line\nShowing "
     if (
-        preview_menu_prefix + "1-5 of 12 completions"
+        preview_menu_prefix + "1-4 of 12 completions"
         in normalized_comp_multiline_replacement_output
     ):
         raise AssertionError(
