@@ -838,7 +838,7 @@ const char* create_below_syntax_message(const char* input_buffer, void*) {
 
     previous_passed_buffer = current_input;
     previous_passed_buffer_valid = true;
-    Shell* shell = g_shell.get();
+    Shell* shell = Shell::active();
 
     std::string user_message = build_user_status_callback_message(shell, current_input);
     std::string reporting_message = build_cjsh_status_reporting_message(shell, current_input);

@@ -36,8 +36,6 @@
 #include "shell.h"
 #include "shell_env.h"
 
-extern std::unique_ptr<Shell> g_shell;
-
 int source_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
                             {"Usage: source FILE",
@@ -60,7 +58,7 @@ int source_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (!g_shell) {
+    if (!Shell::active()) {
         print_error({ErrorType::FATAL_ERROR, command_name, "shell not initialized properly", {}});
         return 1;
     }
@@ -73,5 +71,5 @@ int source_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    return g_shell->execute_script_file(std::filesystem::path(args[1]));
+    return Shell::active()->execute_script_file(std::filesystem::path(args[1]));
 }

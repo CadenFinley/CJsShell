@@ -56,6 +56,11 @@
 
 namespace {
 
+Shell*& active_shell_storage() {
+    static Shell* shell = nullptr;
+    return shell;
+}
+
 constexpr size_t to_index(ShellOption option) {
     return static_cast<size_t>(option);
 }
@@ -165,9 +170,16 @@ Shell::Shell() {
 
     // enable job control now that handlers and managers are ready
     setup_job_control();
+
+    // Publish the shell only after every subsystem has been constructed and wired together.
+    active_shell_storage() = this;
 }
 
 Shell::~Shell() {
+    if (active_shell_storage() == this) {
+        active_shell_storage() = nullptr;
+    }
+
     // on shell destruction, handle any remaining child processes
     if (shell_exec) {
         if (get_shell_option(ShellOption::Huponexit)) {
@@ -193,6 +205,10 @@ Shell::~Shell() {
         }
         (void)std::cout.flush();
     }
+}
+
+Shell* Shell::active() {
+    return active_shell_storage();
 }
 
 int Shell::execute(const std::string& script, bool skip_validation) {

@@ -877,8 +877,8 @@ std::optional<HereStringError> setup_here_string_stdin(const std::string& here_s
     }
 
     std::string content = here_string;
-    if (g_shell && (g_shell->get_parser() != nullptr)) {
-        g_shell->get_parser()->expand_env_vars(content);
+    if (Shell::active() && (Shell::active()->get_parser() != nullptr)) {
+        Shell::active()->get_parser()->expand_env_vars(content);
     }
     content.push_back('\n');
 
@@ -902,7 +902,7 @@ bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_
         return false;
     }
 
-    if (!g_shell || !g_shell->get_shell_option(ShellOption::Noclobber)) {
+    if (!Shell::active() || !Shell::active()->get_shell_option(ShellOption::Noclobber)) {
         return false;
     }
 
@@ -1300,7 +1300,7 @@ bool execute_startup_file_if_present(const std::filesystem::path& path, bool req
         return false;
     }
 
-    (void)g_shell->execute_script_file(path, optional_mode);
+    (void)Shell::active()->execute_script_file(path, optional_mode);
     return true;
 }
 
@@ -1377,7 +1377,7 @@ void process_env_files() {
             std::filesystem::path override_path = normalize_override_path(env_override);
 
             if (path_is_regular_file(override_path)) {
-                (void)g_shell->execute_script_file(override_path, true);
+                (void)Shell::active()->execute_script_file(override_path, true);
             }
             return;
         }

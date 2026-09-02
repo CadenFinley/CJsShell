@@ -29,7 +29,6 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
-#include <memory>
 #include <string>
 #include <unordered_set>
 
@@ -47,8 +46,6 @@ extern "C" {
 #include "shell.h"
 #include "shell_env.h"
 #include "token_constants.h"
-
-std::unique_ptr<Shell> g_shell;
 
 extern "C" void syntax_highlight_bridge(ic_highlight_env_t* henv, const char* input, void* arg) {
     SyntaxHighlighter::highlight(henv, input, arg);
@@ -644,28 +641,29 @@ static bool test_split_unknown_command_fragment_highlighting_with_gap(void) {
 
 static bool test_split_unknown_command_fragment_highlighting_with_known_second_token(void) {
     const char* test_name = "split_unknown_command_fragment_highlighting_with_known_second_token";
-    if (g_shell == nullptr) {
+    Shell* shell = Shell::active();
+    if (shell == nullptr) {
         log_failure(test_name, "shell instance is not initialized");
         return false;
     }
 
-    auto original_aliases = g_shell->get_aliases();
+    auto original_aliases = shell->get_aliases();
     auto updated_aliases = original_aliases;
     updated_aliases["code"] = "echo known-code-fragment";
     updated_aliases["opencode"] = "echo merged-command";
-    g_shell->set_aliases(updated_aliases);
+    shell->set_aliases(updated_aliases);
 
     const std::string input = "ope code";
     attrbuf_t* attrs = highlight_input(input, test_name);
     if (attrs == nullptr) {
-        g_shell->set_aliases(original_aliases);
+        shell->set_aliases(original_aliases);
         return false;
     }
 
     ic_env_t* env = ensure_env(test_name);
     if (env == nullptr) {
         attrbuf_free(attrs);
-        g_shell->set_aliases(original_aliases);
+        shell->set_aliases(original_aliases);
         return false;
     }
 
@@ -674,7 +672,7 @@ static bool test_split_unknown_command_fragment_highlighting_with_known_second_t
     if (first_pos == std::string::npos || second_pos == std::string::npos) {
         log_failure(test_name, "failed to locate split command fragments");
         attrbuf_free(attrs);
-        g_shell->set_aliases(original_aliases);
+        shell->set_aliases(original_aliases);
         return false;
     }
 
@@ -686,7 +684,7 @@ static bool test_split_unknown_command_fragment_highlighting_with_known_second_t
             "known second fragment should still be highlighted as unknown in a split typo");
 
     attrbuf_free(attrs);
-    g_shell->set_aliases(original_aliases);
+    shell->set_aliases(original_aliases);
     return ok;
 }
 
@@ -1393,16 +1391,17 @@ static bool test_subshell_group_highlighting(void) {
 static bool test_subshell_tokens_known_to_validator(void) {
     const char* test_name = "subshell_tokens_known_to_validator";
 
-    if (g_shell == nullptr) {
+    Shell* shell = Shell::active();
+    if (shell == nullptr) {
         log_failure(test_name, "shell instance is not initialized");
         return false;
     }
 
-    const std::unordered_set<std::string> available_commands = g_shell->get_available_commands();
+    const std::unordered_set<std::string> available_commands = shell->get_available_commands();
     bool open_paren_known =
-        command_analysis::is_known_command_token("(", 0, g_shell.get(), available_commands);
+        command_analysis::is_known_command_token("(", 0, shell, available_commands);
     bool close_paren_known =
-        command_analysis::is_known_command_token(")", 0, g_shell.get(), available_commands);
+        command_analysis::is_known_command_token(")", 0, shell, available_commands);
 
     EXPECT_TRUE(open_paren_known, test_name, "'(' should be treated as a known shell token");
     EXPECT_TRUE(close_paren_known, test_name, "')' should be treated as a known shell token");
@@ -1670,8 +1669,8 @@ static const test_case_t kTests[] = {
 int main(void) {
     cjsh_env::reset_shell_state();
     cjsh_env::set_startup_active(false);
-    g_shell = std::make_unique<Shell>();
-    g_shell->set_interactive_mode(false);
+    Shell shell;
+    shell.set_interactive_mode(false);
     config::history_expansion_enabled = true;
 
     size_t failures = 0;

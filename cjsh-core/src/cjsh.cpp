@@ -53,9 +53,12 @@
 #include "usage.h"
 #include "version_command.h"
 
-std::unique_ptr<Shell> g_shell = nullptr;
-
 namespace {
+std::unique_ptr<Shell>& owned_shell() {
+    static std::unique_ptr<Shell> shell;
+    return shell;
+}
+
 bool invoked_via_sh(const char* arg0) {
     // check is cjsh is symlinked to sh and return true or false
     if (arg0 == nullptr) {
@@ -84,7 +87,8 @@ void cleanup_resources() {
     cleanup_already_invoked = true;
 
     // reset everything
-    if (!g_shell) {
+    auto& shell = owned_shell();
+    if (!shell) {
         // if the shell was never created then nothing else was so just leave
         return;
     }
@@ -92,15 +96,15 @@ void cleanup_resources() {
     // if the shell is being force exited then we skip the traps and just reset the shell to clean
     // up resources as best as possible
     if (cjsh_env::force_exit_requested()) {
-        g_shell.reset();
+        shell.reset();
         return;
     }
 
     // otherwise we do a full shutdown with traps and everything
-    trap_manager_set_shell(g_shell.get());
+    trap_manager_set_shell(shell.get());
 
     // execute the cjshexit function if defined and if enabled
-    if (ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
+    if (ShellScriptInterpreter* interpreter = shell->get_shell_script_interpreter();
         interpreter != nullptr && !config::minimal_mode && !config::secure_mode &&
         !config::posix_mode && interpreter->has_function("cjshexit")) {
         (void)interpreter->invoke_function({"cjshexit"});
@@ -116,7 +120,7 @@ void cleanup_resources() {
     // shell object. this is so important as std::unique_ptr doesnt always get reset in the same
     // order when there are multiple so resetting this manually before cjsh exits the main()
     // function scope allows specific ordering of reset and release
-    g_shell.reset();
+    shell.reset();
 }
 
 int run_cjsh(int argc, char* argv[]) {
@@ -163,15 +167,16 @@ int run_cjsh(int argc, char* argv[]) {
     }
 
     // create the shell object
-    g_shell = std::make_unique<Shell>();
-    if (!g_shell) {
+    auto& shell = owned_shell();
+    shell = std::make_unique<Shell>();
+    if (!shell) {
         print_error({ErrorType::FATAL_ERROR, "", "failed to properly initialize shell", {}});
         return 1;
     }
 
     // explicitly apply no exec here in case it was in flags so that it applies to shell right after
     // initialization
-    g_shell->apply_no_exec(config::no_exec);
+    shell->apply_no_exec(config::no_exec);
 
     // set args for the script file before saving the startup args for cjsh
     if (!script_args.empty()) {
@@ -181,7 +186,7 @@ int run_cjsh(int argc, char* argv[]) {
     // set all envvars for cjsh
     cjsh_env::setup_environment_variables(argv[0]);
     flags::save_startup_arguments(argc, argv);
-    cjsh_env::sync_env_vars_from_system(*g_shell);
+    cjsh_env::sync_env_vars_from_system(*shell);
 
     // source environment file before other startup scripts
     cjsh_filesystem::process_env_files();
@@ -199,13 +204,13 @@ int run_cjsh(int argc, char* argv[]) {
         (void)setenv("0", script_file.c_str(), 1);
         std::unordered_map<std::string, std::string>& env_map = cjsh_env::env_vars();
         env_map["0"] = script_file;
-        cjsh_env::sync_parser_env_vars(g_shell.get());
+        cjsh_env::sync_parser_env_vars(shell.get());
     }
 
     // execute command passed with -c
     if (config::execute_command) {
         cjsh_env::set_startup_active(false);
-        const int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
+        const int code = shell ? shell->execute(config::cmd_to_execute) : 1;
         return read_exit_code_or(code);
     }
 
@@ -238,13 +243,13 @@ int run_cjsh(int argc, char* argv[]) {
     }
 
     // then officially turn the switch to interactive mode and read needed interactive files
-    g_shell->set_interactive_mode(true);
+    shell->set_interactive_mode(true);
     if (!cjsh_filesystem::initialize_cjsh_directories()) {
         return 1;
     }
 
     // init interactive signals
-    g_shell->setup_interactive_handlers();
+    shell->setup_interactive_handlers();
 
     // init interactive ui
     prompt::initialize_colors();

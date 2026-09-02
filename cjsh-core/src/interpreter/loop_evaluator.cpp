@@ -124,7 +124,7 @@ const std::shared_ptr<std::vector<std::string>>& get_cached_inline_loop_body(
 }
 
 bool check_loop_interrupt(int& rc) {
-    if (!g_shell) {
+    if (!Shell::active()) {
         return false;
     }
 
@@ -132,7 +132,7 @@ bool check_loop_interrupt(int& rc) {
         return false;
     }
 
-    SignalProcessingResult pending = g_shell->process_pending_signals();
+    SignalProcessingResult pending = Shell::active()->process_pending_signals();
     int exit_code = shell_script_interpreter::detail::pending_signal_exit_code(pending);
     if (exit_code >= 0) {
         rc = exit_code;
@@ -855,7 +855,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
     const bool condition_has_arithmetic_command_form =
         parser_contains_arithmetic_command_form(cond);
 
-    if (shell_parser && g_shell && g_shell->shell_exec) {
+    if (shell_parser && Shell::active() && Shell::active()->shell_exec) {
         Command control_cmd;
         control_cmd.args.push_back(keyword);
 
@@ -937,7 +937,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
 
         if (command_has_redirections(control_cmd)) {
             bool action_invoked = false;
-            int exit_code = g_shell->shell_exec->run_with_command_redirections(
+            int exit_code = Shell::active()->shell_exec->run_with_command_redirections(
                 control_cmd, run_loop_logic, keyword, false, &action_invoked);
             return execute_loop_trailing_commands(exit_code, trailing_commands,
                                                   execute_simple_or_pipeline, shell_parser,
@@ -984,7 +984,7 @@ LoopCommandOutcome handle_loop_command_result(int rc, int break_consumed_rc, int
     }
 #endif
     if (rc != 0) {
-        if (g_shell && g_shell->should_abort_on_nonzero_exit())
+        if (Shell::active() && Shell::active()->should_abort_on_nonzero_exit())
             return {LoopFlow::BREAK, rc};
         if (!allow_error_continue)
             return {LoopFlow::BREAK, rc};
@@ -1024,8 +1024,8 @@ int handle_for_block(
     };
 
     auto assign_loop_variable = [&](const std::string& value) {
-        if (g_shell != nullptr &&
-            cjsh_env::set_shell_or_local_variable_value(g_shell.get(), var, value)) {
+        if (Shell::active() != nullptr &&
+            cjsh_env::set_shell_or_local_variable_value(Shell::active(), var, value)) {
             return;
         }
 
@@ -1246,13 +1246,14 @@ int handle_for_block(
             return handle_loop_command_result(body_rc, 0, 255, 0, 254, true);
         };
 
-        if (!parsed_loop.done_redirections.empty() && g_shell && g_shell->shell_exec) {
+        if (!parsed_loop.done_redirections.empty() && Shell::active() &&
+            Shell::active()->shell_exec) {
             try {
                 auto redir_cmds = shell_parser->parse_pipeline_with_preprocessing(
                     "true " + parsed_loop.done_redirections);
                 if (!redir_cmds.empty()) {
                     bool action_invoked = false;
-                    int exit_code = g_shell->shell_exec->run_with_command_redirections(
+                    int exit_code = Shell::active()->shell_exec->run_with_command_redirections(
                         redir_cmds[0],
                         [&]() { return execute_for_iterations(run_cached_body, "", []() {}); },
                         "for", false, &action_invoked);
@@ -1312,8 +1313,8 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
     };
 
     auto assign_select_variable = [&](const std::string& name, const std::string& value) {
-        if (g_shell != nullptr &&
-            cjsh_env::set_shell_or_local_variable_value(g_shell.get(), name, value)) {
+        if (Shell::active() != nullptr &&
+            cjsh_env::set_shell_or_local_variable_value(Shell::active(), name, value)) {
             return;
         }
 

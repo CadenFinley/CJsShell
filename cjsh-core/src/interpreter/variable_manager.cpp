@@ -129,7 +129,7 @@ void VariableManager::set_local_variable(const std::string& name, const std::str
 }
 
 void VariableManager::set_environment_variable(const std::string& name, const std::string& value) {
-    if (g_shell) {
+    if (Shell::active()) {
         auto& env_vars = cjsh_env::env_vars();
         env_vars[name] = value;
         cjsh_env::mirror_set_to_process_env(name, value);
@@ -138,7 +138,7 @@ void VariableManager::set_environment_variable(const std::string& name, const st
         (void)global_associative_array_variables.erase(name);
         (void)global_nameref_variables.erase(name);
 
-        if (auto* parser = g_shell->get_parser()) {
+        if (auto* parser = Shell::active()->get_parser()) {
             parser->set_env_var(name, value);
         }
     }
@@ -777,7 +777,7 @@ std::string VariableManager::get_variable_value(const std::string& var_name) con
         return zero_it == global_associative->end() ? std::string{} : zero_it->second;
     }
 
-    if (g_shell) {
+    if (Shell::active()) {
         const auto& env_vars = cjsh_env::env_vars();
         auto it = env_vars.find(var_name);
         if (it != env_vars.end()) {
@@ -920,7 +920,7 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
         return true;
     }
 
-    if (g_shell) {
+    if (Shell::active()) {
         const auto& env_vars = cjsh_env::env_vars();
         if (env_vars.find(var_name) != env_vars.end()) {
             return true;
@@ -1043,7 +1043,7 @@ std::vector<std::string> VariableManager::get_variable_names() const {
         (void)name_set.insert(entry.first);
     }
 
-    if (g_shell) {
+    if (Shell::active()) {
         const auto& env_vars = cjsh_env::env_vars();
         for (const auto& entry : env_vars) {
             (void)name_set.insert(entry.first);
@@ -1433,7 +1433,7 @@ bool VariableManager::assign_array_element_value(const std::string& name,
 }
 
 bool VariableManager::has_global_scalar_binding(const std::string& name) const {
-    if (g_shell) {
+    if (Shell::active()) {
         const auto& env_vars = cjsh_env::env_vars();
         if (env_vars.find(name) != env_vars.end()) {
             return true;
@@ -1445,7 +1445,7 @@ bool VariableManager::has_global_scalar_binding(const std::string& name) const {
 }
 
 std::string VariableManager::get_global_scalar_value(const std::string& name) const {
-    if (g_shell) {
+    if (Shell::active()) {
         const auto& env_vars = cjsh_env::env_vars();
         auto it = env_vars.find(name);
         if (it != env_vars.end()) {
@@ -1459,11 +1459,11 @@ std::string VariableManager::get_global_scalar_value(const std::string& name) co
 }
 
 void VariableManager::remove_global_scalar_binding(const std::string& name) {
-    if (g_shell) {
+    if (Shell::active()) {
         auto& env_vars = cjsh_env::env_vars();
         (void)env_vars.erase(name);
 
-        if (auto* parser = g_shell->get_parser()) {
+        if (auto* parser = Shell::active()->get_parser()) {
             parser->unset_env_var(name);
         }
     }

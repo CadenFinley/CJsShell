@@ -95,6 +95,14 @@ class Shell {
    public:
     Shell();
     ~Shell();
+
+    static Shell* active();
+
+    Shell(const Shell&) = delete;
+    Shell& operator=(const Shell&) = delete;
+    Shell(Shell&&) = delete;
+    Shell& operator=(Shell&&) = delete;
+
     int execute(const std::string& script, bool skip_validation = false);
     int execute_command(std::vector<std::string> args, bool run_in_background = false,
                         bool auto_background_on_stop = false,
@@ -170,7 +178,5 @@ class Shell {
 
     void apply_abbreviations_to_line_editor();
 };
-
-extern std::unique_ptr<Shell> g_shell;
 
 int read_exit_code_or(int fallback);

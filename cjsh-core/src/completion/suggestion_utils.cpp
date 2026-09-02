@@ -46,7 +46,6 @@
 #include "shell_env.h"
 #include "string_utils.h"
 
-extern std::unique_ptr<Shell> g_shell;
 namespace suggestion_utils {
 
 CdLookupContext build_cd_lookup_context(const std::string& target_dir,
@@ -112,29 +111,29 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
 
     std::unordered_set<std::string> all_commands_set;
 
-    if (g_shell && g_shell->get_built_ins()) {
-        auto builtin_commands = g_shell->get_built_ins()->get_builtin_commands();
+    if (Shell::active() && Shell::active()->get_built_ins()) {
+        auto builtin_commands = Shell::active()->get_built_ins()->get_builtin_commands();
         for (const auto& builtin : builtin_commands) {
             (void)all_commands_set.insert(builtin);
         }
     }
 
-    if (g_shell) {
-        auto& aliases = g_shell->get_aliases();
+    if (Shell::active()) {
+        auto& aliases = Shell::active()->get_aliases();
         for (const auto& alias_pair : aliases) {
             (void)all_commands_set.insert(alias_pair.first);
         }
     }
 
-    if (g_shell) {
-        auto& abbreviations = g_shell->get_abbreviations();
+    if (Shell::active()) {
+        auto& abbreviations = Shell::active()->get_abbreviations();
         for (const auto& abbr_pair : abbreviations) {
             (void)all_commands_set.insert(abbr_pair.first);
         }
     }
 
-    if (g_shell && g_shell->get_shell_script_interpreter()) {
-        auto function_names = g_shell->get_shell_script_interpreter()->get_function_names();
+    if (Shell::active() && Shell::active()->get_shell_script_interpreter()) {
+        auto function_names = Shell::active()->get_shell_script_interpreter()->get_function_names();
         for (const auto& func_name : function_names) {
             (void)all_commands_set.insert(func_name);
         }

@@ -238,9 +238,9 @@ std::string build_runtime_context() {
     const std::string working_directory = cjsh_filesystem::safe_current_directory();
     const RuntimeDirectoryListing directory_listing = list_runtime_directory(working_directory);
     const std::string previous_command =
-        (g_shell == nullptr || g_shell->get_last_interactive_command().empty())
+        (Shell::active() == nullptr || Shell::active()->get_last_interactive_command().empty())
             ? "unknown"
-            : g_shell->get_last_interactive_command();
+            : Shell::active()->get_last_interactive_command();
 
     const std::pair<const char*, std::string> fields[] = {
         {"local_datetime", format_context_time(now, false)},

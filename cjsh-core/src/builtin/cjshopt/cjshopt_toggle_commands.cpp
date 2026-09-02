@@ -1528,8 +1528,8 @@ int status_line_callback_command(const std::vector<std::string>& args) {
     status_line::set_user_status_callback_function(option);
 
     bool function_exists = false;
-    if (g_shell != nullptr) {
-        if (ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
+    if (Shell::active() != nullptr) {
+        if (ShellScriptInterpreter* interpreter = Shell::active()->get_shell_script_interpreter();
             interpreter != nullptr) {
             function_exists = interpreter->has_function(option);
         }

@@ -224,8 +224,8 @@ void Exec::wait_for_job(int job_id) {
 
         if (pid == -1) {
             if (errno == EINTR) {
-                if (g_shell) {
-                    (void)g_shell->process_pending_signals();
+                if (Shell::active()) {
+                    (void)Shell::active()->process_pending_signals();
                 } else if (auto* signal_handler = SignalHandler::instance()) {
                     (void)signal_handler->process_pending_signals(this);
                 }

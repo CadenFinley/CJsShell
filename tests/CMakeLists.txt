@@ -53,7 +53,6 @@ endif()
 add_executable(
     completion_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/completions/test_completions.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/completions/test_completion_globals.cpp"
 )
 target_link_libraries(completion_tests PRIVATE cjsh_core cjsh_isocline)
 
