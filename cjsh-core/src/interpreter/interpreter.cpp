@@ -2267,11 +2267,33 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
     char q = '\0';
     bool escaped = false;
 
+    auto append_protected_substitution_output = [&](size_t& index, const std::string& start_marker,
+                                                    const std::string& end_marker) {
+        if (result.compare(index, start_marker.size(), start_marker) != 0) {
+            return false;
+        }
+
+        size_t end = result.find(end_marker, index + start_marker.size());
+        if (end == std::string::npos) {
+            return false;
+        }
+
+        size_t end_after_marker = end + end_marker.size();
+        (void)out.append(result, index, end_after_marker - index);
+        index = end_after_marker - 1;
+        return true;
+    };
+
     for (size_t i = 0; i < result.size(); ++i) {
         if ((i & 255U) == 0U) {
             if (auto signal_exit = collect_pending_signal_exit_code()) {
                 throw make_signal_exit_exception(*signal_exit);
             }
+        }
+
+        if (append_protected_substitution_output(i, noenv_start(), noenv_end()) ||
+            append_protected_substitution_output(i, subst_literal_start(), subst_literal_end())) {
+            continue;
         }
 
         char c = result[i];

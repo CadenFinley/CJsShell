@@ -269,4 +269,193 @@ else
   exit 1
 fi
 
+# Test 25: A quoted substitution can contain quoted pipeline syntax as literal data
+QUOTED_PIPE=$(
+  "$CJSH_PATH" -c 'printf "%s" "$(printf '\''grep -E "left|right"'\'')"' 2>&1
+)
+if [ "$QUOTED_PIPE" = 'grep -E "left|right"' ]; then
+  echo "PASS: quoted pipe from command substitution remains literal"
+else
+  echo "FAIL: quoted pipe from command substitution was reparsed (got: $QUOTED_PIPE)"
+  exit 1
+fi
+
+# Test 26: Substitution output must not undergo another expansion pass
+LITERAL_EXPANSIONS=$(
+  "$CJSH_PATH" -c 'printf "%s" "$(printf '\''${HOME} $((1 + 2))'\'')"' 2>&1
+)
+if [ "$LITERAL_EXPANSIONS" = '${HOME} $((1 + 2))' ]; then
+  echo "PASS: parameter and arithmetic syntax in substitution output remains literal"
+else
+  echo "FAIL: substitution output was expanded again (got: $LITERAL_EXPANSIONS)"
+  exit 1
+fi
+
+# Test 27: Escaped quotes must keep a pipe inside the surrounding quoted argument
+ESCAPED_QUOTED_PIPE=$(
+  "$CJSH_PATH" -c 'printf "%s" "left\"|\"right"' 2>&1
+)
+if [ "$ESCAPED_QUOTED_PIPE" = 'left"|"right' ]; then
+  echo "PASS: escaped quotes protect a literal pipe from pipeline parsing"
+else
+  echo "FAIL: pipe between escaped quotes was parsed (got: $ESCAPED_QUOTED_PIPE)"
+  exit 1
+fi
+
+# Test 28: The same escaped-quote handling must apply to semicolon parsing
+ESCAPED_QUOTED_SEMICOLON=$(
+  "$CJSH_PATH" -c 'printf "%s" "left\";\"right"' 2>&1
+)
+if [ "$ESCAPED_QUOTED_SEMICOLON" = 'left";"right' ]; then
+  echo "PASS: escaped quotes protect a literal semicolon"
+else
+  echo "FAIL: semicolon between escaped quotes was parsed (got: $ESCAPED_QUOTED_SEMICOLON)"
+  exit 1
+fi
+
+# Test 29: Logical operators between escaped quotes must remain literal data
+ESCAPED_QUOTED_LOGICAL=$(
+  "$CJSH_PATH" -c 'printf "%s" "left\"&&\"middle\"||\"right"' 2>&1
+)
+if [ "$ESCAPED_QUOTED_LOGICAL" = 'left"&&"middle"||"right' ]; then
+  echo "PASS: escaped quotes protect literal logical operators"
+else
+  echo "FAIL: logical operator between escaped quotes was parsed (got: $ESCAPED_QUOTED_LOGICAL)"
+  exit 1
+fi
+
+# Test 30: Escaped operators outside quotes must also bypass command splitting
+ESCAPED_OPERATORS=$(
+  "$CJSH_PATH" -c 'printf "%s" left\|middle\;right' 2>&1
+)
+if [ "$ESCAPED_OPERATORS" = 'left|middle;right' ]; then
+  echo "PASS: backslash-escaped operators remain in one argument"
+else
+  echo "FAIL: backslash-escaped operator was parsed (got: $ESCAPED_OPERATORS)"
+  exit 1
+fi
+
+# Test 31: Protection must resume normal expansion after multiple substitution regions
+MULTIPLE_PROTECTED=$(
+  "$CJSH_PATH" -c 'name=outer; printf "%s" "$(printf '\''${name}'\'')|$(printf '\''$((2+3))'\'')|${name}"' 2>&1
+)
+if [ "$MULTIPLE_PROTECTED" = '${name}|$((2+3))|outer' ]; then
+  echo "PASS: adjacent protected regions do not block surrounding expansion"
+else
+  echo "FAIL: protected-region boundary handling was incorrect (got: $MULTIPLE_PROTECTED)"
+  exit 1
+fi
+
+# Test 32: Nested quoted substitutions must preserve syntax emitted by the innermost command
+NESTED_PROTECTED=$(
+  "$CJSH_PATH" -c 'name=outer; printf "%s" "$(printf "%s" "$(printf '\''${name} "a|b"'\'')")"' 2>&1
+)
+if [ "$NESTED_PROTECTED" = '${name} "a|b"' ]; then
+  echo "PASS: nested substitution output remains opaque"
+else
+  echo "FAIL: nested substitution output was reparsed (got: $NESTED_PROTECTED)"
+  exit 1
+fi
+
+# Test 33: Backtick substitutions use the same protected-output behavior
+BACKTICK_PROTECTED=$(
+  "$CJSH_PATH" -c 'printf "%s" "`printf '\''${HOME} $((1+2)) "left|right"'\''`"' 2>&1
+)
+if [ "$BACKTICK_PROTECTED" = '${HOME} $((1+2)) "left|right"' ]; then
+  echo "PASS: backtick substitution output remains opaque"
+else
+  echo "FAIL: backtick substitution output was reparsed (got: $BACKTICK_PROTECTED)"
+  exit 1
+fi
+
+# Test 34: Unquoted output is split into fields without being expanded a second time
+UNQUOTED_PROTECTED=$(
+  "$CJSH_PATH" -c 'name=outer; set -- $(printf '\''${name}:$((1+2)) two'\''); printf "%s|%s|%s" "$#" "$1" "$2"' 2>&1
+)
+if [ "$UNQUOTED_PROTECTED" = '2|${name}:$((1+2))|two' ]; then
+  echo "PASS: unquoted substitution splits fields without re-expansion"
+else
+  echo "FAIL: unquoted substitution output was re-expanded (got: $UNQUOTED_PROTECTED)"
+  exit 1
+fi
+
+# Test 35: A multiline Bash script must reach bash intact and expand in the child shell
+BASH_SCRIPT_OUTPUT=$(
+  "$CJSH_PATH" -c 'payload=outer; /bin/bash -c "$(printf '\''payload=inner\nif echo "$payload" | grep -Eq "inner|other"; then\n  echo "${payload}|$((1 + 2))"\nfi'\'')"' 2>&1
+)
+if [ "$BASH_SCRIPT_OUTPUT" = 'inner|3' ]; then
+  echo "PASS: multiline bash -c payload is parsed and expanded by bash"
+else
+  echo "FAIL: multiline bash -c payload was modified by cjsh (got: $BASH_SCRIPT_OUTPUT)"
+  exit 1
+fi
+
+# Test 36: Installer-style content must survive command substitution byte-for-byte
+INSTALLER_FRAGMENT=$(
+  "$CJSH_PATH" -c 'printf "%s" "$(printf '\''#!/bin/bash
+# Allow `[[ -n "$(command)" ]]`, `func "$(command)"`, pipes, etc.
+[[ -f /proc/1/cgroup ]] && grep -E "alpha|beta|gamma" -q /proc/1/cgroup && return
+value="${HOME:-"/tmp"}"
+count=$((1 + 2))'\'')"' 2>&1
+)
+EXPECTED_INSTALLER_FRAGMENT='#!/bin/bash
+# Allow `[[ -n "$(command)" ]]`, `func "$(command)"`, pipes, etc.
+[[ -f /proc/1/cgroup ]] && grep -E "alpha|beta|gamma" -q /proc/1/cgroup && return
+value="${HOME:-"/tmp"}"
+count=$((1 + 2))'
+if [ "$INSTALLER_FRAGMENT" = "$EXPECTED_INSTALLER_FRAGMENT" ]; then
+  echo "PASS: installer-style substitution output is byte-exact"
+else
+  echo "FAIL: installer-style substitution output changed"
+  printf '      expected: %s\n' "$EXPECTED_INSTALLER_FRAGMENT"
+  printf '      got:      %s\n' "$INSTALLER_FRAGMENT"
+  exit 1
+fi
+
+# Test 37: Brace syntax emitted by an unquoted substitution is not brace-expanded
+UNQUOTED_BRACES=$(
+  "$CJSH_PATH" -c 'set -- $(printf '\''{left,right}'\''); printf "%s|%s" "$#" "$1"' 2>&1
+)
+if [ "$UNQUOTED_BRACES" = '1|{left,right}' ]; then
+  echo "PASS: unquoted substitution output bypasses brace expansion"
+else
+  echo "FAIL: braces from substitution output were expanded (got: $UNQUOTED_BRACES)"
+  exit 1
+fi
+
+# Test 38: Even backslashes before a closing quote must not hide the closing delimiter
+TRAILING_BACKSLASH=$(
+  "$CJSH_PATH" -c 'printf "%s" "prefix$(printf '\''tail\\'\'')suffix"' 2>&1
+)
+if [ "$TRAILING_BACKSLASH" = 'prefixtail\suffix' ]; then
+  echo "PASS: trailing backslash from command substitution is preserved"
+else
+  echo "FAIL: trailing backslash confused substitution parsing (got: $TRAILING_BACKSLASH)"
+  exit 1
+fi
+
+# Test 39: Protected unquoted output must not trigger nounset errors
+NOUNSET_PROTECTED=$(
+  "$CJSH_PATH" -c 'set -u; set -- $(printf '\''${CJSH_REGRESSION_UNSET}'\''); printf "%s|%s" "$#" "$1"' 2>&1
+)
+if [ "$NOUNSET_PROTECTED" = '1|${CJSH_REGRESSION_UNSET}' ]; then
+  echo "PASS: unquoted protected output is opaque under nounset"
+else
+  echo "FAIL: nounset evaluated protected substitution output (got: $NOUNSET_PROTECTED)"
+  exit 1
+fi
+
+# Test 40: Pipeline execution must retain protection and unquoted field splitting
+PIPELINE_UNQUOTED=$(
+  "$CJSH_PATH" -c 'name=outer; printf "<%s>\n" $(printf '\''${name} two'\'') | cat' 2>&1
+)
+EXPECTED_PIPELINE_UNQUOTED='<${name}>
+<two>'
+if [ "$PIPELINE_UNQUOTED" = "$EXPECTED_PIPELINE_UNQUOTED" ]; then
+  echo "PASS: pipeline arguments preserve unquoted substitution semantics"
+else
+  echo "FAIL: pipeline reparsed unquoted substitution output (got: $PIPELINE_UNQUOTED)"
+  exit 1
+fi
+
 exit 0

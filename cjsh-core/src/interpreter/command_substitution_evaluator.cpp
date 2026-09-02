@@ -90,17 +90,31 @@ bool CommandSubstitutionEvaluator::find_matching_delimiter(const std::string& te
     bool local_in_q = false;
     char local_q = '\0';
 
+    auto is_escaped = [&](size_t position) {
+        size_t slash_count = 0;
+        while (position > start && text[position - 1] == '\\') {
+            ++slash_count;
+            --position;
+        }
+        return (slash_count % 2) == 1;
+    };
+
     for (size_t j = start; j < text.size(); ++j) {
         char d = text[j];
-        if ((d == '"' || d == '\'') && (j == start || text[j - 1] != '\\')) {
-            if (!local_in_q) {
-                local_in_q = true;
-                local_q = d;
-            } else if (local_q == d) {
-                local_in_q = false;
-                local_q = '\0';
-            }
-        } else if (!local_in_q) {
+
+        if (!local_in_q && (d == '"' || d == '\'') && !is_escaped(j)) {
+            local_in_q = true;
+            local_q = d;
+            continue;
+        }
+
+        if (local_in_q && d == local_q && (local_q == '\'' || !is_escaped(j))) {
+            local_in_q = false;
+            local_q = '\0';
+            continue;
+        }
+
+        if (!local_in_q) {
             if (d == open_c) {
                 depth++;
             } else if (d == close_c) {
@@ -276,7 +290,9 @@ void CommandSubstitutionEvaluator::append_substitution_result(const std::string&
         output += noenv_end();
     } else {
         output += subst_literal_start();
+        output += noenv_start();
         output += content;
+        output += noenv_end();
         output += subst_literal_end();
     }
 }

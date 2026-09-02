@@ -29,6 +29,16 @@
 #include "delimiter_state.h"
 
 bool DelimiterState::update_quote(char c) {
+    if (escaped) {
+        escaped = false;
+        return true;
+    }
+
+    if (c == '\\' && (!in_quotes || quote_char != '\'')) {
+        escaped = true;
+        return true;
+    }
+
     if (c == '"' || c == '\'') {
         if (!in_quotes) {
             in_quotes = true;

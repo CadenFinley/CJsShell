@@ -31,6 +31,7 @@
 struct DelimiterState {
     bool in_quotes = false;
     char quote_char = '\0';
+    bool escaped = false;
     int paren_depth = 0;
     int bracket_depth = 0;
     int brace_depth = 0;

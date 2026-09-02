@@ -1070,6 +1070,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
         QuoteInfo qi(raw_arg);
 
         if (qi.is_unquoted() && !looks_like_assignment(qi.value) &&
+            !contains_internal_substitution_markers(raw_arg) &&
             raw_arg.find('{') != std::string::npos && raw_arg.find('}') != std::string::npos) {
             auto brace_expansions = expansionEngine->expand_braces(raw_arg);
             (void)expanded_args.insert(expanded_args.end(),
@@ -1698,6 +1699,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             const auto& raw = tilde_expanded_args[arg_idx];
             QuoteInfo qi(raw);
             std::string& val = qi.value;
+            bool had_noenv = val.find(noenv_start()) != std::string::npos;
 
             bool skip_env_expansion = (!qi.is_single) && ((is_subshell_command && arg_idx == 1) ||
                                                           (is_brace_group_command && arg_idx == 1));
@@ -1707,7 +1709,11 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                     variableExpander = std::make_unique<VariableExpander>(shell, env_vars);
                 }
                 try {
-                    variableExpander->expand_env_vars(val);
+                    if (had_noenv) {
+                        variableExpander->expand_env_vars_selective(val);
+                    } else {
+                        variableExpander->expand_env_vars(val);
+                    }
                 } catch (const std::runtime_error&) {
                     // Ignore optional env expansion failures; use unexpanded value.
                 }
@@ -1716,34 +1722,48 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 val = std::move(stripped_pair.first);
             }
 
-            if (qi.is_unquoted() && !looks_like_assignment(qi.value) &&
-                val.find('{') != std::string::npos && val.find('}') != std::string::npos) {
-                if (!expansionEngine) {
-                    expansionEngine = std::make_unique<ExpansionEngine>(shell);
+            bool is_assignment = looks_like_assignment(val);
+            std::vector<std::string> fields;
+            if (qi.is_unquoted() && !is_assignment) {
+                if (!tokenizer) {
+                    tokenizer = std::make_unique<Tokenizer>();
                 }
-                std::vector<std::string> brace_expansions = expansionEngine->expand_braces(val);
-                for (const auto& expanded_val : brace_expansions) {
-                    if (!is_double_bracket_cmd &&
-                        requires_glob_expansion_or_unescape(expanded_val)) {
-                        auto wildcard_expanded = expansionEngine->expand_wildcards(expanded_val);
-                        (void)final_args_local.insert(final_args_local.end(),
-                                                      wildcard_expanded.begin(),
-                                                      wildcard_expanded.end());
-                    } else {
-                        final_args_local.push_back(expanded_val);
-                    }
-                }
-            } else if (qi.is_unquoted() && !is_double_bracket_cmd &&
-                       !looks_like_assignment(qi.value) &&
-                       requires_glob_expansion_or_unescape(val)) {
-                if (!expansionEngine) {
-                    expansionEngine = std::make_unique<ExpansionEngine>(shell);
-                }
-                auto expanded = expansionEngine->expand_wildcards(val);
-                (void)final_args_local.insert(final_args_local.end(), expanded.begin(),
-                                              expanded.end());
+                fields = tokenizer->split_by_ifs(val);
             } else {
-                final_args_local.push_back(val);
+                fields.push_back(val);
+            }
+
+            for (const auto& field : fields) {
+                if (qi.is_unquoted() && !is_assignment && !had_noenv &&
+                    field.find('{') != std::string::npos && field.find('}') != std::string::npos) {
+                    if (!expansionEngine) {
+                        expansionEngine = std::make_unique<ExpansionEngine>(shell);
+                    }
+                    std::vector<std::string> brace_expansions =
+                        expansionEngine->expand_braces(field);
+                    for (const auto& expanded_val : brace_expansions) {
+                        if (!is_double_bracket_cmd &&
+                            requires_glob_expansion_or_unescape(expanded_val)) {
+                            auto wildcard_expanded =
+                                expansionEngine->expand_wildcards(expanded_val);
+                            (void)final_args_local.insert(final_args_local.end(),
+                                                          wildcard_expanded.begin(),
+                                                          wildcard_expanded.end());
+                        } else {
+                            final_args_local.push_back(expanded_val);
+                        }
+                    }
+                } else if (qi.is_unquoted() && !is_double_bracket_cmd && !is_assignment &&
+                           requires_glob_expansion_or_unescape(field)) {
+                    if (!expansionEngine) {
+                        expansionEngine = std::make_unique<ExpansionEngine>(shell);
+                    }
+                    auto expanded = expansionEngine->expand_wildcards(field);
+                    (void)final_args_local.insert(final_args_local.end(), expanded.begin(),
+                                                  expanded.end());
+                } else {
+                    final_args_local.push_back(field);
+                }
             }
         }
 

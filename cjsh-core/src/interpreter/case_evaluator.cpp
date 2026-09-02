@@ -141,8 +141,12 @@ std::string normalize_case_value(std::string value, Parser* parser) {
 
     (void)strip_subst_literal_markers(value);
 
-    if (!value.empty() && parser != nullptr)
-        parser->expand_env_vars(value);
+    if (!value.empty() && parser != nullptr) {
+        parser->expand_env_vars_selective(value);
+    }
+
+    auto stripped = strip_noenv_sentinels(value);
+    value = std::move(stripped.first);
 
     return value;
 }
