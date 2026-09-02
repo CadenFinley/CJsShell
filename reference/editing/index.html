@@ -2080,6 +2080,9 @@ An explicit <code>cjshopt keybind ext</code> command on the same key takes prece
 </span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>cjshopt<span class="w"> </span>agent-mode<span class="w"> </span>clear<span class="w"> </span>--all
 </span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>cjshopt<span class="w"> </span>agent-mode<span class="w"> </span>reset
 </span></code></pre></div>
+<p>Start CJSH with <code>--no-agent</code> to keep agent mode disabled even while executor definitions load from
+<code>~/.cjshrc</code>. It can still be deliberately enabled later with <code>cjshopt agent-mode on</code>. Persist the
+startup disable from <code>~/.cjprofile</code> with <code>cjshopt login-startup-arg --no-agent</code>.</p>
 <h2 id="key-bindings">Key Bindings</h2>
 <p>CJ's Shell supports customizable key bindings with multiple profiles.</p>
 <h3 id="key-binding-profiles">Key Binding Profiles</h3>
