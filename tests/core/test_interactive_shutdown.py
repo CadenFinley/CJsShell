@@ -41,6 +41,8 @@ from typing import Callable
 
 CURSOR_POSITION_QUERY = b"\x1b[6n"
 CURSOR_POSITION_RESPONSE = b"\x1b[1;1R"
+COMMAND_OUTPUT_END = b"\x1b]133;D;"
+PROMPT_INPUT_START = b"\x1b]133;B\x1b\\"
 
 INTERACTIVE_ARGS = [
     "--no-source",
@@ -147,6 +149,32 @@ class InteractiveSession:
         if self.master_fd < 0:
             raise AssertionError(f"{self.label}: PTY master is closed")
         os.write(self.master_fd, data)
+
+    def wait_for_prompt(self, after: int, timeout_s: float, command_completed: bool) -> None:
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            search_from = after
+            if command_completed:
+                command_end = self.output.find(COMMAND_OUTPUT_END, after)
+                if command_end < 0:
+                    self.pump(0.05)
+                    continue
+                search_from = command_end + len(COMMAND_OUTPUT_END)
+
+            if self.output.find(PROMPT_INPUT_START, search_from) >= 0:
+                return
+
+            self.pump(0.05)
+
+        raise AssertionError(
+            f"{self.label}: prompt was not ready within {timeout_s:.1f}s: "
+            f"{bytes(self.output[after:])!r}"
+        )
+
+    def run_command(self, command: bytes, timeout_s: float = 3.0) -> None:
+        output_start = len(self.output)
+        self.write(command + b"\r")
+        self.wait_for_prompt(output_start, timeout_s, command_completed=True)
 
     def close_master(self) -> None:
         if self.master_fd >= 0:
@@ -277,15 +305,12 @@ def run_dot_slash_directory_is_execution_error(binary: str) -> None:
         os.chmod(executable_path, 0o755)
 
         with InteractiveSession(binary, "dot-slash directory") as session:
-            session.pump(duration_s=0.6)
+            session.wait_for_prompt(after=0, timeout_s=3.0, command_completed=False)
             quoted_directory = shlex.quote(resolved_working_directory)
-            session.write(f"cd {quoted_directory}\r".encode())
-            session.pump(duration_s=0.5)
+            session.run_command(f"cd {quoted_directory}".encode())
 
-            session.write(b"single\r")
-            session.pump(duration_s=0.5)
-            session.write(b"printf '__BARE_AUTO_CD__:%s:%s\\n' \"$?\" \"$PWD\"\r")
-            session.pump(duration_s=0.5)
+            session.run_command(b"single")
+            session.run_command(b"printf '__BARE_AUTO_CD__:%s:%s\\n' \"$?\" \"$PWD\"")
 
             expected_bare = f"__BARE_AUTO_CD__:0:{resolved_working_directory}/single".encode()
             if expected_bare not in session.output:
@@ -293,12 +318,9 @@ def run_dot_slash_directory_is_execution_error(binary: str) -> None:
                     f"bare directory should still auto-cd: {bytes(session.output)!r}"
                 )
 
-            session.write(f"cd {quoted_directory}\r".encode())
-            session.pump(duration_s=0.5)
-            session.write(b"./single\r")
-            session.pump(duration_s=0.5)
-            session.write(b"printf '__SINGLE_DIR_RESULT__:%s:%s\\n' \"$?\" \"$PWD\"\r")
-            session.pump(duration_s=0.5)
+            session.run_command(f"cd {quoted_directory}".encode())
+            session.run_command(b"./single")
+            session.run_command(b"printf '__SINGLE_DIR_RESULT__:%s:%s\\n' \"$?\" \"$PWD\"")
 
             expected_single = (
                 f"__SINGLE_DIR_RESULT__:126:{resolved_working_directory}".encode()
@@ -309,17 +331,14 @@ def run_dot_slash_directory_is_execution_error(binary: str) -> None:
                     f"{bytes(session.output)!r}"
                 )
 
-            session.write(b"./x/tool\r")
-            session.pump(duration_s=0.5)
+            session.run_command(b"./x/tool")
             if b"__NESTED_EXEC_RAN__" not in session.output:
                 raise AssertionError(
                     f"nested executable did not run: {bytes(session.output)!r}"
                 )
 
-            session.write(b"./x/x\r")
-            session.pump(duration_s=0.5)
-            session.write(b"printf '__NESTED_DIR_RESULT__:%s:%s\\n' \"$?\" \"$PWD\"\r")
-            session.pump(duration_s=0.5)
+            session.run_command(b"./x/x")
+            session.run_command(b"printf '__NESTED_DIR_RESULT__:%s:%s\\n' \"$?\" \"$PWD\"")
 
             expected_nested = (
                 f"__NESTED_DIR_RESULT__:126:{resolved_working_directory}".encode()
