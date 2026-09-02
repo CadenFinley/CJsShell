@@ -65,6 +65,7 @@ SHIFT_TAB = b"\x1b[Z"
 F1 = b"\x1bOP"
 F2 = b"\x1bOQ"
 F3 = b"\x1bOR"
+FOCUS_IN = b"\x1b[I"
 ALT_LT = b"\x1b<"
 ALT_GT = b"\x1b>"
 ALT_P = b"\x1bp"
@@ -105,6 +106,19 @@ def assert_smart_mouse_selection_suspends(
     if min(initial_enable, selection_disable, keyboard_resume) < 0:
         raise AssertionError(
             f"{scenario} should suspend capture for selection and resume on keyboard input: "
+            f"output={output!r}"
+        )
+
+
+def assert_menu_mouse_suspends_until_focus(output: str, scenario: str) -> None:
+    enable = "\x1b[?1000h\x1b[?1006h"
+    disable = "\x1b[?1000l\x1b[?1006l"
+    initial_enable = output.find(enable)
+    outside_click_disable = output.find(disable, initial_enable + len(enable))
+    focus_resume = output.find(enable, outside_click_disable + len(disable))
+    if min(initial_enable, outside_click_disable, focus_resume) < 0:
+        raise AssertionError(
+            f"{scenario} should suspend menu capture outside its items and resume on focus-in: "
             f"output={output!r}"
         )
 
@@ -1617,6 +1631,25 @@ def main() -> int:
             f"{mouse_default_click!r}"
         )
 
+    completion_focus_result, completion_focus_output = run_case(
+        binary,
+        "completion_many_menu_mouse_default_on",
+        b"s\t"
+        + mouse_left_press(1, 1)
+        + FOCUS_IN
+        + mouse_click_completion_collapsed_second
+        + b"\r",
+        capture_output=True,
+    )
+    if completion_focus_result != "s02":
+        raise AssertionError(
+            "completion menu should restore clicking after focus returns, got "
+            f"{completion_focus_result!r}"
+        )
+    assert_menu_mouse_suspends_until_focus(
+        completion_focus_output, "completion_menu_outside_click"
+    )
+
     mouse_enable_sequence = "\x1b[?1000h\x1b[?1006h"
     mouse_disable_sequence = "\x1b[?1000l\x1b[?1006l"
 
@@ -1944,6 +1977,25 @@ def main() -> int:
             "custom menu should filter on hidden keywords and preserve source indices, "
             f"got {custom_menu_filtered!r}"
         )
+
+    custom_menu_focus_result, custom_menu_focus_output = run_case(
+        binary,
+        "custom_menu_mouse_focus",
+        F3
+        + mouse_left_press(1, 1)
+        + FOCUS_IN
+        + mouse_click_history_second
+        + b"\r",
+        capture_output=True,
+    )
+    if custom_menu_focus_result != "restart":
+        raise AssertionError(
+            "custom menu should restore clicking after focus returns, got "
+            f"{custom_menu_focus_result!r}"
+        )
+    assert_menu_mouse_suspends_until_focus(
+        custom_menu_focus_output, "custom_menu_outside_click"
+    )
 
     custom_menu_cancelled = run_case_timed(
         binary, "custom_menu_runoff", [F3, b"\x1b", b"\r"], step_delay_s=0.5

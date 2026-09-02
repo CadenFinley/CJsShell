@@ -485,6 +485,8 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
         return;
     }
     bool menu_mouse_scroll_enabled = false;
+    bool menu_mouse_suspended = false;
+    bool menu_mouse_focus_reporting_added = false;
     bool completion_applied = false;
     const bool hints_enabled = !env->no_hint;
     char* saved_input = NULL;
@@ -529,6 +531,9 @@ again:
         edit_disable_menu_mouse_scroll(env, true);
         menu_mouse_scroll_enabled = false;
     }
+    edit_menu_mouse_enable_focus_reporting(env, eb,
+                                           menu_mouse_scroll_enabled || eb->mouse_reporting_enabled,
+                                           &menu_mouse_focus_reporting_added);
 
     const ssize_t rendered_input_rows = edit_completion_preview_input_rows(env, eb, selected);
     count_displayed =
@@ -733,6 +738,12 @@ read_key:
 
     code_t key_no_mods = KEY_NO_MODS(c);
 
+    if (edit_menu_mouse_prepare_key(env, eb, c, expanded_mode, &menu_mouse_scroll_enabled,
+                                    &menu_mouse_suspended)) {
+        c = 0;
+        goto again;
+    }
+
     if (key_no_mods == KEY_EVENT_MOUSE_OTHER) {
         const bool click_selection_enabled =
             (menu_mouse_scroll_enabled || eb->mouse_reporting_enabled);
@@ -747,6 +758,10 @@ read_key:
                     goto again;
                 }
             } else {
+                if (edit_menu_mouse_event_is_left_click(env)) {
+                    (void)edit_menu_mouse_suspend(env, eb, &menu_mouse_scroll_enabled,
+                                                  &menu_mouse_suspended);
+                }
                 c = 0;
                 goto again;
             }
@@ -895,6 +910,7 @@ read_key:
                 if (expanded_mode) {
                     menu_mouse_scroll_enabled = edit_enable_menu_mouse_scroll(env);
                 }
+                menu_mouse_suspended = false;
             }
             c = 0;
             goto again;
@@ -999,7 +1015,8 @@ read_key:
     }
 
 cleanup:
-    edit_disable_menu_mouse_scroll(env, menu_mouse_scroll_enabled);
+    edit_menu_mouse_finish(env, eb, expanded_mode, &menu_mouse_scroll_enabled,
+                           &menu_mouse_suspended, &menu_mouse_focus_reporting_added);
     completions_clear(env->completions);
     if (!completion_applied && hints_enabled) {
         bool input_changed = true;

@@ -18,6 +18,8 @@ typedef struct edit_menu_session_s {
     bool old_hint;
     bool old_highlight;
     bool mouse_scroll_enabled;
+    bool mouse_suspended;
+    bool mouse_focus_reporting_added;
     bool prompt_prefix_hidden;
 } edit_menu_session_t;
 
@@ -26,6 +28,90 @@ typedef struct edit_menu_window_s {
     ssize_t max_scroll;
     ssize_t scroll_offset;
 } edit_menu_window_t;
+
+static void edit_menu_mouse_enable_focus_reporting(ic_env_t* env, editor_t* eb, bool mouse_active,
+                                                   bool* added) {
+    if (!mouse_active || eb == NULL || added == NULL || *added ||
+        eb->mouse_focus_reporting_enabled) {
+        return;
+    }
+
+    edit_set_mouse_focus_reporting(env, eb, true);
+    *added = eb->mouse_focus_reporting_enabled;
+}
+
+static bool edit_menu_mouse_suspend(ic_env_t* env, editor_t* eb, bool* scroll_enabled,
+                                    bool* suspended) {
+    if (eb == NULL || scroll_enabled == NULL || suspended == NULL || *suspended ||
+        (!*scroll_enabled && !eb->mouse_reporting_enabled)) {
+        return false;
+    }
+
+    *scroll_enabled = false;
+    if (eb->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART) {
+        edit_set_mouse_auto_suspended(env, eb, true, true);
+    } else {
+        edit_set_mouse_reporting_enabled(env, eb, false);
+    }
+    *suspended = true;
+    return true;
+}
+
+static void edit_menu_mouse_resume(ic_env_t* env, editor_t* eb, bool want_scroll,
+                                   bool* scroll_enabled, bool* suspended) {
+    if (eb == NULL || scroll_enabled == NULL || suspended == NULL || !*suspended) {
+        return;
+    }
+
+    if (eb->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART) {
+        edit_set_mouse_auto_suspended(env, eb, false, false);
+    } else {
+        edit_apply_mouse_reporting_policy(env, eb);
+    }
+    *scroll_enabled = (want_scroll ? edit_enable_menu_mouse_scroll(env) : false);
+    *suspended = false;
+}
+
+static bool edit_menu_mouse_prepare_key(ic_env_t* env, editor_t* eb, code_t key, bool want_scroll,
+                                        bool* scroll_enabled, bool* suspended) {
+    if (eb == NULL || scroll_enabled == NULL || suspended == NULL) {
+        return false;
+    }
+
+    const code_t key_no_mods = KEY_NO_MODS(key);
+    if (key_no_mods == KEY_EVENT_FOCUS_OUT) {
+        (void)edit_menu_mouse_suspend(env, eb, scroll_enabled, suspended);
+        return true;
+    }
+    if (key_no_mods == KEY_EVENT_FOCUS_IN) {
+        edit_menu_mouse_resume(env, eb, want_scroll, scroll_enabled, suspended);
+        return true;
+    }
+    if (*suspended && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
+        return true;
+    }
+    if (*suspended && !edit_key_is_mouse_toggle_binding(env, key) &&
+        edit_mouse_auto_resume_triggered_by_key(key)) {
+        edit_menu_mouse_resume(env, eb, want_scroll, scroll_enabled, suspended);
+    }
+    return false;
+}
+
+static void edit_menu_mouse_finish(ic_env_t* env, editor_t* eb, bool want_scroll,
+                                   bool* scroll_enabled, bool* suspended,
+                                   bool* focus_reporting_added) {
+    if (scroll_enabled == NULL || suspended == NULL || focus_reporting_added == NULL) {
+        return;
+    }
+
+    edit_menu_mouse_resume(env, eb, want_scroll, scroll_enabled, suspended);
+    edit_disable_menu_mouse_scroll(env, *scroll_enabled);
+    *scroll_enabled = false;
+    if (*focus_reporting_added) {
+        edit_set_mouse_focus_reporting(env, eb, false);
+        *focus_reporting_added = false;
+    }
+}
 
 static const char* edit_menu_tag_style(bool selected) {
     return selected ? "ic-menu-selected-secondary" : "ic-diminish";
@@ -477,6 +563,8 @@ static edit_menu_session_t edit_menu_begin(ic_env_t* env, editor_t* eb, const ch
     eb->inline_right_width = 0;
     session.mouse_scroll_enabled =
         (enable_mouse_scroll ? edit_enable_menu_mouse_scroll(env) : false);
+    edit_menu_mouse_enable_focus_reporting(env, eb, session.mouse_scroll_enabled,
+                                           &session.mouse_focus_reporting_added);
     return session;
 }
 
@@ -512,8 +600,8 @@ static void edit_menu_finish(ic_env_t* env, editor_t* eb, edit_menu_session_t* s
     eb->inline_right_width = session->inline_right_width;
     (void)ic_enable_hint(session->old_hint);
     (void)ic_enable_highlight(session->old_highlight);
-    edit_disable_menu_mouse_scroll(env, session->mouse_scroll_enabled);
-    session->mouse_scroll_enabled = false;
+    edit_menu_mouse_finish(env, eb, true, &session->mouse_scroll_enabled, &session->mouse_suspended,
+                           &session->mouse_focus_reporting_added);
     if (session->prompt_prefix_hidden) {
         redraw_prompt_prefix_lines(env, eb);
     }
@@ -904,4 +992,17 @@ static bool edit_menu_mouse_select_vertical(ic_env_t* env, editor_t* eb, ssize_t
     *selected_idx = idx;
     *accept_selection = (mouse_event.action == TTY_MOUSE_ACTION_LEFT_RELEASE);
     return true;
+}
+
+static bool edit_menu_mouse_event_is_left_click(ic_env_t* env) {
+    if (env == NULL || env->tty == NULL) {
+        return false;
+    }
+
+    tty_mouse_event_t mouse_event;
+    if (!tty_get_last_mouse_event(env->tty, &mouse_event)) {
+        return false;
+    }
+    return (mouse_event.action == TTY_MOUSE_ACTION_LEFT_PRESS ||
+            mouse_event.action == TTY_MOUSE_ACTION_LEFT_RELEASE);
 }

@@ -277,6 +277,8 @@ ic_status_hint_mode_t ic_get_status_hint_mode(void);
 ///   keyboard/focus-in input.
 /// - `IC_MOUSE_CLICKING_MENU_ONLY`: leave editing capture off and acquire it only while an
 ///   expanded completion, history, or command-palette menu is open.
+/// While a menu owns mouse capture, clicking outside its selectable items temporarily releases
+/// capture to the terminal. Keyboard input or a terminal focus-in event restores it.
 typedef enum ic_mouse_clicking_mode_e {
     IC_MOUSE_CLICKING_DISABLED = 0,
     IC_MOUSE_CLICKING_SIMPLE,

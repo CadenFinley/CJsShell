@@ -1425,6 +1425,10 @@ above the editor, in the prompt or continuation gutter, or on status/helper rows
 Keyboard or focus-in input resumes it. `disabled` remains an alias for `all-off`; `menu-only` and
 `menus` are aliases for `off`.
 
+While an interactive menu has mouse capture, clicking the prompt or anywhere outside its selectable
+rows temporarily releases capture to the terminal. Keyboard input or a terminal focus-in event
+restores menu clicking.
+
 #### mouse-clicking-status-line
 
 Show or hide the status-row indicator text that appears when mouse clicking is active.

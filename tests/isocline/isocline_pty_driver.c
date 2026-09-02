@@ -533,12 +533,16 @@ static int run_case(const char* scenario) {
         prompt_text = "MENU-BASE-TOP\nMENU-BASE-MIDDLE\npty";
         inline_right_text = "MENU-BASE-RIGHT";
         initial_input = "keep";
-    } else if (strcmp(scenario, "custom_menu_runoff") == 0) {
+    } else if (strcmp(scenario, "custom_menu_runoff") == 0 ||
+               strcmp(scenario, "custom_menu_mouse_focus") == 0) {
         initial_input = "keep";
         if (!ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_RUNOFF)) {
             return 6;
         }
         ic_set_unhandled_key_handler(pty_custom_menu_runoff_handler, NULL);
+        if (strcmp(scenario, "custom_menu_mouse_focus") == 0) {
+            (void)ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_MENU_ONLY);
+        }
     } else if (strcmp(scenario, "transient_prompt_multiline_clear") == 0) {
         prompt_text = "ORIGINAL-TOP\nORIGINAL-MIDDLE\npty";
     } else if (strcmp(scenario, "history_search_sort_alt_s") == 0) {

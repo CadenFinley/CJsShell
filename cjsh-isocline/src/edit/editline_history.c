@@ -1349,6 +1349,10 @@ again:;
     sbuf_clear(eb->extra);
 
     code_t key_no_mods = KEY_NO_MODS(c);
+    if (edit_menu_mouse_prepare_key(env, eb, c, true, &menu_session.mouse_scroll_enabled,
+                                    &menu_session.mouse_suspended)) {
+        goto again;
+    }
     if (menu_session.mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
         bool accept_selection = false;
         const ssize_t mouse_status_rows = (has_live_input && selected_idx < 0 ? 2 : 1);
@@ -1361,6 +1365,10 @@ again:;
                 goto again;
             }
         } else {
+            if (edit_menu_mouse_event_is_left_click(env)) {
+                (void)edit_menu_mouse_suspend(env, eb, &menu_session.mouse_scroll_enabled,
+                                              &menu_session.mouse_suspended);
+            }
             goto again;
         }
     }

@@ -4,7 +4,7 @@ This changelog documents tagged releases from `v1.1.2` through `v1.4.0`.
 
 ## 1.4.0 - 2026-09-02
 
-Range: `v1.3.3..HEAD` (95 commits, 236 files changed)
+Range: `v1.3.3..HEAD` (96 commits, 236 files changed)
 
 ### Highlights
 
@@ -23,6 +23,7 @@ Range: `v1.3.3..HEAD` (95 commits, 236 files changed)
 
 - Improved completion context detection, man-page metadata extraction, file highlighting, multiline candidate display, and completion-menu rendering.
 - Changed history search to support sortable fuzzy results, richer metadata, selected-entry previews, and dedicated prompt handling.
+- Changed isocline menus to temporarily release mouse capture after off-target clicks and restore it on keyboard or focus-in input.
 - Moved typeahead handling into isocline and reorganized completion, menu, fuzzy-search, and terminal internals into focused modules.
 - Strengthened `--posix` mode rejection of non-POSIX syntax and builtins while documenting supported language boundaries.
 
