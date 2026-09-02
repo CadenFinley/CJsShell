@@ -390,7 +390,9 @@ def main() -> int:
             session.pump(0.2)
             if os.path.exists(first_result):
                 raise AssertionError("Tab-accepting an agent suggestion must not execute it")
-            accepted_output = bytes(session.output[tab_accept_start:])
+            accepted_output = normalize_terminal_output(
+                bytes(session.output[tab_accept_start:])
+            )
             request_tail = b"use the longest prefix"
             generated_command_start = b"touch "
             request_index = accepted_output.rfind(request_tail)
@@ -400,7 +402,7 @@ def main() -> int:
             if (
                 request_index < 0
                 or command_index <= request_index
-                or b"\r\n"
+                or b"\n"
                 not in accepted_output[
                     request_index + len(request_tail) : command_index
                 ]
@@ -408,7 +410,7 @@ def main() -> int:
                 raise AssertionError(
                     "accepting an agent suggestion did not preserve the request above the "
                     "generated command: "
-                    f"{normalize_terminal_output(accepted_output)!r}"
+                    f"{accepted_output!r}"
                 )
             session.write(b"\r")
             session.wait_for_file(first_result)

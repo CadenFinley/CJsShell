@@ -1,6 +1,43 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.3.3`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.0`.
+
+## 1.4.0 - 2026-09-02
+
+Range: `v1.3.3..HEAD` (93 commits, 236 files changed)
+
+### Highlights
+
+- Added provider-neutral agent-assisted command writing with configurable executors, trigger prefixes, activation keys, and a review-before-execution suggestion menu.
+- Expanded Bash-compatible scripting with associative arrays, namerefs, coprocesses, opt-in extended globs, case continuation, brace-range strides, and pattern replacement.
+- Significantly improved completions, history search, multiline editing, interactive menus, and mouse behavior.
+
+### Added
+
+- Added `select` with `PS3`, tracing prompt support through `PS4`, and configurable `PS5` / `PS6` prompts for history search and the command palette.
+- Added versioned rich completion specifications with nested subcommands, typed values, aliases, constraints, positional arguments, and dynamic providers.
+- Added `cjshopt exit-confirmation`, multiline viewport controls, additional mouse-capture behavior, and interactive progress display for `generate-completions`.
+- Added configurable syntax highlighting for completion and history menus, including single, all, and reverse modes.
+
+### Changed
+
+- Improved completion context detection, man-page metadata extraction, file highlighting, multiline candidate display, and completion-menu rendering.
+- Changed history search to support sortable fuzzy results, richer metadata, selected-entry previews, and dedicated prompt handling.
+- Moved typeahead handling into isocline and reorganized completion, menu, fuzzy-search, and terminal internals into focused modules.
+- Strengthened `--posix` mode rejection of non-POSIX syntax and builtins while documenting supported language boundaries.
+
+### Fixed
+
+- Fixed job-control reporting and foreground-terminal races, including killed jobs and non-interactive execution stealing terminal control.
+- Fixed queued-input loss across readline interrupts and several typeahead, line-feeding, and multiline prompt redraw issues.
+- Fixed exit behavior, loop and subshell-grouping edge cases, and POSIX parsing, arithmetic, quoting, and expansion regressions.
+- Fixed completion-menu glitches, history metadata and preview handling, OSC 133 prompt markers, redirect highlighting, and incorrect auto-CD or spell suggestions.
+
+### Internal, CI, and Tests
+
+- Hardened temporary-file creation and fatal diagnostics, enabled `_FORTIFY_SOURCE=2` outside Debug builds, and increased release optimization to `-O3`.
+- Added extensive coverage for agent mode, language compatibility, `select` and prompt variables, rich completions, isocline PTY behavior, job-control races, shutdown, parameter expansion, and POSIX regressions.
+- Added a language compatibility inventory and substantially updated command, completion, editing, feature, theme, and non-POSIX documentation.
 
 ## 1.3.3 - 2026-07-08
 
