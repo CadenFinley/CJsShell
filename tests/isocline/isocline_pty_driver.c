@@ -449,6 +449,7 @@ static int run_case(const char* scenario) {
         (void)ic_set_hint_delay(0);
         ic_set_default_completer(pty_completion_dispatcher, NULL);
     } else if (strcmp(scenario, "completion_many_menu") == 0 ||
+               strcmp(scenario, "completion_many_menu_preview") == 0 ||
                strcmp(scenario, "completion_many_menu_off") == 0 ||
                strcmp(scenario, "completion_many_menu_all_off") == 0 ||
                strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0 ||
@@ -463,6 +464,9 @@ static int run_case(const char* scenario) {
             (void)ic_enable_completion_preview(true);
         } else {
             g_completion_mode = COMPLETION_MODE_MANY;
+        }
+        if (strcmp(scenario, "completion_many_menu_preview") == 0) {
+            (void)ic_enable_completion_preview(true);
         }
         if (strcmp(scenario, "completion_many_menu_long_multiline") == 0) {
             initial_input =

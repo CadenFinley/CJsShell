@@ -4,7 +4,7 @@ This changelog documents tagged releases from `v1.1.2` through `v1.4.0`.
 
 ## 1.4.0 - 2026-09-02
 
-Range: `v1.3.3..HEAD` (93 commits, 236 files changed)
+Range: `v1.3.3..HEAD` (95 commits, 236 files changed)
 
 ### Highlights
 
@@ -31,6 +31,7 @@ Range: `v1.3.3..HEAD` (93 commits, 236 files changed)
 - Fixed job-control reporting and foreground-terminal races, including killed jobs and non-interactive execution stealing terminal control.
 - Fixed queued-input loss across readline interrupts and several typeahead, line-feeding, and multiline prompt redraw issues.
 - Fixed exit behavior, loop and subshell-grouping edge cases, and POSIX parsing, arithmetic, quoting, and expansion regressions.
+- Fixed completion menus so the first candidate is selected immediately when multiple results are shown.
 - Fixed completion-menu glitches, history metadata and preview handling, OSC 133 prompt markers, redirect highlighting, and incorrect auto-CD or spell suggestions.
 
 ### Internal, CI, and Tests

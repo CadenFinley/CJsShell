@@ -2082,6 +2082,13 @@ def main() -> int:
             f"completion_dual_common_prefix expected 'planet', got {comp_common!r}"
         )
 
+    comp_preview_first = run_case(binary, "completion_many_menu_preview", b"s\t\r\r")
+    if comp_preview_first != "s01":
+        raise AssertionError(
+            "completion menu should initially select its first candidate when preview is enabled, "
+            f"got {comp_preview_first!r}"
+        )
+
     comp_scroll_collapsed, comp_scroll_collapsed_output = run_case(
         binary,
         "completion_many_menu",
@@ -2246,7 +2253,7 @@ def main() -> int:
     comp_multiline_replacement, comp_multiline_replacement_output = run_case(
         binary,
         "completion_many_menu_multiline_replacement",
-        b"m\t\x0a" + DOWN + DOWN + b"\r\r",
+        b"m\t\x0a" + DOWN + b"\r\r",
         capture_output=True,
         initial_rows=8,
         initial_cols=80,

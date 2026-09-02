@@ -504,7 +504,7 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
     sbuf_clear(eb->hint);
     sbuf_clear(eb->hint_help);
     edit_completion_menu_update_hint(env, eb, false);
-    ssize_t selected = (env->complete_nopreview ? 0 : -1);
+    ssize_t selected = 0;
     bool expanded_mode = env->complete_menu_start_expanded;
     ssize_t scroll_offset = 0;
     ssize_t last_rows_visible = 0;
