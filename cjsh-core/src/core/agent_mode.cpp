@@ -87,6 +87,7 @@ struct ExecutorConfig {
 
 struct Settings {
     bool enabled{true};
+    bool disabled_for_startup{false};
     std::vector<ExecutorConfig> executors;
     std::optional<ic_keycode_t> activation_key;
     std::string activation_key_spec{kDefaultKeySpec};
@@ -983,7 +984,9 @@ int set_executor(const std::vector<std::string>& args) {
     } else {
         *existing = std::move(config);
     }
-    settings().enabled = true;
+    if (!settings().disabled_for_startup) {
+        settings().enabled = true;
+    }
     apply_key_bindings();
     if (!cjsh_env::startup_active()) {
         std::cout << "Configured ";
@@ -1145,6 +1148,13 @@ bool parse_suggestions(const std::string& output, std::vector<Suggestion>* sugge
     return true;
 }
 
+void disable_for_startup() {
+    Settings& state = settings();
+    state.enabled = false;
+    state.disabled_for_startup = true;
+    apply_key_bindings();
+}
+
 void apply_key_bindings() {
     Settings& state = settings();
     release_binding(state.installed_activation_key);
@@ -1221,6 +1231,9 @@ int command(const std::vector<std::string>& args) {
             return 1;
         }
         settings().enabled = subcommand == "on";
+        if (settings().enabled) {
+            settings().disabled_for_startup = false;
+        }
         apply_key_bindings();
         if (!cjsh_env::startup_active()) {
             std::cout << "Agent-assisted command writing "
@@ -1244,6 +1257,7 @@ int command(const std::vector<std::string>& args) {
         }
         settings().executors.clear();
         settings().enabled = true;
+        settings().disabled_for_startup = false;
         ic_keycode_t key = IC_KEY_NONE;
         settings().activation_key = ic_parse_key_spec(kDefaultKeySpec, &key)
                                         ? std::optional<ic_keycode_t>(key)

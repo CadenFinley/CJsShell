@@ -48,6 +48,7 @@ const std::vector<Descriptor>& descriptors() {
         {"--no-script-extension-interpreter", "Disable extension-based script runners"},
         {"--no-syntax-highlighting", "Disable syntax highlighting"},
         {"--no-error-suggestions", "Disable error suggestions"},
+        {"--no-agent", "Disable agent-assisted command writing"},
         {"--no-prompt-vars", "Ignore PS1/PS2 prompt variables"},
         {"--no-history", "Disable history recording"},
         {"--no-history-expansion", "Disable history expansion"},

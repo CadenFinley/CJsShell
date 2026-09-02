@@ -163,6 +163,8 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `--no-completion-learning` – keep completions enabled but skip on-demand man-page scraping
 - `-S, --no-syntax-highlighting`
 - `--no-error-suggestions`
+- `--no-agent` – disable agent-assisted command writing, including configured activation keys,
+  trigger prefixes, and its command-palette entry
 - `--no-prompt-vars`
 - `-H, --no-history-expansion`
 - `--no-history` – disable history recording (also disables history expansion)

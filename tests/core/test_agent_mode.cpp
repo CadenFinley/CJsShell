@@ -253,6 +253,21 @@ bool test_configuration_validation_and_state() {
                  "on should restore the Enter runoff binding");
     ok &= expect(key_uses_action("alt-a", IC_KEY_ACTION_RUNOFF),
                  "on should restore the activation runoff binding");
+
+    agent_mode::disable_for_startup();
+    ok &= expect(!agent_mode::palette_entry_enabled(),
+                 "the startup disable should hide the palette entry");
+    ok &= expect_command({"agent-mode", "set", "--command=true", "--trigger-prefix=startup:"}, 0,
+                         "executors should still be configurable while startup-disabled");
+    ok &= expect(!agent_mode::palette_entry_enabled(),
+                 "loading an executor should not override the startup disable");
+    ok &= expect(!agent_mode::matching_trigger_prefix_length("startup:request").has_value(),
+                 "startup-disabled trigger prefixes should remain inactive");
+    ok &= expect_command({"agent-mode", "on"}, 0,
+                         "an explicit on should override the startup disable");
+    ok &= expect(agent_mode::matching_trigger_prefix_length("startup:request").has_value(),
+                 "explicitly enabling agent mode should restore startup-loaded prefixes");
+
     ok &= expect_command({"agent-mode", "on", "extra"}, 1, "on should reject extra arguments");
     ok &= expect_command({"agent-mode", "does-not-exist"}, 1,
                          "unknown subcommands should be rejected");

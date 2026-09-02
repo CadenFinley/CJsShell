@@ -556,6 +556,10 @@ cjshopt agent-mode clear --all
 cjshopt agent-mode reset
 ```
 
+Start CJSH with `--no-agent` to keep agent mode disabled even while executor definitions load from
+`~/.cjshrc`. It can still be deliberately enabled later with `cjshopt agent-mode on`. Persist the
+startup disable from `~/.cjprofile` with `cjshopt login-startup-arg --no-agent`.
+
 ## Key Bindings
 
 CJ's Shell supports customizable key bindings with multiple profiles.

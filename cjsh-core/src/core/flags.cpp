@@ -35,6 +35,7 @@
 #include <cstdlib>
 #include <optional>
 
+#include "agent_mode.h"
 #include "error_out.h"
 #include "isocline.h"
 #include "shell.h"
@@ -64,6 +65,7 @@ constexpr int kOptPosix = 260;
 constexpr int kOptNoErrorSuggestions = 261;
 constexpr int kOptNoPromptVars = 262;
 constexpr int kOptNoHistory = 263;
+constexpr int kOptNoAgent = 264;
 std::vector<std::string> positional_parameters;
 
 void detect_login_mode(char* argv[]) {
@@ -141,6 +143,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"no-error-suggestions", no_argument, nullptr, kOptNoErrorSuggestions},
         {"no-prompt-vars", no_argument, nullptr, kOptNoPromptVars},
         {"no-history", no_argument, nullptr, kOptNoHistory},
+        {"no-agent", no_argument, nullptr, kOptNoAgent},
         {"startup-test", no_argument, nullptr, 'X'},
         {"minimal", no_argument, nullptr, 'm'},
         {"secure", no_argument, nullptr, 's'},
@@ -218,6 +221,9 @@ ParseResult parse_arguments(int argc, char* argv[]) {
             case kOptNoHistory:
                 config::history_enabled = false;
                 config::history_expansion_enabled = false;
+                break;
+            case kOptNoAgent:
+                agent_mode::disable_for_startup();
                 break;
             case 'X':
                 config::startup_test = true;
@@ -312,6 +318,8 @@ void apply_profile_startup_flags() {
         } else if (flag == "--no-history") {
             config::history_enabled = false;
             config::history_expansion_enabled = false;
+        } else if (flag == "--no-agent") {
+            agent_mode::disable_for_startup();
         } else if (flag == "--no-history-expansion") {
             config::history_expansion_enabled = false;
         } else if (flag == "--no-sh-warning") {

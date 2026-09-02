@@ -51,6 +51,10 @@ bool parse_suggestions(const std::string& output, std::vector<Suggestion>* sugge
 
 int command(const std::vector<std::string>& args);
 
+// Disable agent mode for this startup. Loading executor definitions must not
+// implicitly re-enable it; an explicit `cjshopt agent-mode on` still can.
+void disable_for_startup();
+
 // Install the runoff bindings implied by the current cjshopt configuration.
 // This is intentionally safe to call after a keymap reset or profile change.
 void apply_key_bindings();

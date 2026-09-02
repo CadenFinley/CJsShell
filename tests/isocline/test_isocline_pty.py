@@ -1547,7 +1547,9 @@ def main() -> int:
     mouse_release = b"\x1b[<3;1;1m"
     mouse_click_history_second = mouse_left_click(6, 4)
     mouse_click_completion_expanded_second = mouse_left_click(6, 4)
-    mouse_click_completion_collapsed_second = mouse_left_click(6, 4)
+    # At 80 columns, the collapsed completion header wraps to two rows when it
+    # includes the mouse status, so the second candidate starts on screen row 5.
+    mouse_click_completion_collapsed_second = mouse_left_click(6, 5)
     mouse_click_inline_hint = mouse_left_click(10, 1)
 
     assert_smart_mouse_selection_suspends(
@@ -1624,6 +1626,8 @@ def main() -> int:
         binary,
         "completion_many_menu_mouse_default_on",
         b"s\t" + mouse_click_completion_collapsed_second + b"\r",
+        initial_rows=24,
+        initial_cols=80,
     )
     if mouse_default_click != "s02":
         raise AssertionError(
@@ -1640,6 +1644,8 @@ def main() -> int:
         + mouse_click_completion_collapsed_second
         + b"\r",
         capture_output=True,
+        initial_rows=24,
+        initial_cols=80,
     )
     if completion_focus_result != "s02":
         raise AssertionError(
@@ -2225,6 +2231,8 @@ def main() -> int:
         binary,
         "completion_many_menu",
         F2 + b"s\t" + mouse_click_completion_collapsed_second + b"\r",
+        initial_rows=24,
+        initial_cols=80,
     )
     if comp_click_collapsed_toggle != "s02":
         raise AssertionError(
@@ -2247,6 +2255,8 @@ def main() -> int:
         binary,
         "completion_many_menu",
         b"s\t" + F2 + mouse_click_completion_collapsed_second + b"\r",
+        initial_rows=24,
+        initial_cols=80,
     )
     if comp_click_collapsed_toggle_inside_menu != "s02":
         raise AssertionError(
@@ -2258,6 +2268,8 @@ def main() -> int:
         binary,
         "completion_many_menu_custom_mouse_toggle",
         b"s\t" + F3 + mouse_click_completion_collapsed_second + b"\r",
+        initial_rows=24,
+        initial_cols=80,
     )
     if comp_click_collapsed_custom_toggle_binding != "s02":
         raise AssertionError(

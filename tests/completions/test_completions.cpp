@@ -1357,6 +1357,8 @@ static bool test_builtin_docs(void) {
                 "cjsh doc should include --help option");
     EXPECT_TRUE(has_entry(cjsh_doc, "--no-history", builtin_completions::EntryKind::Option),
                 test_name, "cjsh doc should include --no-history option");
+    EXPECT_TRUE(has_entry(cjsh_doc, "--no-agent", builtin_completions::EntryKind::Option),
+                test_name, "cjsh doc should include --no-agent option");
 
     const auto* hook_doc = builtin_completions::lookup_builtin_command_doc("hook");
     EXPECT_TRUE(hook_doc != nullptr, test_name, "hook doc should exist");

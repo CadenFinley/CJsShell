@@ -815,6 +815,7 @@ Supported flags:
 | `--no-smart-cd` | Disable smart cd auto-jumps |
 | `--no-syntax-highlighting` | Disable syntax highlighting in the editor |
 | `--no-error-suggestions` | Disable error suggestions in interactive mode |
+| `--no-agent` | Disable agent-assisted command writing |
 | `--no-prompt-vars` | Ignore PS1/PS2 and use fixed prompts |
 | `--no-history` | Disable history recording (also disables history expansion) |
 | `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
