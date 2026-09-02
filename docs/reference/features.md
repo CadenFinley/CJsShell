@@ -110,6 +110,8 @@ for full details.
          `cjshopt status-line`, `cjshopt status-reporting`, `cjshopt visible-whitespace`
      - `cjshopt mouse-clicking`, `cjshopt mouse-clicking-status-line`
      - `cjshopt prompt-newline`, `cjshopt right-prompt-follow-cursor`
+     - `cjshopt exit-confirmation smart|always|never` controls when exiting requires a
+         consecutive confirmation
      - `cjshopt agent-mode …` for user-provided command-writing executors
      - `cjshopt keybind …` and `cjshopt keybind ext …` for keymap management
     - `cjshopt set-history-max` to adjust persistent history size (0 or more entries; no upper limit)

@@ -131,12 +131,16 @@ printf format [arguments...]
 Leave the shell with an optional exit status.
 
 ```bash
-exit [n]
-quit [n]
-bye [n]
+exit [-f|--force] [n]
+quit [-f|--force] [n]
+bye [-f|--force] [n]
 ```
 
 - In `--posix` mode, use `exit`; `quit` and `bye` are disabled.
+- By default, cjsh asks for a consecutive second exit only when running or stopped jobs exist.
+- Configure that guard with `cjshopt exit-confirmation smart|always|never`; `smart` is the default,
+  `always` confirms every exit, and `never` exits immediately.
+- `--force` bypasses confirmation and skips exit traps.
 
 ### help
 Display the CJSH command reference.
@@ -701,6 +705,7 @@ Available subcommands:
 - `completion-spell` - Toggle spell correction suggestions in completions
 - `completion-spell-enter` - Toggle Enter-triggered spell autocorrection when exactly one spell match exists
 - `completion-learning` - Toggle automatic completion learning from man pages
+- `exit-confirmation` - Configure when `exit`, `quit`, and `bye` require confirmation
 - `smart-cd` - Toggle fuzzy auto-jumps for `cd`
 - `extglob` - Toggle Bash-style extended glob patterns (`?()`, `*()`, `+()`, `@()`, `!()`)
 - `script-extension-interpreter` - Toggle extension-based script runners
@@ -738,6 +743,21 @@ Available subcommands:
 - `generate-logout` - Create or overwrite ~/.cjlogout (use `--alt` for `~/.config/cjsh/.cjlogout`)
 - `set-history-max` - Configure history persistence limits
 - `set-completion-max` - Limit the maximum number of completion suggestions shown
+
+#### exit-confirmation
+
+Control whether an exit request must be repeated on the next command line before cjsh exits.
+
+```bash
+cjshopt exit-confirmation smart   # Confirm only when active jobs exist (default)
+cjshopt exit-confirmation always  # Confirm every exit request
+cjshopt exit-confirmation never   # Never require confirmation
+cjshopt exit-confirmation status  # Show the current mode
+```
+
+Add the selected command to `~/.cjshrc` to persist it. `exit --force` bypasses every mode.
+In `always` mode, an active-job warning counts as the confirmation request, so the next
+consecutive exit proceeds without another prompt.
 
 #### agent-mode
 

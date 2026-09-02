@@ -321,6 +321,40 @@ else
     fail "Exit should be blocked until running jobs clear (status=$running_status, output=$running_output)"
 fi
 
+log_test "Exit confirmation defaults to smart mode"
+confirmation_status_output=$("$SHELL_TO_TEST" -c "cjshopt exit-confirmation status" 2>&1)
+confirmation_status=$?
+if [ $confirmation_status -eq 0 ] &&
+   printf '%s' "$confirmation_status_output" | grep -q "currently smart"; then
+    pass
+else
+    fail "Exit confirmation should default to smart (status=$confirmation_status, output=$confirmation_status_output)"
+fi
+
+log_test "Never mode bypasses the active job guard"
+never_pid_file=$(mktemp /tmp/cjsh_never_exit.XXXXXX)
+never_output_file=$(mktemp /tmp/cjsh_never_exit_output.XXXXXX)
+PID_FILE="$never_pid_file" "$SHELL_TO_TEST" <<'EOF' >"$never_output_file" 2>&1
+sleep 1000 &
+job=$!
+echo "$job" > "$PID_FILE"
+cjshopt exit-confirmation never
+exit 23
+EOF
+never_status=$?
+never_output=$(cat "$never_output_file" 2>/dev/null)
+never_pid=$(cat "$never_pid_file" 2>/dev/null)
+rm -f "$never_output_file" "$never_pid_file"
+if [ -n "$never_pid" ] && kill -0 "$never_pid" 2>/dev/null; then
+    kill -KILL "$never_pid" 2>/dev/null || true
+fi
+if [ $never_status -eq 23 ] &&
+   ! printf '%s' "$never_output" | grep -q "There are running jobs"; then
+    pass
+else
+    fail "Never mode should exit immediately with active jobs (status=$never_status, output=$never_output)"
+fi
+
 log_test "Forced exit bypasses stopped job guard"
 force_pid_file=$(mktemp /tmp/cjsh_force_exit.XXXXXX)
 PID_FILE="$force_pid_file" "$SHELL_TO_TEST" <<'EOF' >/dev/null 2>&1

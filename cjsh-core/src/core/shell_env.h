@@ -38,6 +38,12 @@ struct passwd;
 class Shell;
 
 namespace config {
+enum class ExitConfirmationMode : std::uint8_t {
+    Smart,
+    Always,
+    Never
+};
+
 extern bool login_mode;
 extern bool interactive_mode;
 extern bool force_interactive;
@@ -68,6 +74,7 @@ extern bool status_reporting_enabled;
 extern bool script_extension_interpreter_enabled;
 extern bool error_suggestions_enabled;
 extern bool prompt_vars_enabled;
+extern ExitConfirmationMode exit_confirmation_mode;
 }  // namespace config
 
 namespace cjsh_env {

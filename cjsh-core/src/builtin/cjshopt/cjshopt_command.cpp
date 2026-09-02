@@ -52,6 +52,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     CompletionSpell,
     CompletionSpellEnter,
     CompletionLearning,
+    ExitConfirmation,
     SmartCd,
     Extglob,
     ScriptExtensionInterpreter,
@@ -111,6 +112,7 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
           completion_spell_enter_command},
          {CjshoptSubcommand::CompletionLearning, "completion-learning",
           completion_learning_command},
+         {CjshoptSubcommand::ExitConfirmation, "exit-confirmation", exit_confirmation_command},
          {CjshoptSubcommand::SmartCd, "smart-cd", smart_cd_command},
          {CjshoptSubcommand::Extglob, "extglob", extglob_command},
          {CjshoptSubcommand::ScriptExtensionInterpreter, "script-extension-interpreter",
@@ -194,6 +196,8 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "script runners (default: enabled)",
         std::string("  completion-learning <on|off|status> Toggle automatic completion learning ") +
             "(default: enabled)",
+        std::string("  exit-confirmation <smart|always|never|status> Control when exit requires ") +
+            "confirmation (default: smart)",
         std::string("  line-numbers <on|off|relative|absolute|status>    Configure line numbers ") +
             "in multiline input (default: enabled)",
         "  line-numbers-continuation <on|off|status> Control line numbers when a continuation "
@@ -295,7 +299,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "unknown subcommand '" + subcommand + "'",
                  {"Available subcommands: style_def, login-startup-arg, completion-case, "
                   "history-search-case, completion-spell, completion-spell-enter, "
-                  "smart-cd, script-extension-interpreter, "
+                  "exit-confirmation, smart-cd, script-extension-interpreter, "
                   "completion-learning, "
                   "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
                   "current-line-number-highlight, multiline-start-lines, multiline-max-lines, "

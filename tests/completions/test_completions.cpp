@@ -1422,6 +1422,9 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(
         has_entry(cjshopt_doc, "completion-case", builtin_completions::EntryKind::Subcommand),
         test_name, "cjshopt should include completion-case subcommand");
+    EXPECT_TRUE(
+        has_entry(cjshopt_doc, "exit-confirmation", builtin_completions::EntryKind::Subcommand),
+        test_name, "cjshopt should include exit-confirmation subcommand");
     EXPECT_TRUE(has_entry(cjshopt_doc, "extglob", builtin_completions::EntryKind::Subcommand),
                 test_name, "cjshopt should include extglob subcommand");
     EXPECT_TRUE(
@@ -1458,6 +1461,23 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(
         has_entry(multiline_max_lines_doc, "status", builtin_completions::EntryKind::Subcommand),
         test_name, "multiline-max-lines should include status subcommand");
+
+    const auto* exit_confirmation_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-exit-confirmation");
+    EXPECT_TRUE(exit_confirmation_doc != nullptr, test_name,
+                "cjshopt-exit-confirmation doc should exist");
+    EXPECT_TRUE(
+        has_entry(exit_confirmation_doc, "smart", builtin_completions::EntryKind::Subcommand),
+        test_name, "exit-confirmation should include smart mode");
+    EXPECT_TRUE(
+        has_entry(exit_confirmation_doc, "always", builtin_completions::EntryKind::Subcommand),
+        test_name, "exit-confirmation should include always mode");
+    EXPECT_TRUE(
+        has_entry(exit_confirmation_doc, "never", builtin_completions::EntryKind::Subcommand),
+        test_name, "exit-confirmation should include never mode");
+    EXPECT_TRUE(
+        has_entry(exit_confirmation_doc, "status", builtin_completions::EntryKind::Subcommand),
+        test_name, "exit-confirmation should include status subcommand");
 
     const auto* agent_mode_doc =
         builtin_completions::lookup_builtin_command_doc("cjshopt-agent-mode");

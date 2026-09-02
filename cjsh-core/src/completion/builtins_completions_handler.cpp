@@ -595,6 +595,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("completion-spell-enter",
                              "Auto-apply a single spell correction when pressing Enter"),
              make_subcommand("completion-learning", "Toggle completion learning"),
+             make_subcommand("exit-confirmation", "Control when exit requires confirmation"),
              make_subcommand("smart-cd", "Toggle smart cd auto-jumps"),
              make_subcommand("extglob", "Toggle extended glob patterns"),
              make_subcommand("script-extension-interpreter",
@@ -655,6 +656,12 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                 {make_subcommand("on", "Allow on-demand completion scraping"),
                  make_subcommand("off", "Only use cached completions"),
                  make_subcommand("status", "Show current setting")});
+
+        add_doc("cjshopt-exit-confirmation", "Control exit confirmation",
+                {make_subcommand("smart", "Confirm only when running or stopped jobs exist"),
+                 make_subcommand("always", "Confirm every exit request"),
+                 make_subcommand("never", "Never confirm exit requests"),
+                 make_subcommand("status", "Show current mode")});
 
         add_doc("cjshopt-hint-delay", "Adjust inline hint delay",
                 {make_subcommand("status", "Show the current delay in milliseconds"),

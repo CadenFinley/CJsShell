@@ -35,6 +35,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "flags.h"
@@ -42,12 +43,12 @@
 #include "shell_env.h"
 
 namespace {
-enum class JobWarningState : std::uint8_t {
+enum class ExitWarningState : std::uint8_t {
     NONE,
-    RUNNING_OR_STOPPED
+    CONFIRMATION_REQUIRED
 };
 
-JobWarningState g_last_job_warning = JobWarningState::NONE;
+ExitWarningState g_last_exit_warning = ExitWarningState::NONE;
 std::uint64_t g_last_exit_warning_command = 0;
 
 int get_last_command_status() {
@@ -63,7 +64,7 @@ int get_last_command_status() {
 int exit_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, {"Usage: exit [-f|--force] [N]",
                                    "Exit the shell with status N (default last command).",
-                                   "Use --force to skip running exit traps."})) {
+                                   "Use --force to bypass confirmation and skip exit traps."})) {
         return 0;
     }
     int exit_code = get_last_command_status();
@@ -108,11 +109,13 @@ int exit_command(const std::vector<std::string>& args) {
         std::find(initial_args.begin(), initial_args.end(), "-c") != initial_args.end();
     const bool running_dash_c =
         config::execute_command || !config::cmd_to_execute.empty() || invoked_with_dash_c;
-    const bool should_check_jobs = !force_exit && !running_dash_c;
+    const bool should_check_confirmation =
+        !force_exit && !running_dash_c &&
+        config::exit_confirmation_mode != config::ExitConfirmationMode::Never;
     bool forced_by_repeated_exit = false;
     const std::uint64_t current_command_sequence = cjsh_env::command_sequence();
 
-    if (should_check_jobs) {
+    if (should_check_confirmation) {
         auto& job_manager = JobManager::instance();
         job_manager.update_job_statuses();
 
@@ -133,41 +136,58 @@ int exit_command(const std::vector<std::string>& args) {
         }
 
         const bool has_blocking_jobs = has_stopped_jobs || has_running_jobs;
-        if (!has_blocking_jobs) {
-            g_last_job_warning = JobWarningState::NONE;
+        const bool confirmation_required =
+            has_blocking_jobs ||
+            config::exit_confirmation_mode == config::ExitConfirmationMode::Always;
+        if (!confirmation_required) {
+            g_last_exit_warning = ExitWarningState::NONE;
             g_last_exit_warning_command = 0;
         } else {
             const bool had_previous_warning =
-                g_last_job_warning == JobWarningState::RUNNING_OR_STOPPED;
+                g_last_exit_warning == ExitWarningState::CONFIRMATION_REQUIRED;
             const bool consecutive_exit_attempt =
                 had_previous_warning && g_last_exit_warning_command != 0 &&
                 current_command_sequence == g_last_exit_warning_command + 1;
 
             if (consecutive_exit_attempt) {
-                force_exit = true;
-                forced_by_repeated_exit = true;
+                g_last_exit_warning = ExitWarningState::NONE;
+                g_last_exit_warning_command = 0;
+                if (has_blocking_jobs) {
+                    force_exit = true;
+                    forced_by_repeated_exit = true;
+                }
             } else {
                 std::string warning;
                 if (has_stopped_jobs && has_running_jobs) {
                     warning = "There are stopped and running jobs.";
                 } else if (has_stopped_jobs) {
                     warning = "There are stopped jobs.";
-                } else {
+                } else if (has_running_jobs) {
                     warning = "There are running jobs.";
+                } else {
+                    warning = "Exit confirmation is required.";
                 }
 
-                g_last_job_warning = JobWarningState::RUNNING_OR_STOPPED;
+                g_last_exit_warning = ExitWarningState::CONFIRMATION_REQUIRED;
                 g_last_exit_warning_command = current_command_sequence;
 
-                print_error({ErrorType::RUNTIME_ERROR,
-                             ErrorSeverity::WARNING,
-                             "exit",
-                             warning,
-                             {"Use `jobs` to inspect them.",
-                              "Resume, disown, or run `exit --force` to exit."}});
+                std::vector<std::string> suggestions;
+                if (has_blocking_jobs) {
+                    suggestions.push_back("Use `jobs` to inspect them.");
+                    suggestions.push_back(
+                        "Resume, disown, repeat `exit`, or run `exit --force` to exit.");
+                } else {
+                    suggestions.push_back("Repeat `exit` to confirm.");
+                    suggestions.push_back("Run `exit --force` to exit immediately.");
+                }
+                print_error({ErrorType::RUNTIME_ERROR, ErrorSeverity::WARNING, "exit", warning,
+                             std::move(suggestions)});
                 return 1;
             }
         }
+    } else {
+        g_last_exit_warning = ExitWarningState::NONE;
+        g_last_exit_warning_command = 0;
     }
 
     if (force_exit) {

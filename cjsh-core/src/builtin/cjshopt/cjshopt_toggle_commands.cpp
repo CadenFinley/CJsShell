@@ -417,6 +417,107 @@ int completion_learning_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int exit_confirmation_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: exit-confirmation <smart|always|never|status>",
+        "Examples:",
+        "  exit-confirmation smart   Confirm only when running or stopped jobs exist (default)",
+        "  exit-confirmation always  Confirm every exit request",
+        "  exit-confirmation never   Never confirm exit requests",
+        "  exit-confirmation status  Show the current mode"};
+
+    const auto canonical_mode_token = [](config::ExitConfirmationMode mode) -> const char* {
+        switch (mode) {
+            case config::ExitConfirmationMode::Smart:
+                return "smart";
+            case config::ExitConfirmationMode::Always:
+                return "always";
+            case config::ExitConfirmationMode::Never:
+                return "never";
+        }
+        return "smart";
+    };
+
+    const auto describe_mode = [](config::ExitConfirmationMode mode) -> const char* {
+        switch (mode) {
+            case config::ExitConfirmationMode::Smart:
+                return "confirm only when running or stopped jobs exist";
+            case config::ExitConfirmationMode::Always:
+                return "confirm every exit request";
+            case config::ExitConfirmationMode::Never:
+                return "never confirm exit requests";
+        }
+        return "confirm only when running or stopped jobs exist";
+    };
+
+    const auto parse_mode =
+        [](const std::string& normalized) -> std::optional<config::ExitConfirmationMode> {
+        if (matches_token(normalized, {"smart", "auto", "automatic", "default"})) {
+            return config::ExitConfirmationMode::Smart;
+        }
+        if (matches_token(normalized, {"always", "all"})) {
+            return config::ExitConfirmationMode::Always;
+        }
+        if (matches_token(normalized, {"never", "none", "off"})) {
+            return config::ExitConfirmationMode::Never;
+        }
+        return std::nullopt;
+    };
+
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT, "exit-confirmation", "Missing option argument",
+                     usage_lines});
+        return 1;
+    }
+
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
+        if (!cjsh_env::startup_active()) {
+            const auto mode = config::exit_confirmation_mode;
+            std::cout << "Current: " << canonical_mode_token(mode) << " (" << describe_mode(mode)
+                      << ").\n";
+        }
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "exit-confirmation",
+                     "Too many arguments provided", usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    const std::string normalized = normalize_option(option);
+    if (matches_token(normalized, {"status", "--status"})) {
+        if (!cjsh_env::startup_active()) {
+            const auto mode = config::exit_confirmation_mode;
+            std::cout << "Exit confirmation mode is currently " << canonical_mode_token(mode)
+                      << " (" << describe_mode(mode) << ").\n";
+        }
+        return 0;
+    }
+
+    const auto requested_mode = parse_mode(normalized);
+    if (!requested_mode.has_value()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "exit-confirmation",
+                     "Unknown option '" + option + "'", usage_lines});
+        return 1;
+    }
+
+    if (config::exit_confirmation_mode == *requested_mode) {
+        return 0;
+    }
+
+    config::exit_confirmation_mode = *requested_mode;
+    if (!cjsh_env::startup_active()) {
+        std::cout << "Exit confirmation mode set to " << canonical_mode_token(*requested_mode)
+                  << " (" << describe_mode(*requested_mode) << ").\n";
+        std::cout << "Add `cjshopt exit-confirmation " << canonical_mode_token(*requested_mode)
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
+
+    return 0;
+}
+
 int smart_cd_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: smart-cd <on|off|status>",

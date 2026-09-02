@@ -213,6 +213,58 @@ def run_exit_status_command(binary: str) -> None:
             raise AssertionError(f"interactive exit returned {return_code}, expected 37")
 
 
+def run_always_confirm_exit(binary: str) -> None:
+    with InteractiveSession(binary, "always confirm exit") as session:
+        session.pump(duration_s=0.6)
+        session.write(b"cjshopt exit-confirmation always\r")
+        session.pump(duration_s=0.4)
+        session.write(b"exit 31\r")
+        session.pump(duration_s=0.4)
+        session.assert_running()
+
+        if b"Exit confirmation is required" not in session.output:
+            raise AssertionError(
+                f"first exit did not request confirmation: {bytes(session.output)!r}"
+            )
+
+        session.write(b"exit 32\r")
+        return_code = session.wait_for_exit(timeout_s=3.0)
+        if return_code != 32:
+            raise AssertionError(
+                f"confirmed interactive exit returned {return_code}, expected 32"
+            )
+
+
+def run_active_job_warning_satisfies_always_confirmation(binary: str) -> None:
+    with InteractiveSession(binary, "active job satisfies always confirmation") as session:
+        session.pump(duration_s=0.6)
+        session.write(b"cjshopt exit-confirmation always\r")
+        session.pump(duration_s=0.4)
+        session.write(b"sleep 3 &\r")
+        session.pump(duration_s=0.4)
+        session.write(b"exit 41\r")
+        session.pump(duration_s=0.4)
+        session.assert_running()
+
+        if b"There are running jobs" not in session.output:
+            raise AssertionError(
+                f"first exit did not report the active job: {bytes(session.output)!r}"
+            )
+
+        session.write(b"exit 42\r")
+        return_code = session.wait_for_exit(timeout_s=3.0)
+        if return_code != 42:
+            raise AssertionError(
+                "the active-job warning should satisfy always-mode confirmation; "
+                f"second exit returned {return_code}, expected 42"
+            )
+
+        if session.output.count(b"There are running jobs") != 1:
+            raise AssertionError(
+                f"second exit requested another confirmation: {bytes(session.output)!r}"
+            )
+
+
 def run_dot_slash_directory_is_execution_error(binary: str) -> None:
     with tempfile.TemporaryDirectory(prefix="cjsh-auto-cd-") as working_directory:
         resolved_working_directory = os.path.realpath(working_directory)
@@ -406,6 +458,11 @@ def main(argv: list[str]) -> int:
         [
             ("ctrl-d exits", lambda: run_ctrl_d_exits(binary)),
             ("exit status command", lambda: run_exit_status_command(binary)),
+            ("always confirm exit", lambda: run_always_confirm_exit(binary)),
+            (
+                "active job warning satisfies always confirmation",
+                lambda: run_active_job_warning_satisfies_always_confirmation(binary),
+            ),
             (
                 "dot-slash directory is execution error",
                 lambda: run_dot_slash_directory_is_execution_error(binary),
