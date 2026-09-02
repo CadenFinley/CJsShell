@@ -1938,6 +1938,8 @@ Press <code>F1</code> at any time to display the complete key binding cheat shee
   so the terminal can highlight text; keyboard or focus-in input resumes capture
 - Expanded completion, history, and command-palette menus temporarily capture mouse events in every
   mode except <code>all-off</code>
+- Clicking the prompt, menu header/help, or any area outside the selectable menu rows temporarily
+  releases mouse capture; keyboard input or returning focus to the terminal restores it
 - Completion click acceptance follows <code>cjshopt completion-click-accept</code> (disabled by default)</p>
 <h3 id="fish-style-abbreviations">Fish-Style Abbreviations</h3>
 <p>CJ's Shell supports fish-style abbreviations that expand typed shortcuts into longer phrases as soon as you type a whitespace character or submit the line. This is powered directly by the isocline editor, so expansions happen inline without disrupting your cursor position or undo history.</p>

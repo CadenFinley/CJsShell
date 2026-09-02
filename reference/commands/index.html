@@ -3466,6 +3466,9 @@ prompt at runtime in <code>simple</code> and <code>smart</code> modes. In <code>
 above the editor, in the prompt or continuation gutter, or on status/helper rows suspend capture.
 Keyboard or focus-in input resumes it. <code>disabled</code> remains an alias for <code>all-off</code>; <code>menu-only</code> and
 <code>menus</code> are aliases for <code>off</code>.</p>
+<p>While an interactive menu has mouse capture, clicking the prompt or anywhere outside its selectable
+rows temporarily releases capture to the terminal. Keyboard input or a terminal focus-in event
+restores menu clicking.</p>
 <h4 id="mouse-clicking-status-line">mouse-clicking-status-line</h4>
 <p>Show or hide the status-row indicator text that appears when mouse clicking is active.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-127-1"><a id="__codelineno-127-1" name="__codelineno-127-1" href="#__codelineno-127-1"></a>cjshopt<span class="w"> </span>mouse-clicking-status-line<span class="w"> </span>&lt;on<span class="p">|</span>off<span class="p">|</span>status&gt;
