@@ -1,6 +1,23 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.1`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.2`.
+
+## 1.4.2 - 2026-09-02
+
+Range: `v1.4.1..HEAD` (5 commits, 16 files changed)
+
+### Added
+
+- Added `--no-agent` to disable agent-assisted command writing for the current startup, including its activation keys, trigger prefixes, and command-palette entry.
+- Added `--no-agent` support to persistent login startup arguments, shell help, command completions, and the user documentation.
+
+### Changed
+
+- Kept agent mode disabled while executor definitions load after `--no-agent`; it can still be deliberately restored with `cjshopt agent-mode on`.
+
+### Internal and Tests
+
+- Added regression coverage for the startup disable state, option completion metadata, and interactive prompt synchronization.
 
 ## 1.4.1 - 2026-09-02
 
