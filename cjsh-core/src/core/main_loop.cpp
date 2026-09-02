@@ -111,7 +111,7 @@ CommandProcessResult process_command_line(const std::string& command) {
 
     // handle history expansion early before any tokenization or parsing
     std::string expanded_command = command;
-    Parser* parser = (Shell::active() != nullptr) ? Shell::active()->get_parser() : nullptr;
+    Parser* parser = (g_shell != nullptr) ? g_shell->get_parser() : nullptr;
     if (parser != nullptr) {
         auto expansion_result = parser->perform_history_expansion(command);
         if (expansion_result.has_error) {
@@ -134,23 +134,21 @@ CommandProcessResult process_command_line(const std::string& command) {
 
     // execute preexec hooks and debug traps
     if (!config::posix_mode) {
-        Shell::active()->execute_hooks(HookType::Preexec);
+        g_shell->execute_hooks(HookType::Preexec);
     }
     trap_manager_execute_debug_trap();
 
     // actually execute the command now
     const auto command_start_time = std::chrono::steady_clock::now();
-    int exit_code = Shell::active()->execute(expanded_command);
-    Shell::active()->set_last_interactive_command(expanded_command);
+    int exit_code = g_shell->execute(expanded_command);
+    g_shell->set_last_interactive_command(expanded_command);
     const auto command_end_time = std::chrono::steady_clock::now();
     const auto elapsed_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(command_end_time - command_start_time)
             .count();
 
     // handle post command execution tasks
-    Exec* exec_ptr = (Shell::active() && Shell::active()->shell_exec)
-                         ? Shell::active()->shell_exec.get()
-                         : nullptr;
+    Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
     pipeline_status_utils::apply_execution_status_env(exit_code, exec_ptr);
 
     // add to history
@@ -200,7 +198,7 @@ std::optional<std::string> get_next_command() {
 
     // handle hooks
     if (!config::posix_mode) {
-        Shell::active()->execute_hooks(HookType::Precmd);
+        g_shell->execute_hooks(HookType::Precmd);
     }
 
     // check terminal size and go ahead and calculate and set the next prompts
@@ -284,7 +282,7 @@ std::optional<std::string> get_next_command() {
 }
 
 bool execute_custom_editor_command(const std::string& command) {
-    if (command.empty() || Shell::active() == nullptr) {
+    if (command.empty() || g_shell == nullptr) {
         return false;
     }
 
@@ -297,7 +295,7 @@ bool execute_custom_editor_command(const std::string& command) {
     (void)cjsh_env::set_shell_variable_value("CJSH_LINE", original_buffer);
     (void)cjsh_env::set_shell_variable_value("CJSH_POINT", std::to_string(cursor_pos));
 
-    (void)Shell::active()->execute(command);
+    (void)g_shell->execute(command);
 
     if (cjsh_env::shell_variable_is_set("CJSH_LINE")) {
         std::string new_buffer_env = cjsh_env::get_shell_variable_value("CJSH_LINE");
@@ -492,12 +490,12 @@ bool buffer_requires_additional_input(const std::string& buffer) {
         return true;
     }
 
-    if (Shell::active() == nullptr) {
+    if (g_shell == nullptr) {
         return false;
     }
 
-    Parser* parser = Shell::active()->get_parser();
-    ShellScriptInterpreter* interpreter = Shell::active()->get_shell_script_interpreter();
+    Parser* parser = g_shell->get_parser();
+    ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
     if (parser == nullptr || interpreter == nullptr) {
         return false;
     }
@@ -555,7 +553,7 @@ void main_process_loop() {
     // main input loop, runs until exit
     while (true) {
         // handle any pending signals before each prompt
-        (void)Shell::active()->process_pending_signals();
+        (void)g_shell->process_pending_signals();
 
         if (cjsh_env::exit_requested()) {
             break;

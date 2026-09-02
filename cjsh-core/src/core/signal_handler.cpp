@@ -818,8 +818,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         result.sighup = true;
         cjsh_env::request_exit();
 
-        bool enforce_hup =
-            !Shell::active() || Shell::active()->get_shell_option(ShellOption::Huponexit);
+        bool enforce_hup = !g_shell || g_shell->get_shell_option(ShellOption::Huponexit);
 
         auto& job_manager = JobManager::instance();
         auto jobs_snapshot = job_manager.get_all_jobs();

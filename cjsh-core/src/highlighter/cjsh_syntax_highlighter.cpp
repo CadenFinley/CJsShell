@@ -68,7 +68,7 @@ ExistingPathType classify_existing_path_argument(const std::string& token) {
 
     const std::string cwd = cjsh_filesystem::safe_current_directory();
     const std::string previous_directory =
-        (Shell::active() != nullptr) ? Shell::active()->get_previous_directory() : "";
+        (g_shell != nullptr) ? g_shell->get_previous_directory() : "";
     const std::string path_to_check =
         cjsh_filesystem::resolve_shell_token_path(token, cwd, previous_directory);
     std::error_code status_error;
@@ -156,12 +156,12 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
     size_t first_token_length = first_token_end - first_token_start;
 
     std::unordered_set<std::string> available_commands;
-    if (Shell::active() != nullptr) {
-        available_commands = Shell::active()->get_available_commands();
+    if (g_shell != nullptr) {
+        available_commands = g_shell->get_available_commands();
     }
 
     const bool first_token_unknown = !command_analysis::is_known_command_token(
-        token, absolute_token_start, Shell::active(), available_commands);
+        token, absolute_token_start, g_shell.get(), available_commands);
 
     bool highlight_split_unknown_second_token = false;
     size_t split_second_token_absolute_start = 0;
@@ -182,7 +182,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                 if (command_lookup::token_allows_split_command_merge(second_token)) {
                     const size_t absolute_second_token_start = cmd_start + second_token_start;
                     const bool merged_token_known = command_analysis::is_known_command_token(
-                        token + second_token, absolute_token_start, Shell::active(),
+                        token + second_token, absolute_token_start, g_shell.get(),
                         available_commands);
                     const bool merged_token_near_match =
                         !merged_token_known &&
@@ -214,15 +214,14 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
     }
 
     if (!handled_first_token && command_analysis::token_has_explicit_path_hint(token)) {
-        std::string path_to_check = command_analysis::resolve_token_path(token, Shell::active());
+        std::string path_to_check = command_analysis::resolve_token_path(token, g_shell.get());
         highlight_command_resolution(henv, absolute_token_start, first_token_length,
                                      std::filesystem::exists(path_to_check));
         handled_first_token = true;
     }
 
-    if (!handled_first_token && Shell::active() != nullptr &&
-        Shell::active()->get_interactive_mode()) {
-        const auto& abbreviations = Shell::active()->get_abbreviations();
+    if (!handled_first_token && g_shell != nullptr && g_shell->get_interactive_mode()) {
+        const auto& abbreviations = g_shell->get_abbreviations();
         if (abbreviations.find(token) != abbreviations.end()) {
             ic_highlight(henv, static_cast<long>(absolute_token_start),
                          static_cast<long>(first_token_length), "cjsh-builtin");
@@ -240,10 +239,9 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
         handled_first_token = true;
     }
 
-    if (!handled_first_token && Shell::active() != nullptr &&
-        Shell::active()->get_built_ins() != nullptr) {
-        const std::string cwd = Shell::active()->get_built_ins()->get_current_directory();
-        const std::string previous_directory = Shell::active()->get_previous_directory();
+    if (!handled_first_token && g_shell != nullptr && g_shell->get_built_ins() != nullptr) {
+        const std::string cwd = g_shell->get_built_ins()->get_current_directory();
+        const std::string previous_directory = g_shell->get_previous_directory();
         if (cjsh_filesystem::is_auto_cd_directory_token(token, cwd, previous_directory)) {
             ic_highlight(henv, static_cast<long>(absolute_token_start),
                          static_cast<long>(first_token_length), "cjsh-path-exists");
@@ -350,8 +348,8 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                         }
                     } else {
                         bool is_abbreviation = false;
-                        if (Shell::active() != nullptr && Shell::active()->get_interactive_mode()) {
-                            const auto& abbreviations = Shell::active()->get_abbreviations();
+                        if (g_shell != nullptr && g_shell->get_interactive_mode()) {
+                            const auto& abbreviations = g_shell->get_abbreviations();
                             is_abbreviation = abbreviations.find(arg) != abbreviations.end();
                         }
 

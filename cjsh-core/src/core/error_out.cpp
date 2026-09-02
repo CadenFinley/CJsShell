@@ -223,7 +223,7 @@ bool should_colorize_output() {
         return false;
     }
 
-    if (!Shell::active() || !Shell::active()->get_interactive_mode()) {
+    if (!g_shell || !g_shell->get_interactive_mode()) {
         return false;
     }
 

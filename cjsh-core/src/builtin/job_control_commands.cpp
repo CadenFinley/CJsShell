@@ -84,8 +84,8 @@ int bg_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (Shell::active() && Shell::active()->shell_exec) {
-        Shell::active()->shell_exec->set_job_output_forwarding(job->pgid, false);
+    if (g_shell && g_shell->shell_exec) {
+        g_shell->shell_exec->set_job_output_forwarding(job->pgid, false);
     }
 
     if (killpg(job->pgid, SIGCONT) < 0) {
@@ -159,8 +159,8 @@ int fg_command(const std::vector<std::string>& args) {
         terminal_control_acquired = true;
     }
 
-    if (Shell::active() && Shell::active()->shell_exec) {
-        Shell::active()->shell_exec->set_job_output_forwarding(job->pgid, true);
+    if (g_shell && g_shell->shell_exec) {
+        g_shell->shell_exec->set_job_output_forwarding(job->pgid, true);
     }
 
     if (killpg(job->pgid, SIGCONT) < 0) {
@@ -467,8 +467,8 @@ int disown_command(const std::vector<std::string>& args) {
         }
 
         job_manager.remove_job(job_id);
-        if (Shell::active() && Shell::active()->shell_exec) {
-            Shell::active()->shell_exec->remove_job(job_id);
+        if (g_shell && g_shell->shell_exec) {
+            g_shell->shell_exec->remove_job(job_id);
         }
     }
 

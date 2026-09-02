@@ -173,7 +173,7 @@ struct CommandExecutionPlan {
 };
 
 int execute_builtin_or_special_command(const std::vector<std::string>& cmd_args) {
-    Built_ins* built_ins = Shell::active() ? Shell::active()->get_built_ins() : nullptr;
+    Built_ins* built_ins = g_shell ? g_shell->get_built_ins() : nullptr;
     if (built_ins != nullptr) {
         return built_ins->builtin_or_runtime_command(cmd_args);
     }
@@ -182,11 +182,11 @@ int execute_builtin_or_special_command(const std::vector<std::string>& cmd_args)
 }
 
 bool is_builtin_or_special_command(const std::vector<std::string>& cmd_args) {
-    if (cmd_args.empty() || !Shell::active()) {
+    if (cmd_args.empty() || !g_shell) {
         return false;
     }
 
-    Built_ins* built_ins = Shell::active()->get_built_ins();
+    Built_ins* built_ins = g_shell->get_built_ins();
     return built_ins != nullptr && (built_ins->is_builtin_or_runtime_command(cmd_args[0]) != 0);
 }
 
@@ -239,7 +239,7 @@ bool command_has_stderr_redirection(const Command& cmd) {
 
 void apply_assignments_to_shell_env(
     const std::vector<std::pair<std::string, std::string>>& assignments) {
-    if (!Shell::active() || assignments.empty()) {
+    if (!g_shell || assignments.empty()) {
         return;
     }
 
@@ -249,7 +249,7 @@ void apply_assignments_to_shell_env(
         cjsh_env::mirror_set_to_process_env(env.first, env.second);
     }
 
-    cjsh_env::sync_parser_env_vars(Shell::active());
+    cjsh_env::sync_parser_env_vars(g_shell.get());
 }
 
 Job make_single_process_job(pid_t pid, const std::string& command, bool background,
@@ -374,11 +374,11 @@ bool handler_defers_to_default_command_not_found_output(
 }
 
 std::optional<int> maybe_invoke_command_not_found_handler(const std::vector<std::string>& args) {
-    if (!special_handlers_enabled() || args.empty() || !Shell::active()) {
+    if (!special_handlers_enabled() || args.empty() || !g_shell) {
         return std::nullopt;
     }
 
-    ShellScriptInterpreter* interpreter = Shell::active()->get_shell_script_interpreter();
+    ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
     if (interpreter == nullptr || !interpreter->has_function("command_not_found_handler")) {
         return std::nullopt;
     }
@@ -569,7 +569,7 @@ class TemporaryEnvAssignmentScope {
 ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
     ProcessSubstitutionResources resources;
 
-    if (!Shell::active()) {
+    if (!g_shell) {
         return resources;
     }
 
@@ -645,7 +645,7 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
                     cjsh_filesystem::safe_close(fifo_result.value());
                 }
 
-                int result = Shell::active()->execute(command);
+                int result = g_shell->execute(command);
                 _exit(result);
             }
 
@@ -1311,7 +1311,7 @@ std::optional<int> Exec::run_command_not_found_handler(
         return std::nullopt;
     }
 
-    TemporaryEnvAssignmentScope temp_scope(Shell::active(), assignments);
+    TemporaryEnvAssignmentScope temp_scope(g_shell.get(), assignments);
     const auto handler_exit_code = maybe_invoke_command_not_found_handler(args);
     if (!handler_exit_code.has_value()) {
         return std::nullopt;
@@ -1350,7 +1350,7 @@ bool Exec::can_execute_in_process(const Command& cmd) const {
 }
 
 int Exec::execute_builtin_with_redirections(Command cmd) {
-    if (!Shell::active() || (Shell::active()->get_built_ins() == nullptr)) {
+    if (!g_shell || (g_shell->get_built_ins() == nullptr)) {
         set_error(ErrorType::FATAL_ERROR, "builtin",
                   "no shell context available for builtin execution");
         last_exit_code = EX_SOFTWARE;
@@ -1506,9 +1506,9 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
     std::string full_command = join_arguments(args);
     bool reads_stdin = true;
 
-    if (Shell::active() && (Shell::active()->get_parser() != nullptr)) {
+    if (g_shell && (g_shell->get_parser() != nullptr)) {
         try {
-            auto command_pipeline = Shell::active()->get_parser()->parse_pipeline(full_command);
+            auto command_pipeline = g_shell->get_parser()->parse_pipeline(full_command);
             if (!command_pipeline.empty()) {
                 reads_stdin = job_utils::pipeline_consumes_terminal_stdin(command_pipeline);
             }
@@ -1641,7 +1641,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         can_control_terminal(shell_is_interactive, shell_terminal, shell_pgid);
 
     auto apply_pipefail = [&](int exit_code, const std::vector<int>& statuses) -> int {
-        if (!Shell::active() || !Shell::active()->get_shell_option(ShellOption::Pipefail)) {
+        if (!g_shell || !g_shell->get_shell_option(ShellOption::Pipefail)) {
             return exit_code;
         }
         if (statuses.empty()) {
@@ -1672,7 +1672,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         return finalize_exit(EX_USAGE);
     }
 
-    if (Shell::active() && Shell::active()->get_shell_option(ShellOption::Noexec)) {
+    if (g_shell && g_shell->get_shell_option(ShellOption::Noexec)) {
         const bool is_background = commands.back().background;
         if (!is_background) {
             set_last_pipeline_statuses(std::vector<int>(commands.size(), 0));
@@ -1706,7 +1706,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             if (assignments_persist) {
                 exit_code = execute_builtin_or_special_command(cmd.args);
             } else {
-                TemporaryEnvAssignmentScope temp_scope(Shell::active(), env_assignments);
+                TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
                 exit_code = execute_builtin_or_special_command(cmd.args);
             }
             set_last_pipeline_statuses({exit_code});
@@ -1722,17 +1722,17 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         ShellScriptInterpreter* interpreter =
-            Shell::active() ? Shell::active()->get_shell_script_interpreter() : nullptr;
+            g_shell ? g_shell->get_shell_script_interpreter() : nullptr;
         if (interpreter && !cmd.args.empty() && interpreter->has_function(cmd.args[0])) {
             auto invoke_function = [&]() { return interpreter->invoke_function(cmd.args); };
             int function_exit = 0;
             if (requires_fork(cmd)) {
                 bool action_invoked = false;
-                TemporaryEnvAssignmentScope temp_scope(Shell::active(), env_assignments);
+                TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
                 function_exit = run_with_command_redirections(cmd, invoke_function, cmd.args[0],
                                                               false, &action_invoked);
             } else {
-                TemporaryEnvAssignmentScope temp_scope(Shell::active(), env_assignments);
+                TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
                 function_exit = invoke_function();
             }
             set_last_pipeline_statuses({function_exit});
@@ -1744,7 +1744,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             if (assignments_persist) {
                 builtin_exit = execute_builtin_with_redirections(cmd);
             } else {
-                TemporaryEnvAssignmentScope temp_scope(Shell::active(), env_assignments);
+                TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
                 builtin_exit = execute_builtin_with_redirections(cmd);
             }
             set_last_pipeline_statuses({builtin_exit});
@@ -1959,8 +1959,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             const int wait_options = cmd.auto_background_on_stop ? WUNTRACED : 0;
             pid_t wpid = waitpid(pid, &status, wait_options);
             while (wpid == -1 && errno == EINTR) {
-                if (Shell::active()) {
-                    (void)Shell::active()->process_pending_signals();
+                if (g_shell) {
+                    (void)g_shell->process_pending_signals();
                 } else if (auto* signal_handler = SignalHandler::instance()) {
                     (void)signal_handler->process_pending_signals(this);
                 }
@@ -2282,12 +2282,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
 
                 ShellScriptInterpreter* interpreter =
-                    Shell::active() ? Shell::active()->get_shell_script_interpreter() : nullptr;
+                    g_shell ? g_shell->get_shell_script_interpreter() : nullptr;
 
                 if (is_shell_control_structure(cmd)) {
                     int exit_code = 1;
-                    if (Shell::active()) {
-                        exit_code = Shell::active()->execute(command_text_for_interpretation(cmd));
+                    if (g_shell) {
+                        exit_code = g_shell->execute(command_text_for_interpretation(cmd));
                     }
                     (void)fflush(stdout);
                     (void)fflush(stderr);

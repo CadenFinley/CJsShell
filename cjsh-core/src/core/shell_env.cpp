@@ -206,8 +206,8 @@ void setup_environment_variables(const char* argv0) {
 }
 
 std::string get_shell_variable_value(const std::string& name) {
-    if (Shell::active()) {
-        if (auto* interpreter = Shell::active()->get_shell_script_interpreter()) {
+    if (g_shell) {
+        if (auto* interpreter = g_shell->get_shell_script_interpreter()) {
             return interpreter->get_variable_value(name);
         }
     }
@@ -224,8 +224,8 @@ std::string get_shell_variable_value(const char* name) {
 }
 
 bool shell_variable_is_set(const std::string& name) {
-    if (Shell::active()) {
-        if (auto* interpreter = Shell::active()->get_shell_script_interpreter()) {
+    if (g_shell) {
+        if (auto* interpreter = g_shell->get_shell_script_interpreter()) {
             return interpreter->get_variable_manager().variable_is_set(name);
         }
     }
@@ -241,10 +241,10 @@ bool shell_variable_is_set(const char* name) {
 }
 
 bool set_shell_variable_value(const std::string& name, const std::string& value) {
-    if (!Shell::active()) {
+    if (!g_shell) {
         return false;
     }
-    auto* interpreter = Shell::active()->get_shell_script_interpreter();
+    auto* interpreter = g_shell->get_shell_script_interpreter();
     if (!interpreter) {
         return false;
     }
@@ -253,10 +253,10 @@ bool set_shell_variable_value(const std::string& name, const std::string& value)
 }
 
 bool unset_shell_variable_value(const std::string& name) {
-    if (!Shell::active()) {
+    if (!g_shell) {
         return false;
     }
-    auto* interpreter = Shell::active()->get_shell_script_interpreter();
+    auto* interpreter = g_shell->get_shell_script_interpreter();
     if (!interpreter) {
         return false;
     }
@@ -266,7 +266,7 @@ bool unset_shell_variable_value(const std::string& name) {
         return true;
     }
 
-    if (auto* parser = Shell::active()->get_parser()) {
+    if (auto* parser = g_shell->get_parser()) {
         parser->unset_env_var(name);
     }
 
@@ -333,8 +333,8 @@ void setup_path_variables(const struct passwd* pw) {
     }
 
     if (config::login_mode && cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
-        if (Shell::active()) {
-            (void)Shell::active()->execute("eval \"$(/usr/libexec/path_helper -s)\"");
+        if (g_shell) {
+            (void)g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
         }
     }
 #endif
@@ -676,7 +676,7 @@ int handle_non_interactive_mode(const std::string& script_file) {
 
     std::optional<ScriptZeroGuard> zero_guard;
     if (!script_file.empty()) {
-        (void)zero_guard.emplace(Shell::active(), script_file);
+        (void)zero_guard.emplace(g_shell.get(), script_file);
     }
 
     if (!script_file.empty()) {
@@ -716,7 +716,7 @@ int handle_non_interactive_mode(const std::string& script_file) {
     }
 
     if (!script_content.empty()) {
-        int code = Shell::active() ? Shell::active()->execute(script_content) : 1;
+        int code = g_shell ? g_shell->execute(script_content) : 1;
         return read_exit_code_or(code);
     }
 

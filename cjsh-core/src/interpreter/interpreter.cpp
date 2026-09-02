@@ -94,11 +94,11 @@ thread_local bool g_parameter_expansion_fatal_error = false;
 constexpr std::string_view kSignalExitExceptionPrefix = "__CJSH_SIGNAL_EXIT__:";
 
 std::optional<int> collect_pending_signal_exit_code() {
-    if (!Shell::active() || !SignalHandler::has_pending_signals()) {
+    if (!g_shell || !SignalHandler::has_pending_signals()) {
         return std::nullopt;
     }
 
-    SignalProcessingResult pending = Shell::active()->process_pending_signals();
+    SignalProcessingResult pending = g_shell->process_pending_signals();
     int exit_code = shell_script_interpreter::detail::pending_signal_exit_code(pending);
     if (exit_code < 0) {
         return std::nullopt;
@@ -501,7 +501,7 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
                 {ErrorType::RUNTIME_ERROR, "subshell", "setpgid failed in subshell child", {}});
         }
 
-        int exit_code = Shell::active()->execute(subshell_content, true);
+        int exit_code = g_shell->execute(subshell_content, true);
         exit_code = read_exit_code_or(exit_code);
 
         int child_status = 0;
@@ -692,7 +692,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         g_parameter_expansion_fatal_error = false;
     }
 
-    if (Shell::active() == nullptr) {
+    if (g_shell == nullptr) {
         print_error({ErrorType::FATAL_ERROR, "", "shell not initialized properly", {}});
     }
 
@@ -790,7 +790,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 return execute_function_call(quick_args);
             }
 
-            int exit_code = Shell::active()->execute_command(quick_args, false, false, false);
+            int exit_code = g_shell->execute_command(quick_args, false, false, false);
             return set_last_status(exit_code);
         };
 
@@ -871,8 +871,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         return last_code;
                     }
 
-                    if (Shell::active() &&
-                        Shell::active()->should_abort_on_nonzero_exit(last_code) &&
+                    if (g_shell && g_shell->should_abort_on_nonzero_exit(last_code) &&
                         last_code != 0 && !is_control_flow_exit_code(last_code) &&
                         !errexit_exempt) {
                         return last_code;
@@ -884,7 +883,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
         if (text == "coproc" || (text.size() > 6 && text.rfind("coproc", 0) == 0 &&
                                  std::isspace(static_cast<unsigned char>(text[6])) != 0)) {
-            return set_last_status(coproc_script_command(text, Shell::active()));
+            return set_last_status(coproc_script_command(text, g_shell.get()));
         }
 
         std::vector<std::string> parsed_args;
@@ -1018,7 +1017,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         int exit_code = 0;
                         bool handled_with_redirections = false;
 
-                        if (Shell::active() && Shell::active()->shell_exec) {
+                        if (g_shell && g_shell->shell_exec) {
                             try {
                                 std::vector<Command> control_cmds =
                                     shell_parser->parse_pipeline_with_preprocessing(text);
@@ -1027,10 +1026,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                     std::string command_name =
                                         control_cmd.args.empty() ? prog : control_cmd.args[0];
                                     bool action_invoked = false;
-                                    exit_code =
-                                        Shell::active()->shell_exec->run_with_command_redirections(
-                                            control_cmd, run_block, command_name, false,
-                                            &action_invoked);
+                                    exit_code = g_shell->shell_exec->run_with_command_redirections(
+                                        control_cmd, run_block, command_name, false,
+                                        &action_invoked);
                                     if (!action_invoked) {
                                         return exit_code;
                                     }
@@ -1085,7 +1083,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
 
                     if (c.args.size() >= 2) {
-                        int exit_code = Shell::active() ? Shell::active()->execute(c.args[1]) : 1;
+                        int exit_code = g_shell ? g_shell->execute(c.args[1]) : 1;
                         return set_last_status(exit_code);
                     }
 
@@ -1131,9 +1129,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         functions.count(expanded_args[function_index]) != 0U) {
                         return run_pipeline(cmds);
                     }
-                    int exit_code = Shell::active()->execute_command(
-                        expanded_args, c.background, c.auto_background_on_stop,
-                        c.auto_background_on_stop_silent);
+                    int exit_code = g_shell->execute_command(expanded_args, c.background,
+                                                             c.auto_background_on_stop,
+                                                             c.auto_background_on_stop_silent);
                     return set_last_status(exit_code);
                 }
             }
@@ -1375,8 +1373,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         if (should_skip_line(line)) {
-            if (Shell::active() != nullptr &&
-                Shell::active()->get_shell_option(ShellOption::Verbose)) {
+            if (g_shell != nullptr && g_shell->get_shell_option(ShellOption::Verbose)) {
                 std::cerr << line << '\n';
             }
             continue;
@@ -1566,8 +1563,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 if (segs.empty())
                     segs.push_back(semi);
                 for (const auto& cmd_text : segs) {
-                    if (Shell::active() != nullptr &&
-                        Shell::active()->get_shell_option(ShellOption::Verbose)) {
+                    if (g_shell != nullptr && g_shell->get_shell_option(ShellOption::Verbose)) {
                         std::string verbose_text = trim(strip_inline_comment(cmd_text));
                         if (!verbose_text.empty()) {
                             std::cerr << verbose_text << '\n';
@@ -1886,8 +1882,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
 
                     const bool is_nonfinal_logical_command = !lc.op.empty();
-                    if (Shell::active() && Shell::active()->should_abort_on_nonzero_exit(code) &&
-                        code != 0 && !is_nonfinal_logical_command) {
+                    if (g_shell && g_shell->should_abort_on_nonzero_exit(code) && code != 0 &&
+                        !is_nonfinal_logical_command) {
                         if (code != 253 && code != 254 && code != 255) {
                             return code;
                         }
@@ -1932,7 +1928,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         if (last_code == exit_command_not_found) {
-            if (Shell::active() && Shell::active()->should_abort_on_nonzero_exit(last_code)) {
+            if (g_shell && g_shell->should_abort_on_nonzero_exit(last_code)) {
                 return last_code;
             }
         } else if (is_control_flow_exit_code(last_code)) {
@@ -2069,20 +2065,18 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
 }
 
 int ShellScriptInterpreter::set_last_status(int code) {
-    Exec* exec_ptr = (Shell::active() && Shell::active()->shell_exec)
-                         ? Shell::active()->shell_exec.get()
-                         : nullptr;
+    Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
     pipeline_status_utils::apply_execution_status_env(code, exec_ptr);
 
     return code;
 }
 
 int ShellScriptInterpreter::run_pipeline(const std::vector<Command>& cmds) {
-    if (!Shell::active() || !Shell::active()->shell_exec)
+    if (!g_shell || !g_shell->shell_exec)
         return set_last_status(1);
 
-    int exit_code = Shell::active()->shell_exec->execute_pipeline(cmds);
-    Shell::active()->shell_exec->print_error_if_needed(exit_code);
+    int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
+    g_shell->shell_exec->print_error_if_needed(exit_code);
     return set_last_status(exit_code);
 }
 
@@ -2120,7 +2114,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
 
     auto word_expander = [this](const std::string& word) -> std::string {
         std::string expanded = expand_all_substitutions(word, [](const std::string& command) {
-            return Shell::active() ? Shell::active()->execute(command) : 1;
+            return g_shell ? g_shell->execute(command) : 1;
         });
 
         if (!expanded.empty() && expanded[0] == '~' &&

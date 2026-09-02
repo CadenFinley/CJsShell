@@ -49,7 +49,7 @@ bool is_shell_keyword(const std::string& token) {
 }
 
 bool is_shell_builtin(const std::string& token) {
-    return command_lookup::is_shell_builtin(token, Shell::active());
+    return command_lookup::is_shell_builtin(token, g_shell.get());
 }
 
 bool is_variable_reference(const std::string& token) {

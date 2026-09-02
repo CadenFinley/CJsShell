@@ -375,14 +375,13 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 };
 
                 int rc = 0;
-                if (!trailing_split.first.empty() && Shell::active() &&
-                    Shell::active()->shell_exec) {
+                if (!trailing_split.first.empty() && g_shell && g_shell->shell_exec) {
                     try {
                         auto redir_cmds = shell_parser->parse_pipeline_with_preprocessing(
                             "true " + trailing_split.first);
                         if (!redir_cmds.empty()) {
                             bool action_invoked = false;
-                            rc = Shell::active()->shell_exec->run_with_command_redirections(
+                            rc = g_shell->shell_exec->run_with_command_redirections(
                                 redir_cmds[0], run_expanded_if, "if", false, &action_invoked);
                             if (!action_invoked) {
                                 idx = 0;

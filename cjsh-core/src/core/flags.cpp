@@ -328,8 +328,8 @@ void apply_profile_startup_flags() {
             apply_posix_mode_settings();
         } else if (flag == "--no-exec") {
             config::no_exec = true;
-            if (Shell::active()) {
-                Shell::active()->apply_no_exec(true);
+            if (g_shell) {
+                g_shell->apply_no_exec(true);
             }
         }
     }

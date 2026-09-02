@@ -28,6 +28,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -38,6 +39,8 @@
 #include "isocline.h"
 #include "shell.h"
 #include "shell_env.h"
+
+std::unique_ptr<Shell> g_shell;
 
 namespace {
 
