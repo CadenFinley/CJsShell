@@ -69,6 +69,7 @@ option(CJSH_GENERATE_COMPILE_COMMANDS "Generate compile_commands.json" ON)
 option(CJSH_BUILD_TESTS "Build cjsh test binaries" ON)
 option(CJSH_MINIMAL_BUILD "Enable the minimal size-oriented build profile" OFF)
 option(CJSH_STRIP_BINARY "Strip non-Debug binaries" ${_cjsh_strip_binary_default})
+option(CJSH_STATIC_LINK "Link the cjsh executable statically (Linux only)" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ${CJSH_GENERATE_COMPILE_COMMANDS})
 

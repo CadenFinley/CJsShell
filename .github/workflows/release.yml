@@ -1,0 +1,450 @@
+# release.yml
+#
+# This file is part of cjsh, CJ's Shell
+#
+# MIT License
+#
+# Copyright (c) 2026 Caden Finley
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+name: Release Binaries
+run-name: Release ${{ inputs.tag || github.ref_name }}${{ github.event_name == 'workflow_dispatch' && inputs.publish == false && ' (dry run)' || '' }}
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Stable version to build (vX.Y.Z)
+        required: true
+        default: v1.4.4
+        type: string
+      publish:
+        description: Publish the GitHub Release after successful builds
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validate release tag
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      source_ref: ${{ steps.release.outputs.source_ref }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == false && github.sha || (github.event_name == 'workflow_dispatch' && inputs.tag || github.ref) }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate tag and project version
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == false }}
+        run: |
+          set -euo pipefail
+          source_ref="$RELEASE_TAG"
+          validation_options=()
+          if [[ "$DRY_RUN" == "true" ]]; then
+            source_ref="$GITHUB_SHA"
+            validation_options+=(--allow-untagged)
+          fi
+          version=$(./scripts/validate-release-tag.sh "$RELEASE_TAG" "${validation_options[@]}")
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "source_ref=$source_ref" >> "$GITHUB_OUTPUT"
+
+  build-macos:
+    name: Build ${{ matrix.target }}
+    needs: prepare
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos-x86_64
+            runner: macos-15-intel
+            architectures: x86_64
+            verify_architectures: x86_64
+            architecture_count: 1
+            deployment_target: "12.0"
+          - target: macos-arm64
+            runner: macos-15
+            architectures: arm64
+            verify_architectures: arm64
+            architecture_count: 1
+            deployment_target: "15.0"
+          - target: macos-universal2
+            runner: macos-15
+            architectures: "x86_64;arm64"
+            verify_architectures: "x86_64 arm64"
+            architecture_count: 2
+            deployment_target: "12.0"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Configure
+        env:
+          OSX_ARCHITECTURES: ${{ matrix.architectures }}
+          OSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target }}
+        run: |
+          cmake --preset release-artifact \
+            -DCMAKE_OSX_ARCHITECTURES="$OSX_ARCHITECTURES" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="$OSX_DEPLOYMENT_TARGET"
+
+      - name: Build
+        run: cmake --build --preset release-artifact --parallel
+
+      - name: Run CTest suite
+        run: ctest --preset release-artifact
+
+      - name: Run full shell integration suite
+        run: ./tests/run_shell_tests.sh build/release-artifact/cjsh
+
+      - name: Verify Mach-O architectures and minimum macOS version
+        env:
+          EXPECTED_ARCHITECTURES: ${{ matrix.verify_architectures }}
+          EXPECTED_ARCHITECTURE_COUNT: ${{ matrix.architecture_count }}
+          EXPECTED_DEPLOYMENT_TARGET: ${{ matrix.deployment_target }}
+        run: |
+          set -euo pipefail
+          binary=build/release-artifact/cjsh
+          read -r -a expected_architectures <<< "$EXPECTED_ARCHITECTURES"
+          lipo -verify_arch "${expected_architectures[@]}" "$binary"
+          architecture_count=$(lipo -archs "$binary" | wc -w | tr -d ' ')
+          if [[ "$architecture_count" != "$EXPECTED_ARCHITECTURE_COUNT" ]]; then
+            echo "Expected $EXPECTED_ARCHITECTURE_COUNT Mach-O slices, found $architecture_count" >&2
+            exit 1
+          fi
+          minimum_versions=$(otool -arch all -l "$binary" | awk '$1 == "minos" { print $2 }' | sort -u)
+          if [[ "$minimum_versions" != "$EXPECTED_DEPLOYMENT_TARGET" ]]; then
+            echo "Expected macOS $EXPECTED_DEPLOYMENT_TARGET minimum, found: $minimum_versions" >&2
+            exit 1
+          fi
+          file "$binary"
+
+      - name: Create release archive
+        run: |
+          ./scripts/create-release-archive.sh \
+            build/release-artifact/cjsh \
+            "${{ needs.prepare.outputs.version }}" \
+            "${{ matrix.target }}"
+
+      - name: Attest release archive
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/cjsh-v${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/cjsh-v${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+
+  build-linux-gnu:
+    name: Build ${{ matrix.target }}
+    needs: prepare
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-gnu-x86_64
+            runner: ubuntu-22.04
+            machine: x86_64
+          - target: linux-gnu-arm64
+            runner: ubuntu-22.04-arm
+            machine: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Configure
+        run: cmake --preset release-artifact
+
+      - name: Build
+        run: cmake --build --preset release-artifact --parallel
+
+      - name: Run CTest suite
+        run: ctest --preset release-artifact
+
+      - name: Run full shell integration suite
+        run: ./tests/run_shell_tests.sh build/release-artifact/cjsh
+
+      - name: Verify glibc ELF binary
+        env:
+          EXPECTED_MACHINE: ${{ matrix.machine }}
+        run: |
+          set -euo pipefail
+          binary=build/release-artifact/cjsh
+          if [[ "$(uname -m)" != "$EXPECTED_MACHINE" ]]; then
+            echo "Expected runner architecture $EXPECTED_MACHINE, found $(uname -m)" >&2
+            exit 1
+          fi
+          interpreter=$(readelf -l "$binary" | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')
+          if [[ "$interpreter" != *ld-linux* ]]; then
+            echo "Expected a glibc dynamic loader, found: $interpreter" >&2
+            exit 1
+          fi
+          file "$binary"
+          ldd "$binary"
+
+      - name: Create release archive
+        run: |
+          ./scripts/create-release-archive.sh \
+            build/release-artifact/cjsh \
+            "${{ needs.prepare.outputs.version }}" \
+            "${{ matrix.target }}"
+
+      - name: Attest release archive
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/cjsh-v${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/cjsh-v${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+
+  build-linux-musl:
+    name: Build ${{ matrix.target }}
+    needs: prepare
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-musl-x86_64
+            runner: ubuntu-22.04
+            docker_platform: linux/amd64
+            machine: x86_64
+          - target: linux-musl-arm64
+            runner: ubuntu-22.04-arm
+            docker_platform: linux/arm64
+            machine: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Build and test static musl binary
+        env:
+          DOCKER_PLATFORM: ${{ matrix.docker_platform }}
+          EXPECTED_MACHINE: ${{ matrix.machine }}
+          RELEASE_TARGET: ${{ matrix.target }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --platform "$DOCKER_PLATFORM" \
+            -e CI=true \
+            -e GITHUB_ACTIONS=true \
+            -e EXPECTED_MACHINE \
+            -e RELEASE_TARGET \
+            -e RELEASE_VERSION \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work \
+            alpine:3.22 \
+            sh -euxc '
+              apk add --no-cache bash binutils build-base cmake coreutils file findutils git grep linux-headers ninja python3 sed
+              git config --global --add safe.directory /work
+              cmake --preset release-static
+              cmake --build --preset release-static --parallel
+              CJSH_TEST_SKIP_PRELOAD_INJECTION=1 ctest --preset release-static
+              CJSH_TEST_SKIP_PRELOAD_INJECTION=1 ./tests/run_shell_tests.sh build/release-static/cjsh
+              test "$(uname -m)" = "$EXPECTED_MACHINE"
+              readelf -l build/release-static/cjsh > build/release-static/program-headers.txt
+              if grep -q " INTERP " build/release-static/program-headers.txt; then
+                echo "musl release binary unexpectedly contains a dynamic interpreter" >&2
+                exit 1
+              fi
+              file build/release-static/cjsh
+              ./scripts/create-release-archive.sh build/release-static/cjsh "$RELEASE_VERSION" "$RELEASE_TARGET"
+            '
+
+      - name: Attest release archive
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/cjsh-v${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/cjsh-v${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+
+  assemble:
+    name: Verify release bundle
+    needs:
+      - prepare
+      - build-macos
+      - build-linux-gnu
+      - build-linux-musl
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Verify release archive set
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          expected_assets=$(printf '%s\n' \
+            "cjsh-v${RELEASE_VERSION}-linux-gnu-arm64.tar.gz" \
+            "cjsh-v${RELEASE_VERSION}-linux-gnu-x86_64.tar.gz" \
+            "cjsh-v${RELEASE_VERSION}-linux-musl-arm64.tar.gz" \
+            "cjsh-v${RELEASE_VERSION}-linux-musl-x86_64.tar.gz" \
+            "cjsh-v${RELEASE_VERSION}-macos-arm64.tar.gz" \
+            "cjsh-v${RELEASE_VERSION}-macos-universal2.tar.gz" \
+            "cjsh-v${RELEASE_VERSION}-macos-x86_64.tar.gz")
+          actual_assets=$(find dist -maxdepth 1 -type f -name '*.tar.gz' -exec basename {} \; | sort)
+          if [[ "$actual_assets" != "$expected_assets" ]]; then
+            echo "Release archive set did not match the expected seven targets" >&2
+            diff <(printf '%s\n' "$expected_assets") <(printf '%s\n' "$actual_assets") || true
+            exit 1
+          fi
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum *.tar.gz > SHA256SUMS
+
+      - name: Attest checksum manifest
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/SHA256SUMS
+
+      - name: Upload verified release bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-bundle
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    if: ${{ github.event_name == 'push' || inputs.publish == true }}
+    needs:
+      - prepare
+      - assemble
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified release bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: release-bundle
+          path: dist
+
+      - name: Create draft release and upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            is_draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
+            if [[ "$is_draft" != "true" ]]; then
+              echo "Release $RELEASE_TAG is already published; refusing to replace it" >&2
+              exit 1
+            fi
+          else
+            gh release create "$RELEASE_TAG" \
+              --draft \
+              --generate-notes \
+              --title "cjsh $RELEASE_TAG" \
+              --verify-tag
+          fi
+          gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/SHA256SUMS --clobber
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$RELEASE_TAG" --draft=false --latest

@@ -41,6 +41,17 @@ The project builds into a single `cjsh` binary and vendors its line-editing depe
 
 Detailed install and onboarding guides are available in the [documentation site](https://cadenfinley.github.io/CJsShell/getting-started/quick-start/).
 
+### Prebuilt binaries
+
+Each GitHub release includes ready-to-run archives for macOS and Linux. macOS artifacts cover
+Intel on macOS 12+, Apple Silicon on macOS 15+, and Universal2 on macOS 12+. Linux artifacts cover
+x86-64 and ARM64 with either glibc or a fully static musl build. Every release also includes a
+`SHA256SUMS` manifest, and its artifacts have GitHub build-provenance attestations.
+
+Download the appropriate archive from the
+[latest release](https://github.com/CadenFinley/CJsShell/releases/latest), extract it, and place the
+included `cjsh` executable somewhere on your `PATH`.
+
 ### Homebrew (macOS/Linux)
 ```bash
 brew tap CadenFinley/tap

@@ -422,11 +422,15 @@ def main(argv: list[str]) -> int:
                 os.unlink(termination_marker)
             except FileNotFoundError:
                 pass
-        (
-            injected_race_result,
-            injection_triggered,
-            child_preload_clean,
-        ) = run_injected_foreground_race_case(argv[0], argv[1])
+        skip_preload_injection = (
+            os.environ.get("CJSH_TEST_SKIP_PRELOAD_INJECTION") == "1"
+        )
+        if not skip_preload_injection:
+            (
+                injected_race_result,
+                injection_triggered,
+                child_preload_clean,
+            ) = run_injected_foreground_race_case(argv[0], argv[1])
     except Exception as exc:
         message = f"{type(exc).__name__}: {exc}".replace("\n", "\n    ")
         print(
@@ -576,25 +580,29 @@ def main(argv: list[str]) -> int:
                 f"{externally_terminated_result.output}",
             ),
         ),
-        (
-            "fg recovers when termination races with terminal handoff",
-            lambda: require(
-                injection_triggered
-                and child_preload_clean
-                and not injected_race_result.timed_out
-                and injected_race_result.return_code == 128 + signal.SIGTERM
-                and injected_race_result.output.count("SIGTERM") == 1
-                and "tcsetpgrp" not in injected_race_result.output
-                and "killpg" not in injected_race_result.output
-                and "No jobs" in injected_race_result.output,
-                "fg did not recover cleanly from termination during terminal handoff:\n"
-                f"injection_triggered={injection_triggered}\n"
-                f"child_preload_clean={child_preload_clean}\n"
-                f"return_code={injected_race_result.return_code}\n"
-                f"{injected_race_result.output}",
-            ),
-        ),
     ]
+
+    if not skip_preload_injection:
+        checks.append(
+            (
+                "fg recovers when termination races with terminal handoff",
+                lambda: require(
+                    injection_triggered
+                    and child_preload_clean
+                    and not injected_race_result.timed_out
+                    and injected_race_result.return_code == 128 + signal.SIGTERM
+                    and injected_race_result.output.count("SIGTERM") == 1
+                    and "tcsetpgrp" not in injected_race_result.output
+                    and "killpg" not in injected_race_result.output
+                    and "No jobs" in injected_race_result.output,
+                    "fg did not recover cleanly from termination during terminal handoff:\n"
+                    f"injection_triggered={injection_triggered}\n"
+                    f"child_preload_clean={child_preload_clean}\n"
+                    f"return_code={injected_race_result.return_code}\n"
+                    f"{injected_race_result.output}",
+                ),
+            )
+        )
 
     return run_checks(checks, "function pipeline job-control")
 

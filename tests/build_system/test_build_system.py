@@ -442,6 +442,17 @@ class BuildSystemConfigurationTests(unittest.TestCase):
         expected = expected_arch(system_processor, struct.calcsize("P"))
         self.assertEqual(definitions["CJSH_BUILD_ARCH"], expected)
 
+    @unittest.skipUnless(platform.system() == "Darwin", "Universal2 is macOS-only")
+    def test_metadata_arch_reports_universal2_for_fat_macos_build(self) -> None:
+        _build_dir, definitions = self.configure_and_get_definitions(
+            [
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64",
+            ]
+        )
+
+        self.assertEqual(definitions["CJSH_BUILD_ARCH"], "universal2")
+
     def test_metadata_compiler_and_standard_are_populated(self) -> None:
         build_dir, definitions = self.configure_and_get_definitions(
             ["-DCMAKE_BUILD_TYPE=Release"]

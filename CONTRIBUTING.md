@@ -128,6 +128,29 @@ When opening a pull request:
 
 Pull requests and pushes to `master` run the GitHub Actions workflows in `.github/workflows/`. Keep local verification aligned with the parts of CI your change is expected to affect.
 
+## Releases
+
+Stable releases are built from tags whose names use the `vX.Y.Z` format. Before creating a tag,
+update the version in the root `CMakeLists.txt`, commit that change, and ensure the normal CI run
+passes. Then create and push an annotated tag:
+
+```bash
+git tag -a v1.4.5 -m "v1.4.5"
+git push origin v1.4.5
+```
+
+The release workflow validates that the tag, CMake project version, checked-out commit, and built
+binary all agree. It then tests and packages Intel, Apple Silicon, and Universal2 macOS builds;
+glibc x86-64 and ARM64 Linux builds; and static musl x86-64 and ARM64 Linux builds. A draft GitHub
+release is published only after all seven archives, their checksums, and their provenance
+attestations have been created successfully.
+
+The **Release Binaries** workflow can also be dispatched manually. Leaving **Publish** disabled
+runs a safe release dry run from the selected branch: all seven archives are built, tested,
+attested, and retained as workflow artifacts, but no GitHub Release is created. Enabling
+**Publish** checks out and strictly validates the requested tag before publishing it. A published
+release is never overwritten by the workflow.
+
 ## License
 
 By contributing to this repository, you agree that your contributions will be licensed under the project's MIT License.

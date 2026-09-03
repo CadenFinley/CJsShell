@@ -29,6 +29,29 @@
       }
     },
     {
+      "name": "release-artifact",
+      "displayName": "Release Artifact",
+      "description": "Optimized and tested build used for release archives",
+      "inherits": "release",
+      "cacheVariables": {
+        "CJSH_GENERATE_COMPILE_COMMANDS": "OFF"
+      }
+    },
+    {
+      "name": "release-static",
+      "displayName": "Static Linux Release Artifact",
+      "description": "Statically linked and tested Linux release build",
+      "inherits": "release-artifact",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CJSH_STATIC_LINK": "ON"
+      }
+    },
+    {
       "name": "debug",
       "displayName": "Debug + ASan",
       "description": "Debug build with address sanitizer enabled",
@@ -114,6 +137,14 @@
       "configurePreset": "release"
     },
     {
+      "name": "release-artifact",
+      "configurePreset": "release-artifact"
+    },
+    {
+      "name": "release-static",
+      "configurePreset": "release-static"
+    },
+    {
       "name": "debug",
       "configurePreset": "debug"
     },
@@ -146,6 +177,20 @@
     {
       "name": "release",
       "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release-artifact",
+      "configurePreset": "release-artifact",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release-static",
+      "configurePreset": "release-static",
       "output": {
         "outputOnFailure": true
       }
