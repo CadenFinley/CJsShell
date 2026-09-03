@@ -1651,8 +1651,14 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
                 completion_tracker::completion_session_end();
                 return;
             }
-            cjsh_history_completer(cenv, command_context.current_raw_prefix.c_str());
             cjsh_filename_completer(cenv, command_context.current_raw_prefix.c_str());
+            if (ic_stop_completing(cenv)) {
+                completion_tracker::completion_session_end();
+                return;
+            }
+            if (config::history_enabled) {
+                cjsh_history_completer(cenv, command_context.current_raw_prefix.c_str());
+            }
             break;
 
         case CONTEXT_ARGUMENT: {
@@ -1691,10 +1697,14 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
                 cjsh_filename_completer(cenv, current_line_prefix);
             } else {
+                cjsh_filename_completer(cenv, current_line_prefix);
+                if (ic_stop_completing(cenv)) {
+                    completion_tracker::completion_session_end();
+                    return;
+                }
                 if (config::history_enabled) {
                     cjsh_history_completer(cenv, current_line_prefix);
                 }
-                cjsh_filename_completer(cenv, current_line_prefix);
             }
             break;
         }
