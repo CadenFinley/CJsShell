@@ -1,6 +1,33 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.3`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.4`.
+
+## 1.4.4 - 2026-09-03
+
+Range: `v1.4.3..HEAD` (8 commits, 21 files changed)
+
+### Added
+
+- Added a `firstboot` builtin that atomically creates the first-boot marker and suppresses the welcome banner, with help, completion, documentation, and regression coverage.
+
+### Changed
+
+- Ranked successful history completions ahead of filesystem matches and failed history entries after them, while omitting history suggestions duplicated by file or directory completions.
+- Limited the history candidates considered per completion pass to keep mixed completion results focused.
+- Allowed agent-mode command-writing executors to use tools while retaining the required JSON-only response format.
+- Updated first-run guidance to use the new `firstboot` builtin instead of exposing the marker-file implementation.
+
+### Fixed
+
+- Capped selected multiline history previews to the available terminal rows, marked truncated previews with an ellipsis, and preserved the complete command when accepted.
+- Kept multiline editor and menu rendering within the physical terminal height after accounting for prompt-prefix rows, including after terminal-height changes.
+- Placed the cursor at the end of the first line when editing a multiline history-search result.
+
+### Internal and Tests
+
+- Added regression coverage for agent-mode tool-use prompting, history exit-code ordering, filesystem deduplication, and the `firstboot` builtin.
+- Added PTY regression coverage for terminal-height caps, resized multiline layouts, truncated history previews, and multiline history editing.
+- Finalized 1.4.4 as a stable release by clearing the default pre-release build marker.
 
 ## 1.4.3 - 2026-09-02
 
