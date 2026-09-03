@@ -182,6 +182,27 @@ static bool generated_completions_include_source(const char* source) {
     return false;
 }
 
+static ssize_t generated_completion_index_with_source(const char* source) {
+    if (source == nullptr) {
+        return -1;
+    }
+
+    ic_env_t* env = ic_get_env();
+    if (env == nullptr || env->completions == nullptr) {
+        return -1;
+    }
+
+    ssize_t count = completions_count(env->completions);
+    for (ssize_t i = 0; i < count; ++i) {
+        const char* candidate_source = completions_get_source(env->completions, i);
+        if (candidate_source != nullptr && std::strcmp(candidate_source, source) == 0) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 static void clear_generated_completions(void) {
     ic_env_t* env = ic_get_env();
     if (env == nullptr || env->completions == nullptr) {
@@ -416,8 +437,8 @@ static bool test_tokenize_shell_words_preserve_literals(void) {
     return true;
 }
 
-static bool test_history_completer_filters_exit_127(void) {
-    const char* test_name = "history_completer_filters_exit_127";
+static bool test_history_completer_exit_code_ordering(void) {
+    const char* test_name = "history_completer_exit_code_ordering";
 
     namespace fs = std::filesystem;
     const auto unique_suffix = std::chrono::steady_clock::now().time_since_epoch().count();
@@ -442,22 +463,69 @@ static bool test_history_completer_filters_exit_127(void) {
     history_file << "typo_legacy\n";
     history_file << "# code=0 time=3\n";
     history_file << "type good\n";
+    history_file << "# code=1 time=4\n";
+    history_file << "type bad\n";
+    history_file << "# code=0 time=5\n";
+    history_file << "echo order_success\n";
+    history_file << "# code=1 time=6\n";
+    history_file << "echo order_failure\n";
+    history_file << "# code=0 time=7\n";
+    history_file << "echo order_directory\n";
     history_file.close();
     EXPECT_TRUE(history_file.good(), test_name, "temporary history file should be written");
 
     ssize_t count = run_completion_generation("ty", &cjsh_history_completer, 256);
     bool has_good = generated_completions_include_replacement("type good");
+    bool has_bad = generated_completions_include_replacement("type bad");
     bool has_current_127 = generated_completions_include_replacement("typo_current");
     bool has_legacy_127 = generated_completions_include_replacement("typo_legacy");
     clear_generated_completions();
 
+    std::ofstream completion_file(temp_dir / "order_file");
+    EXPECT_TRUE(completion_file.is_open(), test_name, "temporary completion file should open");
+    completion_file.close();
+    (void)fs::create_directory(temp_dir / "order_directory", ec);
+    EXPECT_FALSE(ec, test_name, "temporary completion directory should be created");
+
+    const fs::path original_directory = fs::current_path(ec);
+    EXPECT_FALSE(ec, test_name, "current directory should be readable");
+    fs::current_path(temp_dir, ec);
+    EXPECT_FALSE(ec, test_name, "temporary completion directory should be entered");
+
+    (void)run_completion_generation("echo ord", &cjsh_default_completer, 256);
+    const ssize_t successful_history_index = generated_completion_index_with_source("history: 0");
+    const ssize_t file_index = generated_completion_index_with_source("file");
+    const ssize_t failed_history_index = generated_completion_index_with_source("history: 1");
+    const bool has_duplicate_history =
+        generated_completions_include_replacement("echo order_directory");
+    const bool has_directory_completion =
+        generated_completions_include_replacement("order_directory/");
+    clear_generated_completions();
+
+    fs::current_path(original_directory, ec);
+    EXPECT_FALSE(ec, test_name, "original completion directory should be restored");
+
     (void)fs::remove_all(temp_dir, ec);
     (void)unsetenv("CJSH_HISTORY_FILE");
 
-    EXPECT_TRUE(count == 1, test_name, "only non-127 history entry should be offered");
+    EXPECT_TRUE(count == 2, test_name, "only non-127 history entries should be offered");
     EXPECT_TRUE(has_good, test_name, "successful history entry should remain available");
+    EXPECT_TRUE(has_bad, test_name, "failed history entry should remain available");
     EXPECT_FALSE(has_current_127, test_name, "code=127 history entry should be hidden");
     EXPECT_FALSE(has_legacy_127, test_name, "exit_code=127 history entry should be hidden");
+    EXPECT_TRUE(successful_history_index >= 0, test_name,
+                "successful history completion should be generated");
+    EXPECT_TRUE(file_index >= 0, test_name, "file completion should be generated");
+    EXPECT_TRUE(failed_history_index >= 0, test_name,
+                "failed history completion should be generated");
+    EXPECT_FALSE(has_duplicate_history, test_name,
+                 "history completion duplicated by a directory should be omitted");
+    EXPECT_TRUE(has_directory_completion, test_name,
+                "the preferred directory completion should remain available");
+    EXPECT_TRUE(successful_history_index < file_index, test_name,
+                "successful history completion should precede file completions");
+    EXPECT_TRUE(file_index < failed_history_index, test_name,
+                "failed history completion should follow file completions");
     return true;
 }
 
@@ -1672,7 +1740,7 @@ typedef struct test_case_s {
 } test_case_t;
 
 static const test_case_t kTests[] = {
-    {"history_completer_filters_exit_127", test_history_completer_filters_exit_127},
+    {"history_completer_exit_code_ordering", test_history_completer_exit_code_ordering},
     {"quote_and_unquote_paths", test_quote_and_unquote_paths},
     {"quote_path_special_characters", test_quote_path_special_characters},
     {"quote_path_empty_and_dollar", test_quote_path_empty_and_dollar},
