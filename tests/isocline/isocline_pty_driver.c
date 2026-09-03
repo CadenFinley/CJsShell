@@ -531,6 +531,14 @@ static int run_case(const char* scenario) {
         ic_history_clear();
         ic_history_add("printf done");
         ic_history_add("mlhist first line\nmlhist second line");
+    } else if (strcmp(scenario, "history_search_tall_multiline") == 0) {
+        initial_input = "tallhist";
+        (void)ic_enable_inline_help(true);
+        ic_history_clear();
+        ic_history_add(
+            "tallhist line 01\ntallhist line 02\ntallhist line 03\ntallhist line 04\n"
+            "tallhist line 05\ntallhist line 06\ntallhist line 07\ntallhist line 08\n"
+            "tallhist line 09\ntallhist line 10\ntallhist line 11\ntallhist line 12");
     } else if (strcmp(scenario, "history_search_long_multiline_viewport") == 0) {
         initial_input =
             "history-line-01\nhistory-line-02\nhistory-line-03\nhistory-line-04\nhistory-line-05";

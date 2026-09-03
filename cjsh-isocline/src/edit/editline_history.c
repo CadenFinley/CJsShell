@@ -1134,7 +1134,8 @@ again:;
                 history_snapshot_get(&snap, matches[selected_idx].hidx);
             if (selected_entry != NULL && selected_entry->command != NULL &&
                 edit_menu_contains_line_break(selected_entry->command)) {
-                selected_multiline_preview_rows = edit_menu_line_count(selected_entry->command);
+                selected_multiline_preview_rows =
+                    edit_menu_multiline_preview_row_count(env, selected_entry->command);
             }
         }
 
@@ -1177,8 +1178,13 @@ again:;
         ssize_t available_lines = edit_menu_available_lines(env, eb, reserved_rows, 1);
 
         ssize_t rows_for_items = available_lines;
+        ssize_t selected_multiline_preview_limit = 0;
         if (selected_multiline_preview_rows > 1) {
-            rows_for_items -= (selected_multiline_preview_rows - 1);
+            selected_multiline_preview_limit = selected_multiline_preview_rows;
+            if (selected_multiline_preview_limit > available_lines) {
+                selected_multiline_preview_limit = available_lines;
+            }
+            rows_for_items -= (selected_multiline_preview_limit - 1);
             if (rows_for_items < 1) {
                 rows_for_items = 1;
             }
@@ -1278,8 +1284,10 @@ again:;
                 env, is_selected, menu_session.old_highlight);
 
             if (show_selected_multiline_inline) {
-                edit_menu_append_multiline_preview(env, eb, display, syntax_highlight_item, false);
-                if (metadata_suffix[0] != '\0') {
+                const bool preview_truncated =
+                    edit_menu_append_multiline_preview(env, eb, display, syntax_highlight_item,
+                                                       false, selected_multiline_preview_limit);
+                if (!preview_truncated && metadata_suffix[0] != '\0') {
                     edit_menu_append_tag_text(eb->extra, true, metadata_suffix);
                 }
                 (void)sbuf_append(eb->extra, "\n");

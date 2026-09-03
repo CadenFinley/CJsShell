@@ -810,28 +810,145 @@ static ssize_t edit_menu_line_count(const char* str) {
     return lines;
 }
 
-static void edit_menu_append_multiline_preview(ic_env_t* env, editor_t* eb, const char* display,
-                                               bool syntax_highlight, bool parse_bbcode) {
-    if (env == NULL || eb == NULL || display == NULL) {
-        return;
+static ssize_t edit_menu_line_prefix_len(const char* display, ssize_t max_rows) {
+    if (display == NULL || max_rows < 1) {
+        return 0;
     }
 
+    const char* end = display;
+    ssize_t row = 1;
+    while (*end != '\0') {
+        if (*end != '\n' && *end != '\r') {
+            ++end;
+            continue;
+        }
+        if (row >= max_rows) {
+            break;
+        }
+        row++;
+        if (*end == '\r' && end[1] == '\n') {
+            ++end;
+        }
+        ++end;
+    }
+    return (ssize_t)(end - display);
+}
+
+static ssize_t edit_menu_multiline_preview_row_count(ic_env_t* env, const char* display) {
+    if (env == NULL || display == NULL || *display == '\0') {
+        return 1;
+    }
+
+    stringbuf_t* preview = sbuf_new(env->mem);
+    if (preview == NULL) {
+        return edit_menu_line_count(display);
+    }
+
+    sbuf_replace(preview, display);
+    rowcol_t rc_dummy = {0};
+    ssize_t rows =
+        sbuf_get_rc_at_pos(preview, term_get_width(env->term), 2, 2, sbuf_len(preview), &rc_dummy);
+    sbuf_free(preview);
+    const ssize_t logical_rows = edit_menu_line_count(display);
+    if (rows < logical_rows) {
+        rows = logical_rows;
+    }
+    return (rows > 0 ? rows : 1);
+}
+
+static ssize_t edit_menu_multiline_preview_visible_len(ic_env_t* env, const char* display,
+                                                       ssize_t max_rows, bool* truncated) {
+    const ssize_t display_len = (display == NULL ? 0 : ic_strlen(display));
+    if (truncated != NULL) {
+        *truncated = false;
+    }
+    if (env == NULL || display == NULL || display_len <= 0) {
+        return 0;
+    }
+    if (max_rows < 1) {
+        max_rows = 1;
+    }
+
+    stringbuf_t* preview = sbuf_new(env->mem);
+    if (preview == NULL) {
+        const ssize_t visible_len = edit_menu_line_prefix_len(display, max_rows);
+        if (truncated != NULL) {
+            *truncated = (visible_len < display_len);
+        }
+        return visible_len;
+    }
+
+    sbuf_replace(preview, display);
+    rowcol_t rc_dummy = {0};
+    const ssize_t term_width = term_get_width(env->term);
+    const ssize_t rendered_rows =
+        sbuf_get_rc_at_pos(preview, term_width, 2, 2, display_len, &rc_dummy);
+    const ssize_t logical_rows = edit_menu_line_count(display);
+    if (rendered_rows <= max_rows && logical_rows <= max_rows) {
+        sbuf_free(preview);
+        return display_len;
+    }
+
+    ssize_t visible_len = display_len;
+    if (logical_rows > max_rows) {
+        visible_len = edit_menu_line_prefix_len(display, max_rows);
+    }
+    ssize_t last_row_columns = term_width - 2 - 3;  // continuation indent and ellipsis
+    if (last_row_columns < 0) {
+        last_row_columns = 0;
+    }
+    const ssize_t wrapped_visible_len =
+        (rendered_rows > max_rows
+             ? sbuf_get_pos_at_rc(preview, term_width, 2, 2, max_rows - 1, last_row_columns)
+             : display_len);
+    sbuf_free(preview);
+    if (rendered_rows > max_rows) {
+        if (wrapped_visible_len < 0) {
+            visible_len = 0;
+        } else if (wrapped_visible_len < visible_len) {
+            visible_len = wrapped_visible_len;
+        }
+    }
+    while (visible_len > 0 &&
+           (display[visible_len - 1] == '\n' || display[visible_len - 1] == '\r')) {
+        visible_len--;
+    }
+    if (truncated != NULL) {
+        *truncated = (visible_len < display_len);
+    }
+    return visible_len;
+}
+
+static bool edit_menu_append_multiline_preview(ic_env_t* env, editor_t* eb, const char* display,
+                                               bool syntax_highlight, bool parse_bbcode,
+                                               ssize_t max_rows) {
+    if (env == NULL || eb == NULL || display == NULL) {
+        return false;
+    }
+
+    bool truncated = false;
+    const ssize_t visible_len =
+        edit_menu_multiline_preview_visible_len(env, display, max_rows, &truncated);
     const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
     if (syntax_highlight) {
         (void)sbuf_append(eb->extra, "[ic-menu-selected][!pre]");
         (void)sbuf_appendf(eb->extra, "%s ", arrow);
         (void)sbuf_append(eb->extra, "[/pre]");
-        edit_menu_append_syntax_highlighted_text(env, eb->extra, display, -1, parse_bbcode, -1, 0,
-                                                 true, false, "  ");
+        edit_menu_append_syntax_highlighted_text(env, eb->extra, display, visible_len, parse_bbcode,
+                                                 -1, 0, true, false, "  ");
+        if (truncated) {
+            (void)sbuf_append(eb->extra, "...");
+        }
         (void)sbuf_append(eb->extra, "[/ic-menu-selected]");
-        return;
+        return truncated;
     }
 
     (void)sbuf_append(eb->extra, "[ic-menu-selected][!pre]");
     (void)sbuf_appendf(eb->extra, "%s ", arrow);
 
     const char* segment = display;
-    for (const char* p = display; *p != '\0'; ++p) {
+    const char* display_end = display + visible_len;
+    for (const char* p = display; p < display_end; ++p) {
         if (*p != '\n' && *p != '\r') {
             continue;
         }
@@ -841,17 +958,21 @@ static void edit_menu_append_multiline_preview(ic_env_t* env, editor_t* eb, cons
         }
 
         (void)sbuf_append(eb->extra, "\n  ");
-        if (*p == '\r' && p[1] == '\n') {
+        if (*p == '\r' && p + 1 < display_end && p[1] == '\n') {
             ++p;
         }
         segment = p + 1;
     }
 
-    if (*segment != '\0') {
-        (void)sbuf_append(eb->extra, segment);
+    if (segment < display_end) {
+        (void)sbuf_append_n(eb->extra, segment, display_end - segment);
+    }
+    if (truncated) {
+        (void)sbuf_append(eb->extra, "...");
     }
 
     (void)sbuf_append(eb->extra, "[/pre][/ic-menu-selected]");
+    return truncated;
 }
 
 static ssize_t edit_menu_visible_prefix(const char* s, ssize_t len, ssize_t max_columns,

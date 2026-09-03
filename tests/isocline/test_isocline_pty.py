@@ -1970,6 +1970,43 @@ def main() -> int:
             f"normalized_output={normalized_hist_multiline_output!r}"
         )
 
+    tall_history_expected = "\n".join(
+        f"tallhist line {line:02d}" for line in range(1, 13)
+    )
+    tall_history_result, tall_history_output = run_case(
+        binary,
+        "history_search_tall_multiline",
+        b"\x12\r",
+        capture_output=True,
+        initial_rows=8,
+        initial_cols=80,
+    )
+    if tall_history_result != tall_history_expected:
+        raise AssertionError(
+            "truncated history preview should still execute the complete command, got "
+            f"{tall_history_result!r}"
+        )
+    normalized_tall_history_output = normalize_terminal_output(
+        tall_history_output.split("[IC_RESULT_BEGIN]", 1)[0]
+    )
+    tall_history_footer_end = normalized_tall_history_output.find(":cancel)")
+    if tall_history_footer_end < 0:
+        raise AssertionError(
+            "history search should preserve its footer below a capped multiline preview, got "
+            f"output={normalized_tall_history_output!r}"
+        )
+    tall_history_menu_render = normalized_tall_history_output[:tall_history_footer_end]
+    if "tallhist line 04" in tall_history_menu_render:
+        raise AssertionError(
+            "history search attempted to render a multiline preview taller than its terminal "
+            f"row budget: output={tall_history_menu_render!r}"
+        )
+    if "tallhist line 03..." not in tall_history_menu_render:
+        raise AssertionError(
+            "history search should mark a terminal-capped multiline preview as truncated, got "
+            f"output={tall_history_menu_render!r}"
+        )
+
     hist_multiline_edit = run_case(
         binary,
         "history_search_multiline",
