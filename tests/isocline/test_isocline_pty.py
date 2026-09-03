@@ -1174,6 +1174,39 @@ def main() -> int:
             f"three-row screen position: output={viewport_output!r}"
         )
 
+    terminal_cap_expected = (
+        "terminal-line-01\nterminal-line-02\nterminal-line-03\n"
+        "terminal-line-04\nterminal-line-05"
+    )
+    terminal_cap_result, terminal_cap_output = run_case(
+        binary,
+        "multiline_terminal_row_cap",
+        b"\r",
+        capture_output=True,
+        initial_rows=4,
+        initial_cols=80,
+    )
+    if terminal_cap_result != terminal_cap_expected:
+        raise AssertionError(
+            "terminal row cap should preserve the complete multiline buffer, got "
+            f"{terminal_cap_result!r}"
+        )
+    terminal_cap_render = normalize_terminal_output(
+        terminal_cap_output.split("[IC_RESULT_BEGIN]", 1)[0]
+    )
+    for hidden_line in ("terminal-line-01", "terminal-line-02", "terminal-line-03"):
+        if hidden_line in terminal_cap_render:
+            raise AssertionError(
+                "multiline viewport exceeded the terminal row count after accounting for "
+                f"prompt-prefix rows: output={terminal_cap_render!r}"
+            )
+    for visible_line in ("terminal-line-04", "terminal-line-05"):
+        if visible_line not in terminal_cap_render:
+            raise AssertionError(
+                f"terminal-sized multiline viewport omitted {visible_line!r}: "
+                f"output={terminal_cap_render!r}"
+            )
+
     history_search_result, history_search_output = run_case(
         binary,
         "history_search_long_multiline_viewport",

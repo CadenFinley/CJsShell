@@ -640,10 +640,7 @@ static ssize_t edit_menu_available_lines(ic_env_t* env, editor_t* eb, ssize_t re
         return min_lines;
     }
 
-    ssize_t available_lines = term_get_height(env->term) - reserved_rows;
-    if (eb->prompt_prefix_lines > 0) {
-        available_lines -= eb->prompt_prefix_lines;
-    }
+    ssize_t available_lines = edit_available_terminal_rows(env, eb) - reserved_rows;
     if (available_lines < min_lines) {
         available_lines = min_lines;
     }

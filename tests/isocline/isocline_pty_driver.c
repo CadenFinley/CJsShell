@@ -326,6 +326,7 @@ static int run_case(const char* scenario) {
          strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0 ||
          strcmp(scenario, "multiline_max_lines_viewport") == 0 ||
          strcmp(scenario, "multiline_max_lines_prompt_reset") == 0 ||
+         strcmp(scenario, "multiline_terminal_row_cap") == 0 ||
          strcmp(scenario, "completion_many_menu_long_multiline") == 0 ||
          strcmp(scenario, "history_search_long_multiline_viewport") == 0 ||
          strcmp(scenario, "region_marking_multiline") == 0 ||
@@ -420,6 +421,12 @@ static int run_case(const char* scenario) {
             "viewport-line-05";
         (void)ic_set_multiline_max_line_count(3);
         (void)ic_enable_line_numbers_with_continuation_prompt(true);
+    } else if (strcmp(scenario, "multiline_terminal_row_cap") == 0) {
+        prompt_text = "PREFIX-TOP\nPREFIX-MIDDLE\npty";
+        initial_input =
+            "terminal-line-01\nterminal-line-02\nterminal-line-03\nterminal-line-04\n"
+            "terminal-line-05";
+        (void)ic_set_multiline_max_line_count(15);
     } else if (strcmp(scenario, "completion_midline_single") == 0) {
         initial_input = "say he";
         g_completion_mode = COMPLETION_MODE_SINGLE;

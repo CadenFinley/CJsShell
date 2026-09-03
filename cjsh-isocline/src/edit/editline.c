@@ -79,6 +79,7 @@ typedef struct editor_s {
     ssize_t view_rows;            // total rows physically rendered in the current viewport
     ssize_t view_input_rows;      // physically rendered prompt/input rows in the viewport
     ssize_t termw;
+    ssize_t termh;
     bool modified;                      // has a modification happened? (used for history navigation
                                         // for example)
     bool disable_undo;                  // temporarily disable auto undo (for history search)
@@ -589,8 +590,8 @@ static ssize_t edit_get_rowcol(ic_env_t* env, editor_t* eb, rowcol_t* rc) {
     return sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, eb->pos, rc);
 }
 
-static ssize_t edit_visible_input_row_count(ic_env_t* env, editor_t* eb, ssize_t input_rows) {
-    if (env == NULL || input_rows < 1) {
+static ssize_t edit_available_terminal_rows(ic_env_t* env, const editor_t* eb) {
+    if (env == NULL || env->term == NULL) {
         return 1;
     }
 
@@ -598,9 +599,15 @@ static ssize_t edit_visible_input_row_count(ic_env_t* env, editor_t* eb, ssize_t
     if (eb != NULL && eb->prompt_prefix_lines > 0) {
         available_rows -= eb->prompt_prefix_lines;
     }
-    if (available_rows < 1) {
-        available_rows = 1;
+    return (available_rows > 0 ? available_rows : 1);
+}
+
+static ssize_t edit_visible_input_row_count(ic_env_t* env, editor_t* eb, ssize_t input_rows) {
+    if (env == NULL || input_rows < 1) {
+        return 1;
     }
+
+    const ssize_t available_rows = edit_available_terminal_rows(env, eb);
 
     return editline_viewport_for(input_rows, 0, input_rows - 1, available_rows,
                                  env->multiline_max_line_count, env->multiline_bottom_line_count, 0)
@@ -1743,16 +1750,9 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
         "%zd)\n",
         rows, rc.row, rc.col, eb->cur_rows, eb->cur_row);
 
-    // only render at most terminal height rows
-    const ssize_t terminal_height = term_get_height(env->term);
-    const ssize_t prompt_prefix_lines = (eb->prompt_prefix_lines > 0 ? eb->prompt_prefix_lines : 0);
-    ssize_t visible_termh = terminal_height;
-    if (menu_active && prompt_prefix_lines > 0) {
-        visible_termh = terminal_height - prompt_prefix_lines;
-        if (visible_termh < 1) {
-            visible_termh = 1;
-        }
-    }
+    // Prefix rows are rendered separately above this viewport. Keep the complete physical editor
+    // (prefix, input, and helper rows) within the terminal's row count.
+    const ssize_t visible_termh = edit_available_terminal_rows(env, eb);
 
     const editline_viewport_t viewport = editline_viewport_for(
         rows_input, rows_extra, rc.row, visible_termh, env->multiline_max_line_count,
@@ -1916,9 +1916,18 @@ static void edit_clear_screen(ic_env_t* env, editor_t* eb) {
 static bool edit_resize(ic_env_t* env, editor_t* eb) {
     // update dimensions
     (void)term_update_dim(env->term);
-    ssize_t newtermw = term_get_width(env->term);
-    if (eb->termw == newtermw)
+    const ssize_t newtermw = term_get_width(env->term);
+    const ssize_t newtermh = term_get_height(env->term);
+    const bool width_changed = (eb->termw != newtermw);
+    const bool height_changed = (eb->termh != newtermh);
+    if (!width_changed && !height_changed)
         return false;
+
+    eb->termh = newtermh;
+    if (!width_changed) {
+        edit_refresh(env, eb);
+        return true;
+    }
 
     // recalculate the row layout assuming the hardwrapping for the new terminal
     // width
@@ -3545,6 +3554,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     eb.hint_help = sbuf_new(env->mem);
     eb.history_prefix = sbuf_new(env->mem);
     eb.termw = term_get_width(env->term);
+    eb.termh = term_get_height(env->term);
     eb.pos = 0;
     eb.cur_rows = 1;
     eb.input_rows = 1;

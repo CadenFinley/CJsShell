@@ -284,11 +284,7 @@ static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb, bool a
 
 static ssize_t edit_completion_available_rows_for_input(ic_env_t* env, editor_t* eb,
                                                         ssize_t input_rows) {
-    ssize_t term_height = term_get_height(env->term);
-    ssize_t available_rows = term_height - input_rows;
-    if (eb->prompt_prefix_lines > 0) {
-        available_rows -= eb->prompt_prefix_lines;
-    }
+    ssize_t available_rows = edit_available_terminal_rows(env, eb) - input_rows;
     if (available_rows < 3) {
         available_rows = 3;
     }
