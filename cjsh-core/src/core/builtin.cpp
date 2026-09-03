@@ -51,6 +51,7 @@
 #include "exit_command.h"
 #include "export_command.h"
 #include "fc_command.h"
+#include "firstboot_command.h"
 #include "generate_completions_command.h"
 #include "getopts_command.h"
 #include "hash_command.h"
@@ -87,8 +88,9 @@ bool is_posix_restricted_builtin(const std::string& name) {
            name == "popd" || name == "dirs" || name == "unabbr" || name == "unabbreviate" ||
            name == "help" || name == "version" || name == "history" || name == "restart" ||
            name == "type" || name == "which" || name == "jobname" || name == "disown" ||
-           name == "generate-completions" || name == "hook" || name == "cjsh-widget" ||
-           name == "cjshopt" || name == "builtin" || name == "quit" || name == "bye";
+           name == "generate-completions" || name == "firstboot" || name == "hook" ||
+           name == "cjsh-widget" || name == "cjshopt" || name == "builtin" || name == "quit" ||
+           name == "bye";
 }
 
 int reject_posix_restricted_builtin(const std::string& name) {
@@ -202,6 +204,7 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"quit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"bye", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"restart", [](const std::vector<std::string>& args) { return ::restart_command(args); }},
+        {"firstboot", [](const std::vector<std::string>& args) { return ::firstboot_command(args); }},
         {"test", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"exec",
@@ -287,10 +290,18 @@ Built_ins::Built_ins() : shell(nullptr) {
              }
 
              std::vector<std::string> forwarded_args(args.begin() + 1, args.end());
-             return builtin_it->second(forwarded_args);
+             const int status = builtin_it->second(forwarded_args);
+             if (target_command == "firstboot" && !cjsh_filesystem::is_first_boot()) {
+                 builtins.erase(target_command);
+             }
+             return status;
          }},
         {"cjshopt", [](const std::vector<std::string>& args) { return ::cjshopt_command(args); }},
     };
+
+    if (!cjsh_filesystem::is_first_boot()) {
+        builtins.erase("firstboot");
+    }
 }
 
 Built_ins::~Built_ins() = default;
@@ -352,6 +363,9 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
             return reject_posix_restricted_builtin(args[0]);
         }
         int status = it->second(args);
+        if (args[0] == "firstboot" && !cjsh_filesystem::is_first_boot()) {
+            builtins.erase(args[0]);
+        }
         return status;
     }
     std::vector<std::string> suggestions;

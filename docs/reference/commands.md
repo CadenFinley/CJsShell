@@ -74,6 +74,17 @@ approot --file history      # print ~/.cache/cjsh/history.txt
 approot --file rc           # print ~/.cjshrc
 ```
 
+### firstboot
+
+Suppress the welcome banner shown on a new installation.
+
+```bash
+firstboot
+```
+
+The builtin creates `~/.cache/cjsh/.first_boot` and succeeds only if that marker does not
+already exist. It has no arguments.
+
 ### pushd
 Push the current directory onto a stack and change directories.
 

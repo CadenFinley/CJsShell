@@ -34,6 +34,7 @@
 #include <string>
 #include <vector>
 
+#include "cjsh_filesystem.h"
 #include "usage.h"
 #include "version_command.h"
 
@@ -59,7 +60,7 @@ std::string get_help() {
         const char* description;
     };
 
-    const std::vector<BuiltinInfo> builtins = {
+    std::vector<BuiltinInfo> builtins = {
         // Navigation and file system
         {"cd", "Change the current directory (smart cd by default)"},
         {"approot",
@@ -146,6 +147,11 @@ std::string get_help() {
         {"cjsh-widget", "Drive the line editor from shell code"},
         {"hook", "Manage shell hooks (precmd, preexec, chpwd)"}};
 
+    if (cjsh_filesystem::is_first_boot()) {
+        builtins.insert(builtins.begin() + 12,
+                        {"firstboot", "Suppress the welcome banner by creating its marker"});
+    }
+
     output << std::left;
     constexpr int column_width = 20;
     for (const auto& item : builtins) {
@@ -195,8 +201,7 @@ std::string get_help() {
     output << "  - Press F1 to open isocline's interactive cheat sheet of key bindings.\n";
     output << "  - Incremental history search (Ctrl+R) and other readline-style shortcuts are "
               "available.\n";
-    output
-        << "  - Configuration such as syntax colors can be adjusted via 'cjshopt style_def'.\n";
+    output << "  - Configuration such as syntax colors can be adjusted via 'cjshopt style_def'.\n";
 
     output << "\n" << separator << "\n";
     return output.str();

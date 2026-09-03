@@ -32,6 +32,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "cjsh_filesystem.h"
 #include "completion_utils.h"
 #include "job_control.h"
 #include "signal_handler.h"
@@ -452,6 +453,9 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                 {make_option("-n", "Restart as plain cjsh without original startup arguments"),
                  make_option("--no-flags",
                              "Restart as plain cjsh without original startup arguments")});
+        if (cjsh_filesystem::is_first_boot()) {
+            add_doc("firstboot", "Suppress the welcome banner by creating its marker", {});
+        }
 
         add_doc("test", "Evaluate conditional expressions", {});
         add_alias("[", "test");
@@ -894,6 +898,10 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
 }  // namespace
 
 const CommandDoc* lookup_builtin_command_doc(const std::string& doc_target) {
+    if (doc_target == "firstboot" && !cjsh_filesystem::is_first_boot()) {
+        return nullptr;
+    }
+
     if (const auto* dynamic_doc = lookup_dynamic_builtin_doc(doc_target))
         return dynamic_doc;
 

@@ -609,6 +609,7 @@ void start_interactive_process() {
     cjsh_env::set_startup_active(false);
     bool first_boot = cjsh_filesystem::is_first_boot();
 
+    // calculate startup time
     std::chrono::microseconds startup_duration(0);
     if (config::show_startup_time || first_boot) {
         auto startup_end_time = std::chrono::steady_clock::now();
@@ -616,6 +617,7 @@ void start_interactive_process() {
             startup_end_time - startup_begin_time());
     }
 
+    // display title line and creator line if configured
     if (config::show_title_line) {
         const bool show_creator_line = should_show_creator_line();
         std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2026" << '\n';
@@ -632,6 +634,7 @@ void start_interactive_process() {
         std::cout << "\n";
     }
 
+    // display first boot message if this is the first time cjsh has been run
     if (first_boot) {
         std::cout << " Be sure to give us a star on GitHub!" << '\n';
         std::cout << " Type 'help' to see available commands and options." << '\n';
@@ -639,8 +642,7 @@ void start_interactive_process() {
                   << " https://cadenfinley.github.io/CJsShell/" << '\n';
         std::cout << '\n';
 
-        std::cout << " To suppress this help message run the command: 'touch "
-                  << cjsh_filesystem::g_cjsh_first_boot_path().string() << "'" << '\n';
+        std::cout << " To suppress this help message run the command: 'firstboot'" << '\n';
         std::cout << " To suppress the title line, put this command in .cjprofile: 'cjshopt "
                      "login-startup-arg --no-titleline'"
                   << '\n';

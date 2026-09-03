@@ -41,6 +41,7 @@
 
 #include "builtins_completions_handler.h"
 #include "cjsh_completions.h"
+#include "cjsh_filesystem.h"
 #include "command_line_utils.h"
 #include "completion_context.h"
 #include "completion_spec.h"
@@ -1418,6 +1419,15 @@ static bool test_builtin_docs(void) {
                 test_name, "approot should include cjshrc target");
     EXPECT_TRUE(has_entry(approot_doc, "cjsh", builtin_completions::EntryKind::Subcommand),
                 test_name, "approot should include cjsh target");
+
+    const auto* firstboot_doc = builtin_completions::lookup_builtin_command_doc("firstboot");
+    if (cjsh_filesystem::is_first_boot()) {
+        EXPECT_TRUE(firstboot_doc != nullptr, test_name,
+                    "firstboot doc should exist before its marker is created");
+    } else {
+        EXPECT_TRUE(firstboot_doc == nullptr, test_name,
+                    "firstboot doc should be unavailable after its marker is created");
+    }
 
     const auto* cjshopt_doc = builtin_completions::lookup_builtin_command_doc("cjshopt");
     EXPECT_TRUE(cjshopt_doc != nullptr, test_name, "cjshopt doc should exist");

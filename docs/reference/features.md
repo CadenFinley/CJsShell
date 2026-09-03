@@ -178,6 +178,7 @@ Flags affecting feature toggles take effect early in startup and can also be inj
 ## Built-in Tooling Highlights
 
 - `approot` – Jump straight to cjsh config/cache/history/firstboot/completion roots or the cjsh executable directory.
+- `firstboot` – Suppress the welcome banner by creating its marker once.
 - `restart` – Re-exec the current shell process, with an option to drop startup flags.
 - `generate-completions` – Pre-populate completion caches by scraping manual pages in parallel.
 - `hash` – Inspect or reset execution caches.
