@@ -1937,6 +1937,17 @@ def main() -> int:
             f"normalized_output={normalized_hist_multiline_output!r}"
         )
 
+    hist_multiline_edit = run_case(
+        binary,
+        "history_search_multiline",
+        b"\x12\t!\r",
+    )
+    if hist_multiline_edit != "mlhist first line!\nmlhist second line":
+        raise AssertionError(
+            "editing a multiline history-search result should start at the end of its first "
+            f"line, got {hist_multiline_edit!r}"
+        )
+
     history_multiline_prompt_output = run_resize_case(
         binary,
         "history_search_multiline_prompt",

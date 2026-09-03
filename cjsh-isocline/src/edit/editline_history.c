@@ -1417,6 +1417,8 @@ again:;
                 sbuf_replace(eb->input, selected->command);
                 eb->pos = sbuf_len(eb->input);
                 bool expanded = edit_expand_abbreviation_if_needed(env, eb, false);
+                ssize_t first_line_end = sbuf_find_line_end(eb->input, 0);
+                eb->pos = (first_line_end < 0 ? 0 : first_line_end);
                 eb->modified = expanded;
                 eb->history_idx = matches[selected_idx].hidx;
             }
