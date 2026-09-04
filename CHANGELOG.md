@@ -2,6 +2,32 @@
 
 This changelog documents tagged releases from `v1.1.2` through `v1.4.6`.
 
+## 1.4.7 - 2026-09-04
+
+Range: `v1.4.6..HEAD` (13 commits, 54 files changed)
+
+### Added
+
+- Added `idle` shell hooks and `cjshopt idle-timeout` to run foreground idle actions after a configurable period without terminal input, then restore the pending editor buffer and cursor.
+- Expanded job-control interfaces with `set -m` / `set +m`, `jobs -lprs`, `wait -fn -p`, running-job selection and hangup protection for `disown`, and PID support for foreground and job-management commands.
+- Added dynamic work scheduling for `generate-completions --subcommands`, allowing discovered subcommands to be generated concurrently while deduplicating targets and reporting their progress.
+
+### Changed
+
+- Improved history-search menus with compact metadata, expanded selected-entry metadata, multiline previews, and width-aware truncation.
+- Updated `cjsh -i -c` startup behavior to source `.cjshrc` before running the command without entering the interactive loop; logout hooks now run consistently at shell shutdown.
+- Improved interactive prompt handling for hooks and idle processing, including reliable restoration of terminal/editor state.
+
+### Fixed
+
+- Corrected function-definition validation and highlighting for `name() ( ... )` syntax.
+- Strengthened process-group, foreground-terminal, stopped-job, pipeline, and signal handling across job-control operations.
+
+### Internal, CI, and Tests
+
+- Added regression coverage for idle-hook interactions, function-definition syntax, generated completion scheduling, startup semantics, history/menu rendering, and job-control edge cases.
+- Moved release helper scripts under `.github/scripts` and allow release validation to skip build-system tests where appropriate.
+
 ## 1.4.6 - 2026-09-04
 
 Range: `v1.4.5..HEAD` (3 commits, 9 files changed)
