@@ -339,7 +339,11 @@ bool execute_custom_editor_command(const std::string& command) {
     (void)cjsh_env::set_shell_variable_value("CJSH_LINE", original_buffer);
     (void)cjsh_env::set_shell_variable_value("CJSH_POINT", std::to_string(cursor_pos));
 
+    const bool terminal_suspended = ic_suspend_readline_terminal();
     (void)g_shell->execute(command);
+    if (terminal_suspended) {
+        (void)ic_resume_readline_terminal();
+    }
 
     if (cjsh_env::shell_variable_is_set("CJSH_LINE")) {
         std::string new_buffer_env = cjsh_env::get_shell_variable_value("CJSH_LINE");

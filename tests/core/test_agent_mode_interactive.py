@@ -188,6 +188,9 @@ def main() -> int:
         interrupt_completed = os.path.join(temp_dir, "interrupt-completed")
         interrupt_recovery = os.path.join(temp_dir, "interrupt-recovery")
         custom_key_result = os.path.join(temp_dir, "custom-key-result")
+        external_tty_state = os.path.join(temp_dir, "external-tty-state")
+        external_tty_resumed = os.path.join(temp_dir, "external-tty-resumed")
+        external_tty_probe = os.path.join(temp_dir, "external-tty-probe")
         with open(executor, "w", encoding="utf-8") as script:
             script.write(
                 "#!/bin/sh\n"
@@ -205,6 +208,12 @@ def main() -> int:
                 "JSON\n"
             )
         os.chmod(executor, 0o755)
+        with open(external_tty_probe, "w", encoding="utf-8") as script:
+            script.write(
+                "#!/bin/sh\n"
+                f"stty -a > {shlex.quote(external_tty_state)}\n"
+            )
+        os.chmod(external_tty_probe, 0o755)
         with open(
             os.path.join(configured_home, ".cjshrc"), "w", encoding="utf-8"
         ) as rc_file:
@@ -236,6 +245,8 @@ def main() -> int:
                 "cjshopt agent-mode set --trigger-prefix ':interrupt ' --command "
                 f"{interrupt_command}\n"
                 "cjshopt agent-mode key F3\n"
+                "cjshopt keybind ext set F4 "
+                f"{shlex.quote(external_tty_probe)}\n"
             )
 
         # Without an executor, non-empty activation offers the setup command and
@@ -266,6 +277,23 @@ def main() -> int:
         try:
             session.wait_for(b"Started in")
             session.pump(1.0)
+
+            # External command bindings must receive a normal terminal, then return
+            # terminal ownership to the active raw-mode editor.
+            tty_probe_start = len(session.output)
+            session.write(b"\x1bOS")
+            session.wait_for_file(external_tty_state)
+            session.wait_for_quiet_prompt(start=tty_probe_start)
+            with open(external_tty_state, encoding="utf-8") as captured:
+                tty_flags = captured.read()
+            if "-icanon" in tty_flags or re.search(r"(?:^|\s)-echo(?:\s|$)", tty_flags):
+                raise AssertionError(
+                    "external command binding inherited the editor's raw terminal mode: "
+                    f"{tty_flags!r}"
+                )
+            session.write(f"touch {shlex.quote(external_tty_resumed)}\r".encode())
+            session.wait_for_file(external_tty_resumed)
+            session.wait_for_quiet_prompt(start=tty_probe_start)
 
             # Empty activation and prefix-only input advance to a new prompt without
             # invoking any executor.

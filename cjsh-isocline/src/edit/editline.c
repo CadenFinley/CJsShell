@@ -4333,7 +4333,9 @@ ic_public bool ic_set_buffer(const char* buffer) {
     eb->modified = true;
 
     // Refresh the display
-    edit_refresh(env, eb);
+    if (!env->readline_terminal_suspended) {
+        edit_refresh(env, eb);
+    }
 
     return true;
 }
@@ -4371,6 +4373,80 @@ ic_public bool ic_set_cursor_pos(size_t pos) {
     }
 
     eb->pos = (ssize_t)pos;
+    if (!env->readline_terminal_suspended) {
+        edit_refresh(env, eb);
+    }
+    return true;
+}
+
+ic_public bool ic_suspend_readline_terminal(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL || env->tty == NULL || env->term == NULL ||
+        env->readline_terminal_suspended) {
+        return false;
+    }
+
+    editor_t* eb = env->current_editor;
+    env->suspended_mouse_reporting_enabled = eb->mouse_reporting_enabled;
+    env->suspended_focus_reporting_enabled = eb->mouse_focus_reporting_enabled;
+
+    edit_set_mouse_focus_reporting(env, eb, false);
+    edit_set_mouse_reporting_enabled(env, eb, false);
+    if (env->bracketed_paste_enabled && term_is_interactive(env->term)) {
+        term_write(env->term, "\x1b[?2004l");
+        env->bracketed_paste_enabled = false;
+    }
+    term_attr_reset(env->term);
+    term_flush(env->term);
+
+    if (env->typeahead_enabled) {
+        tty_enable_typeahead_capture_mode(env->tty, false);
+    }
+    term_end_raw(env->term, false);
+    tty_end_raw(env->tty);
+    env->readline_terminal_suspended = true;
+    return true;
+}
+
+ic_public bool ic_resume_readline_terminal(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL || env->tty == NULL || env->term == NULL ||
+        !env->readline_terminal_suspended) {
+        return false;
+    }
+
+    editor_t* eb = env->current_editor;
+    if (!tty_start_raw(env->tty)) {
+        return false;
+    }
+    term_start_raw(env->term);
+    if (env->typeahead_enabled) {
+        tty_enable_typeahead_capture_mode(env->tty, true);
+    }
+    if (term_is_interactive(env->term)) {
+        term_write(env->term, "\x1b[?2004h");
+        env->bracketed_paste_enabled = true;
+    }
+
+    env->readline_terminal_suspended = false;
+    if (env->suspended_mouse_reporting_enabled) {
+        edit_set_mouse_reporting_enabled(env, eb, true);
+    }
+    if (env->suspended_focus_reporting_enabled) {
+        edit_set_mouse_focus_reporting(env, eb, true);
+    }
+    env->suspended_mouse_reporting_enabled = false;
+    env->suspended_focus_reporting_enabled = false;
+
+    term_reset_line_state(env->term);
+    term_start_of_line(env->term);
+    eb->cur_row = 0;
+    eb->cur_rows = 1;
+    eb->input_rows = 1;
+    eb->view_first_row = 0;
+    eb->view_rows = 1;
+    eb->view_input_rows = 1;
+    edit_write_prompt(env, eb, 0, false, 0, 0, 0, false);
     edit_refresh(env, eb);
     return true;
 }

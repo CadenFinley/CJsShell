@@ -183,6 +183,16 @@ typedef bool(ic_unhandled_key_fun_t)(ic_keycode_t key, void* arg);
 /// @param arg User-provided argument that will be passed to the callback
 void ic_set_unhandled_key_handler(ic_unhandled_key_fun_t* callback, void* arg);
 
+/// Temporarily release the terminal owned by an active readline editor.
+/// Use this before launching an external interactive program from a runoff callback.
+/// @returns true when an active editor was suspended, false otherwise.
+bool ic_suspend_readline_terminal(void);
+
+/// Reacquire and redraw a readline editor suspended with
+/// `ic_suspend_readline_terminal()`.
+/// @returns true when a suspended editor was resumed, false otherwise.
+bool ic_resume_readline_terminal(void);
+
 /// An item displayed by ic_show_menu().
 typedef struct ic_menu_item_s {
     /// Primary text displayed for the item. Must not be NULL or empty.

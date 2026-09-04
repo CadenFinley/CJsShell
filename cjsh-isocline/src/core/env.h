@@ -140,6 +140,9 @@ struct ic_env_s {
     bool show_whitespace_characters;                   // visualize spaces while editing?
     bool inline_right_prompt_follows_cursor;           // right prompt tracks cursor row
     bool bracketed_paste_enabled;                      // bracketed paste mode active
+    bool readline_terminal_suspended;                  // external program owns the terminal
+    bool suspended_mouse_reporting_enabled;            // restore mouse capture after resume
+    bool suspended_focus_reporting_enabled;            // restore focus capture after resume
     bool typeahead_enabled;                            // capture pending stdin for next readline
     bool terminal_region_marking_enabled;              // emit OSC 133 semantic regions
     uint8_t terminal_region_state;                     // current OSC 133 lifecycle state
