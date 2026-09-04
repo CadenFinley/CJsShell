@@ -4,7 +4,7 @@ This changelog documents tagged releases from `v1.1.2` through `v1.4.5`.
 
 ## 1.4.5 - 2026-09-03
 
-Range: `v1.4.4..HEAD` (10 commits, 24 files changed)
+Range: `v1.4.4..HEAD` (11 commits, 24 files changed)
 
 ### Added
 

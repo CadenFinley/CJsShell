@@ -121,6 +121,21 @@ class Session:
                 break
         raise AssertionError(f"missing {needle!r} in PTY output: {bytes(self.output)!r}")
 
+    def wait_for_normalized(
+        self, needle: bytes, timeout: float = 4.0, start: int = 0
+    ) -> None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            self.pump()
+            if needle in normalize_terminal_output(bytes(self.output[start:])):
+                return
+            if self.process.poll() is not None:
+                break
+        raise AssertionError(
+            f"missing {needle!r} in normalized PTY output: "
+            f"{normalize_terminal_output(bytes(self.output[start:]))!r}"
+        )
+
     def wait_for_file(self, path: str, timeout: float = 4.0) -> None:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
@@ -328,11 +343,14 @@ def main() -> int:
             # blocked or presenting an executor error.
             interrupt_start = len(session.output)
             session.write(b":interrupt cancel this request")
-            session.wait_for(b":interrupt cancel this request", start=interrupt_start)
+            session.wait_for_normalized(
+                b":interrupt cancel this request", start=interrupt_start
+            )
             session.write(b"\r")
             session.wait_for(b"Waiting for agent response", start=interrupt_start)
+            cancellation_start = len(session.output)
             session.write(b"\x03")
-            session.wait_for_quiet_prompt(start=interrupt_start)
+            session.wait_for_quiet_prompt(start=cancellation_start)
             if os.path.exists(interrupt_completed):
                 raise AssertionError("Ctrl+C did not stop the in-flight agent executor")
             interrupted_output = normalize_terminal_output(bytes(session.output[interrupt_start:]))
