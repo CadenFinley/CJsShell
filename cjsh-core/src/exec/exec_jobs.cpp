@@ -39,6 +39,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 #include "job_control.h"
@@ -93,7 +94,18 @@ void Exec::resume_job(Job& job, bool cont, std::string_view context) {
         return;
     }
 
-    if (kill(-job.pgid, SIGCONT) < 0) {
+    bool resumed = false;
+    if (job.process_group && job.pgid > 0) {
+        resumed = kill(-job.pgid, SIGCONT) == 0;
+    } else {
+        resumed = true;
+        for (pid_t pid : job.pids) {
+            if (pid > 0 && kill(pid, SIGCONT) < 0 && errno != ESRCH) {
+                resumed = false;
+            }
+        }
+    }
+    if (!resumed) {
         set_error(ErrorType::RUNTIME_ERROR, "kill",
                   "failed to send SIGCONT to " + std::string(context) + ": " +
                       std::string(strerror(errno)));
@@ -121,16 +133,17 @@ void Exec::remove_job(int job_id) {
 }
 
 void Exec::put_job_in_foreground(int job_id, bool cont) {
-    std::lock_guard<std::mutex> lock(jobs_mutex);
+    std::unique_lock<std::mutex> lock(jobs_mutex);
 
     Job* job = find_job_and_set_output_forwarding_locked(job_id, true);
     if (job == nullptr) {
         return;
     }
 
-    const bool main_shell_controls_terminal = shell_is_interactive &&
-                                              (isatty(shell_terminal) != 0) && shell_pgid > 0 &&
-                                              getpid() == shell_pgid && getpgrp() == shell_pgid;
+    const bool main_shell_controls_terminal =
+        job->process_group && g_shell && g_shell->is_job_control_enabled() &&
+        shell_is_interactive && (isatty(shell_terminal) != 0) && shell_pgid > 0 &&
+        getpid() == shell_pgid && getpgrp() == shell_pgid;
 
     bool terminal_control_acquired = false;
     if (main_shell_controls_terminal) {
@@ -145,15 +158,42 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         }
     }
 
+    if (terminal_control_acquired && cont && job->tmodes_saved) {
+        (void)tcsetattr(shell_terminal, TCSADRAIN, &job->tmodes);
+    }
+
+    if (job->launch_barrier_fd >= 0) {
+        const std::string ready(job->pids.size(), 'x');
+        size_t written = 0;
+        while (written < ready.size()) {
+            const ssize_t count =
+                write(job->launch_barrier_fd, ready.data() + written, ready.size() - written);
+            if (count > 0) {
+                written += static_cast<size_t>(count);
+            } else if (count < 0 && errno == EINTR) {
+                continue;
+            } else {
+                break;
+            }
+        }
+        (void)close(job->launch_barrier_fd);
+        job->launch_barrier_fd = -1;
+    }
+
     resume_job(*job, cont, "job");
 
-    jobs_mutex.unlock();
+    lock.unlock();
 
     wait_for_job(job_id);
 
-    jobs_mutex.lock();
+    lock.lock();
 
     if (terminal_control_acquired && main_shell_controls_terminal) {
+        auto current = jobs.find(job_id);
+        if (current != jobs.end() && current->second.stopped &&
+            tcgetattr(shell_terminal, &current->second.tmodes) == 0) {
+            current->second.tmodes_saved = true;
+        }
         if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
             if (errno != ENOTTY && errno != EINVAL) {
                 set_error(
@@ -162,11 +202,9 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
             }
         }
 
-        if (tcgetattr(shell_terminal, &shell_tmodes) == 0) {
-            if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
-                set_error(ErrorType::RUNTIME_ERROR, "tcsetattr",
-                          "failed to restore terminal attributes: " + std::string(strerror(errno)));
-            }
+        if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
+            set_error(ErrorType::RUNTIME_ERROR, "tcsetattr",
+                      "failed to restore terminal attributes: " + std::string(strerror(errno)));
         }
     }
 }
@@ -204,6 +242,7 @@ void Exec::wait_for_job(int job_id) {
     }
 
     pid_t job_pgid = it->second.pgid;
+    bool process_group = it->second.process_group;
     std::vector<pid_t> remaining_pids = it->second.pids;
     pid_t last_pid = it->second.last_pid;
     std::vector<pid_t> pid_order = it->second.pid_order;
@@ -218,9 +257,11 @@ void Exec::wait_for_job(int job_id) {
     bool saw_last = false;
     int last_status = 0;
     int stop_signal = 0;
+    std::unordered_set<pid_t> stopped_pids;
 
     while (!remaining_pids.empty()) {
-        pid = waitpid(-job_pgid, &status, WUNTRACED);
+        const pid_t wait_target = process_group ? -job_pgid : remaining_pids.front();
+        pid = waitpid(wait_target, &status, WUNTRACED | WCONTINUED);
 
         if (pid == -1) {
             if (errno == EINTR) {
@@ -241,8 +282,9 @@ void Exec::wait_for_job(int job_id) {
         }
 
         auto pid_it = std::find(remaining_pids.begin(), remaining_pids.end(), pid);
-        if (pid_it != remaining_pids.end()) {
+        if (pid_it != remaining_pids.end() && (WIFEXITED(status) || WIFSIGNALED(status))) {
             (void)remaining_pids.erase(pid_it);
+            stopped_pids.erase(pid);
         }
 
         auto order_it = std::find(pid_order.begin(), pid_order.end(), pid);
@@ -266,8 +308,20 @@ void Exec::wait_for_job(int job_id) {
         }
 
         if (WIFSTOPPED(status)) {
-            job_stopped = true;
+            stopped_pids.insert(pid);
             stop_signal = WSTOPSIG(status);
+            JobManager::instance().handle_child_status(pid, status);
+            if (!remaining_pids.empty() && stopped_pids.size() >= remaining_pids.size()) {
+                job_stopped = true;
+                break;
+            }
+        } else if (WIFCONTINUED(status)) {
+            stopped_pids.erase(pid);
+            JobManager::instance().handle_child_status(pid, status);
+        }
+
+        if (!remaining_pids.empty() && stopped_pids.size() >= remaining_pids.size()) {
+            job_stopped = true;
             break;
         }
     }
@@ -303,6 +357,9 @@ void Exec::wait_for_job(int job_id) {
                     job_control->state.store(JobState::RUNNING, std::memory_order_relaxed);
                     job_control->background.store(true, std::memory_order_relaxed);
                     job_control->stop_notified.store(false, std::memory_order_relaxed);
+                    job_control->stopped_pids.clear();
+                    job_control->stop_signal = 0;
+                    job_control->defer_stop_notification = false;
                 }
 
                 JobManager::instance().set_last_background_pid(job.last_pid);
@@ -312,7 +369,10 @@ void Exec::wait_for_job(int job_id) {
                 std::cerr << "\n[" << job_id << "]+ " << display_command << " &" << '\n';
             } else {
                 last_exit_code = 128 + SIGTSTP;
-                JobManager::instance().handle_child_status(pid, status);
+                if (job_control) {
+                    job_control->defer_stop_notification = false;
+                    JobManager::instance().notify_job_stopped(job_control);
+                }
             }
         } else {
             job.completed = true;
@@ -418,7 +478,7 @@ void Exec::terminate_all_child_process(int signal) {
             }
         }
 
-        if (job.pgid <= 0) {
+        if (!job.process_group || job.pgid <= 0) {
             return pid_signaled;
         }
 
@@ -447,7 +507,7 @@ void Exec::terminate_all_child_process(int signal) {
     bool signaled_any = false;
     for (const auto& entry : job_snapshot) {
         const Job& job = entry.job;
-        if (job.completed) {
+        if (job.completed || (signal == SIGHUP && job.hup_protected)) {
             continue;
         }
 
@@ -468,7 +528,7 @@ void Exec::terminate_all_child_process(int signal) {
 
     for (const auto& entry : job_snapshot) {
         const Job& job = entry.job;
-        if (job.completed) {
+        if (job.completed || (signal == SIGHUP && job.hup_protected)) {
             continue;
         }
 
@@ -508,6 +568,27 @@ void Exec::terminate_all_child_process(int signal) {
         set_error(ErrorType::RUNTIME_ERROR, "", "No child processes to terminate");
     } else {
         set_error(ErrorType::RUNTIME_ERROR, "", "All child processes terminated");
+    }
+}
+
+void Exec::remove_job_by_pgid(pid_t pgid) {
+    std::lock_guard<std::mutex> lock(jobs_mutex);
+    for (auto it = jobs.begin(); it != jobs.end(); ++it) {
+        if (it->second.pgid == pgid) {
+            jobs.erase(it);
+            return;
+        }
+    }
+}
+
+void Exec::set_job_hup_protected(pid_t pgid, bool protected_from_hup) {
+    std::lock_guard<std::mutex> lock(jobs_mutex);
+    for (auto& [id, job] : jobs) {
+        (void)id;
+        if (job.pgid == pgid) {
+            job.hup_protected = protected_from_hup;
+            return;
+        }
     }
 }
 

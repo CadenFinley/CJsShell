@@ -59,6 +59,8 @@ struct Job {
     bool auto_background_on_stop{false};
     bool auto_background_on_stop_silent{false};
     bool suppress_notifications{false};
+    bool process_group{true};
+    bool hup_protected{false};
     bool completed{false};
     bool stopped{false};
     int status{0};
@@ -68,6 +70,9 @@ struct Job {
     std::vector<pid_t> pid_order;
     std::vector<int> pipeline_statuses;
     std::shared_ptr<OutputRelayState> output_relay;
+    struct termios tmodes{};
+    bool tmodes_saved{false};
+    int launch_barrier_fd{-1};
 };
 
 class Exec {
@@ -137,6 +142,8 @@ class Exec {
     void terminate_all_child_process(int signal = SIGTERM);
     void abandon_all_child_processes();
     void set_job_output_forwarding(pid_t pgid, bool forward);
+    void remove_job_by_pgid(pid_t pgid);
+    void set_job_hup_protected(pid_t pgid, bool protected_from_hup);
 
     void set_error(const ErrorInfo& error);
     void set_error(ErrorType type, const std::string& command = "", const std::string& message = "",

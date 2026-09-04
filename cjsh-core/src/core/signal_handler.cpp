@@ -486,7 +486,9 @@ void SignalHandler::install_signal_handler(int signum, struct sigaction* old_act
 
     sa.sa_flags = 0;
 
-    if (signum != SIGINT) {
+    // Exit-causing signals must interrupt waitpid/read loops so pending signal processing can
+    // promptly propagate them to managed jobs. SIGCHLD and cosmetic signals remain restartable.
+    if (signum != SIGINT && signum != SIGHUP && signum != SIGTERM) {
         sa.sa_flags |= SA_RESTART;
     }
 
@@ -536,10 +538,6 @@ void SignalHandler::signal_handler(int signum) {
         case SIGHUP: {
             s_sighup_received = 1;
             cjsh_env::request_exit();
-            pid_t bg_pgid = JobManager::get_last_background_pid_atomic();
-            if (bg_pgid > 0) {
-                (void)killpg(bg_pgid, SIGHUP);
-            }
             should_mark_pending = true;
             break;
         }
@@ -827,57 +825,38 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         result.sighup = true;
         cjsh_env::request_exit();
 
-        bool enforce_hup = !g_shell || g_shell->get_shell_option(ShellOption::Huponexit);
-
         auto& job_manager = JobManager::instance();
         auto jobs_snapshot = job_manager.get_all_jobs();
 
         for (const auto& job : jobs_snapshot) {
             const JobState state = job->state.load(std::memory_order_relaxed);
-            if (state == JobState::RUNNING || state == JobState::STOPPED) {
-                if (fprintf(stderr, "cjsh(debug): hup propagate pgid=%d state=%d\n", job->pgid,
-                            static_cast<int>(state)) < 0) {
-                    (void)0;
-                }
-                if (killpg(job->pgid, SIGHUP) < 0) {
-                    if (fprintf(stderr, "cjsh(debug): killpg HUP failed for %d: %s\n", job->pgid,
-                                strerror(errno)) < 0) {
-                        (void)0;
+            if ((state == JobState::RUNNING || state == JobState::STOPPED) && !job->hup_protected) {
+                if (job->process_group && job->pgid > 0) {
+                    (void)killpg(job->pgid, SIGHUP);
+                } else {
+                    for (pid_t pid : job->remaining_pids) {
+                        (void)kill(pid, SIGHUP);
                     }
                 }
 #ifdef SIGCONT
                 if (state == JobState::STOPPED) {
-                    (void)killpg(job->pgid, SIGCONT);
+                    if (job->process_group && job->pgid > 0) {
+                        (void)killpg(job->pgid, SIGCONT);
+                    } else {
+                        for (pid_t pid : job->remaining_pids) {
+                            (void)kill(pid, SIGCONT);
+                        }
+                    }
                 }
 #endif
             }
         }
 
-        if (jobs_snapshot.empty()) {
-            pid_t orphan_pid = job_manager.get_last_background_pid();
-            if (orphan_pid > 0) {
-                (void)kill(orphan_pid, SIGHUP);
-            }
-        }
-
         if (shell_exec != nullptr) {
-            if (enforce_hup) {
-                shell_exec->terminate_all_child_process();
-            } else {
-                shell_exec->abandon_all_child_processes();
-            }
-        }
-
-        if (enforce_hup) {
-            for (auto& job : jobs_snapshot) {
-                const JobState state = job->state.load(std::memory_order_relaxed);
-                if (state == JobState::RUNNING || state == JobState::STOPPED) {
-                    (void)killpg(job->pgid, SIGTERM);
-                    (void)usleep(10000);
-                    (void)killpg(job->pgid, SIGKILL);
-                    job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
-                }
-            }
+            // A non-monitor job can be a shell wrapper that defers its HUP trap while waiting for
+            // a descendant in the shared caller process group. Finish unprotected direct
+            // children as the shell exits; Exec preserves jobs marked by `disown -h`.
+            shell_exec->terminate_all_child_process(SIGHUP);
         }
 
         job_manager.clear_all_jobs();

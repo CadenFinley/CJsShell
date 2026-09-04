@@ -44,7 +44,8 @@ POSIX, Bash, or Zsh behavior is not identical.
     and process substitution are supported. Extended globs are enabled with
     `cjshopt extglob on`. History expansion stays interactive-only by default.
 - **Job control** – Background jobs, `fg`, `bg`, `jobs`, `wait`, `disown`, and `trap` integrate with
-    the internal process manager so interactive sessions stay responsive. Append `&^` to a command
+    terminal process groups so `SIGTTIN`/`SIGTTOU` retain their normal kernel semantics. Monitor
+    mode is enabled for interactive shells and toggled with `set -m` / `set +m`. Append `&^` to a command
     to auto-background it on `Ctrl+Z`, or `&^!` to auto-background and discard stdout/stderr after
     the suspend. `set -o huponexit` controls whether exiting shells hang up or leave running jobs
     alone (default: off, so long-lived helpers keep running until you explicitly stop them).

@@ -253,13 +253,15 @@ void apply_assignments_to_shell_env(
 }
 
 Job make_single_process_job(pid_t pid, const std::string& command, bool background,
-                            bool auto_background_on_stop, bool auto_background_on_stop_silent) {
+                            bool auto_background_on_stop, bool auto_background_on_stop_silent,
+                            bool process_group = true) {
     Job job;
     job.pgid = pid;
     job.command = command;
     job.background = background;
     job.auto_background_on_stop = auto_background_on_stop;
     job.auto_background_on_stop_silent = auto_background_on_stop_silent;
+    job.process_group = process_group;
     job.completed = false;
     job.stopped = false;
     job.pids.push_back(pid);
@@ -1132,36 +1134,6 @@ bool configure_stderr_redirects(const Command& cmd, ErrorHandler&& on_error) {
     return true;
 }
 
-template <typename ErrorHandler>
-void maybe_set_foreground_terminal(bool enabled, int terminal_fd, pid_t pgid,
-                                   ErrorHandler&& on_error) {
-    if (!enabled) {
-        return;
-    }
-
-    if (tcsetpgrp(terminal_fd, pgid) < 0) {
-        int saved_errno = errno;
-        on_error(saved_errno);
-    }
-}
-
-bool can_control_terminal(bool shell_is_interactive, int terminal_fd, pid_t shell_pgid) {
-    if (!shell_is_interactive || terminal_fd < 0 || shell_pgid <= 0 || isatty(terminal_fd) == 0) {
-        return false;
-    }
-
-    if (getpid() != shell_pgid || getpgrp() != shell_pgid) {
-        return false;
-    }
-
-    const pid_t foreground_pgid = tcgetpgrp(terminal_fd);
-    if (foreground_pgid < 0) {
-        return false;
-    }
-
-    return foreground_pgid == shell_pgid;
-}
-
 [[noreturn]] void exec_external_child(const std::vector<std::string>& args,
                                       const char* cached_path) {
     if (config::script_extension_interpreter_enabled && !config::posix_mode) {
@@ -1392,6 +1364,7 @@ void Exec::set_last_pipeline_statuses(std::vector<int> statuses) {
 
 int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_background_on_stop,
                                bool auto_background_on_stop_silent) {
+    const bool monitor_mode = g_shell && g_shell->is_job_control_enabled();
     std::vector<std::pair<std::string, std::string>> env_assignments;
     int early_exit_code = 0;
     auto cmd_args = collect_command_args_with_assignments(
@@ -1445,6 +1418,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         output_pty = create_output_pty(shell_terminal);
     }
 
+    int launch_barrier[2] = {-1, -1};
+    if (monitor_mode && shell_is_interactive && isatty(shell_terminal) != 0) {
+        (void)pipe(launch_barrier);
+    }
+
     pid_t pid = fork();
 
     if (pid == -1) {
@@ -1454,6 +1432,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
             cjsh_filesystem::safe_close(output_pty->master_fd);
             cjsh_filesystem::safe_close(output_pty->slave_fd);
         }
+        cjsh_filesystem::safe_close(launch_barrier[0]);
+        cjsh_filesystem::safe_close(launch_barrier[1]);
         last_exit_code = EX_OSERR;
         cleanup_process_substitutions(proc_resources, true);
         set_last_pipeline_statuses({EX_OSERR});
@@ -1464,11 +1444,19 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         cjsh_env::apply_env_assignments(env_assignments);
 
         pid_t child_pid = getpid();
-        if (setpgid(child_pid, child_pid) < 0) {
+        if (monitor_mode && setpgid(child_pid, child_pid) < 0) {
             child_exit_with_error(
                 ErrorType::RUNTIME_ERROR, cmd_args_value.empty() ? "command" : cmd_args_value[0],
                 std::string("setpgid: failed to set process group ID in child: ") +
                     strerror(errno));
+        }
+
+        if (launch_barrier[0] >= 0) {
+            (void)close(launch_barrier[1]);
+            char ready = 0;
+            while (read(launch_barrier[0], &ready, 1) < 0 && errno == EINTR) {
+            }
+            (void)close(launch_barrier[0]);
         }
 
         reset_child_signals();
@@ -1493,12 +1481,14 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         exec_builtin_or_external_child(cmd_args_value, is_builtin, cached_exec_path);
     }
 
-    if (setpgid(pid, pid) < 0) {
+    cjsh_filesystem::safe_close(launch_barrier[0]);
+    if (monitor_mode && setpgid(pid, pid) < 0) {
         warn_parent_setpgid_failure();
     }
 
     Job job = make_single_process_job(pid, args[0], false, auto_background_on_stop,
-                                      auto_background_on_stop_silent);
+                                      auto_background_on_stop_silent, monitor_mode);
+    job.launch_barrier_fd = launch_barrier[1];
     attach_output_relay_to_job(job, output_pty, output_relay);
 
     int job_id = add_job(job);
@@ -1517,8 +1507,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         }
     }
 
-    int new_job_id =
-        JobManager::instance().add_job(pid, {pid}, full_command, job.background, reads_stdin);
+    int new_job_id = JobManager::instance().add_job(pid, {pid}, full_command, job.background,
+                                                    reads_stdin, monitor_mode);
+    if (auto managed_job = JobManager::instance().get_job(new_job_id)) {
+        managed_job->defer_stop_notification = auto_background_on_stop;
+    }
 
     put_job_in_foreground(job_id, false);
 
@@ -1554,6 +1547,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
 }
 
 int Exec::execute_command_async(const std::vector<std::string>& args) {
+    const bool monitor_mode = g_shell && g_shell->is_job_control_enabled();
     std::vector<std::pair<std::string, std::string>> env_assignments;
     int early_exit_code = 0;
     auto cmd_args = collect_command_args_with_assignments(
@@ -1594,31 +1588,43 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     if (pid == 0) {
         cjsh_env::apply_env_assignments(env_assignments);
 
-        if (setpgid(0, 0) < 0) {
+        if (monitor_mode && setpgid(0, 0) < 0) {
             child_exit_with_error(
                 ErrorType::RUNTIME_ERROR, cmd_args_value.empty() ? "command" : cmd_args_value[0],
                 std::string("setpgid: failed to set process group ID in background child: ") +
                     strerror(errno));
         }
 
+        // POSIX asynchronous lists without job control inherit no terminal input. With monitor
+        // mode enabled, the distinct background process group is instead stopped by SIGTTIN if
+        // it tries to read the controlling terminal.
+        if (!monitor_mode) {
+            int null_fd = open("/dev/null", O_RDONLY);
+            if (null_fd >= 0) {
+                (void)dup2(null_fd, STDIN_FILENO);
+                (void)close(null_fd);
+            }
+        }
+
         reset_child_signals();
 
         exec_builtin_or_external_child(cmd_args_value, is_builtin, cached_exec_path);
     } else {
-        if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
+        if (monitor_mode && setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
             set_error(ErrorType::RUNTIME_ERROR, "setpgid",
                       "failed to set process group ID for background process: " +
                           std::string(strerror(errno)));
         }
 
-        Job job = make_single_process_job(pid, args[0], true, false, false);
+        Job job = make_single_process_job(pid, args[0], true, false, false, monitor_mode);
         job.suppress_notifications =
             g_command_not_found_handler_depth.load(std::memory_order_relaxed) > 0;
 
         int job_id = add_job(job);
 
         std::string full_command = join_arguments(args);
-        int managed_job_id = JobManager::instance().add_job(pid, {pid}, full_command, true, false);
+        int managed_job_id =
+            JobManager::instance().add_job(pid, {pid}, full_command, true, false, monitor_mode);
         if (job.suppress_notifications) {
             auto managed_job = JobManager::instance().get_job(managed_job_id);
             if (managed_job) {
@@ -1637,8 +1643,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
     const bool pipeline_negated = (!commands.empty() && commands[0].negate_pipeline);
-    const bool use_job_control =
-        can_control_terminal(shell_is_interactive, shell_terminal, shell_pgid);
+    const bool monitor_mode = g_shell && g_shell->is_job_control_enabled();
 
     auto apply_pipefail = [&](int exit_code, const std::vector<int>& statuses) -> int {
         if (!g_shell || !g_shell->get_shell_option(ShellOption::Pipefail)) {
@@ -1783,6 +1788,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             output_pty = create_output_pty(shell_terminal);
         }
 
+        int launch_barrier[2] = {-1, -1};
+        if (monitor_mode && shell_is_interactive && isatty(shell_terminal) != 0) {
+            (void)pipe(launch_barrier);
+        }
+
         pid_t pid = fork();
 
         if (pid == -1) {
@@ -1793,6 +1803,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 cjsh_filesystem::safe_close(output_pty->master_fd);
                 cjsh_filesystem::safe_close(output_pty->slave_fd);
             }
+            cjsh_filesystem::safe_close(launch_barrier[0]);
+            cjsh_filesystem::safe_close(launch_barrier[1]);
             set_last_pipeline_statuses({EX_OSERR});
             return finalize_exit(EX_OSERR);
         }
@@ -1804,19 +1816,20 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 cjsh_env::apply_env_assignments(env_assignments);
             }
             pid_t child_pid = getpid();
-            if (setpgid(child_pid, child_pid) < 0) {
+            if (monitor_mode && setpgid(child_pid, child_pid) < 0) {
                 child_exit_with_error(
                     ErrorType::RUNTIME_ERROR, command_name,
                     std::string("setpgid: failed to set process group ID in child: ") +
                         strerror(errno));
             }
 
-            maybe_set_foreground_terminal(use_job_control, shell_terminal, child_pid, [&](int err) {
-                child_exit_with_error(ErrorType::RUNTIME_ERROR, command_name,
-                                      std::string("tcsetpgrp: failed to set terminal "
-                                                  "foreground process group in child: ") +
-                                          strerror(err));
-            });
+            if (launch_barrier[0] >= 0) {
+                (void)close(launch_barrier[1]);
+                char ready = 0;
+                while (read(launch_barrier[0], &ready, 1) < 0 && errno == EINTR) {
+                }
+                (void)close(launch_barrier[0]);
+            }
 
             reset_child_signals();
 
@@ -1954,7 +1967,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             exec_external_child(cmd.args, exec_override);
         }
 
-        if (!use_job_control) {
+        cjsh_filesystem::safe_close(launch_barrier[0]);
+
+        if (!monitor_mode) {
+            cjsh_filesystem::safe_close(launch_barrier[1]);
             int status = 0;
             const int wait_options = cmd.auto_background_on_stop ? WUNTRACED : 0;
             pid_t wpid = waitpid(pid, &status, wait_options);
@@ -1969,18 +1985,17 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
             if (wpid > 0 && cmd.auto_background_on_stop && WIFSTOPPED(status) &&
                 WSTOPSIG(status) == SIGTSTP) {
-                if (kill(-pid, SIGCONT) < 0 && errno == ESRCH) {
-                    (void)kill(pid, SIGCONT);
-                }
+                (void)kill(pid, SIGCONT);
 
                 Job job =
                     make_single_process_job(pid, cmd.args[0], true, cmd.auto_background_on_stop,
-                                            cmd.auto_background_on_stop_silent);
+                                            cmd.auto_background_on_stop_silent, false);
                 int job_id = add_job(job);
 
                 std::string full_command = join_arguments(cmd.args);
                 bool reads_stdin = job_utils::command_consumes_terminal_stdin(cmd);
-                (void)JobManager::instance().add_job(pid, {pid}, full_command, true, reads_stdin);
+                (void)JobManager::instance().add_job(pid, {pid}, full_command, true, reads_stdin,
+                                                     false);
                 JobManager::instance().set_last_background_pid(pid);
 
                 std::cerr << "[" << job_id << "] " << pid << " " << full_command << '\n';
@@ -2006,7 +2021,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             warn_parent_setpgid_failure();
         }
         Job job = make_single_process_job(pid, cmd.args[0], false, cmd.auto_background_on_stop,
-                                          cmd.auto_background_on_stop_silent);
+                                          cmd.auto_background_on_stop_silent, true);
+        job.launch_barrier_fd = launch_barrier[1];
         attach_output_relay_to_job(job, output_pty, output_relay);
 
         int job_id = add_job(job);
@@ -2014,6 +2030,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         bool reads_stdin = job_utils::command_consumes_terminal_stdin(cmd);
         int managed_job_id =
             JobManager::instance().add_job(pid, {pid}, full_command, job.background, reads_stdin);
+        if (auto managed_job = JobManager::instance().get_job(managed_job_id)) {
+            managed_job->defer_stop_notification = cmd.auto_background_on_stop;
+        }
         put_job_in_foreground(job_id, false);
 
         if (!cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty()) {
@@ -2069,6 +2088,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
     }
 
+    int launch_barrier[2] = {-1, -1};
+    if (monitor_mode && !commands.back().background && shell_is_interactive &&
+        isatty(shell_terminal) != 0) {
+        (void)pipe(launch_barrier);
+    }
+
     try {
         for (size_t i = 0; i < commands.size() - 1; i++) {
             if (pipe(pipes[i].data()) == -1) {
@@ -2077,6 +2102,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                               " for pipeline: " + std::string(strerror(errno)));
                 set_last_pipeline_statuses({EX_OSERR});
                 close_output_pty();
+                cjsh_filesystem::safe_close(launch_barrier[0]);
+                cjsh_filesystem::safe_close(launch_barrier[1]);
                 return finalize_exit(EX_OSERR);
             }
         }
@@ -2106,6 +2133,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
                 set_last_pipeline_statuses({1});
                 close_output_pty();
+                cjsh_filesystem::safe_close(launch_barrier[0]);
+                cjsh_filesystem::safe_close(launch_barrier[1]);
+                for (pid_t child : pids) {
+                    (void)kill(child, SIGTERM);
+                }
                 return finalize_exit(1);
             }
 
@@ -2118,6 +2150,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                               " in pipeline): " + std::string(strerror(errno)));
                 set_last_pipeline_statuses({EX_OSERR});
                 close_output_pty();
+                cjsh_filesystem::safe_close(launch_barrier[0]);
+                cjsh_filesystem::safe_close(launch_barrier[1]);
+                for (pid_t child : pids) {
+                    (void)kill(child, SIGTERM);
+                }
                 return finalize_exit(EX_OSERR);
             }
 
@@ -2127,31 +2164,35 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     child_exit_with_error(type, command_name, message);
                 };
 
-                if (i == 0) {
+                if (monitor_mode && i == 0) {
                     pgid = getpid();
                 }
 
-                if (setpgid(0, pgid) < 0) {
+                if (monitor_mode && setpgid(0, pgid) < 0) {
                     const int saved_errno = errno;
                     child_error(ErrorType::RUNTIME_ERROR, "failed to set process group in child: " +
                                                               std::string(strerror(saved_errno)));
                 }
 
-                maybe_set_foreground_terminal(
-                    use_job_control && i == 0, shell_terminal, pgid, [&](int err) {
-                        ErrorInfo info{
-                            ErrorType::RUNTIME_ERROR,
-                            ErrorSeverity::WARNING,
-                            command_name,
-                            std::string("failed to set controlling terminal in child: ") +
-                                strerror(err),
-                            {}};
-                        print_error(info);
-                    });
+                if (launch_barrier[0] >= 0) {
+                    (void)close(launch_barrier[1]);
+                    char ready = 0;
+                    while (read(launch_barrier[0], &ready, 1) < 0 && errno == EINTR) {
+                    }
+                    (void)close(launch_barrier[0]);
+                }
 
                 reset_child_signals();
                 if (has_temporary_env) {
                     cjsh_env::apply_env_assignments(env_assignments);
+                }
+                if (!monitor_mode && commands.back().background && i == 0 &&
+                    job_utils::command_consumes_terminal_stdin(cmd)) {
+                    int null_fd = open("/dev/null", O_RDONLY);
+                    if (null_fd >= 0) {
+                        (void)dup2(null_fd, STDIN_FILENO);
+                        (void)close(null_fd);
+                    }
                 }
                 if (i == 0) {
                     if (cmd.redirection_order.empty() && !cmd.here_doc.empty()) {
@@ -2317,7 +2358,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 pgid = pid;
             }
 
-            if (setpgid(pid, pgid) < 0) {
+            if (monitor_mode && setpgid(pid, pgid) < 0) {
                 if (errno != EACCES && errno != EPERM) {
                     set_error(ErrorType::RUNTIME_ERROR, "setpgid",
                               "failed to set process group ID in pipeline parent: " +
@@ -2332,6 +2373,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             (void)close(pipes[i][0]);
             (void)close(pipes[i][1]);
         }
+        cjsh_filesystem::safe_close(launch_barrier[0]);
 
         if (output_pty.has_value()) {
             cjsh_filesystem::safe_close(output_pty->slave_fd);
@@ -2347,6 +2389,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
         set_last_pipeline_statuses({1});
         close_output_pty();
+        cjsh_filesystem::safe_close(launch_barrier[0]);
+        cjsh_filesystem::safe_close(launch_barrier[1]);
         return finalize_exit(1);
     }
 
@@ -2356,6 +2400,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     job.background = commands.back().background;
     job.auto_background_on_stop = commands.back().auto_background_on_stop;
     job.auto_background_on_stop_silent = commands.back().auto_background_on_stop_silent;
+    job.process_group = monitor_mode;
     job.completed = false;
     job.stopped = false;
     job.pids = pids;
@@ -2363,6 +2408,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     job.pid_order = pids;
     job.pipeline_statuses.assign(pids.size(), -1);
     job.output_relay = output_relay;
+    job.launch_barrier_fd = launch_barrier[1];
 
     int job_id = add_job(job);
 
@@ -2376,9 +2422,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             pipeline_command += commands[i].args[j];
         }
     }
-    int new_job_id =
-        JobManager::instance().add_job(pgid, pids, pipeline_command, job.background,
-                                       job_utils::pipeline_consumes_terminal_stdin(commands));
+    int new_job_id = JobManager::instance().add_job(
+        pgid, pids, pipeline_command, job.background,
+        job_utils::pipeline_consumes_terminal_stdin(commands), monitor_mode);
+    if (auto managed_job = JobManager::instance().get_job(new_job_id)) {
+        managed_job->defer_stop_notification = commands.back().auto_background_on_stop;
+    }
 
     if (job.background) {
         JobManager::instance().set_last_background_pid(pids.empty() ? -1 : pids.back());
@@ -2827,10 +2876,9 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
     return result;
 }
 
-CommandOutput execute_args_for_output_impl(const std::vector<std::string>& args,
-                                           const std::function<void()>& progress_callback,
-                                           unsigned int progress_interval_ms,
-                                           const std::function<bool()>& cancellation_callback = {}) {
+CommandOutput execute_args_for_output_impl(
+    const std::vector<std::string>& args, const std::function<void()>& progress_callback,
+    unsigned int progress_interval_ms, const std::function<bool()>& cancellation_callback = {}) {
     if (args.empty()) {
         return {"", -1, false};
     }
@@ -2867,7 +2915,7 @@ CommandOutput execute_command_vector_for_output_with_progress(
     const std::vector<std::string>& args, const std::function<void()>& progress_callback,
     unsigned int progress_interval_ms, const std::function<bool()>& cancellation_callback) {
     return execute_args_for_output_impl(args, progress_callback, progress_interval_ms,
-                                         cancellation_callback);
+                                        cancellation_callback);
 }
 
 }  // namespace exec_utils

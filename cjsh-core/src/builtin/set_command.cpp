@@ -167,7 +167,7 @@ bool option_is_non_posix(ShellOption option) {
 
 int set_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(
-            args, {"Usage: set [-+eCunxvfna] [-o option] [--] [ARG ...]",
+            args, {"Usage: set [-+eCunxvfnam] [-o option] [--] [ARG ...]",
                    "Set or unset shell options and positional parameters.",
                    "",
                    "Options:",
@@ -179,6 +179,7 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
                    "  -n              Read but don't execute commands (noexec)",
                    "  -f              Disable pathname expansion (noglob)",
                    "  -a              Auto-export modified variables (allexport)",
+                   "  -m              Enable job-control monitor mode",
                    "  -o option       Set option by name (globstar, huponexit, pipefail, etc.)",
                    "                  globstar enables recursive '**' globs",
                    "                  pipefail makes pipelines return the last non-zero status",

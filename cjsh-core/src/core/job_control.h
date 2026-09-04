@@ -29,6 +29,7 @@
 #pragma once
 
 #include <sys/types.h>
+#include <termios.h>
 
 #include <atomic>
 #include <chrono>
@@ -37,6 +38,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -56,15 +58,21 @@ struct JobControlJob {
     int job_id;
     pid_t pgid;
     std::vector<pid_t> pids;
+    std::unordered_set<pid_t> remaining_pids;
+    std::unordered_set<pid_t> stopped_pids;
     pid_t last_pid{-1};
     std::string command;
     std::atomic<JobState> state{JobState::RUNNING};
     int exit_status{};
     int termination_signal{};
+    int stop_signal{};
     bool notified{false};
     std::atomic<bool> stop_notified{false};
     std::atomic<bool> background{false};
     bool suppress_notifications{false};
+    bool process_group{true};
+    bool hup_protected{false};
+    bool defer_stop_notification{false};
     bool reads_stdin{false};
     bool awaiting_stdin_signal{false};
     std::uint8_t last_stdin_signal{0};
@@ -72,9 +80,12 @@ struct JobControlJob {
     std::chrono::steady_clock::time_point last_stdin_signal_time{
         std::chrono::steady_clock::time_point::min()};
     std::string custom_name;
+    struct termios tmodes{};
+    bool tmodes_saved{false};
 
     JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
-                  const std::string& cmd, bool is_background, bool consumes_stdin);
+                  const std::string& cmd, bool is_background, bool consumes_stdin,
+                  bool has_process_group);
 
     bool has_custom_name() const {
         return !custom_name.empty();
@@ -94,7 +105,7 @@ class JobManager {
     static JobManager& instance();
 
     int add_job(pid_t pgid, const std::vector<pid_t>& pids, const std::string& command,
-                bool background = false, bool reads_stdin = true);
+                bool background = false, bool reads_stdin = true, bool process_group = true);
 
     void remove_job(int job_id);
 
@@ -137,6 +148,7 @@ class JobManager {
     void clear_all_jobs();
     void mark_pid_completed(pid_t pid, int status);
     std::optional<int> consume_completed_pid_status(pid_t pid);
+    std::optional<int> completed_pid_status(pid_t pid) const;
 
    private:
     JobManager() = default;
@@ -168,6 +180,8 @@ std::optional<int> interpret_wait_status(int status);
 
 std::optional<int> wait_for_job_and_remove(const std::shared_ptr<JobControlJob>& job,
                                            JobManager& job_manager);
+std::optional<int> wait_for_job(const std::shared_ptr<JobControlJob>& job, JobManager& job_manager,
+                                bool return_on_stop = true, pid_t* status_pid = nullptr);
 
 std::optional<int> parse_job_specifier(const std::string& target);
 std::optional<int> parse_job_specifier_flexible(const std::string& target);

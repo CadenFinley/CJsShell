@@ -401,6 +401,26 @@ def main(argv: list[str]) -> int:
         )
         foreground_exit_result = run_job_control_case(argv[0], "sh -c 'exit 42'")
         ownership_result = run_noninteractive_terminal_ownership_case(argv[0])
+        sigttin_result = run_controlling_terminal_case(
+            argv[0],
+            "cat & sleep 0.1; jobs -s; "
+            "kill -CONT %1; kill -TERM %1; wait %1; exit 0",
+        )
+        monitor_off_reader_result = run_controlling_terminal_case(
+            argv[0],
+            "set +m; cat & p=$!; wait $p; s=$?; "
+            "printf 'monitor_off_flags=%s status=%s\\n' \"$-\" \"$s\"",
+        )
+        monitor_toggle_result = run_controlling_terminal_case(
+            argv[0],
+            "set +m; off=$-; set -m; on=$-; "
+            "printf 'monitor_flags=%s|%s\\n' \"$off\" \"$on\"",
+        )
+        pipeline_lifetime_result = run_controlling_terminal_case(
+            argv[0],
+            "sh -c 'sleep 0.2' | sh -c 'exit 7' & p=$!; "
+            "sleep 0.05; jobs -r; wait $p; printf 'pipeline_status=%s\\n' \"$?\"",
+        )
         resumed_termination_result = run_controlling_terminal_case(
             argv[0], "sh -c 'kill -TSTP $$; kill -INT $$'; fg"
         )
@@ -475,6 +495,50 @@ def main(argv: list[str]) -> int:
                 not ownership_result.timed_out and ownership_result.return_code == 0,
                 "non-interactive cjsh changed its caller's foreground process group:\n"
                 f"{ownership_result.output}",
+            ),
+        ),
+        (
+            "background terminal reader stops through SIGTTIN",
+            lambda: require(
+                not sigttin_result.timed_out
+                and sigttin_result.return_code == 0
+                and "Stopped" in sigttin_result.output
+                and "cat" in sigttin_result.output,
+                "background terminal input did not produce a stopped job:\n"
+                f"{sigttin_result.output}",
+            ),
+        ),
+        (
+            "monitor-off asynchronous stdin uses devnull",
+            lambda: require(
+                not monitor_off_reader_result.timed_out
+                and monitor_off_reader_result.return_code == 0
+                and "status=0" in monitor_off_reader_result.output
+                and "Stopped" not in monitor_off_reader_result.output
+                and "monitor_off_flags=hBi" in monitor_off_reader_result.output,
+                "set +m background terminal input handling failed:\n"
+                f"{monitor_off_reader_result.output}",
+            ),
+        ),
+        (
+            "set plus/minus m toggles monitor flag",
+            lambda: require(
+                not monitor_toggle_result.timed_out
+                and monitor_toggle_result.return_code == 0
+                and "monitor_flags=hBi|hBim" in monitor_toggle_result.output,
+                "monitor flag did not toggle in $-:\n"
+                f"{monitor_toggle_result.output}",
+            ),
+        ),
+        (
+            "pipeline remains running after last process exits",
+            lambda: require(
+                not pipeline_lifetime_result.timed_out
+                and pipeline_lifetime_result.return_code == 0
+                and "Running" in pipeline_lifetime_result.output
+                and "pipeline_status=7" in pipeline_lifetime_result.output,
+                "pipeline job lifetime/status aggregation failed:\n"
+                f"{pipeline_lifetime_result.output}",
             ),
         ),
         (

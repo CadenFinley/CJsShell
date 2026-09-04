@@ -71,7 +71,8 @@ constexpr std::array<ShellOptionDescriptor, static_cast<size_t>(ShellOption::Cou
                                 {ShellOption::Globstar, 0, "globstar"},
                                 {ShellOption::Allexport, 'a', "allexport"},
                                 {ShellOption::Huponexit, 0, "huponexit"},
-                                {ShellOption::Pipefail, 0, "pipefail"}}};
+                                {ShellOption::Pipefail, 0, "pipefail"},
+                                {ShellOption::Monitor, 'm', "monitor"}}};
 
 struct ErrexitSeverityDescriptor {
     ErrorSeverity severity;
@@ -160,11 +161,13 @@ Shell::Shell() {
     JobManager::instance().set_shell(this);
     trap_manager_set_shell(this);
 
+    // A nested interactive shell must let the kernel stop it with SIGTTIN until its parent
+    // places it in the foreground.  Install the shell's ignored job-control dispositions only
+    // after this handshake has completed.
+    setup_job_control();
+
     // signal dispatch depends on the prior wiring so register handlers after setup completes
     setup_signal_handlers();
-
-    // enable job control now that handlers and managers are ready
-    setup_job_control();
 }
 
 Shell::~Shell() {
@@ -488,49 +491,99 @@ void Shell::restore_terminal_state() {
 
 void Shell::setup_job_control() {
     const bool requested_interactive = config::interactive_mode || config::force_interactive;
-    if (!requested_interactive || isatty(STDIN_FILENO) == 0) {
+    if (!requested_interactive) {
         job_control_enabled = false;
+        shell_options[to_index(ShellOption::Monitor)] = false;
+        interactive_job_control_available = false;
         return;
+    }
+    if (isatty(STDIN_FILENO) == 0) {
+        // `-i` still enables monitor-mode process groups when stdin is redirected. There is no
+        // controlling terminal to transfer, but fg/bg and the job table remain useful.
+        job_control_enabled = true;
+        shell_options[to_index(ShellOption::Monitor)] = true;
+        interactive_job_control_available = false;
+        return;
+    }
+
+    shell_terminal = STDIN_FILENO;
+    shell_pgid = getpgrp();
+
+    // If cjsh was started in the background, wait until the parent shell foregrounds this
+    // process group. SIGTTIN is intentionally left at its inherited/default disposition here.
+    for (;;) {
+        const pid_t foreground_pgid = tcgetpgrp(shell_terminal);
+        if (foreground_pgid < 0) {
+            job_control_enabled = false;
+            shell_options[to_index(ShellOption::Monitor)] = false;
+            interactive_job_control_available = false;
+            return;
+        }
+        if (foreground_pgid == shell_pgid) {
+            break;
+        }
+        if (kill(-shell_pgid, SIGTTIN) < 0 && errno != EINTR) {
+            job_control_enabled = false;
+            shell_options[to_index(ShellOption::Monitor)] = false;
+            interactive_job_control_available = false;
+            return;
+        }
+        shell_pgid = getpgrp();
     }
 
     shell_pgid = getpid();
 
     if (setpgid(shell_pgid, shell_pgid) < 0) {
-        if (errno != EPERM) {
+        // A session leader is already the leader of its process group and setpgid then reports
+        // EPERM. Treat that as success only when the desired group is actually in place.
+        if (getpgrp() != shell_pgid) {
             const auto error_text = std::system_category().message(errno);
-            print_error({ErrorType::FATAL_ERROR,
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::WARNING,
                          "setpgid",
                          "couldn't put the shell in its own process group: " + error_text,
-                         {"Start a fresh terminal session and try again.",
-                          "Ensure no other process is controlling the terminal."}});
+                         {"Job control will remain disabled."}});
+            job_control_enabled = false;
+            shell_options[to_index(ShellOption::Monitor)] = false;
+            interactive_job_control_available = false;
+            return;
         }
     }
 
-    try {
-        shell_terminal = STDIN_FILENO;
-
-        int tpgrp = tcgetpgrp(shell_terminal);
-        if (tpgrp != -1) {
-            if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-                const auto error_text = std::system_category().message(errno);
-                print_error({ErrorType::FATAL_ERROR,
-                             "tcsetpgrp",
-                             "couldn't grab terminal control: " + error_text,
-                             {"Start a fresh terminal session and try again.",
-                              "Ensure no other process is controlling the terminal."}});
-            }
-        }
-        job_control_enabled = true;
-    } catch (const std::exception& e) {
-        print_error({ErrorType::FATAL_ERROR,
-                     "job control",
-                     e.what(),
-                     {"Start a fresh terminal session and try again."}});
+    if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+        const auto error_text = std::system_category().message(errno);
+        print_error({ErrorType::RUNTIME_ERROR,
+                     ErrorSeverity::WARNING,
+                     "tcsetpgrp",
+                     "couldn't grab terminal control: " + error_text,
+                     {"Job control will remain disabled."}});
+        job_control_enabled = false;
+        shell_options[to_index(ShellOption::Monitor)] = false;
+        interactive_job_control_available = false;
+        return;
     }
+
+    interactive_job_control_available = true;
+    job_control_enabled = true;
+    shell_options[to_index(ShellOption::Monitor)] = true;
 }
 
 bool Shell::is_job_control_enabled() const {
     return job_control_enabled;
+}
+
+bool Shell::set_job_control_enabled(bool enabled) {
+    // Monitor mode is still meaningful for a non-interactive shell: it controls process-group
+    // creation even though there is no terminal to hand off. An interactive shell with a TTY
+    // may only enable it after the startup foreground handshake succeeded.
+    const bool requested_interactive = config::interactive_mode || config::force_interactive;
+    if (enabled && requested_interactive && isatty(STDIN_FILENO) != 0 &&
+        !interactive_job_control_available) {
+        return false;
+    }
+    job_control_enabled = enabled;
+    shell_options[to_index(ShellOption::Monitor)] = enabled;
+    return true;
 }
 
 void Shell::set_interactive_mode(bool flag) {
@@ -604,6 +657,10 @@ void Shell::apply_no_exec(bool enabled) {
 }
 
 void Shell::set_shell_option(ShellOption option, bool value) {
+    if (option == ShellOption::Monitor) {
+        (void)set_job_control_enabled(value);
+        return;
+    }
     shell_options[to_index(option)] = value;
 }
 

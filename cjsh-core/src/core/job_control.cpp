@@ -29,6 +29,7 @@
 #include "job_control.h"
 
 #include "cjsh_filesystem.h"
+#include "exec.h"
 #include "numeric_utils.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -139,12 +140,8 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
         return fallback;
     }
 
-    std::string job_spec = args[1];
-    if (!job_spec.empty() && job_spec[0] == '%') {
-        (void)job_spec.erase(0, 1);
-    }
-
-    job_spec = string_utils::trim_ascii_whitespace_copy(job_spec);
+    const std::string original_spec = args[1];
+    std::string job_spec = string_utils::trim_ascii_whitespace_copy(original_spec);
 
     if (job_spec.empty()) {
         print_error({ErrorType::INVALID_ARGUMENT,
@@ -178,28 +175,60 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
         return job;
     };
 
-    if (job_spec == "+" || job_spec == "-") {
-        return resolve_relative_job(job_spec[0]);
+    const bool explicit_jobspec = job_spec[0] == '%';
+    if (explicit_jobspec) {
+        (void)job_spec.erase(0, 1);
     }
 
-    size_t consumed = 0;
-    try {
-        int parsed_value = std::stoi(job_spec, &consumed);
-        if (consumed == job_spec.size()) {
-            auto job = job_manager.get_job(parsed_value);
-            if (job) {
-                job_id_out = parsed_value;
-                return job;
-            }
+    if ((explicit_jobspec && (job_spec.empty() || job_spec == "%" || job_spec == "+")) ||
+        (!explicit_jobspec && job_spec == "+")) {
+        return resolve_relative_job('+');
+    }
+    if (job_spec == "-") {
+        return resolve_relative_job('-');
+    }
 
-            auto job_by_pid = job_manager.get_job_by_pid(static_cast<pid_t>(parsed_value));
+    int parsed_value = 0;
+    if (numeric_utils::parse_int_strict(job_spec, parsed_value) && parsed_value > 0) {
+        auto job = job_manager.get_job(parsed_value);
+        if (job) {
+            job_id_out = parsed_value;
+            return job;
+        }
+
+        // A leading '%' makes a number unambiguously a job ID. Bare numbers may also identify
+        // a process or process-group leader, as accepted by the job-control builtins.
+        if (!explicit_jobspec) {
+            auto job_by_pid = job_manager.get_job_by_pid_or_pgid(static_cast<pid_t>(parsed_value));
             if (job_by_pid) {
                 job_id_out = job_by_pid->job_id;
                 return job_by_pid;
             }
         }
-    } catch (...) {
-        // Not a numeric job spec; fall back to command lookup.
+    }
+
+    if (!job_spec.empty() && job_spec[0] == '?') {
+        const std::string needle = job_spec.substr(1);
+        std::shared_ptr<JobControlJob> match;
+        if (!needle.empty()) {
+            for (const auto& candidate : job_manager.get_all_jobs()) {
+                if (candidate->display_command().find(needle) == std::string::npos) {
+                    continue;
+                }
+                if (match) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 original_spec,
+                                 "multiple jobs match command",
+                                 {"Use job id or PID to disambiguate"}});
+                    return nullptr;
+                }
+                match = candidate;
+            }
+        }
+        if (match) {
+            job_id_out = match->job_id;
+            return match;
+        }
     }
 
     bool ambiguous = false;
@@ -211,12 +240,12 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
 
     if (ambiguous) {
         print_error({ErrorType::INVALID_ARGUMENT,
-                     args[1],
+                     original_spec,
                      "multiple jobs match command",
                      {"Use job id or PID to disambiguate"}});
     } else {
         print_error({ErrorType::INVALID_ARGUMENT,
-                     args[1],
+                     original_spec,
                      "no such job",
                      {"Use 'jobs' to list available jobs"}});
     }
@@ -301,28 +330,80 @@ std::optional<int> interpret_wait_status(int status) {
 
 std::optional<int> wait_for_job_and_remove(const std::shared_ptr<JobControlJob>& job,
                                            JobManager& job_manager) {
-    int status = 0;
-    std::optional<int> last_exit_status;
-    const JobState initial_state = job->state.load(std::memory_order_relaxed);
-    if (initial_state == JobState::DONE || initial_state == JobState::TERMINATED) {
-        last_exit_status = job->exit_status;
-        (void)job_manager.consume_completed_pid_status(job->last_pid);
+    auto status = wait_for_job(job, job_manager, true);
+    const JobState final_state = job->state.load(std::memory_order_relaxed);
+    if (final_state == JobState::DONE || final_state == JobState::TERMINATED) {
+        for (pid_t pid : job->pids) {
+            (void)job_manager.consume_completed_pid_status(pid);
+        }
+        job_manager.remove_job(job->job_id);
     }
-    for (pid_t pid : job->pids) {
-        if (waitpid(pid, &status, 0) > 0) {
-            auto interpreted = interpret_wait_status(status);
-            if (interpreted.has_value()) {
-                last_exit_status = interpreted;
+    return status;
+}
+
+std::optional<int> wait_for_job(const std::shared_ptr<JobControlJob>& job, JobManager& job_manager,
+                                bool return_on_stop, pid_t* status_pid) {
+    if (!job) {
+        return std::nullopt;
+    }
+
+    auto current_result = [&]() -> std::optional<int> {
+        const JobState state = job->state.load(std::memory_order_relaxed);
+        if (state == JobState::DONE || state == JobState::TERMINATED) {
+            if (status_pid != nullptr) {
+                *status_pid = job->last_pid;
             }
-        } else if (errno == ECHILD) {
-            auto completed_status = job_manager.consume_completed_pid_status(pid);
-            if (completed_status.has_value()) {
-                last_exit_status = completed_status;
+            return job->exit_status;
+        }
+        if (return_on_stop && state == JobState::STOPPED) {
+            return 128 + (job->stop_signal > 0 ? job->stop_signal : SIGTSTP);
+        }
+        return std::nullopt;
+    };
+
+    if (auto ready = current_result()) {
+        return ready;
+    }
+
+    for (;;) {
+        if (job->remaining_pids.empty()) {
+            return current_result();
+        }
+
+        const pid_t target = job->process_group ? -job->pgid : *job->remaining_pids.begin();
+        int status = 0;
+        const pid_t pid = waitpid(target, &status, WUNTRACED | WCONTINUED);
+        if (pid < 0) {
+            if (errno == EINTR) {
+                if (g_shell) {
+                    (void)g_shell->process_pending_signals();
+                }
+                if (auto ready = current_result()) {
+                    return ready;
+                }
+                continue;
             }
+            if (errno == ECHILD) {
+                job_manager.update_job_statuses();
+                if (auto ready = current_result()) {
+                    return ready;
+                }
+                return std::nullopt;
+            }
+            return std::nullopt;
+        }
+
+        if (g_shell && g_shell->shell_exec) {
+            g_shell->shell_exec->handle_child_signal(pid, status);
+        }
+        job_manager.handle_child_status(pid, status);
+        if (status_pid != nullptr && (WIFEXITED(status) || WIFSIGNALED(status))) {
+            *status_pid = pid;
+        }
+        if (auto ready = current_result()) {
+            return ready;
         }
     }
-    job_manager.remove_job(job->job_id);
-    return last_exit_status;
 }
 
 std::optional<int> parse_job_specifier(const std::string& target) {
@@ -413,13 +494,16 @@ bool pipeline_consumes_terminal_stdin(const std::vector<Command>& commands) {
 }  // namespace job_utils
 
 JobControlJob::JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
-                             const std::string& cmd, bool is_background, bool consumes_stdin)
+                             const std::string& cmd, bool is_background, bool consumes_stdin,
+                             bool has_process_group)
     : job_id(id),
       pgid(group_id),
       pids(process_ids),
+      remaining_pids(process_ids.begin(), process_ids.end()),
       last_pid(process_ids.empty() ? -1 : process_ids.back()),
       command(cmd),
       background(is_background),
+      process_group(has_process_group),
       reads_stdin(consumes_stdin) {
 }
 
@@ -429,11 +513,11 @@ JobManager& JobManager::instance() {
 }
 
 int JobManager::add_job(pid_t pgid, const std::vector<pid_t>& pids, const std::string& command,
-                        bool background, bool reads_stdin) {
+                        bool background, bool reads_stdin, bool process_group) {
     // adds a new job to the manager and returns its job id
     int job_id = next_job_id++;
-    std::shared_ptr<JobControlJob> job =
-        std::make_shared<JobControlJob>(job_id, pgid, pids, command, background, reads_stdin);
+    std::shared_ptr<JobControlJob> job = std::make_shared<JobControlJob>(
+        job_id, pgid, pids, command, background, reads_stdin, process_group);
     jobs[job_id] = job;
 
     update_current_previous(job_id);
@@ -445,14 +529,34 @@ void JobManager::remove_job(int job_id) {
     // removes a job from the manager by its job id
     auto it = jobs.find(job_id);
     if (it != jobs.end()) {
+        (void)jobs.erase(it);
+
         if (current_job == job_id) {
             current_job = previous_job;
-            previous_job = -1;
-        } else if (previous_job == job_id) {
+        }
+        if (previous_job == job_id || previous_job == current_job) {
             previous_job = -1;
         }
 
-        (void)jobs.erase(it);
+        // Keep %+ and %- useful after jobs finish or are disowned. Job IDs are monotonically
+        // increasing, so the newest remaining jobs are the best fallback when recency markers
+        // no longer name live entries.
+        if (current_job < 0 || jobs.find(current_job) == jobs.end()) {
+            current_job = -1;
+            for (const auto& [id, job] : jobs) {
+                (void)job;
+                current_job = std::max(current_job, id);
+            }
+        }
+        if (previous_job < 0 || jobs.find(previous_job) == jobs.end()) {
+            previous_job = -1;
+            for (const auto& [id, job] : jobs) {
+                (void)job;
+                if (id != current_job) {
+                    previous_job = std::max(previous_job, id);
+                }
+            }
+        }
     }
 }
 
@@ -510,10 +614,10 @@ std::vector<std::shared_ptr<JobControlJob>> JobManager::get_all_jobs() {
 void JobManager::update_job_statuses() {
     std::vector<std::pair<pid_t, int>> status_changes;
 
-    // Poll a snapshot because handle_child_status removes completed pids from the live jobs.
+    // Poll a snapshot because handle_child_status mutates each job's live-process set.
     for (auto& pair : jobs) {
         auto job = pair.second;
-        const std::vector<pid_t> pids = job->pids;
+        const std::vector<pid_t> pids(job->remaining_pids.begin(), job->remaining_pids.end());
 
         for (pid_t pid : pids) {
             int status = 0;
@@ -660,17 +764,33 @@ void JobManager::notify_job_finished(const std::shared_ptr<JobControlJob>& job) 
 }
 
 void JobManager::handle_child_status(pid_t pid, int status) {
+    if (WIFEXITED(status) || WIFSIGNALED(status)) {
+        if (completed_pid_statuses.size() >= 256) {
+            completed_pid_statuses.erase(completed_pid_statuses.begin());
+        }
+        completed_pid_statuses[pid] = wait_status_utils::to_exit_code(status);
+    }
+
     auto job = get_job_by_pid(pid);
     if (!job) {
         return;
     }
 
     if (WIFSTOPPED(status)) {
-        job->state.store(JobState::STOPPED, std::memory_order_relaxed);
-        notify_job_stopped(job);
+        job->stopped_pids.insert(pid);
+        job->stop_signal = WSTOPSIG(status);
+        if (!job->remaining_pids.empty() &&
+            job->stopped_pids.size() >= job->remaining_pids.size()) {
+            job->state.store(JobState::STOPPED, std::memory_order_relaxed);
+            if (!job->defer_stop_notification) {
+                notify_job_stopped(job);
+            }
+        }
         return;
     }
     if (WIFCONTINUED(status)) {
+        job->stopped_pids.erase(pid);
+        job->stop_signal = 0;
         job->state.store(JobState::RUNNING, std::memory_order_relaxed);
         job->stop_notified.store(false, std::memory_order_relaxed);
         clear_stdin_signal(job->pgid);
@@ -680,27 +800,34 @@ void JobManager::handle_child_status(pid_t pid, int status) {
         return;
     }
 
-    if (completed_pid_statuses.size() >= 256) {
-        completed_pid_statuses.erase(completed_pid_statuses.begin());
-    }
-    completed_pid_statuses[pid] = wait_status_utils::to_exit_code(status);
-
     if (pid == job->last_pid || job->last_pid <= 0) {
         if (WIFSIGNALED(status)) {
-            job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
             job->termination_signal = WTERMSIG(status);
             job->exit_status = 128 + job->termination_signal;
         } else {
-            job->state.store(JobState::DONE, std::memory_order_relaxed);
             job->termination_signal = 0;
             job->exit_status = WEXITSTATUS(status);
         }
     }
 
     clear_stdin_signal(job->pgid);
-    (void)job->pids.erase(std::remove(job->pids.begin(), job->pids.end(), pid), job->pids.end());
-    if (job->pids.empty()) {
+    job->stopped_pids.erase(pid);
+    job->remaining_pids.erase(pid);
+    if (job->remaining_pids.empty()) {
+        if (job->last_pid <= 0 || pid == job->last_pid) {
+            job->termination_signal = WIFSIGNALED(status) ? WTERMSIG(status) : 0;
+            job->exit_status = wait_status_utils::to_exit_code(status);
+        }
+        job->state.store(job->termination_signal == 0 ? JobState::DONE : JobState::TERMINATED,
+                         std::memory_order_relaxed);
         notify_job_finished(job);
+    } else if (job->stopped_pids.size() >= job->remaining_pids.size()) {
+        job->state.store(JobState::STOPPED, std::memory_order_relaxed);
+        if (!job->defer_stop_notification) {
+            notify_job_stopped(job);
+        }
+    } else {
+        job->state.store(JobState::RUNNING, std::memory_order_relaxed);
     }
 }
 
@@ -785,6 +912,7 @@ void JobManager::clear_all_jobs() {
     current_job = -1;
     previous_job = -1;
     last_background_pid = -1;
+    g_atomic_last_background_pid.store(-1, std::memory_order_relaxed);
 }
 
 std::optional<int> JobManager::consume_completed_pid_status(pid_t pid) {
@@ -797,31 +925,14 @@ std::optional<int> JobManager::consume_completed_pid_status(pid_t pid) {
     return status;
 }
 
-void JobManager::mark_pid_completed(pid_t pid, int status) {
-    for (auto& pair : jobs) {
-        auto& job = pair.second;
-        if (!job) {
-            continue;
-        }
-        auto pid_it = std::find(job->pids.begin(), job->pids.end(), pid);
-        if (pid_it == job->pids.end()) {
-            continue;
-        }
-
-        (void)job->pids.erase(pid_it);
-
-        const auto wait_info = wait_status_utils::decode(status);
-        if (wait_info.disposition == wait_status_utils::WaitDisposition::Exited) {
-            job->state.store(JobState::DONE, std::memory_order_relaxed);
-            job->exit_status = wait_info.code;
-        } else if (wait_info.disposition == wait_status_utils::WaitDisposition::Signaled) {
-            job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
-            job->exit_status = wait_info.code;
-        }
-
-        if (job->pids.empty()) {
-            remove_job(job->job_id);
-        }
-        return;
+std::optional<int> JobManager::completed_pid_status(pid_t pid) const {
+    auto it = completed_pid_statuses.find(pid);
+    if (it == completed_pid_statuses.end()) {
+        return std::nullopt;
     }
+    return it->second;
+}
+
+void JobManager::mark_pid_completed(pid_t pid, int status) {
+    handle_child_status(pid, status);
 }

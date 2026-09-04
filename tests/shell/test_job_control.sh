@@ -169,6 +169,49 @@ test_disown_removes_job() {
     return $result
 }
 
+test_disown_pid_and_hup_mark() {
+    log "Test: disown accepts PID and -h protects from huponexit"
+    local pid_file log_file
+    pid_file="$(mktemp /tmp/cjsh_disown_pid.XXXXXX)"
+    log_file="$(mktemp /tmp/cjsh_disown_jobs.XXXXXX)"
+
+    "$CJSH_PATH" -c "set -o huponexit; sleep 5 & p=\$!; echo \$p > $pid_file; disown -h \$p; jobs -l" >"$log_file" 2>&1
+
+    local pid
+    pid="$(cat "$pid_file" 2>/dev/null)"
+    local result=0
+    if [ -z "$pid" ]; then
+        echo "FAIL: no PID recorded"
+        result=1
+    elif ! grep -q "Running" "$log_file"; then
+        echo "FAIL: disown -h removed the job from jobs output"
+        result=1
+    elif ! kill -0 "$pid" 2>/dev/null; then
+        echo "FAIL: disown -h job did not survive huponexit"
+        result=1
+    else
+        echo "PASS"
+    fi
+
+    cleanup_pid "$pid"
+    rm -f "$pid_file" "$log_file"
+    return $result
+}
+
+test_wait_next_and_pipeline_lifetime() {
+    log "Test: wait -n and pipeline lifetime/status tracking"
+    local output
+    output=$("$CJSH_PATH" -c "sh -c 'sleep 0.2' | sh -c 'exit 7' & p=\$!; sleep 0.05; jobs -r; wait \$p; pipeline=\$?; sleep 0.01 & wait -n -p winner; printf '%s|%s|%s' \"\$pipeline\" \"\$?\" \"\$winner\"" 2>/dev/null)
+
+    if echo "$output" | grep -q "Running" && echo "$output" | grep -Eq '7\|0\|[0-9]+'; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: expected running pipeline, status 7, and wait -n PID; got: $output"
+    return 1
+}
+
 jobs_reports_when_empty() {
     log "Test: jobs reports when no jobs exist"
     local output
@@ -750,6 +793,14 @@ if ! test_huponexit_kills_jobs; then
 fi
 
 if ! test_disown_removes_job; then
+    status=1
+fi
+
+if ! test_disown_pid_and_hup_mark; then
+    status=1
+fi
+
+if ! test_wait_next_and_pipeline_lifetime; then
     status=1
 fi
 

@@ -264,6 +264,8 @@ set [options] [args...]
 - `set -o huponexit` mirrors bash's hangup behavior toggle; when enabled the shell sends
   SIGHUP to managed background jobs as it exits. Leave it off (the default) to keep helpers
   like dev servers alive until you explicitly stop them.
+- `set -m` enables monitor mode and per-job process groups; `set +m` disables it. Interactive
+  shells start with monitor mode enabled.
 
 ### coproc
 
@@ -404,21 +406,23 @@ false
 List background jobs.
 
 ```bash
-jobs
+jobs [-lprs] [job_spec...]
 ```
+
+`-r` and `-s` select running and stopped jobs. `-p` prints one process-group leader per job.
 
 ### fg
 Bring a job to the foreground.
 
 ```bash
-fg [job_spec]
+fg [job_spec|pid]
 ```
 
 ### bg
 Resume a job in the background.
 
 ```bash
-bg [job_spec]
+bg [job_spec...]
 ```
 
 ### Auto-background on Ctrl+Z
@@ -437,8 +441,11 @@ long_running_task &^!
 Wait for jobs or processes to finish.
 
 ```bash
-wait [pid|job_spec...]
+wait [-fn] [-p variable] [pid|job_spec...]
 ```
+
+`wait -n` returns when the next selected job changes state, `-f` waits through stops until
+termination, and `-p` stores the selected process-group leader or PID.
 
 ### kill
 Send signals to jobs or processes.
@@ -451,11 +458,13 @@ kill [-signal] pid|job_spec
 Detach jobs from the shell so they are no longer listed or sent hangup signals when cjsh exits.
 
 ```bash
-disown [-a|--all] [job_spec...]
+disown [-arh] [job_spec|pid...]
 ```
 
 - With no arguments, the current job is disowned
-- `-a/--all` removes every tracked job in one shot
+- `-a/--all` selects every tracked job; `-r` restricts the selection to running jobs
+- `-h` leaves selected jobs in the table but excludes them from SIGHUP propagation
+- Job specs include `%N`, `%+`, `%-`, `%prefix`, and `%?substring`; a tracked PID is also accepted
 - Disowned jobs continue running even if `set -o huponexit` is enabled later in the session
 
 ### jobname

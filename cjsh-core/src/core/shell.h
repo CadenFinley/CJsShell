@@ -61,6 +61,7 @@ enum class ShellOption : std::uint8_t {
     Allexport,
     Huponexit,
     Pipefail,
+    Monitor,
     Count
 };
 
@@ -109,6 +110,7 @@ class Shell {
     void restore_terminal_state();
     void setup_job_control();
     bool is_job_control_enabled() const;
+    bool set_job_control_enabled(bool enabled);
 
     void set_interactive_mode(bool flag);
     bool get_interactive_mode() const;
@@ -153,6 +155,7 @@ class Shell {
     struct termios shell_tmodes;
     bool terminal_state_saved = false;
     bool job_control_enabled = false;
+    bool interactive_job_control_available = false;
 
     std::unique_ptr<SignalHandler> signal_handler;
     std::unique_ptr<Built_ins> built_ins;

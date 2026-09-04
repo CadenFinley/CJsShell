@@ -473,17 +473,26 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
             "trap", "Set or list signal handlers",
             {make_option("-l", "List available signals"), make_option("-p", "Show current traps")});
 
-        add_doc(
-            "jobs", "List background jobs",
-            {make_option("-l", "Show PIDs and status"), make_option("-p", "Print job PIDs only")});
+        add_doc("jobs", "List background jobs",
+                {make_option("-l", "Show process-group leaders and status"),
+                 make_option("-p", "Print process-group leaders only"),
+                 make_option("-r", "Show running jobs only"),
+                 make_option("-s", "Show stopped jobs only")});
         add_doc("jobname", "Assign a temporary display name to a job",
                 {make_option("-c", "Clear any custom job name"),
                  make_option("--clear", "Clear any custom job name")});
         add_doc("fg", "Bring a job to the foreground", {});
         add_doc("bg", "Resume a job in the background", {});
-        add_doc("wait", "Wait for jobs or processes to finish", {});
-        add_doc("disown", "Remove jobs from the shell's management",
-                {make_option("-a", "Disown every job"), make_option("--all", "Disown every job")});
+        add_doc("wait", "Wait for jobs or processes to finish",
+                {make_option("-n", "Wait for the next job to change state"),
+                 make_option("-f", "Wait for termination instead of a stop"),
+                 make_value_option("-p", {}, "Store the waited job ID", ValueRequirement::Required,
+                                   ValueType::Text, "VARNAME")});
+        add_doc(
+            "disown", "Remove jobs from the shell's management",
+            {make_option("-a", "Select every job"), make_option("-r", "Select running jobs only"),
+             make_option("-h", "Keep jobs but suppress SIGHUP"),
+             make_option("--all", "Select every job")});
 
         add_doc("readonly", "Mark variables as read-only",
                 {make_option("-p", "Print current readonly variables"),
