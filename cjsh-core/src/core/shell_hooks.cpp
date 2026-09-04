@@ -37,8 +37,10 @@ constexpr size_t to_index(HookType type) {
 }
 
 constexpr std::array<HookTypeDescriptor, static_cast<size_t>(HookType::Count)>
-    kHookTypeDescriptors = {
-        {{HookType::Precmd, "precmd"}, {HookType::Preexec, "preexec"}, {HookType::Chpwd, "chpwd"}}};
+    kHookTypeDescriptors = {{{HookType::Precmd, "precmd"},
+                             {HookType::Preexec, "preexec"},
+                             {HookType::Chpwd, "chpwd"},
+                             {HookType::Idle, "idle"}}};
 
 }  // namespace
 

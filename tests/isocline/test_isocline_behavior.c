@@ -163,6 +163,8 @@ static bool test_readline_disposition_name_mappings(void) {
                  "eof disposition name mismatch");
     EXPECT_STREQ(ic_readline_disposition_name(IC_READLINE_DISPOSITION_STOP), "stop",
                  "stop disposition name mismatch");
+    EXPECT_STREQ(ic_readline_disposition_name(IC_READLINE_DISPOSITION_IDLE), "idle",
+                 "idle disposition name mismatch");
     EXPECT_STREQ(ic_readline_disposition_name(IC_READLINE_DISPOSITION_ERROR), "error",
                  "error disposition name mismatch");
     EXPECT_STREQ(ic_readline_disposition_name((ic_readline_disposition_t)999), "error",
@@ -2024,6 +2026,25 @@ static bool test_hint_delay_clamps(void) {
     return true;
 }
 
+static bool test_idle_timeout_setting(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    env->idle_timeout = 250;
+    long previous = ic_set_idle_timeout(-1);
+    EXPECT_TRUE(previous == 250, "idle timeout setter should return previous value");
+    EXPECT_TRUE(env->idle_timeout == 0, "negative idle timeout should disable the timer");
+
+    previous = ic_set_idle_timeout(1250);
+    EXPECT_TRUE(previous == 0, "idle timeout setter should return prior disabled value");
+    EXPECT_TRUE(env->idle_timeout == 1250,
+                "idle timeout should accept positive millisecond values");
+
+    (void)ic_set_idle_timeout(0);
+    return true;
+}
+
 static bool test_status_hint_mode_validation(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -3329,21 +3350,27 @@ static bool test_initial_input_env_lifecycle(void) {
                 "initial input should start cleared for lifecycle test");
 
     char mutable_seed[] = "echo seeded";
-    ic_env_set_initial_input(env, mutable_seed);
+    ic_env_set_initial_input(env, mutable_seed, 4, true);
     EXPECT_TRUE(env->initial_input != NULL, "setting initial input should allocate env storage");
     EXPECT_STREQ(env->initial_input, "echo seeded",
                  "initial input setter should preserve original text");
+    EXPECT_TRUE(env->initial_cursor_pos == 4 && env->initial_cursor_pos_set,
+                "initial input setter should retain an explicit cursor");
 
     mutable_seed[0] = 'X';
     EXPECT_STREQ(env->initial_input, "echo seeded",
                  "initial input should be copied, not aliased to caller memory");
 
-    ic_env_set_initial_input(env, "printf seeded");
+    ic_env_set_initial_input(env, "printf seeded", 0, false);
     EXPECT_STREQ(env->initial_input, "printf seeded",
                  "setting initial input again should replace previous stored value");
+    EXPECT_TRUE(env->initial_cursor_pos == 0 && !env->initial_cursor_pos_set,
+                "replacing initial input should replace its cursor metadata");
 
     ic_env_clear_initial_input(env);
     EXPECT_TRUE(env->initial_input == NULL, "clearing initial input should reset pointer to NULL");
+    EXPECT_TRUE(env->initial_cursor_pos == 0 && !env->initial_cursor_pos_set,
+                "clearing initial input should reset cursor metadata");
 
     return true;
 }
@@ -4299,6 +4326,7 @@ static const test_case_t kTests[] = {
     {"prompt_marker_roundtrip", test_prompt_marker_roundtrip},
     {"menu_prompt_api_roundtrip", test_menu_prompt_api_roundtrip},
     {"hint_delay_clamps", test_hint_delay_clamps},
+    {"idle_timeout_setting", test_idle_timeout_setting},
     {"status_hint_mode_validation", test_status_hint_mode_validation},
     {"mouse_reporting_option_toggles", test_mouse_reporting_option_toggles},
     {"option_toggle_consistency", test_option_toggle_consistency},

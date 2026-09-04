@@ -142,6 +142,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
 
     // Set default enabled features
     env->hint_delay = 0;                        // hint delay (0)
+    env->idle_timeout = 0;                      // idle timeout disabled
     env->spell_correct = true;                  // completion spell fixing
     env->spell_correct_on_enter = false;        // enter-submit spell correction
     env->show_line_numbers = true;              // line numbers
@@ -324,7 +325,8 @@ ic_private const char* ic_env_get_whitespace_marker(ic_env_t* env) {
     return env->whitespace_marker;
 }
 
-ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input) {
+ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input,
+                                         size_t cursor_pos, bool cursor_pos_set) {
     if (env == NULL)
         return;
     mem_free(env->mem, (void*)env->initial_input);
@@ -332,6 +334,8 @@ ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_inpu
     if (initial_input != NULL) {
         env->initial_input = mem_strdup(env->mem, initial_input);
     }
+    env->initial_cursor_pos = cursor_pos;
+    env->initial_cursor_pos_set = cursor_pos_set;
 }
 
 ic_private void ic_env_clear_initial_input(ic_env_t* env) {
@@ -339,4 +343,6 @@ ic_private void ic_env_clear_initial_input(ic_env_t* env) {
         return;
     mem_free(env->mem, (void*)env->initial_input);
     env->initial_input = NULL;
+    env->initial_cursor_pos = 0;
+    env->initial_cursor_pos_set = false;
 }

@@ -105,6 +105,16 @@ if(Python3_Interpreter_FOUND)
 
     if(UNIX)
         add_test(
+            NAME idle_hook_interactive_tests
+            COMMAND
+                "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/core/test_idle_hook_interactive.py"
+                $<TARGET_FILE:cjsh>
+        )
+    endif()
+
+    if(UNIX)
+        add_test(
             NAME generate_completions_integration_tests
             COMMAND
                 "${Python3_EXECUTABLE}"

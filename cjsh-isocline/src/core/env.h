@@ -102,6 +102,9 @@ struct ic_env_s {
     const char* match_braces;                      // matching braces, e.g "()[]{}"
     const char* auto_braces;                       // auto insertion braces, e.g "()[]{}\"\"''"
     const char* initial_input;                     // initial input text to insert into editor
+    size_t initial_cursor_pos;                     // cursor for pre-seeded input
+    bool initial_cursor_pos_set;                   // whether the initial cursor was specified
+    size_t last_readline_cursor_pos;               // cursor captured when readline returned
     stringbuf_t* typeahead_input_buffer;           // sanitized pending typeahead text
     stringbuf_t* typeahead_pending_raw_bytes;      // raw bytes awaiting replay/filtering
     ic_readline_disposition_t last_readline_disposition;  // disposition from most recent read
@@ -144,6 +147,7 @@ struct ic_env_s {
     size_t multiline_max_line_count;     // maximum visible input rows in multiline mode
     size_t multiline_bottom_line_count;  // content-row margin kept around the cursor
     long hint_delay;                     // delay before displaying a hint in milliseconds
+    long idle_timeout;                   // inactivity timeout in milliseconds (0 disables)
 
     ic_key_binding_entry_t* key_bindings;  // dynamic array of custom key bindings
     ssize_t key_binding_count;
@@ -167,7 +171,8 @@ ic_private char* ic_editline(ic_env_t* env, const char* prompt_text, const char*
 ic_private ic_env_t* ic_get_env(void);
 ic_private const char* ic_env_get_auto_braces(ic_env_t* env);
 ic_private const char* ic_env_get_match_braces(ic_env_t* env);
-ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input);
+ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input,
+                                         size_t cursor_pos, bool cursor_pos_set);
 ic_private void ic_env_clear_initial_input(ic_env_t* env);
 ic_private const char* ic_env_get_whitespace_marker(ic_env_t* env);
 

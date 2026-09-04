@@ -551,8 +551,9 @@ Manage shell hooks that run at key lifecycle moments.
 hook <add|remove|list|clear> [hook_type] [function_name]
 ```
 
-Hook types include `precmd`, `preexec`, and `chpwd`. Use `hook add` inside configuration files to
-register functions and `hook list` to inspect active hooks. See
+Hook types include `precmd`, `preexec`, `chpwd`, and `idle`. Idle hooks require a timeout configured
+with `cjshopt idle-timeout`; they run in the foreground and preserve pending editor input. Use
+`hook add` inside configuration files to register functions and `hook list` to inspect active hooks. See
 [`hooks.md`](hooks.md) for complete examples and best practices.
 
 ## Input/Output
@@ -728,6 +729,7 @@ Available subcommands:
 - `multiline-max-lines` - Limit how many multiline input rows are visible at once
 - `multiline-bottom-lines` - Configure the multiline cursor scroll margin
 - `hint-delay` - Set hint display delay in milliseconds
+- `idle-timeout` - Run idle hooks after a period without terminal input
 - `completion-preview` - Configure completion preview
 - `completion-menu-expanded` - Open completion menus in expanded mode by default
 - `completion-click-accept` - Configure whether click interactions accept completion candidates
@@ -1137,6 +1139,29 @@ cjshopt hint-delay status  # Prints hint-delay command guidance
 - Default: **0 ms** (hints can appear immediately)
 
 Place the command in `~/.cjshrc` to keep the delay setting between sessions.
+
+#### idle-timeout
+
+Configure how many seconds the interactive prompt waits without terminal input before running
+registered `idle` hooks. The feature is disabled by default.
+
+```bash
+cjshopt idle-timeout <seconds|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt idle-timeout 120     # Run idle hooks after two minutes
+cjshopt idle-timeout off     # Disable idle detection
+cjshopt idle-timeout status  # Show the current setting
+```
+
+The editor restores canonical terminal state before the hooks run, gives foreground terminal
+control to commands they launch, and restores pending input and its cursor position afterward.
+The timeout is active only when at least one `idle` hook is registered, and it is ignored in
+non-interactive, `--secure`, and `--posix` sessions. See [Shell Hooks](hooks.md) for a Drift
+screensaver example.
 
 #### completion-preview
 

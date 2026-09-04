@@ -106,6 +106,7 @@ BUILD_SYSTEM_TEST_SCRIPT="$SCRIPT_DIR/build_system/test_build_system.py"
 SKIP_BUILD_SYSTEM_TEST="${CJSH_TEST_SKIP_BUILD_SYSTEM:-0}"
 INTERACTIVE_SHUTDOWN_TEST_SCRIPT="$SCRIPT_DIR/core/test_interactive_shutdown.py"
 AGENT_MODE_INTERACTIVE_TEST_SCRIPT="$SCRIPT_DIR/core/test_agent_mode_interactive.py"
+IDLE_HOOK_INTERACTIVE_TEST_SCRIPT="$SCRIPT_DIR/core/test_idle_hook_interactive.py"
 FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT="$SCRIPT_DIR/core/test_function_pipeline_job_control.py"
 if [ -f "$CJSH_DIR/fg_terminal_race_injector.dylib" ]; then
     DEFAULT_FG_TERMINAL_RACE_INJECTOR="$CJSH_DIR/fg_terminal_race_injector.dylib"
@@ -148,6 +149,7 @@ ISOCLINE_PTY_TEST_RESULT=0
 BUILD_SYSTEM_TEST_RESULT=0
 INTERACTIVE_SHUTDOWN_TEST_RESULT=0
 AGENT_MODE_INTERACTIVE_TEST_RESULT=0
+IDLE_HOOK_INTERACTIVE_TEST_RESULT=0
 FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT=0
 
 
@@ -578,6 +580,17 @@ else
     report_skipped_suite "test_agent_mode_interactive" "script not found at $AGENT_MODE_INTERACTIVE_TEST_SCRIPT"
 fi
 
+if [ -f "$IDLE_HOOK_INTERACTIVE_TEST_SCRIPT" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        run_external_suite "test_idle_hook_interactive" "status" "binary" python3 "$IDLE_HOOK_INTERACTIVE_TEST_SCRIPT" "$CJSH"
+        IDLE_HOOK_INTERACTIVE_TEST_RESULT=$?
+    else
+        report_skipped_suite "test_idle_hook_interactive" "python3 not found"
+    fi
+else
+    report_skipped_suite "test_idle_hook_interactive" "script not found at $IDLE_HOOK_INTERACTIVE_TEST_SCRIPT"
+fi
+
 if [ -f "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" ] &&
     [ -f "$FG_TERMINAL_RACE_INJECTOR" ]; then
     if command -v python3 >/dev/null 2>&1; then
@@ -655,6 +668,13 @@ if [ $AGENT_MODE_INTERACTIVE_TEST_RESULT -ne 0 ]; then
         OVERALL_STATUS=$AGENT_MODE_INTERACTIVE_TEST_RESULT
     else
         OVERALL_STATUS=$((OVERALL_STATUS + AGENT_MODE_INTERACTIVE_TEST_RESULT))
+    fi
+fi
+if [ $IDLE_HOOK_INTERACTIVE_TEST_RESULT -ne 0 ]; then
+    if [ $OVERALL_STATUS -eq 0 ]; then
+        OVERALL_STATUS=$IDLE_HOOK_INTERACTIVE_TEST_RESULT
+    else
+        OVERALL_STATUS=$((OVERALL_STATUS + IDLE_HOOK_INTERACTIVE_TEST_RESULT))
     fi
 fi
 if [ $FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT -ne 0 ]; then

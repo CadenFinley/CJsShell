@@ -192,26 +192,26 @@ std::string generate_prompt() {
     return prompt::render_primary_prompt();
 }
 
-std::optional<std::string> get_next_command() {
-    // main input getting
-    std::string command_to_run;
+struct ReadlinePromptState {
+    std::string prompt_text;
+    std::string inline_right_text;
+};
 
-    // handle hooks
-    if (!config::posix_mode) {
-        g_shell->execute_hooks(HookType::Precmd);
-    }
-
-    // check terminal size and go ahead and calculate and set the next prompts
+ReadlinePromptState prepare_readline_prompt() {
     if (!config::posix_mode) {
         prompt::execute_prompt_command();
         prompt::apply_terminal_window_title();
     }
     (void)cjsh_env::update_terminal_dimensions();
-    std::string prompt_text = generate_prompt();
+
+    ReadlinePromptState state;
+    state.prompt_text = generate_prompt();
     std::string prompt_eol_mark = prompt::render_prompt_eol_mark();
     ic_set_prompt_eol_mark(prompt_eol_mark.c_str());
-    last_prompt_started_with_newline = (!prompt_text.empty() && prompt_text.front() == '\n');
-    std::string inline_right_text = prompt::render_right_prompt();
+    last_prompt_started_with_newline =
+        (!state.prompt_text.empty() && state.prompt_text.front() == '\n');
+    state.inline_right_text = prompt::render_right_prompt();
+
     std::string continuation_prompt = prompt::render_secondary_prompt();
     if (continuation_prompt.empty()) {
         ic_set_prompt_marker("", nullptr);
@@ -222,63 +222,107 @@ std::optional<std::string> get_next_command() {
     std::string command_palette_prompt = prompt::render_command_palette_prompt();
     ic_set_history_search_prompt(history_search_prompt.c_str());
     ic_set_command_palette_prompt(command_palette_prompt.c_str());
+    return state;
+}
+
+std::optional<std::string> get_next_command() {
+    // main input getting
+    std::string command_to_run;
+
+    // handle hooks
+    if (!config::posix_mode) {
+        g_shell->execute_hooks(HookType::Precmd);
+    }
 
     thread_local static size_t consecutive_readline_errors = 0;
+    std::string resume_input;
+    size_t resume_cursor_pos = 0;
+    bool resuming_after_idle = false;
+    ReadlinePromptState prompt_state = prepare_readline_prompt();
 
-    // read input from isocline and had over everything that we captured and calculated above
-    const char* inline_right_ptr = inline_right_text.empty() ? nullptr : inline_right_text.c_str();
-    refresh_command_palette_entries();
-    prompt::set_prompt_refresh_allowed(true);
-    ic_readline_result_t readline_result =
-        ic_readline_with_status(prompt_text.c_str(), inline_right_ptr, nullptr);
-    prompt::set_prompt_refresh_allowed(false);
+    while (true) {
+        const char* inline_right_ptr = prompt_state.inline_right_text.empty()
+                                           ? nullptr
+                                           : prompt_state.inline_right_text.c_str();
 
-    char* input = readline_result.input;
-
-    if (readline_result.disposition == IC_READLINE_DISPOSITION_STOP ||
-        (readline_result.disposition == IC_READLINE_DISPOSITION_ERROR &&
-         readline_result.tty_lost)) {
-        consecutive_readline_errors = 0;
-        if (input != nullptr) {
-            ic_free(input);
+        long idle_timeout_ms = 0;
+        if (!config::posix_mode && !config::secure_mode && config::idle_timeout_seconds > 0 &&
+            !g_shell->get_hooks(HookType::Idle).empty()) {
+            idle_timeout_ms = config::idle_timeout_seconds * 1000;
         }
-        cjsh_env::request_exit();
-        return std::nullopt;
-    }
+        (void)ic_set_idle_timeout(idle_timeout_ms);
 
-    // handle empty buffer and exit early
-    if (input == nullptr) {
-        if (readline_result.disposition == IC_READLINE_DISPOSITION_ERROR) {
-            consecutive_readline_errors += 1;
-        } else {
+        refresh_command_palette_entries();
+        prompt::set_prompt_refresh_allowed(true);
+        ic_readline_result_t readline_result =
+            resuming_after_idle ? ic_readline_with_status_at_cursor(
+                                      prompt_state.prompt_text.c_str(), inline_right_ptr,
+                                      resume_input.c_str(), resume_cursor_pos)
+                                : ic_readline_with_status(prompt_state.prompt_text.c_str(),
+                                                          inline_right_ptr, nullptr);
+        prompt::set_prompt_refresh_allowed(false);
+
+        char* input = readline_result.input;
+        if (readline_result.disposition == IC_READLINE_DISPOSITION_IDLE) {
+            resume_input = (input == nullptr ? "" : input);
+            resume_cursor_pos = readline_result.cursor_pos;
+            resuming_after_idle = true;
+            if (input != nullptr) {
+                ic_free(input);
+            }
+
+            g_shell->execute_hooks(HookType::Idle);
+            if (cjsh_env::exit_requested()) {
+                return std::nullopt;
+            }
+            update_job_management();
+            continue;
+        }
+
+        if (readline_result.disposition == IC_READLINE_DISPOSITION_STOP ||
+            (readline_result.disposition == IC_READLINE_DISPOSITION_ERROR &&
+             readline_result.tty_lost)) {
             consecutive_readline_errors = 0;
-        }
-
-        if (consecutive_readline_errors >= 2) {
+            if (input != nullptr) {
+                ic_free(input);
+            }
             cjsh_env::request_exit();
+            return std::nullopt;
         }
 
-        return std::nullopt;
+        // handle empty buffer and exit early
+        if (input == nullptr) {
+            if (readline_result.disposition == IC_READLINE_DISPOSITION_ERROR) {
+                consecutive_readline_errors += 1;
+            } else {
+                consecutive_readline_errors = 0;
+            }
+
+            if (consecutive_readline_errors >= 2) {
+                cjsh_env::request_exit();
+            }
+
+            return std::nullopt;
+        }
+
+        consecutive_readline_errors = 0;
+
+        // there was actual input, assign it to command to run
+        (void)command_to_run.assign(input);
+        ic_free(input);
+
+        if (readline_result.disposition == IC_READLINE_DISPOSITION_EOF) {
+            cjsh_env::request_exit();
+            return std::nullopt;
+        }
+
+        if (readline_result.disposition == IC_READLINE_DISPOSITION_INTERRUPT) {
+            return std::nullopt;
+        }
+
+        // if none early exit hits then we actually have a command to run
+        return command_to_run;
     }
-
-    consecutive_readline_errors = 0;
-
-    // there was actual input, assign it to command to run
-    (void)command_to_run.assign(input);
-    ic_free(input);
-    input = nullptr;
-
-    if (readline_result.disposition == IC_READLINE_DISPOSITION_EOF) {
-        cjsh_env::request_exit();
-        return std::nullopt;
-    }
-
-    if (readline_result.disposition == IC_READLINE_DISPOSITION_INTERRUPT) {
-        return std::nullopt;
-    }
-
-    // if none early exit hits then we actually have a command to run
-    return command_to_run;
 }
 
 bool execute_custom_editor_command(const std::string& command) {

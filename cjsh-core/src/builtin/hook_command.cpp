@@ -70,7 +70,7 @@ std::optional<HookType> parse_hook_type_or_error(const std::string& hook_type_ar
         ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
                            "hook",
                            "invalid hook type '" + hook_type_arg + "'",
-                           {"Valid hook types: precmd, preexec, chpwd"}};
+                           {"Valid hook types: precmd, preexec, chpwd, idle"}};
         print_error(error);
     }
     return hook_type;
@@ -84,7 +84,8 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
                    "Manage shell hooks for custom behavior.", "",
                    "Hook types:", "  precmd   - Run before displaying the prompt",
                    "  preexec  - Run before executing a command",
-                   "  chpwd    - Run after changing directory", "",
+                   "  chpwd    - Run after changing directory",
+                   "  idle     - Run after the configured terminal inactivity timeout", "",
                    "Commands:", "  hook add <type> <function>    - Register a function as a hook",
                    "  hook remove <type> <function> - Unregister a function",
                    "  hook list [type]              - List registered hooks",

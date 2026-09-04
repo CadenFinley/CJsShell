@@ -92,6 +92,7 @@ bool status_reporting_enabled = true;
 bool script_extension_interpreter_enabled = true;
 bool error_suggestions_enabled = true;
 bool prompt_vars_enabled = true;
+long idle_timeout_seconds = 0;
 ExitConfirmationMode exit_confirmation_mode = ExitConfirmationMode::Smart;
 }  // namespace config
 

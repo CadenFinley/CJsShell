@@ -74,6 +74,7 @@ extern bool status_reporting_enabled;
 extern bool script_extension_interpreter_enabled;
 extern bool error_suggestions_enabled;
 extern bool prompt_vars_enabled;
+extern long idle_timeout_seconds;
 extern ExitConfirmationMode exit_confirmation_mode;
 }  // namespace config
 

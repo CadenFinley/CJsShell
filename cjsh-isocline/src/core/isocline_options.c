@@ -630,6 +630,15 @@ ic_public long ic_set_hint_delay(long delay_ms) {
     return prev;
 }
 
+ic_public long ic_set_idle_timeout(long timeout_ms) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return 0;
+    long prev = env->idle_timeout;
+    env->idle_timeout = (timeout_ms < 0 ? 0 : timeout_ms);
+    return prev;
+}
+
 ic_public void ic_set_tty_esc_delay(long initial_delay_ms, long followup_delay_ms) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

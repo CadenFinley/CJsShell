@@ -87,6 +87,52 @@ function my_chpwd() {
 hook add chpwd my_chpwd
 ```
 
+### `idle`
+Executed after the interactive prompt receives no terminal input for the configured number of
+seconds. Idle hooks are disabled until a timeout is set with `cjshopt idle-timeout`.
+
+CJSH pauses the editor, restores the terminal, and runs idle hooks synchronously in the foreground.
+When the hooks return, the pending input buffer and cursor position are restored. The timeout then
+starts again, so a full-screen hook can return after a key press and be launched again after the
+next idle period.
+
+**Use cases:**
+- Start a terminal screensaver
+- Lock or dim an unattended terminal
+- Refresh an interactive dashboard after inactivity
+
+**Example:**
+```bash
+function idle_notice() {
+    echo "Terminal was idle"
+}
+
+cjshopt idle-timeout 120
+hook add idle idle_notice
+```
+
+Use `cjshopt idle-timeout off` to disable idle detection. Idle hooks do not run in non-interactive,
+`--secure`, or `--posix` sessions.
+
+### Drift terminal screensaver
+
+Add this native integration to `~/.cjshrc`:
+
+```bash
+function _drift_idle() {
+    if command -v drift >/dev/null 2>&1; then
+        drift
+    fi
+}
+
+cjshopt idle-timeout "${DRIFT_TIMEOUT:-120}"
+hook add idle _drift_idle
+```
+
+The hook runs `drift` as a foreground job, so it can read from and draw to the terminal normally.
+The Bash integration's background timer, PID tracking, monitor-mode changes, `ps` test, and
+`disown` call are not needed.
+
 ## Special Function Handlers
 
 In addition to `hook add`, CJ's Shell recognizes these function names directly:
@@ -264,7 +310,9 @@ hook add chpwd update_terminal_title
 
 ## Best Practices
 
-1. **Keep hooks fast**: Hooks are executed synchronously and can slow down your shell if they take too long.
+1. **Keep lifecycle hooks fast**: Hooks are executed synchronously. An `idle` hook may intentionally
+   stay active while it owns the terminal, but `precmd`, `preexec`, and `chpwd` should normally
+   return quickly.
 
 2. **Handle errors gracefully**: Hooks should not exit with error codes that affect subsequent commands.
 
@@ -311,7 +359,7 @@ hook add precmd third_function
 CJ's Shell hooks are inspired by Zsh but have some differences:
 
 - **Simpler API**: Uses a single `hook` command instead of `add-zsh-hook`
-- **Fewer hook types**: Currently supports only `precmd`, `preexec`, and `chpwd`
+- **Fewer hook types**: Currently supports `precmd`, `preexec`, `chpwd`, and `idle`
 - **No automatic unhooking**: Functions are not automatically removed when undefined
 - **Manual management**: No automatic hook discovery from function names
 

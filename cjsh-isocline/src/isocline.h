@@ -61,6 +61,8 @@ typedef enum ic_readline_disposition_e {
     IC_READLINE_DISPOSITION_STOP,
     /// Readline encountered an unrecoverable error.
     IC_READLINE_DISPOSITION_ERROR,
+    /// Readline paused because the configured idle timeout elapsed.
+    IC_READLINE_DISPOSITION_IDLE,
 } ic_readline_disposition_t;
 
 /// Structured readline return value that includes terminal state metadata.
@@ -75,6 +77,8 @@ typedef struct ic_readline_result_s {
     bool tty_active;
     /// True when the TTY backend detected a lost terminal connection.
     bool tty_lost;
+    /// Cursor position in `input` when readline returned.
+    size_t cursor_pos;
 } ic_readline_result_t;
 
 /*! \mainpage
@@ -142,8 +146,15 @@ char* ic_readline(const char* prompt_text, const char* inline_right_text,
 ic_readline_result_t ic_readline_with_status(const char* prompt_text, const char* inline_right_text,
                                              const char* initial_input);
 
+/// Read input with an explicitly positioned initial cursor.
+/// `initial_cursor_pos` is clamped to the length of `initial_input`.
+ic_readline_result_t ic_readline_with_status_at_cursor(const char* prompt_text,
+                                                       const char* inline_right_text,
+                                                       const char* initial_input,
+                                                       size_t initial_cursor_pos);
+
 /// Convert an ic_readline_disposition_t into a stable lowercase string.
-/// Returns one of: "submit", "interrupt", "eof", "stop", "error".
+/// Returns one of: "submit", "interrupt", "eof", "stop", "idle", "error".
 const char* ic_readline_disposition_name(ic_readline_disposition_t disposition);
 
 /// Queue a single key event so it is processed before the next read.
@@ -961,6 +972,10 @@ bool ic_enable_spell_correct_on_enter(bool enable);
 /// Set millisecond delay before a hint is displayed. Can be zero. (0ms by
 /// default).
 long ic_set_hint_delay(long delay_ms);
+
+/// Set the inactivity timeout for the active readline loop in milliseconds.
+/// Zero disables idle timeouts. Returns the previous timeout.
+long ic_set_idle_timeout(long timeout_ms);
 
 /// Disable or enable syntax highlighting (enabled by default).
 /// This applies regardless whether a syntax highlighter callback was set

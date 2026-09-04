@@ -1438,6 +1438,13 @@ def main() -> int:
             f"got tty_active={tty_active}, tty_lost={tty_lost}"
         )
 
+    status_idle = run_case(binary, "status_idle", b"")
+    if status_idle != "idle|abc\n|cursor=1|tty=1|lost=0":
+        raise AssertionError(
+            "status_idle should preserve the buffer and cursor while returning an idle "
+            f"disposition, got {status_idle!r}"
+        )
+
     ctrl_o_submit = run_case(binary, "insert_backspace", b"abc\x0f")
     if ctrl_o_submit != "abc":
         raise AssertionError(f"ctrl_o_submit expected 'abc', got {ctrl_o_submit!r}")

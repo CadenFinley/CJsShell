@@ -106,8 +106,9 @@ for full details.
           `cjshopt completion-click-accept`, `cjshopt menu-highlighting`,
           `cjshopt completion-case`, `cjshopt completion-spell`, `cjshopt completion-spell-enter`,
           `cjshopt completion-learning`, `cjshopt auto-tab`
-     - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt inline-help`, `cjshopt status-hints`,
-         `cjshopt status-line`, `cjshopt status-reporting`, `cjshopt visible-whitespace`
+     - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt idle-timeout`, `cjshopt inline-help`,
+         `cjshopt status-hints`, `cjshopt status-line`, `cjshopt status-reporting`,
+         `cjshopt visible-whitespace`
      - `cjshopt mouse-clicking`, `cjshopt mouse-clicking-status-line`
      - `cjshopt prompt-newline`, `cjshopt right-prompt-follow-cursor`
      - `cjshopt exit-confirmation smart|always|never` controls when exiting requires a
@@ -183,7 +184,8 @@ Flags affecting feature toggles take effect early in startup and can also be inj
 - `generate-completions` – Pre-populate completion caches by scraping manual pages in parallel.
 - `hash` – Inspect or reset execution caches.
 - `history` / `fc` – Explore, edit, and replay persistent history (exit codes are stored alongside entries).
-- `hook` – Lightweight precmd/preexec/chpwd hook system.
+- `hook` – Lightweight precmd/preexec/chpwd/idle hook system, including foreground terminal
+  handoff and editor-state restoration for idle tools such as screensavers.
 - `cjsh-widget` – Bridge between shell code and the line editor for custom key-driven behaviors.
 
 ## Performance Characteristics

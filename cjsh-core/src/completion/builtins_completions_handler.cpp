@@ -565,19 +565,23 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("hook-add", "",
                 {make_subcommand("precmd", "Run before the prompt"),
                  make_subcommand("preexec", "Run before executing commands"),
-                 make_subcommand("chpwd", "Run after changing directories")});
+                 make_subcommand("chpwd", "Run after changing directories"),
+                 make_subcommand("idle", "Run after terminal inactivity")});
         add_doc("hook-remove", "",
                 {make_subcommand("precmd", "Run before the prompt"),
                  make_subcommand("preexec", "Run before executing commands"),
-                 make_subcommand("chpwd", "Run after changing directories")});
+                 make_subcommand("chpwd", "Run after changing directories"),
+                 make_subcommand("idle", "Run after terminal inactivity")});
         add_doc("hook-clear", "",
                 {make_subcommand("precmd", "Run before the prompt"),
                  make_subcommand("preexec", "Run before executing commands"),
-                 make_subcommand("chpwd", "Run after changing directories")});
+                 make_subcommand("chpwd", "Run after changing directories"),
+                 make_subcommand("idle", "Run after terminal inactivity")});
         add_doc("hook-list", "",
                 {make_subcommand("precmd", "Run before the prompt"),
                  make_subcommand("preexec", "Run before executing commands"),
-                 make_subcommand("chpwd", "Run after changing directories")});
+                 make_subcommand("chpwd", "Run after changing directories"),
+                 make_subcommand("idle", "Run after terminal inactivity")});
 
         add_doc("builtin", "Invoke a builtin bypassing functions", {});
 
@@ -619,6 +623,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("multiline-bottom-lines", "Set the multiline cursor scroll margin"),
 
              make_subcommand("hint-delay", "Adjust inline hint delay"),
+             make_subcommand("idle-timeout", "Configure the idle hook timeout"),
              make_subcommand("completion-preview", "Toggle completion preview"),
              make_subcommand("completion-menu-expanded",
                              "Open completion menus expanded by default"),
@@ -672,6 +677,11 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-hint-delay", "Adjust inline hint delay",
                 {make_subcommand("status", "Show the current delay in milliseconds"),
                  make_option("--status", "Show the current delay in milliseconds")});
+
+        add_doc("cjshopt-idle-timeout", "Configure terminal inactivity hooks",
+                {make_subcommand("off", "Disable idle hooks"),
+                 make_subcommand("status", "Show the current timeout"),
+                 make_option("--status", "Show the current timeout")});
 
         add_doc("cjshopt-set-history-max", "Configure history persistence",
                 {make_subcommand("default", "Restore the default history limit"),

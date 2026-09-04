@@ -190,23 +190,34 @@ static int run_readline_status_case(const char* scenario) {
         return 5;
     }
 
+    const bool idle_case = (strcmp(scenario, "idle") == 0);
     if (strcmp(scenario, "stop_event") == 0) {
         if (!ic_push_key_event(IC_KEY_EVENT_STOP)) {
             emit_result("ERR:queue-stop-event");
             return 0;
         }
+    } else if (idle_case) {
+        (void)ic_set_idle_timeout(75);
     } else if (strcmp(scenario, "text") != 0 && strcmp(scenario, "ctrl_c") != 0 &&
                strcmp(scenario, "ctrl_d") != 0) {
         return 2;
     }
 
-    ic_readline_result_t result = ic_readline_with_status("pty", NULL, NULL);
+    ic_readline_result_t result =
+        (idle_case ? ic_readline_with_status_at_cursor("pty", NULL, "abc\n", 1)
+                   : ic_readline_with_status("pty", NULL, NULL));
 
     const char* line = (result.input == NULL ? "" : result.input);
     char payload[512];
-    (void)snprintf(payload, sizeof(payload), "%s|%s|tty=%d|lost=%d",
-                   ic_readline_disposition_name(result.disposition), line,
-                   (result.tty_active ? 1 : 0), (result.tty_lost ? 1 : 0));
+    if (idle_case) {
+        (void)snprintf(payload, sizeof(payload), "%s|%s|cursor=%zu|tty=%d|lost=%d",
+                       ic_readline_disposition_name(result.disposition), line, result.cursor_pos,
+                       (result.tty_active ? 1 : 0), (result.tty_lost ? 1 : 0));
+    } else {
+        (void)snprintf(payload, sizeof(payload), "%s|%s|tty=%d|lost=%d",
+                       ic_readline_disposition_name(result.disposition), line,
+                       (result.tty_active ? 1 : 0), (result.tty_lost ? 1 : 0));
+    }
     emit_result(payload);
 
     if (result.input != NULL) {

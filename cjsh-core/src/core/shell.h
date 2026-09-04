@@ -79,6 +79,7 @@ enum class HookType : std::uint8_t {
     Precmd,
     Preexec,
     Chpwd,
+    Idle,
     Count
 };
 

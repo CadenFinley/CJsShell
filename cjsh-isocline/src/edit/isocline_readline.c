@@ -103,12 +103,15 @@ static ic_readline_disposition_t classify_disposition_with_fallback(const char* 
 
 static ic_readline_result_t ic_readline_with_status_impl(const char* prompt_text,
                                                          const char* inline_right_text,
-                                                         const char* initial_input) {
+                                                         const char* initial_input,
+                                                         size_t initial_cursor_pos,
+                                                         bool initial_cursor_pos_set) {
     ic_readline_result_t result = {
         .input = NULL,
         .disposition = IC_READLINE_DISPOSITION_ERROR,
         .tty_active = false,
         .tty_lost = false,
+        .cursor_pos = 0,
     };
 
     ic_env_t* env = ic_get_env();
@@ -117,6 +120,7 @@ static ic_readline_result_t ic_readline_with_status_impl(const char* prompt_text
     }
 
     env->last_readline_disposition = IC_READLINE_DISPOSITION_ERROR;
+    env->last_readline_cursor_pos = 0;
     result.tty_active = (env->tty != NULL);
     result.tty_lost = (env->tty != NULL && tty_lost_terminal(env->tty));
 
@@ -131,7 +135,8 @@ static ic_readline_result_t ic_readline_with_status_impl(const char* prompt_text
         }
 
         if (effective_initial_input != NULL) {
-            ic_env_set_initial_input(env, effective_initial_input);
+            ic_env_set_initial_input(env, effective_initial_input, initial_cursor_pos,
+                                     initial_cursor_pos_set && !using_typeahead_initial_input);
         }
 
         result.input = ic_editline(env, prompt_text, inline_right_text);
@@ -142,6 +147,7 @@ static ic_readline_result_t ic_readline_with_status_impl(const char* prompt_text
         }
 
         result.disposition = env->last_readline_disposition;
+        result.cursor_pos = env->last_readline_cursor_pos;
         if (result.disposition != IC_READLINE_DISPOSITION_SUBMIT) {
             ic_term_abort_input_region(env);
         }
@@ -162,6 +168,7 @@ static ic_readline_result_t ic_readline_with_status_impl(const char* prompt_text
 
     result.input = ic_getline(env->mem);
     result.disposition = classify_disposition_with_fallback(result.input);
+    result.cursor_pos = (result.input == NULL ? 0 : to_size_t(ic_strlen(result.input)));
     if (result.disposition != IC_READLINE_DISPOSITION_SUBMIT) {
         ic_term_abort_input_region(env);
     }
@@ -184,6 +191,8 @@ ic_public const char* ic_readline_disposition_name(ic_readline_disposition_t dis
             return "eof";
         case IC_READLINE_DISPOSITION_STOP:
             return "stop";
+        case IC_READLINE_DISPOSITION_IDLE:
+            return "idle";
         case IC_READLINE_DISPOSITION_ERROR:
         default:
             return "error";
@@ -193,13 +202,21 @@ ic_public const char* ic_readline_disposition_name(ic_readline_disposition_t dis
 ic_public ic_readline_result_t ic_readline_with_status(const char* prompt_text,
                                                        const char* inline_right_text,
                                                        const char* initial_input) {
-    return ic_readline_with_status_impl(prompt_text, inline_right_text, initial_input);
+    return ic_readline_with_status_impl(prompt_text, inline_right_text, initial_input, 0, false);
+}
+
+ic_public ic_readline_result_t ic_readline_with_status_at_cursor(const char* prompt_text,
+                                                                 const char* inline_right_text,
+                                                                 const char* initial_input,
+                                                                 size_t initial_cursor_pos) {
+    return ic_readline_with_status_impl(prompt_text, inline_right_text, initial_input,
+                                        initial_cursor_pos, true);
 }
 
 ic_public char* ic_readline(const char* prompt_text, const char* inline_right_text,
                             const char* initial_input) {
     ic_readline_result_t result =
-        ic_readline_with_status_impl(prompt_text, inline_right_text, initial_input);
+        ic_readline_with_status_impl(prompt_text, inline_right_text, initial_input, 0, false);
     return result.input;
 }
 

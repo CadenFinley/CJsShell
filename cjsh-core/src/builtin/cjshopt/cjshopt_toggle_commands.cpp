@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <climits>
 #include <cstdint>
 #include <functional>
 #include <initializer_list>
@@ -44,6 +45,7 @@
 #include "error_out.h"
 #include "interpreter.h"
 #include "isocline.h"
+#include "numeric_utils.h"
 #include "parser_utils.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -801,6 +803,73 @@ int hint_delay_command(const std::vector<std::string>& args) {
                      "Invalid delay value '" + option + "' (expected a number)", usage_lines});
         return 1;
     }
+}
+
+int idle_timeout_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: idle-timeout <seconds|off|status>",
+        "Examples:", "  idle-timeout 120     Run idle hooks after 120 seconds without input",
+        "  idle-timeout off     Disable idle hooks",
+        "  idle-timeout status  Show the current timeout"};
+
+    if (args.size() == 1) {
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "idle-timeout", "Missing timeout value", usage_lines});
+        return 1;
+    }
+
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "idle-timeout", "Too many arguments provided",
+                     usage_lines});
+        return 1;
+    }
+
+    const std::string normalized = normalize_option(args[1]);
+    if (parse_status_query(normalized) == StatusQuery::Status) {
+        if (!cjsh_env::startup_active()) {
+            if (config::idle_timeout_seconds <= 0) {
+                std::cout << "Idle hooks are disabled.\n";
+            } else {
+                std::cout << "Idle hooks run after " << config::idle_timeout_seconds
+                          << (config::idle_timeout_seconds == 1 ? " second" : " seconds")
+                          << " without terminal input.\n";
+            }
+        }
+        return 0;
+    }
+
+    long timeout_seconds = 0;
+    if (normalized != "off" && normalized != "disable" && normalized != "disabled" &&
+        normalized != "0") {
+        if (!numeric_utils::parse_long_strict(args[1], timeout_seconds) || timeout_seconds < 1 ||
+            timeout_seconds > LONG_MAX / 1000) {
+            print_error({ErrorType::INVALID_ARGUMENT, "idle-timeout",
+                         "Timeout must be a positive whole number of seconds or 'off'",
+                         usage_lines});
+            return 1;
+        }
+    }
+
+    config::idle_timeout_seconds = timeout_seconds;
+    (void)ic_set_idle_timeout(timeout_seconds * 1000);
+
+    if (!cjsh_env::startup_active()) {
+        if (timeout_seconds == 0) {
+            std::cout << "Idle hooks disabled.\n";
+        } else {
+            std::cout << "Idle hooks will run after " << timeout_seconds
+                      << (timeout_seconds == 1 ? " second" : " seconds")
+                      << " without terminal input.\n";
+        }
+        std::cout << "Add `cjshopt idle-timeout "
+                  << (timeout_seconds == 0 ? "off" : std::to_string(timeout_seconds))
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
+    return 0;
 }
 
 int multiline_start_lines_command(const std::vector<std::string>& args) {

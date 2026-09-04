@@ -67,6 +67,8 @@ See [Prompt Markup and Styling](../themes/thedetails.md) for the full markup ref
   pick menu entries is beyond POSIX scope.
 - **Fish-style abbreviations** – `abbr` and `unabbr` provide inline text expansions, a feature not
   present in POSIX shells.
+- **Idle hooks** – `cjshopt idle-timeout` can pause the editor after terminal inactivity and run a
+  registered `idle` hook in the foreground, then restore the pending buffer and cursor.
 
 ## POSIX+ Scripting Syntax
 
@@ -116,7 +118,7 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 - **`generate-completions`** – Pre-warm the completion cache. A convenience command beyond POSIX.
 - **`approot`** – Quick directory jump command for cjsh config/cache/history/firstboot/completion roots and binary location.
 - **`firstboot`** – Suppress the welcome banner by creating its marker once.
-- **`hook`** – Lightweight precmd/preexec/chpwd hook management similar to zsh's hook system.
+- **`hook`** – Lightweight precmd/preexec/chpwd/idle hook management similar to zsh's hook system.
 - **`restart`** – Re-exec the current shell process, optionally dropping startup flags with
   `restart --no-flags`.
 - **Special lifecycle handlers** – `command_not_found_handler` and `cjshexit` function names are

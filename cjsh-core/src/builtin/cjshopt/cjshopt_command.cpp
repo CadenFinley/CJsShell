@@ -64,6 +64,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     MultilineMaxLines,
     MultilineBottomLines,
     HintDelay,
+    IdleTimeout,
     CompletionPreview,
     CompletionMenuExpanded,
     CompletionClickAccept,
@@ -130,6 +131,7 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
          {CjshoptSubcommand::MultilineBottomLines, "multiline-bottom-lines",
           multiline_bottom_lines_command},
          {CjshoptSubcommand::HintDelay, "hint-delay", hint_delay_command},
+         {CjshoptSubcommand::IdleTimeout, "idle-timeout", idle_timeout_command},
          {CjshoptSubcommand::CompletionPreview, "completion-preview", completion_preview_command},
          {CjshoptSubcommand::CompletionMenuExpanded, "completion-menu-expanded",
           completion_menu_expanded_command},
@@ -215,6 +217,7 @@ const std::vector<std::string>& cjshopt_usage_lines() {
         std::string("  multiline-bottom-lines <count|status> Set the multiline cursor margin ") +
             "(default: 3)",
         "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
+        "  idle-timeout <seconds|off|status> Configure inactivity hooks (default: off)",
         std::string("  completion-preview <on|off|status> Configure completion preview ") +
             "(default: enabled)",
         std::string("  completion-menu-expanded <on|off|status> Open completion menus expanded ") +
@@ -303,7 +306,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                   "completion-learning, "
                   "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
                   "current-line-number-highlight, multiline-start-lines, multiline-max-lines, "
-                  "multiline-bottom-lines, hint-delay, "
+                  "multiline-bottom-lines, hint-delay, idle-timeout, "
                   "completion-preview, completion-menu-expanded, completion-click-accept, "
                   "menu-highlighting, visible-whitespace, hint, "
                   "multiline-indent, multiline, inline-help, "
