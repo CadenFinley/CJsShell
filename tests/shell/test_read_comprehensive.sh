@@ -262,9 +262,11 @@ cat > /tmp/test_read_loop_redirection.sh << 'EOF'
 #!/bin/sh
 set -eu
 list=$(mktemp)
+file_one=$(mktemp)
+file_two=$(mktemp)
 printf '%s\n' \
-    "cjsh-core/src/interpreter/pattern_matcher.cpp" \
-    "cjsh-core/src/interpreter/pattern_matcher.h" >"$list"
+    "$file_one" \
+    "$file_two" >"$list"
 total_files_raw=$(wc -l <"$list")
 total_files_trimmed=$(printf "%s" "$total_files_raw" | tr -d '[:space:]')
 processed=0
@@ -276,7 +278,7 @@ while IFS= read -r file; do
         : "$percent"
     fi
 done <"$list"
-rm -f "$list"
+rm -f "$list" "$file_one" "$file_two"
 echo "$processed/$total_files_trimmed"
 EOF
 chmod +x /tmp/test_read_loop_redirection.sh
