@@ -1,6 +1,20 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.5`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.6`.
+
+## 1.4.6 - 2026-09-04
+
+Range: `v1.4.5..HEAD` (3 commits, 9 files changed)
+
+### Fixed
+
+- Prevented command and control-structure completions while the cursor is within an assignment name, avoiding corrupt insertions such as replacing the `i` in `i=$((i+1))` with an `if` block.
+- Suppressed insertion completions when the cursor is immediately before an existing shell word, preventing unrelated text from being inserted before tokens such as a loop-closing `done`, while preserving completion within words and assignment values.
+
+### Internal and Tests
+
+- Added completion-context and full-buffer regression coverage for ordinary, append, and indexed assignments; quoted and invalid assignment-like text; existing-word boundaries; and assignment-value completion.
+- Finalized 1.4.6 as a stable release by clearing the default pre-release build marker.
 
 ## 1.4.5 - 2026-09-03
 
