@@ -35,6 +35,8 @@
 #include <utility>
 #include <vector>
 
+#include "parser_utils.h"
+
 namespace completion_context {
 namespace {
 
@@ -146,6 +148,39 @@ void tokenize_active_segment(const std::string& input, std::size_t cursor,
         context.current_prefix = context.words.back().text;
         context.current_raw_prefix = context.words.back().raw;
     }
+}
+
+bool cursor_is_in_assignment_lhs(const std::string& input,
+                                 const CommandLineContext& context) {
+    std::string lhs_prefix;
+    if (!context.at_word_boundary) {
+        if (context.words.empty() || context.words.back().quoted)
+            return false;
+        lhs_prefix = context.current_raw_prefix;
+    }
+
+    // An equals sign before the cursor means the cursor has already reached the
+    // assignment value. Completion there (for example, $VAR completion) must
+    // remain available.
+    if (lhs_prefix.find('=') != std::string::npos)
+        return false;
+
+    std::size_t index = context.cursor;
+    while (index < input.size()) {
+        char ch = input[index];
+        if (ch == '=') {
+            return looks_like_assignment(lhs_prefix + input.substr(context.cursor,
+                                                                    index - context.cursor) +
+                                         '=');
+        }
+        if (is_control_operator(ch) ||
+            std::isspace(static_cast<unsigned char>(ch)) != 0) {
+            return false;
+        }
+        ++index;
+    }
+
+    return false;
 }
 
 struct WrapperResult {
@@ -317,6 +352,11 @@ CommandLineContext parse(const std::string& input, std::size_t cursor) {
     CommandLineContext context;
     context.cursor = cursor == std::string::npos ? input.size() : std::min(cursor, input.size());
     tokenize_active_segment(input, context.cursor, context);
+    context.cursor_in_assignment_lhs = cursor_is_in_assignment_lhs(input, context);
+    context.cursor_before_existing_word =
+        context.at_word_boundary && context.cursor < input.size() &&
+        !is_control_operator(input[context.cursor]) &&
+        std::isspace(static_cast<unsigned char>(input[context.cursor])) == 0;
     resolve_effective_command(context);
     return context;
 }

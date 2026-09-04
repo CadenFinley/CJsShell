@@ -58,6 +58,8 @@ struct CommandLineContext {
     bool at_word_boundary{true};
     bool cursor_in_command_position{true};
     bool cursor_in_wrapper_option_value{false};
+    bool cursor_in_assignment_lhs{false};
+    bool cursor_before_existing_word{false};
 };
 
 CommandLineContext parse(const std::string& input, std::size_t cursor = std::string::npos);

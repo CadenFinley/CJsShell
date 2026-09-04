@@ -421,6 +421,65 @@ static bool test_completion_context_wrapper_value_state(void) {
     return true;
 }
 
+static bool test_completion_context_assignment_lhs_at_cursor(void) {
+    const char* test_name = "completion_context_assignment_lhs_at_cursor";
+
+    auto assignment_context = completion_context::parse("i=$((i+1))", 1);
+    EXPECT_TRUE(assignment_context.cursor_in_assignment_lhs, test_name,
+                "a cursor touching the equals sign should remain in the assignment name");
+
+    const std::string partial_name = "VARIABLE=value";
+    auto partial_context = completion_context::parse(partial_name, 3);
+    EXPECT_TRUE(partial_context.cursor_in_assignment_lhs, test_name,
+                "a cursor in the middle of an assignment name should be detected");
+
+    const std::string indexed = "values[0]=2";
+    auto indexed_context = completion_context::parse(indexed, indexed.find('='));
+    EXPECT_TRUE(indexed_context.cursor_in_assignment_lhs, test_name,
+                "an indexed assignment name should be detected");
+
+    const std::string append = "items+=more";
+    auto append_context = completion_context::parse(append, append.find('='));
+    EXPECT_TRUE(append_context.cursor_in_assignment_lhs, test_name,
+                "an append assignment name should be detected");
+
+    auto value_context = completion_context::parse("i=$VALUE", 3);
+    EXPECT_FALSE(value_context.cursor_in_assignment_lhs, test_name,
+                 "completion should remain enabled after the assignment operator");
+
+    auto quoted_context = completion_context::parse("\"i=value\"", 2);
+    EXPECT_FALSE(quoted_context.cursor_in_assignment_lhs, test_name,
+                 "quoted text containing equals must not be classified as an assignment");
+
+    auto invalid_context = completion_context::parse("not-a-name=value", 10);
+    EXPECT_FALSE(invalid_context.cursor_in_assignment_lhs, test_name,
+                 "an invalid assignment name must not suppress normal completion");
+    return true;
+}
+
+static bool test_completion_context_before_existing_word(void) {
+    const char* test_name = "completion_context_before_existing_word";
+    const std::string multiline = "while true; do\n    echo hello\ndone";
+    const std::size_t done_start = multiline.rfind("done");
+
+    auto before_context = completion_context::parse(multiline, done_start);
+    EXPECT_TRUE(before_context.cursor_before_existing_word, test_name,
+                "a cursor immediately before an existing word should be detected");
+
+    auto inside_context = completion_context::parse("done", 2);
+    EXPECT_FALSE(inside_context.cursor_before_existing_word, test_name,
+                 "a cursor with a typed word prefix should still allow completion");
+
+    auto end_context = completion_context::parse("done", 4);
+    EXPECT_FALSE(end_context.cursor_before_existing_word, test_name,
+                 "a cursor at the end of a word should still allow completion");
+
+    auto separator_context = completion_context::parse("echo;done", 4);
+    EXPECT_FALSE(separator_context.cursor_before_existing_word, test_name,
+                 "a cursor before a control operator is not before an existing word");
+    return true;
+}
+
 static bool test_tokenize_shell_words_preserve_literals(void) {
     const char* test_name = "tokenize_shell_words_preserve_literals";
     std::string line = "cmd \"arg with space\" plain\\ space 'single quoted'";
@@ -618,6 +677,67 @@ static bool test_default_completer_does_not_spell_correct_assignments(void) {
                  "a multiline assignment must not be treated as a misspelled command");
     EXPECT_FALSE(array_has_spell_correction, test_name,
                  "an array assignment must not be treated as a misspelled command");
+    return true;
+}
+
+static bool test_default_completer_suppresses_assignment_lhs_midline(void) {
+    const char* test_name = "default_completer_suppresses_assignment_lhs_midline";
+    const std::string input =
+        "MAX=1000000\n"
+        "primes=\"\"\n"
+        "i=2\n"
+        "while [ $i -le $MAX ]; do\n"
+        "    is_prime=1\n"
+        "    i=$((i+1))\n"
+        "done";
+    const std::size_t assignment = input.find("i=$((i+1))");
+    EXPECT_TRUE(assignment != std::string::npos, test_name,
+                "the regression fixture should contain the assignment");
+
+    const ssize_t cursor = static_cast<ssize_t>(assignment + 1);
+    ssize_t count =
+        run_completion_generation_at(input.c_str(), cursor, &cjsh_default_completer, 256);
+    bool has_control_structure = generated_completions_include_source("control structure");
+    clear_generated_completions();
+
+    EXPECT_TRUE(count == 0, test_name,
+                "an assignment name before an existing equals sign should offer no completions");
+    EXPECT_FALSE(has_control_structure, test_name,
+                 "the assignment variable i must not offer the multiline if completion");
+
+    (void)run_completion_generation("i=$", &cjsh_default_completer, 256);
+    bool has_value_completion = generated_completions_include_source("variable");
+    clear_generated_completions();
+    EXPECT_TRUE(has_value_completion, test_name,
+                "variable completion should remain available in the assignment value");
+    return true;
+}
+
+static bool test_default_completer_suppresses_before_existing_word(void) {
+    const char* test_name = "default_completer_suppresses_before_existing_word";
+    const std::string input =
+        "MAX=1000000\n"
+        "primes=\"\"\n"
+        "i=2\n"
+        "while [ $i -le $MAX ]; do\n"
+        "    echo $i\n"
+        "done";
+    const std::size_t done_start = input.rfind("done");
+    EXPECT_TRUE(done_start != std::string::npos, test_name,
+                "the regression fixture should contain the closing done");
+
+    ssize_t count = run_completion_generation_at(
+        input.c_str(), static_cast<ssize_t>(done_start), &cjsh_default_completer, 256);
+    clear_generated_completions();
+    EXPECT_TRUE(count == 0, test_name,
+                "the cursor before done should not offer an insertion completion");
+
+    (void)run_completion_generation_at("done", 2, &cjsh_default_completer, 256);
+    bool inside_word_completion =
+        generated_completions_include_replacement("done ");
+    clear_generated_completions();
+    EXPECT_TRUE(inside_word_completion, test_name,
+                "completion should remain available after a real prefix inside a word");
     return true;
 }
 
@@ -1752,6 +1872,10 @@ static const test_case_t kTests[] = {
     {"completion_context_shell_state", test_completion_context_shell_state},
     {"completion_context_cursor_and_quotes", test_completion_context_cursor_and_quotes},
     {"completion_context_wrapper_value_state", test_completion_context_wrapper_value_state},
+    {"completion_context_assignment_lhs_at_cursor",
+     test_completion_context_assignment_lhs_at_cursor},
+    {"completion_context_before_existing_word",
+     test_completion_context_before_existing_word},
     {"tokenize_shell_words_preserve_literals", test_tokenize_shell_words_preserve_literals},
     {"default_completer_command_in_command_substitution",
      test_default_completer_command_in_command_substitution},
@@ -1763,6 +1887,10 @@ static const test_case_t kTests[] = {
      test_default_completer_spell_follows_command_cursor},
     {"default_completer_does_not_spell_correct_assignments",
      test_default_completer_does_not_spell_correct_assignments},
+    {"default_completer_suppresses_assignment_lhs_midline",
+     test_default_completer_suppresses_assignment_lhs_midline},
+    {"default_completer_suppresses_before_existing_word",
+     test_default_completer_suppresses_before_existing_word},
     {"find_last_unquoted_space", test_find_last_unquoted_space},
     {"find_last_unquoted_space_with_tabs", test_find_last_unquoted_space_with_tabs},
     {"find_last_unquoted_space_with_escaped_space",

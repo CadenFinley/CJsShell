@@ -1735,6 +1735,15 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (ic_stop_completing(cenv))
         return;
 
+    long raw_cursor = 0;
+    const char* raw_input = ic_completion_input(cenv, &raw_cursor);
+    if (raw_input != nullptr && raw_cursor >= 0) {
+        auto raw_context =
+            completion_context::parse(raw_input, static_cast<std::size_t>(raw_cursor));
+        if (raw_context.cursor_in_assignment_lhs || raw_context.cursor_before_existing_word)
+            return;
+    }
+
     const char* effective_prefix = (prefix != nullptr) ? prefix : "";
     std::string completion_scope_prefix = extract_completion_scope_prefix(effective_prefix);
     completion_context::CommandLineContext command_context =

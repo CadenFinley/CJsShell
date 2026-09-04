@@ -93,7 +93,11 @@ static alloc_t* test_allocator(void) {
     return (env == NULL ? NULL : env->mem);
 }
 
+static const char* g_observed_completion_input = NULL;
+static long g_observed_completion_cursor = -1;
+
 static void sample_completion_builder(ic_completion_env_t* cenv, const char* prefix) {
+    g_observed_completion_input = ic_completion_input(cenv, &g_observed_completion_cursor);
     const char* effective_prefix = (prefix == NULL) ? "" : prefix;
     if (effective_prefix[0] != '\0' && effective_prefix[0] != 'a') {
         return;
@@ -559,8 +563,19 @@ static bool test_completion_generation_and_apply(void) {
     completions_get_completer(env->completions, &prev_fun, &prev_arg);
     completions_set_completer(env->completions, &sample_completion_builder, NULL);
 
+    g_observed_completion_input = NULL;
+    g_observed_completion_cursor = -1;
     ssize_t produced = completions_generate(env, env->completions, "a", 1, 8);
     EXPECT_TRUE(produced == 3, "stub completer should generate three entries");
+    EXPECT_STREQ(g_observed_completion_input, "a",
+                 "completion callbacks should expose the complete input buffer");
+    EXPECT_TRUE(g_observed_completion_cursor == 1,
+                "completion callbacks should expose the cursor position");
+    long null_cursor = 7;
+    EXPECT_TRUE(ic_completion_input(NULL, &null_cursor) == NULL,
+                "completion input should reject a null environment");
+    EXPECT_TRUE(null_cursor == 7,
+                "a rejected completion input query should leave its cursor output unchanged");
     completions_sort(env->completions);
 
     const char* help = NULL;
