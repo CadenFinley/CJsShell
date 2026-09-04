@@ -103,6 +103,16 @@ if(Python3_Interpreter_FOUND)
                 $<TARGET_FILE:cjsh>
     )
 
+    if(UNIX)
+        add_test(
+            NAME generate_completions_integration_tests
+            COMMAND
+                "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/core/test_generate_completions.py"
+                $<TARGET_FILE:cjsh>
+        )
+    endif()
+
     if(TARGET fg_terminal_race_injector)
         add_test(
             NAME function_pipeline_job_control_tests

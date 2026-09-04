@@ -30,6 +30,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 #include "completion_spec.h"
 #include "isocline.h"
@@ -41,6 +42,15 @@ std::string get_command_summary(const std::string& command, bool allow_fetch = t
 using CompletionCacheProgressCallback =
     std::function<void(const std::string& target, bool generated, bool is_root_target)>;
 using CompletionCacheCancelCallback = std::function<bool()>;
+
+struct CompletionCacheTargetResult {
+    bool generated{false};
+    std::vector<std::string> discovered_targets;
+};
+
+CompletionCacheTargetResult regenerate_external_completion_cache_target(
+    const std::string& target, bool force_refresh = true, bool discover_subcommands = false);
+
 bool regenerate_external_completion_cache(
     const std::string& command, bool force_refresh = true, bool include_subcommands = false,
     CompletionCacheProgressCallback progress_callback = CompletionCacheProgressCallback{},

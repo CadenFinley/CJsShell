@@ -1281,22 +1281,9 @@ bool regenerate_external_completion_cache(const std::string& command, bool force
         if (!visited_targets.insert(normalized_target).second)
             continue;
 
-        {
-            std::lock_guard<std::mutex> lock(g_cache_mutex);
-            (void)g_memory_cache.erase(normalized_target);
-            (void)g_failed_targets.erase(normalized_target);
-        }
-
-        std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path() /
-                                           (sanitize_command_for_cache(current_target) + ".txt");
-
-        if (force_refresh) {
-            std::error_code remove_error;
-            (void)std::filesystem::remove(cache_path, remove_error);
-        }
-
-        CommandDoc doc = load_entries_for_target(current_target, true, true);
-        bool current_generated = !doc.entries.empty() || !doc.summary.empty();
+        CompletionCacheTargetResult result = regenerate_external_completion_cache_target(
+            current_target, force_refresh, include_subcommands);
+        bool current_generated = result.generated;
         if (current_target == command) {
             root_generated = current_generated;
         }
@@ -1305,26 +1292,58 @@ bool regenerate_external_completion_cache(const std::string& command, bool force
             progress_callback(current_target, current_generated, current_target == command);
         }
 
-        if (!include_subcommands)
-            continue;
-
         if (cancel_callback && cancel_callback()) {
             break;
         }
 
-        for (const auto& entry : doc.entries) {
-            if (entry.kind != EntryKind::Subcommand)
-                continue;
-
-            std::string subcommand = normalize_subcommand_token(entry.text);
-            if (!is_token_allowed_for_combination(subcommand))
-                continue;
-
-            pending_targets.push_back(current_target + "-" + subcommand);
+        for (auto& discovered_target : result.discovered_targets) {
+            pending_targets.push_back(std::move(discovered_target));
         }
     }
 
     return root_generated;
+}
+
+CompletionCacheTargetResult regenerate_external_completion_cache_target(const std::string& target,
+                                                                        bool force_refresh,
+                                                                        bool discover_subcommands) {
+    CompletionCacheTargetResult result;
+    if (target.empty())
+        return result;
+
+    std::string normalized_target = normalize_key(target);
+    {
+        std::lock_guard<std::mutex> lock(g_cache_mutex);
+        (void)g_memory_cache.erase(normalized_target);
+        (void)g_failed_targets.erase(normalized_target);
+    }
+
+    std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path() /
+                                       (sanitize_command_for_cache(target) + ".txt");
+
+    if (force_refresh) {
+        std::error_code remove_error;
+        (void)std::filesystem::remove(cache_path, remove_error);
+    }
+
+    CommandDoc doc = load_entries_for_target(target, true, true);
+    result.generated = !doc.entries.empty() || !doc.summary.empty();
+
+    if (!discover_subcommands)
+        return result;
+
+    for (const auto& entry : doc.entries) {
+        if (entry.kind != EntryKind::Subcommand)
+            continue;
+
+        std::string subcommand = normalize_subcommand_token(entry.text);
+        if (!is_token_allowed_for_combination(subcommand))
+            continue;
+
+        result.discovered_targets.push_back(target + "-" + subcommand);
+    }
+
+    return result;
 }
 
 void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_path_input) {

@@ -35,13 +35,16 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdlib>
+#include <deque>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <mutex>
 #include <sstream>
 #include <thread>
+#include <unordered_set>
 #include <vector>
 
 #ifndef _WIN32
@@ -53,6 +56,7 @@
 #include "error_out.h"
 #include "external_sub_completions.h"
 #include "shell_env.h"
+#include "string_utils.h"
 
 namespace {
 
@@ -152,6 +156,18 @@ class GenerateCompletionsProgressDisplay {
         return enabled_;
     }
 
+    void add_targets(std::size_t count) {
+        if (!enabled_ || count == 0)
+            return;
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (finished_)
+            return;
+
+        total_ += count;
+        render_locked();
+    }
+
     void report_result(const std::string& target_name, bool generated, bool is_root_target) {
         if (!enabled_)
             return;
@@ -166,14 +182,12 @@ class GenerateCompletionsProgressDisplay {
         last_target_ = target_name;
         last_target_is_root_ = is_root_target;
 
-        if (is_root_target) {
-            if (completed_ < total_)
-                ++completed_;
-            if (!generated)
-                ++missing_;
-        } else {
+        if (completed_ < total_)
+            ++completed_;
+        if (!generated)
+            ++missing_;
+        if (!is_root_target)
             ++subcommand_count_;
-        }
 
         render_locked();
     }
@@ -555,8 +569,8 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
             return cancel_requested.load();
         };
 
-        const std::size_t job_count =
-            resolve_job_count(options.requested_jobs, options.targets.size());
+        const std::size_t job_count = resolve_job_count(
+            options.requested_jobs, options.include_subcommands ? 0 : options.targets.size());
 
         if (!options.quiet) {
             std::cout << kCommandName << ": processing " << options.targets.size() << " command"
@@ -568,92 +582,108 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
 
         GenerateCompletionsProgressDisplay progress_display(!options.quiet, options.targets.size());
 
-        std::size_t success_count = 0;
-        if (job_count == 1) {
-            for (const auto& command : options.targets) {
-                if (check_for_interrupt(true)) {
+        struct CompletionWorkItem {
+            std::string target;
+            bool is_root{false};
+        };
+
+        std::deque<CompletionWorkItem> pending_work;
+        std::unordered_set<std::string> scheduled_targets;
+        for (const auto& target : options.targets) {
+            pending_work.push_back({target, true});
+            (void)scheduled_targets.insert(string_utils::to_lower_copy(target));
+        }
+
+        std::atomic<std::size_t> success_counter{0};
+        std::mutex work_mutex;
+        std::condition_variable work_available;
+        std::size_t active_workers = 0;
+        bool work_complete = false;
+        std::mutex output_mutex;
+        std::mutex failure_mutex;
+
+        auto worker = [&](bool allow_shell_processing) {
+            std::vector<std::string> local_failures;
+
+            while (true) {
+                if (check_for_interrupt(allow_shell_processing)) {
+                    work_available.notify_all();
                     break;
                 }
 
-                auto progress_report = [&](const std::string& target_name, bool generated,
-                                           bool is_root_target) {
-                    report_target_result(options.quiet, nullptr, target_name, generated,
-                                         is_root_target, &progress_display);
-                };
+                CompletionWorkItem item;
+                {
+                    std::unique_lock<std::mutex> lock(work_mutex);
+                    work_available.wait(lock, [&]() {
+                        return cancel_requested.load() || work_complete || !pending_work.empty();
+                    });
+                    if (cancel_requested.load() || work_complete)
+                        break;
 
-                auto should_cancel = [&]() { return check_for_interrupt(true); };
-
-                bool generated = regenerate_external_completion_cache(
-                    command, options.force_refresh, options.include_subcommands, progress_report,
-                    should_cancel);
-                if (generated) {
-                    ++success_count;
-                } else {
-                    failures.push_back(command);
+                    item = std::move(pending_work.front());
+                    pending_work.pop_front();
+                    ++active_workers;
                 }
 
-                if (check_for_interrupt(true)) {
-                    break;
+                CompletionCacheTargetResult result = regenerate_external_completion_cache_target(
+                    item.target, options.force_refresh, options.include_subcommands);
+                const bool interrupted = check_for_interrupt(allow_shell_processing);
+
+                std::size_t added_targets = 0;
+                {
+                    std::lock_guard<std::mutex> lock(work_mutex);
+                    if (!interrupted && !cancel_requested.load()) {
+                        for (auto& discovered_target : result.discovered_targets) {
+                            std::string key = string_utils::to_lower_copy(discovered_target);
+                            if (!scheduled_targets.insert(std::move(key)).second)
+                                continue;
+
+                            pending_work.push_back({std::move(discovered_target), false});
+                            ++added_targets;
+                        }
+                    }
+
+                    if (added_targets > 0)
+                        progress_display.add_targets(added_targets);
+
+                    --active_workers;
+                    if (pending_work.empty() && active_workers == 0)
+                        work_complete = true;
                 }
-            }
-        } else {
-            std::atomic<std::size_t> next_index{0};
-            std::atomic<std::size_t> success_counter{0};
-            std::mutex output_mutex;
-            std::mutex failure_mutex;
 
-            auto worker = [&]() {
-                std::vector<std::string> local_failures;
-                while (true) {
-                    if (check_for_interrupt(false)) {
-                        break;
-                    }
-
-                    std::size_t index = next_index.fetch_add(1, std::memory_order_relaxed);
-                    if (index >= options.targets.size())
-                        break;
-
-                    if (cancel_requested.load()) {
-                        break;
-                    }
-
-                    const std::string& command = options.targets[index];
-                    auto progress_report = [&](const std::string& target_name, bool generated,
-                                               bool is_root_target) {
-                        report_target_result(options.quiet, &output_mutex, target_name, generated,
-                                             is_root_target, &progress_display);
-                    };
-
-                    auto should_cancel = [&]() { return check_for_interrupt(false); };
-
-                    bool generated = regenerate_external_completion_cache(
-                        command, options.force_refresh, options.include_subcommands,
-                        progress_report, should_cancel);
-                    if (generated) {
+                if (item.is_root) {
+                    if (result.generated) {
                         (void)success_counter.fetch_add(1, std::memory_order_relaxed);
                     } else {
-                        local_failures.push_back(command);
+                        local_failures.push_back(item.target);
                     }
                 }
 
-                if (!local_failures.empty()) {
-                    std::lock_guard<std::mutex> lock(failure_mutex);
-                    (void)failures.insert(failures.end(), local_failures.begin(),
-                                          local_failures.end());
-                }
-            };
+                report_target_result(options.quiet, &output_mutex, item.target, result.generated,
+                                     item.is_root, &progress_display);
+                work_available.notify_all();
+            }
 
+            if (!local_failures.empty()) {
+                std::lock_guard<std::mutex> lock(failure_mutex);
+                (void)failures.insert(failures.end(), local_failures.begin(), local_failures.end());
+            }
+        };
+
+        if (job_count == 1) {
+            worker(true);
+        } else {
             std::vector<std::thread> workers;
             workers.reserve(job_count);
             for (std::size_t i = 0; i < job_count; ++i) {
-                (void)workers.emplace_back(worker);
+                workers.emplace_back(worker, false);
             }
             for (auto& thread : workers) {
                 thread.join();
             }
-
-            success_count = success_counter.load(std::memory_order_relaxed);
         }
+
+        const std::size_t success_count = success_counter.load(std::memory_order_relaxed);
 
         progress_display.finish();
 
