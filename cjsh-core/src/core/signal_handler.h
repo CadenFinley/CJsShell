@@ -94,6 +94,7 @@ class SignalHandler {
 
     SignalProcessingResult process_pending_signals(Exec* shell_exec);
     static bool has_pending_signals();
+    static bool take_pending_sigint();
     static SignalHandler* instance();
     static const std::vector<SignalInfo>& available_signals();
 

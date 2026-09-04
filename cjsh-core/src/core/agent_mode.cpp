@@ -43,7 +43,9 @@
 #include <string_view>
 #include <utility>
 
+#include <sys/ioctl.h>
 #include <sys/utsname.h>
+#include <unistd.h>
 
 #include "cjsh_filesystem.h"
 #include "cjshopt_command.h"
@@ -52,6 +54,7 @@
 #include "help_command.h"
 #include "isocline.h"
 #include "prompt.h"
+#include "signal_handler.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "status_line.h"
@@ -760,6 +763,32 @@ bool finish_empty_agent_request(const std::string& buffer) {
     return ic_request_submit();
 }
 
+bool restore_agent_request(const std::string& buffer) {
+    return ic_set_buffer(buffer.c_str()) && ic_set_cursor_pos(buffer.size());
+}
+
+bool agent_interrupt_requested() {
+    if (SignalHandler::take_pending_sigint()) {
+        return true;
+    }
+
+#ifdef FIONREAD
+    int available = 0;
+    if (ioctl(STDIN_FILENO, FIONREAD, &available) == 0 && available > 0) {
+        std::array<char, 64> input{};
+        const ssize_t bytes_read = read(STDIN_FILENO, input.data(),
+                                        std::min(input.size(), static_cast<size_t>(available)));
+        for (ssize_t index = 0; index < bytes_read; ++index) {
+            if (input[static_cast<size_t>(index)] == '\x03') {
+                return true;
+            }
+        }
+    }
+#endif
+
+    return false;
+}
+
 bool run_agent(bool require_prefix) {
     const char* raw_buffer = ic_get_buffer();
     if (raw_buffer == nullptr) {
@@ -794,10 +823,20 @@ bool run_agent(bool require_prefix) {
     executor_args.push_back(std::move(final_prompt));
 
     exec_utils::CommandOutput output;
+    bool request_cancelled = false;
     {
         ScopedWaitingStatus waiting_status;
         output = exec_utils::execute_command_vector_for_output_with_progress(
-            executor_args, [&waiting_status]() { waiting_status.advance(); });
+            executor_args, [&waiting_status]() { waiting_status.advance(); }, 250,
+            [&request_cancelled]() {
+                if (!request_cancelled) {
+                    request_cancelled = agent_interrupt_requested();
+                }
+                return request_cancelled;
+            });
+    }
+    if (request_cancelled) {
+        return restore_agent_request(buffer);
     }
     if (!output.success) {
         show_message_menu("agent error: ", "Executor failed",

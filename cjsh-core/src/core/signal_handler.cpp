@@ -265,6 +265,15 @@ bool SignalHandler::has_pending_signals() {
     return s_signal_pending.load(std::memory_order_acquire) || has_direct_pending_signal();
 }
 
+bool SignalHandler::take_pending_sigint() {
+    if (s_sigint_received == 0) {
+        return false;
+    }
+
+    s_sigint_received = 0;
+    return true;
+}
+
 SignalHandler::~SignalHandler() {
     restore_original_handlers();
     s_instance.store(nullptr);

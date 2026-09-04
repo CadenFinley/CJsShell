@@ -129,6 +129,23 @@ class Session:
                 return
         raise AssertionError(f"expected command to create {path}: {bytes(self.output)!r}")
 
+    def wait_for_quiet_prompt(self, start: int = 0, timeout: float = 4.0) -> None:
+        deadline = time.monotonic() + timeout
+        quiet_since: float | None = None
+        while time.monotonic() < deadline:
+            before = len(self.output)
+            self.pump(0.05)
+            now = time.monotonic()
+            if self.output.find(b"cjsh> ", start) < 0:
+                continue
+            if len(self.output) == before:
+                quiet_since = quiet_since or now
+                if now - quiet_since >= 0.15:
+                    return
+            else:
+                quiet_since = None
+        raise AssertionError(f"missing quiet prompt in PTY output: {bytes(self.output)!r}")
+
 
 def main() -> int:
     if len(sys.argv) != 2:
@@ -153,6 +170,8 @@ def main() -> int:
         selected_result = os.path.join(temp_dir, "selected-result")
         empty_request_result = os.path.join(temp_dir, "empty-request-result")
         recovery_result = os.path.join(temp_dir, "error-recovery-result")
+        interrupt_completed = os.path.join(temp_dir, "interrupt-completed")
+        interrupt_recovery = os.path.join(temp_dir, "interrupt-recovery")
         custom_key_result = os.path.join(temp_dir, "custom-key-result")
         with open(executor, "w", encoding="utf-8") as script:
             script.write(
@@ -161,6 +180,7 @@ def main() -> int:
                 "case \"$1\" in\n"
                 "  fail) exit 7 ;;\n"
                 "  malformed) printf 'not JSON output\\n'; exit 0 ;;\n"
+                f"  interrupt) sleep 30; touch {interrupt_completed} ;;\n"
                 "esac\n"
                 "sleep 0.8\n"
                 "cat <<'JSON'\n"
@@ -179,6 +199,7 @@ def main() -> int:
             failure_command = shlex.quote(f"{executor} fail")
             malformed_command = shlex.quote(f"{executor} malformed")
             cancel_command = shlex.quote(f"{executor} cancel")
+            interrupt_command = shlex.quote(f"{executor} interrupt")
             missing_command = shlex.quote(os.path.join(temp_dir, "missing-executor"))
             rc_file.write(
                 "export PS1='normal> '\n"
@@ -197,6 +218,8 @@ def main() -> int:
                 f"{missing_command}\n"
                 "cjshopt agent-mode set --trigger-prefix ':cancel ' --command "
                 f"{cancel_command}\n"
+                "cjshopt agent-mode set --trigger-prefix ':interrupt ' --command "
+                f"{interrupt_command}\n"
                 "cjshopt agent-mode key F3\n"
             )
 
@@ -301,6 +324,25 @@ def main() -> int:
             session.pump(0.1)
             session.write(b"\x15")
 
+            # Ctrl+C cancels an in-flight executor instead of leaving the shell
+            # blocked or presenting an executor error.
+            interrupt_start = len(session.output)
+            session.write(b":interrupt cancel this request")
+            session.wait_for(b":interrupt cancel this request", start=interrupt_start)
+            session.write(b"\r")
+            session.wait_for(b"Waiting for agent response", start=interrupt_start)
+            session.write(b"\x03")
+            session.wait_for_quiet_prompt(start=interrupt_start)
+            if os.path.exists(interrupt_completed):
+                raise AssertionError("Ctrl+C did not stop the in-flight agent executor")
+            interrupted_output = normalize_terminal_output(bytes(session.output[interrupt_start:]))
+            if b":interrupt cancel this request" not in interrupted_output:
+                raise AssertionError("Ctrl+C did not restore the interrupted request buffer")
+            session.write(b"\x15")
+            session.write(f"touch {interrupt_recovery}\r".encode())
+            session.wait_for_file(interrupt_recovery)
+            session.pump(0.2)
+
             # Overlapping prefixes route to the most specific executor.
             longest_start = len(session.output)
             session.write(b":deep use the longest prefix\r")
@@ -350,7 +392,7 @@ def main() -> int:
                     and runtime_context["shell_mode"] == "default"
                     and runtime_context["previous_exit_status"] == "0"
                     and runtime_context["previous_command"]
-                    == f"touch {recovery_result}"
+                    == f"touch {interrupt_recovery}"
                     and ("visible file.txt", "file") in directory_entries
                     and ("visible-dir", "directory") in directory_entries
                     and runtime_context["working_directory_entries_truncated"] is False

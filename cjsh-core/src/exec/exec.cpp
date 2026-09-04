@@ -2675,7 +2675,8 @@ namespace {
 CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child_executor,
                                                bool capture_stderr, bool suppress_stderr,
                                                const std::function<void()>& progress_callback,
-                                               unsigned int progress_interval_ms) {
+                                               unsigned int progress_interval_ms,
+                                               const std::function<bool()>& cancellation_callback) {
     CommandOutput result{"", -1, false};
 
     if (!child_executor) {
@@ -2698,6 +2699,7 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
 
     if (pid == 0) {
         cjsh_filesystem::safe_close(pipefd[0]);
+        (void)setpgid(0, 0);
 
         auto dup_result = cjsh_filesystem::safe_dup2(pipefd[1], STDOUT_FILENO);
         if (dup_result.is_error()) {
@@ -2723,6 +2725,9 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
         _exit(exit_code);
     }
 
+    // Keep the executor and any descendants in a private process group so a
+    // cancellation cannot leave grandchildren holding the capture pipe open.
+    (void)setpgid(pid, pid);
     cjsh_filesystem::safe_close(pipefd[1]);
 
     int status = 0;
@@ -2743,8 +2748,16 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
         bool pipe_open = true;
         bool child_reaped = false;
         bool io_failed = false;
+        bool cancellation_requested = false;
 
         while (pipe_open || !child_reaped) {
+            if (!child_reaped && cancellation_callback && cancellation_callback()) {
+                cancellation_requested = true;
+                if (kill(-pid, SIGINT) < 0) {
+                    (void)kill(pid, SIGINT);
+                }
+            }
+
             pollfd descriptor{pipefd[0], static_cast<short>(POLLIN | POLLHUP | POLLERR), 0};
             int poll_result =
                 poll(pipe_open ? &descriptor : nullptr, pipe_open ? 1 : 0, interval_ms);
@@ -2786,7 +2799,9 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
             if (!child_reaped &&
                 std::chrono::duration_cast<std::chrono::milliseconds>(now - last_progress)
                         .count() >= interval_ms) {
-                progress_callback();
+                if (!cancellation_requested) {
+                    progress_callback();
+                }
                 last_progress = now;
             }
         }
@@ -2814,7 +2829,8 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
 
 CommandOutput execute_args_for_output_impl(const std::vector<std::string>& args,
                                            const std::function<void()>& progress_callback,
-                                           unsigned int progress_interval_ms) {
+                                           unsigned int progress_interval_ms,
+                                           const std::function<bool()>& cancellation_callback = {}) {
     if (args.empty()) {
         return {"", -1, false};
     }
@@ -2827,14 +2843,15 @@ CommandOutput execute_args_for_output_impl(const std::vector<std::string>& args,
             exec_external_child(args, exec_override);
             return 127;
         },
-        false, true, progress_callback, progress_interval_ms);
+        false, true, progress_callback, progress_interval_ms, cancellation_callback);
 }
 
 }  // namespace
 
 CommandOutput execute_with_stdout_capture(const std::function<int()>& child_executor,
                                           bool capture_stderr, bool suppress_stderr) {
-    return execute_with_stdout_capture_impl(child_executor, capture_stderr, suppress_stderr, {}, 0);
+    return execute_with_stdout_capture_impl(child_executor, capture_stderr, suppress_stderr, {}, 0,
+                                            {});
 }
 
 CommandOutput execute_command_for_output(const std::string& command) {
@@ -2848,8 +2865,9 @@ CommandOutput execute_command_vector_for_output(const std::vector<std::string>& 
 
 CommandOutput execute_command_vector_for_output_with_progress(
     const std::vector<std::string>& args, const std::function<void()>& progress_callback,
-    unsigned int progress_interval_ms) {
-    return execute_args_for_output_impl(args, progress_callback, progress_interval_ms);
+    unsigned int progress_interval_ms, const std::function<bool()>& cancellation_callback) {
+    return execute_args_for_output_impl(args, progress_callback, progress_interval_ms,
+                                         cancellation_callback);
 }
 
 }  // namespace exec_utils
