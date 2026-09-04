@@ -303,6 +303,7 @@ jobs:
           set -euo pipefail
           docker run --rm \
             --platform "$DOCKER_PLATFORM" \
+            --cap-add MKNOD \
             -e CI=true \
             -e GITHUB_ACTIONS=true \
             -e EXPECTED_MACHINE \
@@ -312,11 +313,13 @@ jobs:
             -w /work \
             alpine:3.22 \
             sh -euxc '
-              apk add --no-cache bash binutils build-base cmake coreutils file findutils git grep linux-headers ninja python3 sed
+              apk add --no-cache bash binutils build-base cmake coreutils file findutils git grep linux-headers ninja procps python3 sed su-exec
+              adduser -D -u 1000 cjsh-test
+              mknod /dev/cjsh-test-block b 7 0
               git config --global --add safe.directory /work
               cmake --preset release-static
               cmake --build --preset release-static --parallel
-              CJSH_TEST_SKIP_PRELOAD_INJECTION=1 ./tests/run_shell_tests.sh build/release-static/cjsh
+              su-exec cjsh-test env HOME=/home/cjsh-test CJSH_TEST_SKIP_PRELOAD_INJECTION=1 ./tests/run_shell_tests.sh build/release-static/cjsh
               test "$(uname -m)" = "$EXPECTED_MACHINE"
               readelf -l build/release-static/cjsh > build/release-static/program-headers.txt
               if grep -q " INTERP " build/release-static/program-headers.txt; then

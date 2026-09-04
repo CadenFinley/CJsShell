@@ -136,6 +136,15 @@ for file in /bin/su /usr/bin/su /bin/sudo /usr/bin/sudo; do
     fi
 done
 
+if [ -z "$SETUID_FILE" ]; then
+    SETUID_FILE="$TEST_DIR/setuid_file"
+    touch "$SETUID_FILE"
+    chmod u+s "$SETUID_FILE" 2>/dev/null || true
+    if [ ! -u "$SETUID_FILE" ]; then
+        SETUID_FILE=""
+    fi
+fi
+
 if [ -n "$SETUID_FILE" ]; then
     "$CJSH_PATH" -c "test -u $SETUID_FILE" 2>/dev/null
     if [ $? -eq 0 ]; then
