@@ -818,6 +818,14 @@ std::string expand_prompt_string(const std::string& templ, PromptContext context
             continue;
         }
 
+        // Preserve the String Terminator used by raw OSC sequences (ESC + '\\').
+        // External prompt renderers such as Oh My Posh emit OSC 8 hyperlinks in
+        // this form; interpreting the backslash as a PS1 escape corrupts them.
+        if (i > 0 && templ[i - 1] == '\033') {
+            result.push_back(ch);
+            continue;
+        }
+
         ++i;
         if (i >= templ.size()) {
             result.push_back('\\');

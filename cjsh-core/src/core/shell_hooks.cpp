@@ -30,6 +30,11 @@
 
 #include <algorithm>
 
+#include "interpreter.h"
+#include "numeric_utils.h"
+#include "pipeline_status_utils.h"
+#include "shell_env.h"
+
 namespace {
 
 constexpr size_t to_index(HookType type) {
@@ -90,7 +95,30 @@ void Shell::execute_hooks(HookType hook_type) {
         return;
     }
 
+    const std::string saved_status = cjsh_env::get_shell_variable_value("?");
+    const int saved_status_code = numeric_utils::parse_exit_status_or(saved_status, 0, false);
+    const bool had_pipe_status = cjsh_env::shell_variable_is_set("PIPESTATUS");
+    const std::string saved_pipe_status = cjsh_env::get_shell_variable_value("PIPESTATUS");
+
     for (const auto& function_name : hook_list) {
-        (void)execute(function_name);
+        pipeline_status_utils::set_last_status_env(saved_status_code);
+        if (had_pipe_status) {
+            (void)cjsh_env::set_shell_variable_value("PIPESTATUS", saved_pipe_status);
+        } else {
+            (void)cjsh_env::unset_shell_variable_value("PIPESTATUS");
+        }
+        if (shell_script_interpreter != nullptr &&
+            shell_script_interpreter->has_function(function_name)) {
+            (void)shell_script_interpreter->invoke_function({function_name});
+        } else {
+            (void)execute(function_name);
+        }
+    }
+
+    pipeline_status_utils::set_last_status_env(saved_status_code);
+    if (had_pipe_status) {
+        (void)cjsh_env::set_shell_variable_value("PIPESTATUS", saved_pipe_status);
+    } else {
+        (void)cjsh_env::unset_shell_variable_value("PIPESTATUS");
     }
 }
