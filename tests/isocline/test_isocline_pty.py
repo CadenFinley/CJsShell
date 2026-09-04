@@ -1932,6 +1932,7 @@ def main() -> int:
         "history_search_expanded_metadata",
         b"\x12\r",
         capture_output=True,
+        initial_cols=80,
     )
     if hist_expanded_metadata != "metadata-rich entry":
         raise AssertionError(
@@ -1941,6 +1942,20 @@ def main() -> int:
     normalized_expanded_metadata_output = normalize_terminal_output(
         hist_expanded_metadata_output
     )
+    metadata_preview_start = normalized_expanded_metadata_output.find(
+        "metadata-rich entry ["
+    )
+    metadata_preview_end = normalized_expanded_metadata_output.find(
+        "]", metadata_preview_start
+    )
+    normalized_metadata_preview = ""
+    if metadata_preview_start >= 0 and metadata_preview_end >= 0:
+        normalized_metadata_preview = normalized_expanded_metadata_output[
+            metadata_preview_start : metadata_preview_end + 1
+        ]
+        # The renderer writes a platform-specific wrap marker in UTF-8 locales,
+        # followed by a screen-row boundary. Non-UTF-8 terminals omit the marker.
+        normalized_metadata_preview = re.sub(r"[←↵]?\n", "", normalized_metadata_preview)
     expected_metadata_rows = (
         "Time: timestamp-label-value",
         "Frequency: 7",
@@ -1952,7 +1967,7 @@ def main() -> int:
         "tail-visible",
     )
     if not all(
-        row in normalized_expanded_metadata_output for row in expected_metadata_rows
+        row in normalized_metadata_preview for row in expected_metadata_rows
     ):
         raise AssertionError(
             "selected history entries should expand every metadata field with labels, got "
