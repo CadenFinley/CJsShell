@@ -350,7 +350,8 @@ kill_command_prefix_requires_disambiguation() {
 background_failure_prints_exit_code() {
     log "Test: background command failure reports exit status"
     local output
-    output=$("$CJSH_PATH" -i -c "slepp 0.01 & sleep 0.2" 2>&1)
+    # Keep personal command_not_found_handler functions from replacing the background job.
+    output=$("$CJSH_PATH" -i -N -c "slepp 0.01 & sleep 0.2" 2>&1)
     local exit_code=$?
 
     if [ $exit_code -ne 0 ]; then
