@@ -157,7 +157,7 @@ jobs:
           set -euo pipefail
           binary=build/release-artifact/cjsh
           read -r -a expected_architectures <<< "$EXPECTED_ARCHITECTURES"
-          lipo -verify_arch "${expected_architectures[@]}" "$binary"
+          lipo "$binary" -verify_arch "${expected_architectures[@]}"
           architecture_count=$(lipo -archs "$binary" | wc -w | tr -d ' ')
           if [[ "$architecture_count" != "$EXPECTED_ARCHITECTURE_COUNT" ]]; then
             echo "Expected $EXPECTED_ARCHITECTURE_COUNT Mach-O slices, found $architecture_count" >&2

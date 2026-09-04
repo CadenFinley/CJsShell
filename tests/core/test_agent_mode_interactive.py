@@ -508,8 +508,11 @@ def main() -> int:
 
             # Without a fallback executor, direct activation uses the first
             # configured prefix executor without stripping unrelated input.
+            clear_default_start = len(session.output)
             session.write(b"cjshopt agent-mode clear --default\r")
-            session.pump(0.3)
+            session.wait_for(
+                b"Agent executor configuration cleared.", start=clear_default_start
+            )
             first_configured_start = len(session.output)
             session.write(b"request without a fallback\x1bOR")
             session.wait_for(b"agent command:", start=first_configured_start)
