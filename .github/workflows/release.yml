@@ -315,11 +315,14 @@ jobs:
             sh -euxc '
               apk add --no-cache bash binutils build-base cmake coreutils file findutils git grep linux-headers ninja procps python3 sed su-exec
               adduser -D -u 1000 cjsh-test
+              install -d -o cjsh-test -g cjsh-test /tmp/cjsh-tests
               mknod /dev/cjsh-test-block b 7 0
               git config --global --add safe.directory /work
               cmake --preset release-static
               cmake --build --preset release-static --parallel
-              su-exec cjsh-test env HOME=/home/cjsh-test CJSH_TEST_SKIP_PRELOAD_INJECTION=1 ./tests/run_shell_tests.sh build/release-static/cjsh
+              cd /tmp/cjsh-tests
+              su-exec cjsh-test env HOME=/home/cjsh-test CJSH_TEST_SKIP_PRELOAD_INJECTION=1 /work/tests/run_shell_tests.sh /work/build/release-static/cjsh
+              cd /work
               test "$(uname -m)" = "$EXPECTED_MACHINE"
               readelf -l build/release-static/cjsh > build/release-static/program-headers.txt
               if grep -q " INTERP " build/release-static/program-headers.txt; then
