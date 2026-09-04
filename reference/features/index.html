@@ -1240,8 +1240,9 @@ for full details.</p>
       <code>cjshopt completion-click-accept</code>, <code>cjshopt menu-highlighting</code>,
       <code>cjshopt completion-case</code>, <code>cjshopt completion-spell</code>, <code>cjshopt completion-spell-enter</code>,
       <code>cjshopt completion-learning</code>, <code>cjshopt auto-tab</code></li>
-<li><code>cjshopt hint</code>, <code>cjshopt hint-delay</code>, <code>cjshopt inline-help</code>, <code>cjshopt status-hints</code>,
-     <code>cjshopt status-line</code>, <code>cjshopt status-reporting</code>, <code>cjshopt visible-whitespace</code></li>
+<li><code>cjshopt hint</code>, <code>cjshopt hint-delay</code>, <code>cjshopt idle-timeout</code>, <code>cjshopt inline-help</code>,
+     <code>cjshopt status-hints</code>, <code>cjshopt status-line</code>, <code>cjshopt status-reporting</code>,
+     <code>cjshopt visible-whitespace</code></li>
 <li><code>cjshopt mouse-clicking</code>, <code>cjshopt mouse-clicking-status-line</code></li>
 <li><code>cjshopt prompt-newline</code>, <code>cjshopt right-prompt-follow-cursor</code></li>
 <li><code>cjshopt exit-confirmation smart|always|never</code> controls when exiting requires a
@@ -1338,7 +1339,8 @@ falls back to the default search paths.</p>
 <li><code>generate-completions</code> – Pre-populate completion caches by scraping manual pages in parallel.</li>
 <li><code>hash</code> – Inspect or reset execution caches.</li>
 <li><code>history</code> / <code>fc</code> – Explore, edit, and replay persistent history (exit codes are stored alongside entries).</li>
-<li><code>hook</code> – Lightweight precmd/preexec/chpwd hook system.</li>
+<li><code>hook</code> – Lightweight precmd/preexec/chpwd/idle hook system, including foreground terminal
+  handoff and editor-state restoration for idle tools such as screensavers.</li>
 <li><code>cjsh-widget</code> – Bridge between shell code and the line editor for custom key-driven behaviors.</li>
 </ul>
 <h2 id="performance-characteristics">Performance Characteristics</h2>
