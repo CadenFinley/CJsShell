@@ -146,6 +146,9 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         getpid() == shell_pgid && getpgrp() == shell_pgid;
 
     bool terminal_control_acquired = false;
+    bool stopped_modes_saved = false;
+    pid_t stopped_job_pgid = -1;
+    struct termios stopped_job_modes{};
     if (main_shell_controls_terminal) {
         if (tcsetpgrp(shell_terminal, job->pgid) == 0) {
             terminal_control_acquired = true;
@@ -193,6 +196,9 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         if (current != jobs.end() && current->second.stopped &&
             tcgetattr(shell_terminal, &current->second.tmodes) == 0) {
             current->second.tmodes_saved = true;
+            stopped_modes_saved = true;
+            stopped_job_pgid = current->second.pgid;
+            stopped_job_modes = current->second.tmodes;
         }
         if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
             if (errno != ENOTTY && errno != EINVAL) {
@@ -205,6 +211,17 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
             set_error(ErrorType::RUNTIME_ERROR, "tcsetattr",
                       "failed to restore terminal attributes: " + std::string(strerror(errno)));
+        }
+    }
+
+    // Exec and JobManager retain complementary job state. Keep the terminal modes captured by
+    // the initial foreground wait available to a later `fg` builtin as well. Do this after
+    // releasing jobs_mutex so the two job-table locks cannot be acquired in opposite order.
+    lock.unlock();
+    if (stopped_modes_saved) {
+        if (auto managed_job = JobManager::instance().get_job_by_pid_or_pgid(stopped_job_pgid)) {
+            managed_job->tmodes = stopped_job_modes;
+            managed_job->tmodes_saved = true;
         }
     }
 }

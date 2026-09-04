@@ -35,6 +35,7 @@ import re
 import signal
 import subprocess
 import sys
+import termios
 import time
 from typing import Callable, NamedTuple
 
@@ -45,12 +46,26 @@ class JobControlResult(NamedTuple):
     timed_out: bool
 
 
+class ControlCharacterResult(NamedTuple):
+    command: JobControlResult
+    initial_job_foreground: bool
+    shell_foreground_before_fg: bool
+    resumed_job_foreground: bool
+    shell_foreground_after_interrupt: bool
+
+
 def sanitize_output(text: str) -> str:
     csi = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-    osc = re.compile(r"\x1b\][^\x07]*(?:\x07|\x1b\\)")
+    osc = re.compile(r"\x1b\].*?(?:\x07|\x1b\\)", re.DOTALL)
     text = osc.sub("", text)
     text = csi.sub("", text)
     return text.replace("\r", "\n")
+
+
+def text_between(text: str, start: str, end: str) -> str:
+    if start not in text or end not in text:
+        return ""
+    return text.split(start, 1)[1].split(end, 1)[0]
 
 
 def run_job_control_case(
@@ -220,10 +235,17 @@ def run_noninteractive_terminal_ownership_case(binary: str) -> JobControlResult:
 
 
 def run_controlling_terminal_case(
-    binary: str, command: str, extra_env: dict[str, str] | None = None
+    binary: str,
+    command: str,
+    extra_env: dict[str, str] | None = None,
+    enable_tostop: bool = False,
 ) -> JobControlResult:
     pid, master_fd = pty.fork()
     if pid == 0:
+        if enable_tostop:
+            terminal_modes = termios.tcgetattr(0)
+            terminal_modes[3] |= termios.TOSTOP
+            termios.tcsetattr(0, termios.TCSANOW, terminal_modes)
         child_env = os.environ.copy()
         if extra_env is not None:
             child_env.update(extra_env)
@@ -275,6 +297,307 @@ def run_controlling_terminal_case(
             timed_out = True
             os.kill(pid, signal.SIGKILL)
             _, wait_status = os.waitpid(pid, 0)
+
+        while True:
+            try:
+                chunk = os.read(master_fd, 4096)
+            except BlockingIOError:
+                break
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    break
+                raise
+            if not chunk:
+                break
+            output.extend(chunk)
+    finally:
+        os.close(master_fd)
+
+    return_code = (
+        None if wait_status is None else os.waitstatus_to_exitcode(wait_status)
+    )
+    cleaned = sanitize_output(output.decode(errors="replace"))
+    return JobControlResult(return_code, cleaned, timed_out)
+
+
+def run_control_character_case(binary: str) -> ControlCharacterResult:
+    cursor_query = b"\x1b[6n"
+    cursor_response = b"\x1b[1;1R"
+    prompt_input_start = b"\x1b]133;B\x1b\\"
+    pid, master_fd = pty.fork()
+    if pid == 0:
+        child_env = os.environ.copy()
+        child_env.setdefault("TERM", "xterm-256color")
+        os.execve(  # nosemgrep
+            binary,
+            [
+                binary,
+                "--no-source",
+                "--no-titleline",
+                "--minimal",
+                "--no-prompt-vars",
+                "-i",
+            ],
+            child_env,
+        )
+
+    os.set_blocking(master_fd, False)
+    output = bytearray()
+    wait_status: int | None = None
+    timed_out = False
+    sent_stop = False
+    released_fg = False
+    sent_interrupt = False
+    initial_job_foreground = False
+    shell_foreground_before_fg = False
+    resumed_job_foreground = False
+    shell_foreground_after_interrupt = False
+    initial_command_sent = False
+    followup_commands_sent = False
+    exit_command_sent = False
+    cursor_tail = b""
+    started_at = time.monotonic()
+
+    try:
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline:
+            try:
+                chunk = os.read(master_fd, 4096)
+            except BlockingIOError:
+                chunk = b""
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    chunk = b""
+                else:
+                    raise
+
+            if chunk:
+                output.extend(chunk)
+                pending = cursor_tail + chunk
+                for _ in range(pending.count(cursor_query)):
+                    os.write(master_fd, cursor_response)
+                cursor_tail = pending[-(len(cursor_query) - 1) :]
+
+            current_output = sanitize_output(output.decode(errors="replace"))
+            if not initial_command_sent and (
+                prompt_input_start in output or time.monotonic() - started_at >= 0.6
+            ):
+                os.write(
+                    master_fd,
+                    b"sh -c 'printf \"foreground-%s\\n\" ready; "
+                    b"while :; do sleep 1; done'\r",
+                )
+                initial_command_sent = True
+
+            if not sent_stop and "foreground-ready" in current_output:
+                initial_job_foreground = os.tcgetpgrp(master_fd) != pid
+                os.write(master_fd, b"\x1a")
+                sent_stop = True
+
+            if sent_stop and not followup_commands_sent and "Stopped" in current_output:
+                os.write(
+                    master_fd,
+                    b"jobs -s; bg; jobs -r; printf 'about-to-%s\\n' fg; "
+                    b"read fg_gate; fg\r",
+                )
+                followup_commands_sent = True
+
+            if followup_commands_sent and not released_fg and "about-to-fg" in current_output:
+                shell_foreground_before_fg = os.tcgetpgrp(master_fd) == pid
+                os.write(master_fd, b"continue-to-fg\r")
+                released_fg = True
+
+            if released_fg and not sent_interrupt:
+                foreground_pgid = os.tcgetpgrp(master_fd)
+                if foreground_pgid > 0 and foreground_pgid != pid:
+                    resumed_job_foreground = True
+                    os.write(master_fd, b"\x03")
+                    sent_interrupt = True
+
+            if sent_interrupt and not exit_command_sent:
+                try:
+                    shell_foreground_after_interrupt = os.tcgetpgrp(master_fd) == pid
+                except OSError:
+                    shell_foreground_after_interrupt = False
+                if shell_foreground_after_interrupt:
+                    os.write(
+                        master_fd,
+                        b"printf 'after-int=%s shell-%s\\n' \"$?\" alive; exit\r",
+                    )
+                    exit_command_sent = True
+
+            waited_pid, status = os.waitpid(pid, os.WNOHANG)
+            if waited_pid == pid:
+                wait_status = status
+                break
+            time.sleep(0.01)
+
+        if wait_status is None:
+            timed_out = True
+    finally:
+        if wait_status is None:
+            try:
+                foreground_pgid = os.tcgetpgrp(master_fd)
+                if foreground_pgid > 0 and foreground_pgid != pid:
+                    os.killpg(foreground_pgid, signal.SIGKILL)
+            except (OSError, ProcessLookupError):
+                pass
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            _, wait_status = os.waitpid(pid, 0)
+
+        while True:
+            try:
+                chunk = os.read(master_fd, 4096)
+            except BlockingIOError:
+                break
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    break
+                raise
+            if not chunk:
+                break
+            output.extend(chunk)
+        os.close(master_fd)
+
+    return_code = (
+        None if wait_status is None else os.waitstatus_to_exitcode(wait_status)
+    )
+    cleaned = sanitize_output(output.decode(errors="replace"))
+    return ControlCharacterResult(
+        JobControlResult(return_code, cleaned, timed_out),
+        initial_job_foreground,
+        shell_foreground_before_fg,
+        resumed_job_foreground,
+        shell_foreground_after_interrupt,
+    )
+
+
+def run_background_shell_startup_case(binary: str) -> JobControlResult:
+    driver_pid, master_fd = pty.fork()
+    if driver_pid == 0:
+        nested_pid = os.fork()
+        if nested_pid == 0:
+            # Ignored dispositions survive exec. A robust interactive shell must still restore
+            # SIGTTIN before performing its background-startup handshake.
+            signal.signal(signal.SIGTTIN, signal.SIG_IGN)
+            signal.signal(signal.SIGTTOU, signal.SIG_DFL)
+            signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+            os.setpgid(0, 0)
+            child_env = os.environ.copy()
+            child_env.setdefault("TERM", "xterm-256color")
+            os.execve(  # nosemgrep
+                binary,
+                [
+                    binary,
+                    "--no-source",
+                    "--no-titleline",
+                    "--minimal",
+                    "-i",
+                    "-c",
+                    "printf 'background-init-ok\\n'",
+                ],
+                child_env,
+            )
+
+        try:
+            os.setpgid(nested_pid, nested_pid)
+        except OSError as exc:
+            if exc.errno not in (errno.EACCES, errno.EPERM):
+                raise
+
+        os.write(
+            1,
+            (
+                f"startup-driver-pgid={os.getpgrp()} "
+                f"foreground={os.tcgetpgrp(0)} "
+                f"nested-pgid={os.getpgid(nested_pid)}\n"
+            ).encode(),
+        )
+
+        first_status: int | None = None
+        deadline = time.monotonic() + 3.0
+        while time.monotonic() < deadline:
+            waited_pid, status = os.waitpid(
+                nested_pid, os.WNOHANG | os.WUNTRACED
+            )
+            if waited_pid == nested_pid:
+                first_status = status
+                break
+            time.sleep(0.01)
+
+        stop_signal = 0
+        nested_exit = -1
+        restored = False
+        if first_status is not None and os.WIFSTOPPED(first_status):
+            stop_signal = os.WSTOPSIG(first_status)
+            signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+            os.tcsetpgrp(0, nested_pid)
+            os.killpg(nested_pid, signal.SIGCONT)
+
+            final_status: int | None = None
+            deadline = time.monotonic() + 3.0
+            while time.monotonic() < deadline:
+                waited_pid, status = os.waitpid(nested_pid, os.WNOHANG)
+                if waited_pid == nested_pid:
+                    final_status = status
+                    break
+                time.sleep(0.01)
+
+            if final_status is None:
+                os.killpg(nested_pid, signal.SIGKILL)
+                _, final_status = os.waitpid(nested_pid, 0)
+            nested_exit = os.waitstatus_to_exitcode(final_status)
+            os.tcsetpgrp(0, os.getpgrp())
+            restored = os.tcgetpgrp(0) == os.getpgrp()
+        else:
+            if first_status is None:
+                try:
+                    os.killpg(nested_pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                _, first_status = os.waitpid(nested_pid, 0)
+            nested_exit = os.waitstatus_to_exitcode(first_status)
+
+        message = (
+            f"startup_stop={stop_signal} nested_exit={nested_exit} "
+            f"foreground_restored={int(restored)}\n"
+        )
+        os.write(1, message.encode())
+        expected = stop_signal == signal.SIGTTIN and nested_exit == 0 and restored
+        os._exit(0 if expected else 1)
+
+    os.set_blocking(master_fd, False)
+    output = bytearray()
+    wait_status: int | None = None
+    timed_out = False
+    try:
+        deadline = time.monotonic() + 8.0
+        while time.monotonic() < deadline:
+            try:
+                chunk = os.read(master_fd, 4096)
+            except BlockingIOError:
+                chunk = b""
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    chunk = b""
+                else:
+                    raise
+            if chunk:
+                output.extend(chunk)
+
+            waited_pid, status = os.waitpid(driver_pid, os.WNOHANG)
+            if waited_pid == driver_pid:
+                wait_status = status
+                break
+            time.sleep(0.01)
+
+        if wait_status is None:
+            timed_out = True
+            os.kill(driver_pid, signal.SIGKILL)
+            _, wait_status = os.waitpid(driver_pid, 0)
 
         while True:
             try:
@@ -406,6 +729,14 @@ def main(argv: list[str]) -> int:
             "cat & sleep 0.1; jobs -s; "
             "kill -CONT %1; kill -TERM %1; wait %1; exit 0",
         )
+        sigttou_result = run_controlling_terminal_case(
+            argv[0],
+            "sh -c 'printf background-writer\\n' & sleep 0.1; "
+            "printf 'sigttou-jobs-begin\\n'; jobs -s %1; "
+            "printf 'sigttou-jobs-end\\n'; "
+            "kill -KILL %1; wait %1; exit 0",
+            enable_tostop=True,
+        )
         monitor_off_reader_result = run_controlling_terminal_case(
             argv[0],
             "set +m; cat & p=$!; wait $p; s=$?; "
@@ -421,6 +752,46 @@ def main(argv: list[str]) -> int:
             "sh -c 'sleep 0.2' | sh -c 'exit 7' & p=$!; "
             "sleep 0.05; jobs -r; wait $p; printf 'pipeline_status=%s\\n' \"$?\"",
         )
+        partial_pipeline_result = run_controlling_terminal_case(
+            argv[0],
+            "sh -c 'kill -STOP $$; sleep 30' | "
+            "sh -c 'sleep 0.35; exit 9' & p=$!; sleep 0.08; "
+            "printf 'partial-running-begin\\n'; jobs -r %1; "
+            "printf 'partial-running-end\\n'; "
+            "printf 'partial-stopped-begin\\n'; jobs -s %1; "
+            "printf 'partial-stopped-end\\n'; sleep 0.4; "
+            "printf 'all-stopped-begin\\n'; jobs -s %1; "
+            "printf 'all-stopped-end\\n'; kill -CONT %1; kill -TERM %1; "
+            "wait $p; printf 'partial-pipeline-status=%s\\n' \"$?\"; exit 0",
+        )
+        control_character_result = run_control_character_case(argv[0])
+        background_startup_result = run_background_shell_startup_case(argv[0])
+        termios_state_file = f"/tmp/cjsh-termios-state-{os.getpid()}-{time.monotonic_ns()}"
+        try:
+            os.unlink(termios_state_file)
+        except FileNotFoundError:
+            pass
+        try:
+            termios_result = run_controlling_terminal_case(
+                argv[0],
+                "initial=$(stty -g); "
+                "sh -c 'stty -echo; stty -g > "
+                f"{termios_state_file}; kill -TSTP $$; "
+                "if [ \"$(stty -g)\" = \"$(cat "
+                f"{termios_state_file})\" ]; then echo job-mode-restored; "
+                "else echo job-mode-lost; fi; stty echo'; "
+                "after_stop=$(stty -g); "
+                "if [ \"$initial\" = \"$after_stop\" ]; then "
+                "echo shell-mode-restored; else echo shell-mode-lost; fi; "
+                "fg; final=$(stty -g); "
+                "if [ \"$initial\" = \"$final\" ]; then "
+                "echo final-mode-restored; else echo final-mode-lost; fi; exit 0",
+            )
+        finally:
+            try:
+                os.unlink(termios_state_file)
+            except FileNotFoundError:
+                pass
         resumed_termination_result = run_controlling_terminal_case(
             argv[0], "sh -c 'kill -TSTP $$; kill -INT $$'; fg"
         )
@@ -509,6 +880,19 @@ def main(argv: list[str]) -> int:
             ),
         ),
         (
+            "background terminal writer stops through SIGTTOU",
+            lambda: require(
+                not sigttou_result.timed_out
+                and sigttou_result.return_code == 0
+                and "Stopped" in text_between(
+                    sigttou_result.output, "sigttou-jobs-begin", "sigttou-jobs-end"
+                )
+                and "background-writer" in sigttou_result.output,
+                "background terminal output with TOSTOP did not stop the job:\n"
+                f"{sigttou_result.output}",
+            ),
+        ),
+        (
             "monitor-off asynchronous stdin uses devnull",
             lambda: require(
                 not monitor_off_reader_result.timed_out
@@ -539,6 +923,90 @@ def main(argv: list[str]) -> int:
                 and "pipeline_status=7" in pipeline_lifetime_result.output,
                 "pipeline job lifetime/status aggregation failed:\n"
                 f"{pipeline_lifetime_result.output}",
+            ),
+        ),
+        (
+            "partially stopped pipeline remains running until all live members stop",
+            lambda: require(
+                not partial_pipeline_result.timed_out
+                and partial_pipeline_result.return_code == 0
+                and "Running" in text_between(
+                    partial_pipeline_result.output,
+                    "partial-running-begin",
+                    "partial-running-end",
+                )
+                and "Stopped"
+                not in text_between(
+                    partial_pipeline_result.output,
+                    "partial-stopped-begin",
+                    "partial-stopped-end",
+                )
+                and "Stopped" in text_between(
+                    partial_pipeline_result.output,
+                    "all-stopped-begin",
+                    "all-stopped-end",
+                )
+                and "partial-pipeline-status=9" in partial_pipeline_result.output,
+                "partial pipeline state aggregation failed:\n"
+                f"{partial_pipeline_result.output}",
+            ),
+        ),
+        (
+            "terminal control characters drive stop background foreground interrupt",
+            lambda: require(
+                not control_character_result.command.timed_out
+                and control_character_result.command.return_code == 0
+                and "Stopped" in control_character_result.command.output
+                and "Running" in control_character_result.command.output
+                and "after-int=130 shell-alive" in control_character_result.command.output,
+                "Ctrl-Z/bg/fg/Ctrl-C lifecycle failed:\n"
+                f"{control_character_result.command.output}",
+            ),
+        ),
+        (
+            "terminal ownership follows control-character foreground lifecycle",
+            lambda: require(
+                control_character_result.initial_job_foreground
+                and control_character_result.shell_foreground_before_fg
+                and control_character_result.resumed_job_foreground
+                and control_character_result.shell_foreground_after_interrupt,
+                "foreground process-group ownership was incorrect during "
+                "Ctrl-Z/bg/fg/Ctrl-C lifecycle:\n"
+                f"initial_job={control_character_result.initial_job_foreground} "
+                f"shell_before_fg={control_character_result.shell_foreground_before_fg} "
+                f"resumed_job={control_character_result.resumed_job_foreground} "
+                f"shell_after_interrupt="
+                f"{control_character_result.shell_foreground_after_interrupt}\n"
+                f"{control_character_result.command.output}",
+            ),
+        ),
+        (
+            "background-started interactive shell waits through SIGTTIN",
+            lambda: require(
+                not background_startup_result.timed_out
+                and background_startup_result.return_code == 0
+                and "background-init-ok" in background_startup_result.output
+                and f"startup_stop={signal.SIGTTIN}" in background_startup_result.output
+                and "nested_exit=0" in background_startup_result.output
+                and "foreground_restored=1" in background_startup_result.output,
+                "interactive startup did not honor foreground process-group semantics:\n"
+                f"{background_startup_result.output}",
+            ),
+        ),
+        (
+            "stopped foreground job and shell preserve their terminal modes",
+            lambda: require(
+                not termios_result.timed_out
+                and termios_result.return_code == 0
+                and "shell-mode-restored" in termios_result.output
+                and "job-mode-restored" in termios_result.output
+                and "final-mode-restored" in termios_result.output
+                and "\njob-mode-lost\n" not in termios_result.output
+                and "\nshell-mode-lost\n" not in termios_result.output
+                and "\nfinal-mode-lost\n" not in termios_result.output,
+                "terminal modes were not preserved across stop and fg:\n"
+                f"return_code={termios_result.return_code} "
+                f"timed_out={termios_result.timed_out}\n{termios_result.output}",
             ),
         ),
         (

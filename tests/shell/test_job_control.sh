@@ -212,6 +212,118 @@ test_wait_next_and_pipeline_lifetime() {
     return 1
 }
 
+test_jobs_options_and_jobspecs() {
+    log "Test: jobs option filters and relative/substring job specs"
+    local output ids first second
+    output=$("$CJSH_PATH" -c "set -m; \
+        sh -c 'exec sleep 2' alpha-jobs-token & first=\$!; \
+        sh -c 'exec sleep 2' beta-jobs-token & second=\$!; \
+        kill -STOP \$second; sleep 0.1; \
+        printf 'ids=%s,%s\\n' \"\$first\" \"\$second\"; \
+        printf 'plus='; jobs -p %+; \
+        printf 'minus='; jobs -p %-; \
+        printf 'substring='; jobs -p %?alpha-jobs-token; \
+        printf 'long='; jobs -l %?beta-jobs-token; \
+        printf 'running='; jobs -r %?alpha-jobs-token; \
+        printf 'stopped='; jobs -s %?beta-jobs-token; \
+        kill \$first; kill -CONT \$second; kill \$second; \
+        wait \$first \$second 2>/dev/null || true" 2>&1)
+
+    ids=$(printf '%s\n' "$output" | sed -n 's/^ids=//p' | tail -n 1)
+    first=${ids%,*}
+    second=${ids#*,}
+
+    if [ -z "$ids" ] || [ "$first" = "$ids" ] || [ "$second" = "$ids" ]; then
+        echo "FAIL: could not recover job PIDs: $output"
+        return 1
+    fi
+    if ! printf '%s\n' "$output" | grep -q "^plus=$second$"; then
+        echo "FAIL: jobs -p %+ did not select the current job: $output"
+        return 1
+    fi
+    if ! printf '%s\n' "$output" | grep -q "^minus=$first$"; then
+        echo "FAIL: jobs -p %- did not select the previous job: $output"
+        return 1
+    fi
+    if ! printf '%s\n' "$output" | grep -q "^substring=$first$"; then
+        echo "FAIL: jobs did not resolve %?substring: $output"
+        return 1
+    fi
+    if ! printf '%s\n' "$output" | grep -Eq "^long=\\[2\\][+-]?[[:space:]]+$second[[:space:]]+Stopped.*beta-jobs-token"; then
+        echo "FAIL: jobs -l did not show the stopped job and process group: $output"
+        return 1
+    fi
+    if ! printf '%s\n' "$output" | grep -Eq '^running=\[1\][+-]?[[:space:]]+Running.*alpha-jobs-token'; then
+        echo "FAIL: jobs -r did not select the running job: $output"
+        return 1
+    fi
+    if ! printf '%s\n' "$output" | grep -Eq '^stopped=\[2\][+-]?[[:space:]]+Stopped.*beta-jobs-token'; then
+        echo "FAIL: jobs -s did not select the stopped job: $output"
+        return 1
+    fi
+
+    echo "PASS"
+    return 0
+}
+
+test_disown_all_and_running_filters() {
+    log "Test: disown -r removes running jobs and disown -a removes the rest"
+    local output ids running stopped
+    output=$("$CJSH_PATH" -c "set -m; \
+        sh -c 'exec sleep 2' running-disown-token & running=\$!; \
+        sh -c 'exec sleep 2' stopped-disown-token & stopped=\$!; \
+        kill -STOP \$stopped; sleep 0.1; \
+        printf 'ids=%s,%s\\n' \"\$running\" \"\$stopped\"; \
+        disown -r; printf 'after-r='; jobs -p; \
+        disown -a; printf 'after-a='; jobs -p; printf 'done\\n'; \
+        kill \$running; kill -CONT \$stopped; kill \$stopped; \
+        wait \$running \$stopped 2>/dev/null || true" 2>&1)
+
+    ids=$(printf '%s\n' "$output" | sed -n 's/^ids=//p' | tail -n 1)
+    running=${ids%,*}
+    stopped=${ids#*,}
+
+    if [ -z "$ids" ] || [ "$running" = "$ids" ] || [ "$stopped" = "$ids" ]; then
+        echo "FAIL: could not recover disowned job PIDs: $output"
+        return 1
+    fi
+    if ! printf '%s\n' "$output" | grep -q "^after-r=$stopped$"; then
+        echo "FAIL: disown -r did not leave only the stopped job: $output"
+        return 1
+    fi
+    if ! printf '%s\n' "$output" | grep -q '^after-a=done$'; then
+        echo "FAIL: disown -a did not remove all remaining jobs: $output"
+        return 1
+    fi
+
+    echo "PASS"
+    return 0
+}
+
+test_wait_multi_job_and_jobspec_matrix() {
+    log "Test: multi-job wait -n, operand-less wait, and substring job specs"
+    local output
+    output=$("$CJSH_PATH" -c "set -m; \
+        sh -c 'sleep 0.15; exit 8' slow-wait-token & slow=\$!; \
+        sh -c 'sleep 0.02; exit 3' fast-wait-token & fast=\$!; \
+        wait -n -p winner \$slow \$fast; first=\$?; \
+        wait \$slow; slow_status=\$?; \
+        sh -c 'exit 7' failed-wait-token & wait; all_status=\$?; \
+        sh -c 'exit 6' substring-wait-token & spec=\$!; \
+        wait %?substring-wait-token; spec_status=\$?; \
+        printf 'wait-results=%s,%s,%s,%s,%s,%s\\n' \
+            \"\$first\" \"\$winner\" \"\$fast\" \"\$slow_status\" \
+            \"\$all_status\" \"\$spec_status\"" 2>&1)
+
+    if printf '%s\n' "$output" | grep -Eq '^wait-results=3,([0-9]+),\1,8,0,6$'; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: wait matrix returned unexpected statuses or selected PID: $output"
+    return 1
+}
+
 jobs_reports_when_empty() {
     log "Test: jobs reports when no jobs exist"
     local output
@@ -801,6 +913,18 @@ if ! test_disown_pid_and_hup_mark; then
 fi
 
 if ! test_wait_next_and_pipeline_lifetime; then
+    status=1
+fi
+
+if ! test_jobs_options_and_jobspecs; then
+    status=1
+fi
+
+if ! test_disown_all_and_running_filters; then
+    status=1
+fi
+
+if ! test_wait_multi_job_and_jobspec_matrix; then
     status=1
 fi
 

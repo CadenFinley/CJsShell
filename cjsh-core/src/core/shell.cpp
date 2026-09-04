@@ -510,7 +510,9 @@ void Shell::setup_job_control() {
     shell_pgid = getpgrp();
 
     // If cjsh was started in the background, wait until the parent shell foregrounds this
-    // process group. SIGTTIN is intentionally left at its inherited/default disposition here.
+    // process group. An ignored SIGTTIN disposition survives exec, so explicitly restore the
+    // default before using the signal for the standard foreground handshake.
+    (void)signal(SIGTTIN, SIG_DFL);
     for (;;) {
         const pid_t foreground_pgid = tcgetpgrp(shell_terminal);
         if (foreground_pgid < 0) {
