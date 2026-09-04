@@ -85,6 +85,14 @@ else
     DEFAULT_HISTORY_EXPANSION_TEST_BINARY="$SCRIPT_DIR/../build/release/history_expansion_tests"
 fi
 HISTORY_EXPANSION_TEST_BINARY="${HISTORY_EXPANSION_TEST_BINARY:-$DEFAULT_HISTORY_EXPANSION_TEST_BINARY}"
+if [ -x "$CJSH_DIR/agent_mode_tests" ]; then
+    DEFAULT_AGENT_MODE_TEST_BINARY="$CJSH_DIR/agent_mode_tests"
+elif [ -x "$SCRIPT_DIR/../build/agent_mode_tests" ]; then
+    DEFAULT_AGENT_MODE_TEST_BINARY="$SCRIPT_DIR/../build/agent_mode_tests"
+else
+    DEFAULT_AGENT_MODE_TEST_BINARY="$SCRIPT_DIR/../build/release/agent_mode_tests"
+fi
+AGENT_MODE_TEST_BINARY="${AGENT_MODE_TEST_BINARY:-$DEFAULT_AGENT_MODE_TEST_BINARY}"
 if [ -x "$CJSH_DIR/isocline_pty_driver" ]; then
     DEFAULT_ISOCLINE_PTY_DRIVER_BINARY="$CJSH_DIR/isocline_pty_driver"
 elif [ -x "$SCRIPT_DIR/../build/isocline_pty_driver" ]; then
@@ -96,6 +104,7 @@ ISOCLINE_PTY_DRIVER_BINARY="${ISOCLINE_PTY_DRIVER_BINARY:-$DEFAULT_ISOCLINE_PTY_
 ISOCLINE_PTY_TEST_SCRIPT="$SCRIPT_DIR/isocline/test_isocline_pty.py"
 BUILD_SYSTEM_TEST_SCRIPT="$SCRIPT_DIR/build_system/test_build_system.py"
 INTERACTIVE_SHUTDOWN_TEST_SCRIPT="$SCRIPT_DIR/core/test_interactive_shutdown.py"
+AGENT_MODE_INTERACTIVE_TEST_SCRIPT="$SCRIPT_DIR/core/test_agent_mode_interactive.py"
 FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT="$SCRIPT_DIR/core/test_function_pipeline_job_control.py"
 if [ -f "$CJSH_DIR/fg_terminal_race_injector.dylib" ]; then
     DEFAULT_FG_TERMINAL_RACE_INJECTOR="$CJSH_DIR/fg_terminal_race_injector.dylib"
@@ -133,9 +142,11 @@ ISOCLINE_TEST_RESULT=0
 COMPLETION_TEST_RESULT=0
 SYNTAX_HIGHLIGHTING_TEST_RESULT=0
 HISTORY_EXPANSION_TEST_RESULT=0
+AGENT_MODE_TEST_RESULT=0
 ISOCLINE_PTY_TEST_RESULT=0
 BUILD_SYSTEM_TEST_RESULT=0
 INTERACTIVE_SHUTDOWN_TEST_RESULT=0
+AGENT_MODE_INTERACTIVE_TEST_RESULT=0
 FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT=0
 
 
@@ -511,6 +522,13 @@ else
     report_skipped_suite "test_history_expansion" "binary not found at $HISTORY_EXPANSION_TEST_BINARY"
 fi
 
+if [ -x "$AGENT_MODE_TEST_BINARY" ]; then
+    run_external_suite "test_agent_mode" "cstyle" "binary" "$AGENT_MODE_TEST_BINARY"
+    AGENT_MODE_TEST_RESULT=$?
+else
+    report_skipped_suite "test_agent_mode" "binary not found at $AGENT_MODE_TEST_BINARY"
+fi
+
 if [ -x "$ISOCLINE_PTY_DRIVER_BINARY" ] && [ -f "$ISOCLINE_PTY_TEST_SCRIPT" ]; then
     if command -v python3 >/dev/null 2>&1; then
         run_external_suite "test_isocline_pty_integration" "cstyle" "binary" python3 "$ISOCLINE_PTY_TEST_SCRIPT" "$ISOCLINE_PTY_DRIVER_BINARY"
@@ -542,6 +560,17 @@ if [ -f "$INTERACTIVE_SHUTDOWN_TEST_SCRIPT" ]; then
     fi
 else
     report_skipped_suite "test_interactive_shutdown" "script not found at $INTERACTIVE_SHUTDOWN_TEST_SCRIPT"
+fi
+
+if [ -f "$AGENT_MODE_INTERACTIVE_TEST_SCRIPT" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        run_external_suite "test_agent_mode_interactive" "status" "binary" python3 "$AGENT_MODE_INTERACTIVE_TEST_SCRIPT" "$CJSH"
+        AGENT_MODE_INTERACTIVE_TEST_RESULT=$?
+    else
+        report_skipped_suite "test_agent_mode_interactive" "python3 not found"
+    fi
+else
+    report_skipped_suite "test_agent_mode_interactive" "script not found at $AGENT_MODE_INTERACTIVE_TEST_SCRIPT"
 fi
 
 if [ -f "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" ] &&
@@ -588,6 +617,13 @@ if [ $HISTORY_EXPANSION_TEST_RESULT -ne 0 ]; then
         OVERALL_STATUS=$((OVERALL_STATUS + HISTORY_EXPANSION_TEST_RESULT))
     fi
 fi
+if [ $AGENT_MODE_TEST_RESULT -ne 0 ]; then
+    if [ $OVERALL_STATUS -eq 0 ]; then
+        OVERALL_STATUS=$AGENT_MODE_TEST_RESULT
+    else
+        OVERALL_STATUS=$((OVERALL_STATUS + AGENT_MODE_TEST_RESULT))
+    fi
+fi
 if [ $ISOCLINE_PTY_TEST_RESULT -ne 0 ]; then
     if [ $OVERALL_STATUS -eq 0 ]; then
         OVERALL_STATUS=$ISOCLINE_PTY_TEST_RESULT
@@ -607,6 +643,13 @@ if [ $INTERACTIVE_SHUTDOWN_TEST_RESULT -ne 0 ]; then
         OVERALL_STATUS=$INTERACTIVE_SHUTDOWN_TEST_RESULT
     else
         OVERALL_STATUS=$((OVERALL_STATUS + INTERACTIVE_SHUTDOWN_TEST_RESULT))
+    fi
+fi
+if [ $AGENT_MODE_INTERACTIVE_TEST_RESULT -ne 0 ]; then
+    if [ $OVERALL_STATUS -eq 0 ]; then
+        OVERALL_STATUS=$AGENT_MODE_INTERACTIVE_TEST_RESULT
+    else
+        OVERALL_STATUS=$((OVERALL_STATUS + AGENT_MODE_INTERACTIVE_TEST_RESULT))
     fi
 fi
 if [ $FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT -ne 0 ]; then

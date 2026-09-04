@@ -142,9 +142,6 @@ jobs:
       - name: Build
         run: cmake --build --preset release-artifact --parallel
 
-      - name: Run CTest suite
-        run: ctest --preset release-artifact
-
       - name: Run full shell integration suite
         run: ./tests/run_shell_tests.sh build/release-artifact/cjsh
 
@@ -226,9 +223,6 @@ jobs:
 
       - name: Build
         run: cmake --build --preset release-artifact --parallel
-
-      - name: Run CTest suite
-        run: ctest --preset release-artifact
 
       - name: Run full shell integration suite
         run: ./tests/run_shell_tests.sh build/release-artifact/cjsh
@@ -322,7 +316,6 @@ jobs:
               git config --global --add safe.directory /work
               cmake --preset release-static
               cmake --build --preset release-static --parallel
-              CJSH_TEST_SKIP_PRELOAD_INJECTION=1 ctest --preset release-static
               CJSH_TEST_SKIP_PRELOAD_INJECTION=1 ./tests/run_shell_tests.sh build/release-static/cjsh
               test "$(uname -m)" = "$EXPECTED_MACHINE"
               readelf -l build/release-static/cjsh > build/release-static/program-headers.txt
