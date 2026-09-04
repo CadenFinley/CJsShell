@@ -1898,6 +1898,24 @@ def main() -> int:
             f"history_search_sort_alt_s expected 'apple', got {hist_sort_alt_s!r}"
         )
 
+    hist_timestamp_only, hist_timestamp_only_output = run_case(
+        binary,
+        "history_search_timestamp_without_exit_code",
+        b"\x12\r",
+        capture_output=True,
+    )
+    if hist_timestamp_only != "timestamp-only entry":
+        raise AssertionError(
+            "history_search_timestamp_without_exit_code expected 'timestamp-only entry', got "
+            f"{hist_timestamp_only!r}"
+        )
+    normalized_timestamp_only_output = normalize_terminal_output(hist_timestamp_only_output)
+    if "timestamp-only entry [timestamp-only-value]" not in normalized_timestamp_only_output:
+        raise AssertionError(
+            "history search should show timestamps when exit-code metadata is absent, got "
+            f"normalized_output={normalized_timestamp_only_output!r}"
+        )
+
     hist_sort_metadata = run_case(
         binary,
         "history_search_sort_default_metadata",

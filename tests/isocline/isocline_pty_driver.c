@@ -576,6 +576,12 @@ static int run_case(const char* scenario) {
         ic_history_add("banana");
         ic_history_add("apple");
         ic_history_add("carrot");
+    } else if (strcmp(scenario, "history_search_timestamp_without_exit_code") == 0) {
+        initial_input = "timestamp-only";
+        ic_history_clear();
+        const ic_history_metadata_t timestamp_only[] = {{"timestamp", "timestamp-only-value"}};
+        ic_history_add_with_metadata("timestamp-only entry", timestamp_only,
+                                     sizeof(timestamp_only) / sizeof(timestamp_only[0]));
     } else if (strcmp(scenario, "history_search_sort_default_metadata") == 0) {
         ic_history_clear();
         const ic_history_metadata_t rank_two[] = {{"rank", "2"}};

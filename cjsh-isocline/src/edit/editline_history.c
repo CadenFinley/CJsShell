@@ -1212,22 +1212,27 @@ again:;
             ssize_t metadata_reserved_columns = 0;
             if (metadata_suffix_use_default_tag) {
                 const char* exit_code = history_search_entry_exit_code(entry);
+                const char* timestamp =
+                    history_entry_get_metadata(entry, k_history_search_timestamp_key);
                 char formatted_meta_value[64];
                 const char* shown_value = history_search_pretty_metadata_value(
-                    k_history_search_timestamp_key,
-                    history_entry_get_metadata(entry, k_history_search_timestamp_key),
-                    formatted_meta_value, sizeof(formatted_meta_value));
+                    k_history_search_timestamp_key, timestamp, formatted_meta_value,
+                    sizeof(formatted_meta_value));
 
+                int suffix_written = 0;
                 if (exit_code != NULL) {
-                    int suffix_written = snprintf(metadata_suffix, sizeof(metadata_suffix),
-                                                  " [%s | %s]", shown_value, exit_code);
-                    if (suffix_written > 0) {
-                        if (suffix_written >= (int)sizeof(metadata_suffix)) {
-                            suffix_written = (int)sizeof(metadata_suffix) - 1;
-                            metadata_suffix[suffix_written] = '\0';
-                        }
-                        metadata_reserved_columns = suffix_written;
+                    suffix_written = snprintf(metadata_suffix, sizeof(metadata_suffix),
+                                              " [%s | %s]", shown_value, exit_code);
+                } else if (timestamp != NULL && timestamp[0] != '\0') {
+                    suffix_written = snprintf(metadata_suffix, sizeof(metadata_suffix), " [%s]",
+                                              shown_value);
+                }
+                if (suffix_written > 0) {
+                    if (suffix_written >= (int)sizeof(metadata_suffix)) {
+                        suffix_written = (int)sizeof(metadata_suffix) - 1;
+                        metadata_suffix[suffix_written] = '\0';
                     }
+                    metadata_reserved_columns = suffix_written;
                 }
             } else if (metadata_suffix_key != NULL && metadata_suffix_key[0] != '\0') {
                 const char* meta_value =
