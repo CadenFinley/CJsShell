@@ -32,6 +32,7 @@
 #include "validation_common.h"
 
 #include <algorithm>
+#include <cctype>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -62,20 +63,39 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     return create_tokenized_validator(
         lines, [](std::vector<SyntaxError>& line_errors, const std::string& line,
                   const std::string& trimmed_line, size_t display_line,
-                  const std::vector<std::string>& tokens, const std::string&) {
-            if (trimmed_line.rfind("function", 0) == 0) {
-                if (tokens.size() < 2) {
-                    append_function_name_errors(line_errors, display_line, line, "",
-                                                "Add function name: function name() { ... }");
-                } else {
-                    append_function_name_errors(line_errors, display_line, line, tokens[1],
-                                                "Add function name before parentheses");
+                  const std::vector<std::string>&, const std::string&) {
+            constexpr size_t function_keyword_length = 8;
+            const bool has_function_keyword =
+                trimmed_line.compare(0, function_keyword_length, "function") == 0 &&
+                (trimmed_line.length() == function_keyword_length ||
+                 (trimmed_line.length() > function_keyword_length &&
+                  std::isspace(static_cast<unsigned char>(trimmed_line[function_keyword_length])) !=
+                      0));
+
+            if (has_function_keyword) {
+                size_t name_start = function_keyword_length;
+                while (name_start < trimmed_line.length() &&
+                       std::isspace(static_cast<unsigned char>(trimmed_line[name_start])) != 0) {
+                    ++name_start;
                 }
+
+                size_t name_end = name_start;
+                while (name_end < trimmed_line.length() &&
+                       std::isspace(static_cast<unsigned char>(trimmed_line[name_end])) == 0 &&
+                       trimmed_line[name_end] != '(' && trimmed_line[name_end] != '{') {
+                    ++name_end;
+                }
+
+                const std::string function_name =
+                    trimmed_line.substr(name_start, name_end - name_start);
+                append_function_name_errors(line_errors, display_line, line, function_name,
+                                            function_name.empty()
+                                                ? "Add function name: function name() { ... }"
+                                                : "Add function name before parentheses");
             }
 
             size_t paren_pos = trimmed_line.find("()");
-            if (paren_pos != std::string::npos && paren_pos > 0 &&
-                trimmed_line.rfind("function", 0) != 0) {
+            if (paren_pos != std::string::npos && paren_pos > 0 && !has_function_keyword) {
                 if (trimmed_line.find('{', paren_pos) != std::string::npos) {
                     std::string potential_func = trim(trimmed_line.substr(0, paren_pos));
                     append_function_name_errors(line_errors, display_line, line, potential_func,

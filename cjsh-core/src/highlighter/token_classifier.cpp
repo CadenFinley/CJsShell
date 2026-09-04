@@ -243,10 +243,15 @@ bool is_function_definition(const std::string& input, size_t& func_name_start,
         return false;
     }
 
-    if (trimmed.substr(first_non_space, 8) == "function") {
-        size_t name_start = first_non_space + 8;
+    constexpr size_t function_keyword_length = 8;
+    const size_t after_function_keyword = first_non_space + function_keyword_length;
+    if (trimmed.compare(first_non_space, function_keyword_length, "function") == 0 &&
+        after_function_keyword < trimmed.length() &&
+        std::isspace(static_cast<unsigned char>(trimmed[after_function_keyword])) != 0) {
+        size_t name_start = after_function_keyword;
 
-        while (name_start < trimmed.length() && (std::isspace(trimmed[name_start]) != 0)) {
+        while (name_start < trimmed.length() &&
+               (std::isspace(static_cast<unsigned char>(trimmed[name_start])) != 0)) {
             name_start++;
         }
 
@@ -255,8 +260,9 @@ bool is_function_definition(const std::string& input, size_t& func_name_start,
         }
 
         size_t name_end = name_start;
-        while (name_end < trimmed.length() && (std::isspace(trimmed[name_end]) == 0) &&
-               trimmed[name_end] != '{') {
+        while (name_end < trimmed.length() &&
+               (std::isspace(static_cast<unsigned char>(trimmed[name_end])) == 0) &&
+               trimmed[name_end] != '(' && trimmed[name_end] != '{') {
             name_end++;
         }
 
