@@ -46,7 +46,7 @@
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #include <malloc/malloc.h>
-#else
+#elif defined(__GLIBC__)
 #include <malloc.h>
 #endif
 
@@ -171,8 +171,8 @@ CommandProcessResult process_command_line(const std::string& command) {
     // perform memory cleanup
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
     (void)malloc_zone_pressure_relief(nullptr, 0);
-#elif defined(__linux__)
-    malloc_trim(0);
+#elif defined(__GLIBC__)
+    (void)malloc_trim(0);
 #else
     // do nothing for other platforms
 #endif

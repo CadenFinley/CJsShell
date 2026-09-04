@@ -35,12 +35,6 @@
 #include <string_view>
 #include <vector>
 
-#ifdef __APPLE__
-#include <malloc/malloc.h>
-#else
-#include <malloc.h>
-#endif
-
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "flags.h"
