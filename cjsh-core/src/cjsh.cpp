@@ -196,8 +196,9 @@ int run_cjsh(int argc, char* argv[]) {
         cjsh_env::sync_parser_env_vars(g_shell.get());
     }
 
-    // execute command passed with -c
-    if (config::execute_command) {
+    // Execute non-interactive commands passed with -c immediately. Forced-interactive commands
+    // continue through interactive setup first so that they source .cjshrc before execution.
+    if (config::execute_command && !config::force_interactive) {
         cjsh_env::set_startup_active(false);
         const int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
         return read_exit_code_or(code);
@@ -246,6 +247,23 @@ int run_cjsh(int argc, char* argv[]) {
 
     // use .cjshrc
     cjsh_filesystem::process_source_files();
+
+    // A forced-interactive command sources .cjshrc, but still exits after running the command
+    // instead of entering the interactive input loop.
+    if (config::execute_command) {
+        int code = 0;
+        if (!cjsh_env::exit_requested()) {
+            cjsh_env::set_startup_active(false);
+            code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
+            if (g_shell) {
+                // -i affects startup and command semantics, but -c does not enter an input loop
+                // and therefore should not print the interactive-loop exit banner during
+                // destruction.
+                g_shell->set_interactive_mode(false);
+            }
+        }
+        return read_exit_code_or(code);
+    }
 
     // start interactive cjsh process
     if (!cjsh_env::exit_requested() && (config::interactive_mode || config::force_interactive)) {

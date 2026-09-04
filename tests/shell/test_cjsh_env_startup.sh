@@ -137,6 +137,18 @@ else
     fail_test "cjshenv sourced before cjprofile (got '$OUT')"
 fi
 
+INTERACTIVE_COMMAND_HOME="$TEST_HOME/interactive_command_home"
+mkdir -p "$INTERACTIVE_COMMAND_HOME"
+echo "echo rc-ran" > "$INTERACTIVE_COMMAND_HOME/.cjshrc"
+OUT=$(HOME="$INTERACTIVE_COMMAND_HOME" CJSH_ENV= "$CJSH_PATH" -i -c "echo command-ran" 2>/dev/null)
+EXPECTED="rc-ran
+command-ran"
+if [ "$OUT" = "$EXPECTED" ]; then
+    pass_test ".cjshrc runs before a forced-interactive command"
+else
+    fail_test ".cjshrc forced-interactive command order (got '$OUT')"
+fi
+
 LOGIN_HOME="$TEST_HOME/login_home"
 mkdir -p "$LOGIN_HOME"
 echo "echo logout-ran" > "$LOGIN_HOME/.cjlogout"
@@ -147,6 +159,18 @@ if [ "$OUT" = "$EXPECTED" ]; then
     pass_test ".cjlogout runs for login shell shutdown"
 else
     fail_test ".cjlogout execution/order (got '$OUT')"
+fi
+
+NONINTERACTIVE_LOGIN_HOME="$TEST_HOME/noninteractive_login_home"
+mkdir -p "$NONINTERACTIVE_LOGIN_HOME"
+echo "echo logout-ran" > "$NONINTERACTIVE_LOGIN_HOME/.cjlogout"
+OUT=$(HOME="$NONINTERACTIVE_LOGIN_HOME" CJSH_ENV= "$CJSH_PATH" --login -c "echo command-ran" 2>/dev/null)
+EXPECTED="command-ran
+logout-ran"
+if [ "$OUT" = "$EXPECTED" ]; then
+    pass_test ".cjlogout runs when a non-interactive login shell exits"
+else
+    fail_test ".cjlogout non-interactive login execution/order (got '$OUT')"
 fi
 
 SECURE_HOME="$TEST_HOME/secure_home"

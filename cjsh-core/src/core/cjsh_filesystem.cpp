@@ -1391,10 +1391,8 @@ void process_logout_file() {
         return;
     }
 
-    if (config::interactive_mode || config::force_interactive) {
-        (void)process_startup_file_with_fallback(g_cjsh_logout_path(), g_cjsh_logout_alt_path(),
-                                                 false, true);
-    }
+    (void)process_startup_file_with_fallback(g_cjsh_logout_path(), g_cjsh_logout_alt_path(), false,
+                                             true);
 }
 
 void process_source_files() {
