@@ -143,7 +143,7 @@ jobs:
         run: cmake --build --preset release-artifact --parallel
 
       - name: Run full shell integration suite
-        run: ./tests/run_shell_tests.sh build/release-artifact/cjsh
+        run: CJSH_TEST_SKIP_BUILD_SYSTEM=1 ./tests/run_shell_tests.sh build/release-artifact/cjsh
 
       - name: Verify Mach-O architectures and minimum macOS version
         env:
@@ -225,7 +225,7 @@ jobs:
         run: cmake --build --preset release-artifact --parallel
 
       - name: Run full shell integration suite
-        run: ./tests/run_shell_tests.sh build/release-artifact/cjsh
+        run: CJSH_TEST_SKIP_BUILD_SYSTEM=1 ./tests/run_shell_tests.sh build/release-artifact/cjsh
 
       - name: Verify glibc ELF binary
         env:
@@ -321,7 +321,7 @@ jobs:
               cmake --preset release-static
               cmake --build --preset release-static --parallel
               cd /tmp/cjsh-tests
-              su-exec cjsh-test env HOME=/home/cjsh-test CJSH_TEST_SKIP_PRELOAD_INJECTION=1 /work/tests/run_shell_tests.sh /work/build/release-static/cjsh
+              su-exec cjsh-test env HOME=/home/cjsh-test CJSH_TEST_SKIP_BUILD_SYSTEM=1 CJSH_TEST_SKIP_PRELOAD_INJECTION=1 /work/tests/run_shell_tests.sh /work/build/release-static/cjsh
               cd /work
               test "$(uname -m)" = "$EXPECTED_MACHINE"
               readelf -l build/release-static/cjsh > build/release-static/program-headers.txt

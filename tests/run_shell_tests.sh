@@ -103,6 +103,7 @@ fi
 ISOCLINE_PTY_DRIVER_BINARY="${ISOCLINE_PTY_DRIVER_BINARY:-$DEFAULT_ISOCLINE_PTY_DRIVER_BINARY}"
 ISOCLINE_PTY_TEST_SCRIPT="$SCRIPT_DIR/isocline/test_isocline_pty.py"
 BUILD_SYSTEM_TEST_SCRIPT="$SCRIPT_DIR/build_system/test_build_system.py"
+SKIP_BUILD_SYSTEM_TEST="${CJSH_TEST_SKIP_BUILD_SYSTEM:-0}"
 INTERACTIVE_SHUTDOWN_TEST_SCRIPT="$SCRIPT_DIR/core/test_interactive_shutdown.py"
 AGENT_MODE_INTERACTIVE_TEST_SCRIPT="$SCRIPT_DIR/core/test_agent_mode_interactive.py"
 FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT="$SCRIPT_DIR/core/test_function_pipeline_job_control.py"
@@ -542,7 +543,9 @@ else
     report_skipped_suite "test_isocline_pty_integration" "driver not found at $ISOCLINE_PTY_DRIVER_BINARY"
 fi
 
-if [ -f "$BUILD_SYSTEM_TEST_SCRIPT" ]; then
+if [ "$SKIP_BUILD_SYSTEM_TEST" = "1" ]; then
+    report_skipped_suite "test_build_system_configuration" "disabled by CJSH_TEST_SKIP_BUILD_SYSTEM"
+elif [ -f "$BUILD_SYSTEM_TEST_SCRIPT" ]; then
     if command -v python3 >/dev/null 2>&1 && command -v cmake >/dev/null 2>&1; then
         run_external_suite "test_build_system_configuration" "python" "none" python3 "$BUILD_SYSTEM_TEST_SCRIPT" "$SCRIPT_DIR/.."
         BUILD_SYSTEM_TEST_RESULT=$?
