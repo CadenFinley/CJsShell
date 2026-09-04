@@ -1910,10 +1910,46 @@ def main() -> int:
             f"{hist_timestamp_only!r}"
         )
     normalized_timestamp_only_output = normalize_terminal_output(hist_timestamp_only_output)
-    if "timestamp-only entry [timestamp-only-value]" not in normalized_timestamp_only_output:
+    if not all(
+        text in normalized_timestamp_only_output
+        for text in ("timestamp-only entry", "[Time: timestamp-only-value]")
+    ):
         raise AssertionError(
-            "history search should show timestamps when exit-code metadata is absent, got "
+            "selected history entries should show a labeled timestamp when exit-code metadata "
+            "is absent, got "
             f"normalized_output={normalized_timestamp_only_output!r}"
+        )
+
+    hist_expanded_metadata, hist_expanded_metadata_output = run_case(
+        binary,
+        "history_search_expanded_metadata",
+        b"\x12\r",
+        capture_output=True,
+    )
+    if hist_expanded_metadata != "metadata-rich entry":
+        raise AssertionError(
+            "history_search_expanded_metadata expected 'metadata-rich entry', got "
+            f"{hist_expanded_metadata!r}"
+        )
+    normalized_expanded_metadata_output = normalize_terminal_output(
+        hist_expanded_metadata_output
+    )
+    expected_metadata_rows = (
+        "Time: timestamp-label-value",
+        "Frequency: 7",
+        "Exit code: 2",
+        "Working Directory: /tmp/metadata-example",
+        "Note: first note line",
+        "second note line",
+        "Long Detail: a deliberately long metadata value",
+        "tail-visible",
+    )
+    if not all(
+        row in normalized_expanded_metadata_output for row in expected_metadata_rows
+    ):
+        raise AssertionError(
+            "selected history entries should expand every metadata field with labels, got "
+            f"normalized_output={normalized_expanded_metadata_output!r}"
         )
 
     hist_sort_metadata = run_case(
@@ -1946,9 +1982,12 @@ def main() -> int:
             "history metadata cycle should report rank sort, got "
             f"normalized_output={normalized_sort_cycle_metadata_output!r}"
         )
-    if "rank one [1]" not in normalized_sort_cycle_metadata_output:
+    if not all(
+        text in normalized_sort_cycle_metadata_output
+        for text in ("sort rank asc", "rank one [Rank: 1]")
+    ):
         raise AssertionError(
-            "history metadata cycle should show the sorted rank value beside entries, got "
+            "history metadata cycle should show the selected rank with its label, got "
             f"normalized_output={normalized_sort_cycle_metadata_output!r}"
         )
 

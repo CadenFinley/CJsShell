@@ -256,6 +256,135 @@ static const char* history_search_entry_metadata_value(const history_entry_t* en
     return history_entry_get_metadata(entry, key);
 }
 
+static void history_search_build_compact_metadata_suffix(stringbuf_t* suffix,
+                                                         const history_entry_t* entry,
+                                                         const char* metadata_key,
+                                                         bool use_default_tag) {
+    if (suffix == NULL) {
+        return;
+    }
+    sbuf_clear(suffix);
+    if (entry == NULL) {
+        return;
+    }
+
+    char formatted_meta_value[64];
+    if (use_default_tag) {
+        const char* exit_code = history_search_entry_exit_code(entry);
+        const char* timestamp = history_entry_get_metadata(entry, k_history_search_timestamp_key);
+        const char* shown_value = history_search_pretty_metadata_value(
+            k_history_search_timestamp_key, timestamp, formatted_meta_value,
+            sizeof(formatted_meta_value));
+        if (exit_code != NULL) {
+            (void)sbuf_appendf(suffix, " [%s | %s]", shown_value, exit_code);
+        } else if (timestamp != NULL && timestamp[0] != '\0') {
+            (void)sbuf_appendf(suffix, " [%s]", shown_value);
+        }
+        return;
+    }
+
+    if (metadata_key == NULL || metadata_key[0] == '\0') {
+        return;
+    }
+    const char* meta_value = history_search_entry_metadata_value(entry, metadata_key);
+    const char* shown_value = history_search_pretty_metadata_value(
+        metadata_key, meta_value, formatted_meta_value, sizeof(formatted_meta_value));
+    (void)sbuf_appendf(suffix, " [%s]", shown_value);
+}
+
+static void history_search_append_metadata_label(stringbuf_t* sb, const char* key) {
+    if (sb == NULL || key == NULL || key[0] == '\0') {
+        return;
+    }
+    if (ic_stricmp(key, k_history_search_timestamp_key) == 0) {
+        (void)sbuf_append(sb, "Time");
+        return;
+    }
+    if (ic_stricmp(key, k_history_search_exit_code_key) == 0 ||
+        ic_stricmp(key, k_history_search_exit_code_legacy_key) == 0) {
+        (void)sbuf_append(sb, "Exit code");
+        return;
+    }
+    if (ic_stricmp(key, "frequency") == 0) {
+        (void)sbuf_append(sb, "Frequency");
+        return;
+    }
+
+    bool capitalize = true;
+    for (const char* p = key; *p != '\0'; ++p) {
+        char c = *p;
+        if (c == '_' || c == '-') {
+            (void)sbuf_append_char(sb, ' ');
+            capitalize = true;
+        } else {
+            if (capitalize && c >= 'a' && c <= 'z') {
+                c = (char)(c - 'a' + 'A');
+            }
+            (void)sbuf_append_char(sb, c);
+            capitalize = false;
+        }
+    }
+}
+
+static void history_search_append_inline_metadata_value(stringbuf_t* sb, const char* value) {
+    if (sb == NULL || value == NULL) {
+        return;
+    }
+    const char* segment = value;
+    for (const char* p = value; *p != '\0'; ++p) {
+        if (*p != '\n' && *p != '\r') {
+            continue;
+        }
+        if (p > segment) {
+            (void)sbuf_append_n(sb, segment, p - segment);
+        }
+        (void)sbuf_append_char(sb, ' ');
+        if (*p == '\r' && p[1] == '\n') {
+            ++p;
+        }
+        segment = p + 1;
+    }
+    if (*segment != '\0') {
+        (void)sbuf_append(sb, segment);
+    }
+}
+
+static void history_search_build_expanded_metadata(stringbuf_t* suffix,
+                                                   const history_entry_t* entry) {
+    if (suffix == NULL) {
+        return;
+    }
+    sbuf_clear(suffix);
+    if (entry == NULL || entry->metadata == NULL || entry->metadata_count <= 0) {
+        return;
+    }
+
+    bool first = true;
+    (void)sbuf_append(suffix, " [");
+    for (ssize_t i = 0; i < entry->metadata_count; ++i) {
+        const char* key = entry->metadata[i].key;
+        if (key == NULL || key[0] == '\0') {
+            continue;
+        }
+        const char* value = entry->metadata[i].value;
+        char formatted_meta_value[64];
+        const char* shown_value = history_search_pretty_metadata_value(
+            key, value, formatted_meta_value, sizeof(formatted_meta_value));
+        if (!first) {
+            (void)sbuf_append(suffix, " | ");
+        }
+        history_search_append_metadata_label(suffix, key);
+        (void)sbuf_append(suffix, ": ");
+        history_search_append_inline_metadata_value(suffix, shown_value);
+        first = false;
+    }
+    if (first) {
+        sbuf_clear(suffix);
+    } else {
+        (void)sbuf_append_char(suffix, ']');
+    }
+}
+
 static bool history_search_parse_integer(const char* value, long long* value_out) {
     if (value_out != NULL) {
         *value_out = 0;
@@ -1119,7 +1248,8 @@ again:;
     char sort_label_buf[128];
     const char* sort_label = history_search_sort_label(session_sort, session_sort_key,
                                                        sort_label_buf, sizeof(sort_label_buf));
-    ssize_t selected_multiline_preview_rows = 0;
+    ssize_t selected_preview_rows = 0;
+    bool selected_has_expanded_metadata = false;
 
     if (match_count > 0) {
         const char* query = sbuf_string(eb->input);
@@ -1129,13 +1259,19 @@ again:;
             total_history = 0;
         }
 
+        stringbuf_t* selected_metadata_suffix = sbuf_new(env->mem);
+        stringbuf_t* metadata_suffix_buffer = sbuf_new(env->mem);
         if (selected_idx >= 0 && selected_idx < match_count) {
             const history_entry_t* selected_entry =
                 history_snapshot_get(&snap, matches[selected_idx].hidx);
-            if (selected_entry != NULL && selected_entry->command != NULL &&
-                edit_menu_contains_line_break(selected_entry->command)) {
-                selected_multiline_preview_rows =
-                    edit_menu_multiline_preview_row_count(env, selected_entry->command);
+            if (selected_entry != NULL && selected_entry->command != NULL) {
+                history_search_build_expanded_metadata(selected_metadata_suffix, selected_entry);
+                selected_has_expanded_metadata =
+                    (selected_metadata_suffix != NULL && sbuf_len(selected_metadata_suffix) > 0);
+                selected_preview_rows = edit_menu_expanded_preview_row_count(
+                    env, selected_entry->command, NULL,
+                    (selected_metadata_suffix == NULL ? NULL
+                                                      : sbuf_string(selected_metadata_suffix)));
             }
         }
 
@@ -1178,13 +1314,15 @@ again:;
         ssize_t available_lines = edit_menu_available_lines(env, eb, reserved_rows, 1);
 
         ssize_t rows_for_items = available_lines;
-        ssize_t selected_multiline_preview_limit = 0;
-        if (selected_multiline_preview_rows > 1) {
-            selected_multiline_preview_limit = selected_multiline_preview_rows;
-            if (selected_multiline_preview_limit > available_lines) {
-                selected_multiline_preview_limit = available_lines;
+        ssize_t selected_preview_limit = 0;
+        if (selected_preview_rows > 0) {
+            selected_preview_limit = selected_preview_rows;
+            if (selected_preview_limit > available_lines) {
+                selected_preview_limit = available_lines;
             }
-            rows_for_items -= (selected_multiline_preview_limit - 1);
+        }
+        if (selected_preview_limit > 1) {
+            rows_for_items -= (selected_preview_limit - 1);
             if (rows_for_items < 1) {
                 rows_for_items = 1;
             }
@@ -1207,48 +1345,38 @@ again:;
             if (entry == NULL || entry->command == NULL)
                 continue;
 
-            char metadata_suffix[160];
-            metadata_suffix[0] = '\0';
+            history_search_build_compact_metadata_suffix(metadata_suffix_buffer, entry,
+                                                         metadata_suffix_key,
+                                                         metadata_suffix_use_default_tag);
+            const char* metadata_suffix =
+                (metadata_suffix_buffer == NULL ? "" : sbuf_string(metadata_suffix_buffer));
             ssize_t metadata_reserved_columns = 0;
-            if (metadata_suffix_use_default_tag) {
-                const char* exit_code = history_search_entry_exit_code(entry);
-                const char* timestamp =
-                    history_entry_get_metadata(entry, k_history_search_timestamp_key);
-                char formatted_meta_value[64];
-                const char* shown_value = history_search_pretty_metadata_value(
-                    k_history_search_timestamp_key, timestamp, formatted_meta_value,
-                    sizeof(formatted_meta_value));
-
-                int suffix_written = 0;
-                if (exit_code != NULL) {
-                    suffix_written = snprintf(metadata_suffix, sizeof(metadata_suffix),
-                                              " [%s | %s]", shown_value, exit_code);
-                } else if (timestamp != NULL && timestamp[0] != '\0') {
-                    suffix_written = snprintf(metadata_suffix, sizeof(metadata_suffix), " [%s]",
-                                              shown_value);
+            ssize_t metadata_visible_len = 0;
+            bool metadata_truncated = false;
+            if (metadata_suffix[0] != '\0') {
+                const char* metadata_line_end = edit_menu_first_line_end(metadata_suffix);
+                const ssize_t metadata_len =
+                    (metadata_line_end == NULL ? ic_strlen(metadata_suffix)
+                                               : metadata_line_end - metadata_suffix);
+                const bool metadata_multiline =
+                    (metadata_line_end != NULL &&
+                     (*metadata_line_end == '\n' || *metadata_line_end == '\r'));
+                ssize_t max_metadata_columns = term_width - 8;
+                if (max_metadata_columns < 1) {
+                    max_metadata_columns = 1;
                 }
-                if (suffix_written > 0) {
-                    if (suffix_written >= (int)sizeof(metadata_suffix)) {
-                        suffix_written = (int)sizeof(metadata_suffix) - 1;
-                        metadata_suffix[suffix_written] = '\0';
-                    }
-                    metadata_reserved_columns = suffix_written;
+                ssize_t metadata_width = 0;
+                metadata_visible_len = edit_menu_visible_prefix(
+                    metadata_suffix, metadata_len, max_metadata_columns, &metadata_width);
+                metadata_truncated = (metadata_multiline || metadata_visible_len < metadata_len);
+                if (metadata_truncated && max_metadata_columns > 3 &&
+                    metadata_width + 3 > max_metadata_columns) {
+                    metadata_visible_len = edit_menu_visible_prefix(
+                        metadata_suffix, metadata_len, max_metadata_columns - 3, &metadata_width);
                 }
-            } else if (metadata_suffix_key != NULL && metadata_suffix_key[0] != '\0') {
-                const char* meta_value =
-                    history_search_entry_metadata_value(entry, metadata_suffix_key);
-                char formatted_meta_value[64];
-                const char* shown_value = history_search_pretty_metadata_value(
-                    metadata_suffix_key, meta_value, formatted_meta_value,
-                    sizeof(formatted_meta_value));
-                int suffix_written =
-                    snprintf(metadata_suffix, sizeof(metadata_suffix), " [%s]", shown_value);
-                if (suffix_written > 0) {
-                    if (suffix_written >= (int)sizeof(metadata_suffix)) {
-                        suffix_written = (int)sizeof(metadata_suffix) - 1;
-                        metadata_suffix[suffix_written] = '\0';
-                    }
-                    metadata_reserved_columns = suffix_written;
+                metadata_reserved_columns = metadata_width;
+                if (metadata_truncated && max_metadata_columns > 3) {
+                    metadata_reserved_columns += 3;
                 }
             }
 
@@ -1284,17 +1412,18 @@ again:;
             }
 
             bool is_selected = (match_idx == selected_idx);
-            bool show_selected_multiline_inline = (is_selected && is_multiline);
+            bool show_selected_expanded =
+                (is_selected && (selected_has_expanded_metadata || selected_preview_rows > 1));
             bool syntax_highlight_item = edit_menu_should_syntax_highlight_item_ex(
                 env, is_selected, menu_session.old_highlight);
 
-            if (show_selected_multiline_inline) {
-                const bool preview_truncated =
-                    edit_menu_append_multiline_preview(env, eb, display, syntax_highlight_item,
-                                                       false, selected_multiline_preview_limit);
-                if (!preview_truncated && metadata_suffix[0] != '\0') {
-                    edit_menu_append_tag_text(eb->extra, true, metadata_suffix);
-                }
+            if (show_selected_expanded) {
+                const char* expanded_metadata =
+                    (selected_metadata_suffix == NULL ? NULL
+                                                      : sbuf_string(selected_metadata_suffix));
+                (void)edit_menu_append_multiline_preview(env, eb, display, syntax_highlight_item,
+                                                         false, selected_preview_limit, NULL,
+                                                         expanded_metadata);
                 (void)sbuf_append(eb->extra, "\n");
                 continue;
             }
@@ -1325,7 +1454,11 @@ again:;
             }
 
             if (metadata_suffix[0] != '\0') {
-                edit_menu_append_tag_text(eb->extra, is_selected, metadata_suffix);
+                edit_menu_append_tag_text_n(eb->extra, is_selected, metadata_suffix,
+                                            metadata_visible_len);
+                if (metadata_truncated) {
+                    (void)sbuf_append(eb->extra, "...");
+                }
             }
 
             if (is_selected) {
@@ -1336,6 +1469,8 @@ again:;
         }
 
         edit_menu_append_scroll_hint(eb->extra, match_count, display_count, scroll_offset);
+        sbuf_free(metadata_suffix_buffer);
+        sbuf_free(selected_metadata_suffix);
     } else {
         scroll_offset = 0;
         if (metadata_filter_applied) {

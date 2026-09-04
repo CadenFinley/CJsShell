@@ -582,6 +582,22 @@ static int run_case(const char* scenario) {
         const ic_history_metadata_t timestamp_only[] = {{"timestamp", "timestamp-only-value"}};
         ic_history_add_with_metadata("timestamp-only entry", timestamp_only,
                                      sizeof(timestamp_only) / sizeof(timestamp_only[0]));
+    } else if (strcmp(scenario, "history_search_expanded_metadata") == 0) {
+        initial_input = "metadata-rich";
+        ic_history_clear();
+        const ic_history_metadata_t metadata[] = {
+            {"timestamp", "timestamp-label-value"},
+            {"frequency", "7"},
+            {"code", "2"},
+            {"working_directory", "/tmp/metadata-example"},
+            {"note", "first note line\nsecond note line"},
+            {"long_detail",
+             "a deliberately long metadata value that keeps going so the selected history "
+             "preview must wrap it instead of discarding the remainder of the value when it "
+             "passes the compact tag width and fixed-buffer boundaries; tail-visible"},
+        };
+        ic_history_add_with_metadata("metadata-rich entry", metadata,
+                                     sizeof(metadata) / sizeof(metadata[0]));
     } else if (strcmp(scenario, "history_search_sort_default_metadata") == 0) {
         ic_history_clear();
         const ic_history_metadata_t rank_two[] = {{"rank", "2"}};
