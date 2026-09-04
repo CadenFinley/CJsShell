@@ -2644,6 +2644,8 @@ from the file extension if the file has no shebang. Toggle this with
 <li><code>set -o huponexit</code> mirrors bash's hangup behavior toggle; when enabled the shell sends
   SIGHUP to managed background jobs as it exits. Leave it off (the default) to keep helpers
   like dev servers alive until you explicitly stop them.</li>
+<li><code>set -m</code> enables monitor mode and per-job process groups; <code>set +m</code> disables it. Interactive
+  shells start with monitor mode enabled.</li>
 </ul>
 <h3 id="coproc">coproc</h3>
 <p>Run a command asynchronously with a two-way pipe.</p>
@@ -2733,15 +2735,16 @@ descriptor redirections such as <code>&gt;&amp;${COPROC[1]}</code> to communicat
 <h2 id="job-control">Job Control</h2>
 <h3 id="jobs">jobs</h3>
 <p>List background jobs.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="nb">jobs</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="nb">jobs</span><span class="w"> </span><span class="o">[</span>-lprs<span class="o">]</span><span class="w"> </span><span class="o">[</span>job_spec...<span class="o">]</span>
 </span></code></pre></div>
+<p><code>-r</code> and <code>-s</code> select running and stopped jobs. <code>-p</code> prints one process-group leader per job.</p>
 <h3 id="fg">fg</h3>
 <p>Bring a job to the foreground.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-39-1"><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="nb">fg</span><span class="w"> </span><span class="o">[</span>job_spec<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-39-1"><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="nb">fg</span><span class="w"> </span><span class="o">[</span>job_spec<span class="p">|</span>pid<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="bg">bg</h3>
 <p>Resume a job in the background.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="nb">bg</span><span class="w"> </span><span class="o">[</span>job_spec<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="nb">bg</span><span class="w"> </span><span class="o">[</span>job_spec...<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="auto-background-on-ctrlz">Auto-background on Ctrl+Z</h3>
 <p>Append <code>&amp;^</code> to a command to mark it for automatic backgrounding the first time you press
@@ -2753,19 +2756,23 @@ prompt stays clean. Output is restored if you bring the job back with <code>fg</
 </span></code></pre></div>
 <h3 id="wait">wait</h3>
 <p>Wait for jobs or processes to finish.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="nb">wait</span><span class="w"> </span><span class="o">[</span>pid<span class="p">|</span>job_spec...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="nb">wait</span><span class="w"> </span><span class="o">[</span>-fn<span class="o">]</span><span class="w"> </span><span class="o">[</span>-p<span class="w"> </span>variable<span class="o">]</span><span class="w"> </span><span class="o">[</span>pid<span class="p">|</span>job_spec...<span class="o">]</span>
 </span></code></pre></div>
+<p><code>wait -n</code> returns when the next selected job changes state, <code>-f</code> waits through stops until
+termination, and <code>-p</code> stores the selected process-group leader or PID.</p>
 <h3 id="kill">kill</h3>
 <p>Send signals to jobs or processes.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-43-1"><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="nb">kill</span><span class="w"> </span><span class="o">[</span>-signal<span class="o">]</span><span class="w"> </span>pid<span class="p">|</span>job_spec
 </span></code></pre></div>
 <h3 id="disown">disown</h3>
 <p>Detach jobs from the shell so they are no longer listed or sent hangup signals when cjsh exits.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-44-1"><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="nb">disown</span><span class="w"> </span><span class="o">[</span>-a<span class="p">|</span>--all<span class="o">]</span><span class="w"> </span><span class="o">[</span>job_spec...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-44-1"><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="nb">disown</span><span class="w"> </span><span class="o">[</span>-arh<span class="o">]</span><span class="w"> </span><span class="o">[</span>job_spec<span class="p">|</span>pid...<span class="o">]</span>
 </span></code></pre></div>
 <ul>
 <li>With no arguments, the current job is disowned</li>
-<li><code>-a/--all</code> removes every tracked job in one shot</li>
+<li><code>-a/--all</code> selects every tracked job; <code>-r</code> restricts the selection to running jobs</li>
+<li><code>-h</code> leaves selected jobs in the table but excludes them from SIGHUP propagation</li>
+<li>Job specs include <code>%N</code>, <code>%+</code>, <code>%-</code>, <code>%prefix</code>, and <code>%?substring</code>; a tracked PID is also accepted</li>
 <li>Disowned jobs continue running even if <code>set -o huponexit</code> is enabled later in the session</li>
 </ul>
 <h3 id="jobname">jobname</h3>
