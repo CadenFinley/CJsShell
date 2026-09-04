@@ -513,6 +513,11 @@ def main() -> int:
             session.wait_for(
                 b"Agent executor configuration cleared.", start=clear_default_start
             )
+            # The status line is written before the editor has necessarily
+            # installed and rendered the next prompt.  Wait for that prompt so
+            # the activation request cannot race the editor transition on a
+            # slower runner (notably the hosted Intel macOS runner).
+            session.wait_for(b"cjsh> ", start=clear_default_start)
             first_configured_start = len(session.output)
             session.write(b"request without a fallback\x1bOR")
             session.wait_for(b"agent command:", start=first_configured_start)
@@ -521,7 +526,10 @@ def main() -> int:
                 if route != "prefix" or not prompt.endswith(
                     "\n\nCommand request:\nrequest without a fallback"
                 ):
-                    raise AssertionError("direct activation did not use the first executor")
+                    raise AssertionError(
+                        "direct activation did not use the first executor: "
+                        f"route={route!r}, prompt={prompt!r}"
+                    )
             session.write(b"\x03")
             session.pump(0.1)
             session.write(b"\x15")

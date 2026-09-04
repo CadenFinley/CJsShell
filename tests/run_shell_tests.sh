@@ -332,6 +332,8 @@ parse_status_line_counts() {
             failed++
         }
         END {
+            passed += 0
+            failed += 0
             total = passed + failed
             print total " " passed " " failed
         }
