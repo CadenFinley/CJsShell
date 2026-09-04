@@ -1,6 +1,27 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.4`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.5`.
+
+## 1.4.5 - 2026-09-03
+
+Range: `v1.4.4..HEAD` (10 commits, 24 files changed)
+
+### Added
+
+- Added automated, tag-driven release builds for macOS Intel, Apple Silicon, and Universal2 plus glibc and static musl Linux builds on x86-64 and ARM64.
+- Added release archive validation, SHA-256 checksums, build provenance attestations, generated release notes, and a non-publishing manual dry-run mode.
+- Added Ctrl+C cancellation for in-flight agent executors, including process-group cleanup and restoration of the original editor request.
+
+### Changed
+
+- Consolidated release validation around the comprehensive shell suite, which includes the CTest-backed component and interactive tests without running CTest separately.
+- Set the Intel and Universal2 macOS deployment target to macOS 12 while retaining native Apple Silicon builds for macOS 15 and newer.
+
+### Fixed
+
+- Made release integration fixtures independent of the working directory, root privileges, and host-provided setuid files.
+- Guarded glibc-only memory trimming so static musl builds compile and run correctly.
+- Stabilized interactive agent-mode synchronization on slower hosted Intel macOS runners.
 
 ## 1.4.4 - 2026-09-03
 
