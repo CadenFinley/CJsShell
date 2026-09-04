@@ -81,7 +81,7 @@ jobs:
             source_ref="$GITHUB_SHA"
             validation_options+=(--allow-untagged)
           fi
-          version=$(./scripts/validate-release-tag.sh "$RELEASE_TAG" "${validation_options[@]}")
+          version=$(./.github/scripts/validate-release-tag.sh "$RELEASE_TAG" "${validation_options[@]}")
           echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "source_ref=$source_ref" >> "$GITHUB_OUTPUT"
@@ -169,7 +169,7 @@ jobs:
 
       - name: Create release archive
         run: |
-          ./scripts/create-release-archive.sh \
+          ./.github/scripts/create-release-archive.sh \
             build/release-artifact/cjsh \
             "${{ needs.prepare.outputs.version }}" \
             "${{ matrix.target }}"
@@ -247,7 +247,7 @@ jobs:
 
       - name: Create release archive
         run: |
-          ./scripts/create-release-archive.sh \
+          ./.github/scripts/create-release-archive.sh \
             build/release-artifact/cjsh \
             "${{ needs.prepare.outputs.version }}" \
             "${{ matrix.target }}"
@@ -330,7 +330,7 @@ jobs:
                 exit 1
               fi
               file build/release-static/cjsh
-              ./scripts/create-release-archive.sh build/release-static/cjsh "$RELEASE_VERSION" "$RELEASE_TARGET"
+              ./.github/scripts/create-release-archive.sh build/release-static/cjsh "$RELEASE_VERSION" "$RELEASE_TARGET"
             '
 
       - name: Attest release archive
