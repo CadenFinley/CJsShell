@@ -280,7 +280,9 @@ sleep 0.2
 exit 17
 echo "exit-aborted"
 kill -KILL "$job" 2>/dev/null
-wait "$job" 2>/dev/null
+# A plain wait may report the earlier stopped state before the SIGKILL status is
+# reaped. Wait for termination so the final exit is not blocked by stale state.
+wait -f "$job" 2>/dev/null
 exit 5
 EOF
 )
@@ -305,7 +307,7 @@ echo "$job" > "$PID_FILE"
 exit 21
 echo "exit-running-aborted"
 kill -KILL "$job" 2>/dev/null
-wait "$job" 2>/dev/null
+wait -f "$job" 2>/dev/null
 exit 7
 EOF
 )
