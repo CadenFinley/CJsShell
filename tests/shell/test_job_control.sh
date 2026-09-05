@@ -302,11 +302,21 @@ test_disown_all_and_running_filters() {
 
 test_wait_multi_job_and_jobspec_matrix() {
     log "Test: multi-job wait -n, operand-less wait, and substring job specs"
-    local output
+    local output tmp_dir shell_status
+    tmp_dir=$(mktemp -d /tmp/cjsh_wait_matrix.XXXXXX) || return 1
+    if ! mkfifo "$tmp_dir/release"; then
+        rmdir "$tmp_dir"
+        echo "FAIL: could not create wait matrix release FIFO"
+        return 1
+    fi
+
+    # Keep the first operand running until wait -n selects the second, regardless
+    # of how long CI takes to launch either child or reach the wait command.
     output=$("$CJSH_PATH" -c "set -m; \
-        sh -c 'sleep 0.15; exit 8' slow-wait-token & slow=\$!; \
-        sh -c 'sleep 0.02; exit 3' fast-wait-token & fast=\$!; \
+        sh -c 'read release < \"\$1\"; exit 8' slow-wait-token '$tmp_dir/release' & slow=\$!; \
+        sh -c 'exit 3' fast-wait-token & fast=\$!; \
         wait -n -p winner \$slow \$fast; first=\$?; \
+        printf 'release\\n' > '$tmp_dir/release'; \
         wait \$slow; slow_status=\$?; \
         sh -c 'exit 7' failed-wait-token & wait; all_status=\$?; \
         sh -c 'exit 6' substring-wait-token & spec=\$!; \
@@ -314,13 +324,19 @@ test_wait_multi_job_and_jobspec_matrix() {
         printf 'wait-results=%s,%s,%s,%s,%s,%s\\n' \
             \"\$first\" \"\$winner\" \"\$fast\" \"\$slow_status\" \
             \"\$all_status\" \"\$spec_status\"" 2>&1)
+    shell_status=$?
+    rm -f "$tmp_dir/release"
+    rmdir "$tmp_dir"
 
-    if printf '%s\n' "$output" | grep -Eq '^wait-results=3,([0-9]+),\1,8,0,6$'; then
+    if [ "$shell_status" -eq 0 ] && \
+        printf '%s\n' "$output" | grep -Eq '^wait-results=3,([0-9]+),\1,8,0,6$'; then
         echo "PASS"
         return 0
     fi
 
-    echo "FAIL: wait matrix returned unexpected statuses or selected PID: $output"
+    # The suite runner only retains lines containing FAIL; preserve the statuses
+    # and any shell diagnostics on that same line.
+    echo "FAIL: wait matrix returned unexpected statuses or selected PID (shell status $shell_status): $(printf '%s\n' "$output" | tr '\n' ' ')"
     return 1
 }
 
