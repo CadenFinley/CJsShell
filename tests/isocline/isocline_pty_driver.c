@@ -191,21 +191,54 @@ static int run_readline_status_case(const char* scenario) {
         return 5;
     }
 
-    const bool idle_case = (strcmp(scenario, "idle") == 0);
+    const bool idle_completion_menu = (strcmp(scenario, "idle_completion_menu") == 0);
+    const bool idle_history_menu = (strcmp(scenario, "idle_history_menu") == 0);
+    const bool idle_command_palette = (strcmp(scenario, "idle_command_palette") == 0);
+    const bool idle_custom_menu = (strcmp(scenario, "idle_custom_menu") == 0);
+    const bool idle_case = (strcmp(scenario, "idle") == 0 || idle_completion_menu ||
+                            idle_history_menu || idle_command_palette || idle_custom_menu);
     if (strcmp(scenario, "stop_event") == 0) {
         if (!ic_push_key_event(IC_KEY_EVENT_STOP)) {
             emit_result("ERR:queue-stop-event");
             return 0;
         }
     } else if (idle_case) {
-        (void)ic_set_idle_timeout(75);
+        (void)ic_set_idle_timeout(idle_completion_menu || idle_history_menu ||
+                                          idle_command_palette || idle_custom_menu
+                                      ? 250
+                                      : 75);
+        if (idle_completion_menu) {
+            g_completion_mode = COMPLETION_MODE_MANY;
+            ic_set_default_completer(pty_completion_dispatcher, NULL);
+        } else if (idle_history_menu) {
+#if defined(_WIN32)
+            const char* history_path = "cjsh_isocline_pty_idle_history.tmp";
+#else
+            const char* history_path = "/tmp/cjsh_isocline_pty_idle_history.tmp";
+#endif
+            (void)remove(history_path);
+            ic_set_history(history_path, 20);
+            ic_history_clear();
+            ic_history_add("keep history");
+        } else if (idle_custom_menu) {
+            if (!ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_RUNOFF)) {
+                return 6;
+            }
+            ic_set_unhandled_key_handler(pty_custom_menu_runoff_handler, NULL);
+        }
     } else if (strcmp(scenario, "text") != 0 && strcmp(scenario, "ctrl_c") != 0 &&
                strcmp(scenario, "ctrl_d") != 0) {
         return 2;
     }
 
+    const char* idle_input = (idle_completion_menu ? "s" : "abc\n");
+    size_t idle_cursor = 1;
+    if (idle_history_menu || idle_command_palette || idle_custom_menu) {
+        idle_input = "keep";
+        idle_cursor = 4;
+    }
     ic_readline_result_t result =
-        (idle_case ? ic_readline_with_status_at_cursor("pty", NULL, "abc\n", 1)
+        (idle_case ? ic_readline_with_status_at_cursor("pty", NULL, idle_input, idle_cursor)
                    : ic_readline_with_status("pty", NULL, NULL));
 
     const char* line = (result.input == NULL ? "" : result.input);

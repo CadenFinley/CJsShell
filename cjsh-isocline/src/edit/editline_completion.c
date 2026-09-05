@@ -760,7 +760,10 @@ again:
     }
 
 read_key:
-    c = tty_read(env->tty);
+    if (!edit_menu_read_key(env, eb, &c)) {
+        c = 0;
+        goto cleanup;
+    }
     if (tty_term_resize_event(env->tty)) {
         (void)edit_resize(env, eb);
     }

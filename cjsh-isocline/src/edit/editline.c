@@ -90,6 +90,8 @@ typedef struct editor_s {
     bool history_prefix_active;         // whether prefix-prioritized history is active
     bool request_submit;                // request submission of current line
     bool force_linear_line_numbers;     // final render should drop relative numbering styling
+    int64_t last_activity_ms;           // last non-resize input, including input handled by menus
+    int64_t idle_deadline_ms;           // shared idle deadline for the editor and nested menus
     ssize_t history_idx;                // current index in the history
     bool last_arg_yank_active;          // whether yank-last-arg is cycling through history
     ssize_t last_arg_yank_history_idx;  // history index currently used for yank-last-arg
@@ -459,6 +461,43 @@ static int64_t edit_deadline_after(int64_t start_ms, long delay_ms) {
         return INT64_MAX;
     }
     return start_ms + (int64_t)delay_ms;
+}
+
+static void edit_note_input_activity(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL) {
+        return;
+    }
+    eb->last_activity_ms = edit_monotonic_time_ms();
+    eb->idle_deadline_ms = edit_deadline_after(eb->last_activity_ms, env->idle_timeout);
+}
+
+// Menus run nested input loops, so they must share the editor's idle deadline instead of
+// blocking indefinitely. A false return tells the menu to cancel and return to the main loop,
+// which then completes the readline with an idle disposition.
+static bool edit_menu_read_key(ic_env_t* env, editor_t* eb, code_t* code) {
+    if (env == NULL || eb == NULL || code == NULL || env->tty == NULL) {
+        return false;
+    }
+    if (env->idle_timeout <= 0) {
+        *code = tty_read(env->tty);
+        return true;
+    }
+
+    while (true) {
+        long idle_remaining = edit_milliseconds_until(eb->idle_deadline_ms);
+        if (idle_remaining == 0) {
+            return false;
+        }
+        if (tty_read_timeout(env->tty, idle_remaining, code)) {
+            if (*code != KEY_EVENT_RESIZE) {
+                edit_note_input_activity(env, eb);
+            }
+            return true;
+        }
+        if (edit_milliseconds_until(eb->idle_deadline_ms) == 0) {
+            return false;
+        }
+    }
 }
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text,
@@ -3745,8 +3784,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     bool stop_event_received = false;
     bool idle_timeout_received = false;
     bool hint_delay_satisfied = false;
-    int64_t last_activity_ms = edit_monotonic_time_ms();
-    int64_t idle_deadline_ms = edit_deadline_after(last_activity_ms, env->idle_timeout);
+    edit_note_input_activity(env, &eb);
 
 edit_loop_entry:
     if (!initial_requests_submit) {
@@ -3793,7 +3831,7 @@ edit_loop_entry:
                 term_flush(env->term);
                 if (env->idle_timeout > 0) {
                     while (true) {
-                        long idle_remaining = edit_milliseconds_until(idle_deadline_ms);
+                        long idle_remaining = edit_milliseconds_until(eb.idle_deadline_ms);
                         if (idle_remaining == 0) {
                             idle_timeout_received = true;
                             c = KEY_NONE;
@@ -3803,7 +3841,7 @@ edit_loop_entry:
                         long wait_ms = idle_remaining;
                         bool waiting_for_hint =
                             (!hint_delay_satisfied && env->hint_delay > 0 && sbuf_len(eb.hint) > 0);
-                        int64_t hint_deadline_ms = last_activity_ms + (int64_t)env->hint_delay;
+                        int64_t hint_deadline_ms = eb.last_activity_ms + (int64_t)env->hint_delay;
                         if (waiting_for_hint) {
                             long hint_remaining = edit_milliseconds_until(hint_deadline_ms);
                             if (hint_remaining == 0) {
@@ -3818,9 +3856,7 @@ edit_loop_entry:
 
                         if (tty_read_timeout(env->tty, wait_ms, &c)) {
                             if (c != KEY_EVENT_RESIZE) {
-                                last_activity_ms = edit_monotonic_time_ms();
-                                idle_deadline_ms =
-                                    edit_deadline_after(last_activity_ms, env->idle_timeout);
+                                edit_note_input_activity(env, &eb);
                                 hint_delay_satisfied = false;
                                 if (waiting_for_hint) {
                                     sbuf_clear(eb.hint);
@@ -3830,7 +3866,7 @@ edit_loop_entry:
                             break;
                         }
 
-                        if (edit_milliseconds_until(idle_deadline_ms) == 0) {
+                        if (edit_milliseconds_until(eb.idle_deadline_ms) == 0) {
                             idle_timeout_received = true;
                             c = KEY_NONE;
                             break;

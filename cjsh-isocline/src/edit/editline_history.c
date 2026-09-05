@@ -1494,7 +1494,8 @@ again:;
 
     edit_refresh(env, eb);
 
-    code_t c = tty_read(env->tty);
+    code_t c = KEY_ESC;
+    (void)edit_menu_read_key(env, eb, &c);
     if (tty_term_resize_event(env->tty)) {
         (void)edit_resize(env, eb);
     }

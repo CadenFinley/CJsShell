@@ -1445,6 +1445,44 @@ def main() -> int:
             f"disposition, got {status_idle!r}"
         )
 
+    idle_menu_cases = [
+        (
+            "status_idle_completion_menu",
+            b"\t",
+            "Showing",
+            "idle|s|cursor=1|tty=1|lost=0",
+        ),
+        (
+            "status_idle_history_menu",
+            b"\x12",
+            "history search:",
+            "idle|keep|cursor=4|tty=1|lost=0",
+        ),
+        (
+            "status_idle_command_palette",
+            ALT_P,
+            "command palette:",
+            "idle|keep|cursor=4|tty=1|lost=0",
+        ),
+        (
+            "status_idle_custom_menu",
+            F3,
+            "custom actions:",
+            "idle|keep|cursor=4|tty=1|lost=0",
+        ),
+    ]
+    for scenario, menu_key, menu_marker, expected in idle_menu_cases:
+        actual, output = run_case(binary, scenario, menu_key, capture_output=True)
+        if actual != expected:
+            raise AssertionError(
+                f"{scenario} should close its open menu and return idle, got {actual!r}"
+            )
+        if menu_marker not in normalize_terminal_output(output):
+            raise AssertionError(
+                f"{scenario} did not render the expected menu before going idle: "
+                f"output={output!r}"
+            )
+
     ctrl_o_submit = run_case(binary, "insert_backspace", b"abc\x0f")
     if ctrl_o_submit != "abc":
         raise AssertionError(f"ctrl_o_submit expected 'abc', got {ctrl_o_submit!r}")
