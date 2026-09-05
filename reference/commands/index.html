@@ -2742,6 +2742,9 @@ descriptor redirections such as <code>&gt;&amp;${COPROC[1]}</code> to communicat
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="nb">jobs</span><span class="w"> </span><span class="o">[</span>-lprs<span class="o">]</span><span class="w"> </span><span class="o">[</span>job_spec<span class="p">|</span>pid...<span class="o">]</span>
 </span></code></pre></div>
 <p><code>-r</code> and <code>-s</code> select running and stopped jobs. <code>-p</code> prints one process-group leader per job.</p>
+<p>While you edit a command, job stop and completion notifications appear above the prompt.
+Your input, cursor position, and undo history are preserved. Notifications wait until an
+open completion/search menu or bracketed paste finishes before the prompt is redrawn.</p>
 <h3 id="fg">fg</h3>
 <p>Bring a job to the foreground.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-39-1"><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="nb">fg</span><span class="w"> </span><span class="o">[</span>job_spec<span class="p">|</span>pid<span class="o">]</span>
