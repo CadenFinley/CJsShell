@@ -1373,7 +1373,9 @@
 <p>CJ's Shell provides a lightweight hook system that allows you to execute custom shell functions at key points in the shell's lifecycle. This is similar to Zsh's hook system and enables powerful customizations without modifying the shell's core code.</p>
 <h2 id="available-hook-types">Available Hook Types</h2>
 <h3 id="precmd"><code>precmd</code></h3>
-<p>Executed before the prompt is displayed, after the previous command has completed.</p>
+<p>Executed before the prompt is displayed, after the previous command has completed.
+The previous command's exit status is available as <code>$?</code>, and <code>CJSH_COMMAND_DURATION_MS</code> contains
+its execution time in milliseconds.</p>
 <p><strong>Use cases:</strong>
 - Update dynamic prompt elements
 - Display custom information before each prompt
@@ -1386,7 +1388,9 @@
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>hook<span class="w"> </span>add<span class="w"> </span>precmd<span class="w"> </span>my_precmd
 </span></code></pre></div><p></p>
 <h3 id="preexec"><code>preexec</code></h3>
-<p>Executed after you press Enter but before the command is actually executed.</p>
+<p>Executed after you press Enter but before the command is actually executed.
+The command that will execute is passed as <code>$1</code>. If history expansion changed the submitted line,
+<code>$1</code> contains the expanded command.</p>
 <p><strong>Use cases:</strong>
 - Log commands before execution
 - Display command start time

@@ -3028,6 +3028,7 @@ protocol, trigger prefixes, menu behavior, and complete examples.</p>
 - <code>get-buffer</code> / <code>set-buffer</code> – Read or replace the active input buffer
 - <code>get-cursor</code> / <code>set-cursor</code> – Inspect or move the cursor (byte offsets)
 - <code>insert</code> / <code>append</code> / <code>clear</code> – Modify buffer contents near the cursor or reset the line
+- <code>action &lt;name&gt;</code> – Execute a built-in editor action such as <code>cursor-up</code>
 - <code>accept</code> – Simulate pressing Enter to submit the current buffer</p>
 <p>These commands are primarily used from custom key bindings and widgets rather than typed
 interactively. Combine them with <code>cjshopt keybind ext</code> inside <code>~/.cjshrc</code> to create bespoke
