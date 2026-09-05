@@ -246,6 +246,9 @@ if command -v ps >/dev/null 2>&1; then
     
     if wait_for_process $shell_pid; then
         kill -KILL $shell_pid 2>/dev/null
+        # Reap the shell itself before checking whether it left child zombies.
+        # Otherwise this test can count its own killed background child.
+        wait "$shell_pid" 2>/dev/null
         sleep 0.3
         
         zombies_after=$(count_zombies)

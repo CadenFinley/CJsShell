@@ -343,7 +343,7 @@ if command -v ps >/dev/null 2>&1; then
 else
     echo "PID:$$ PGID:unavailable"
 fi
-sleep 0.2
+sleep "${1:-0.2}"
 EOF
 chmod +x "$test_script"
 
@@ -355,7 +355,7 @@ if [ -n "$result" ]; then
         
         if [ "$pgid_count" -eq 1 ]; then
             "$SHELL_TO_TEST" -c "
-                $test_script | $test_script | $test_script &
+                $test_script 2 | $test_script 2 | $test_script 2 &
                 PIPELINE_PID=\$!
                 sleep 0.1
                 kill \$PIPELINE_PID 2>/dev/null
@@ -371,7 +371,7 @@ if [ -n "$result" ]; then
         fi
     else
         "$SHELL_TO_TEST" -c "
-            echo start | cat | cat &
+            sleep 2 | cat | cat &
             PIPELINE_PID=\$!
             sleep 0.1
             kill \$PIPELINE_PID 2>/dev/null
