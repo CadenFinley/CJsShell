@@ -1589,6 +1589,10 @@ Lowering the cap trims visual noise and speeds up completion-heavy commands, esp
 thousands of filesystem matches would otherwise be generated. Add the command to `~/.cjshrc`
 to persist the preference.
 
+At an empty or whitespace-only prompt, `Tab` offers unique history entries up to this same cap,
+ranked by most recent use and then frequency. For example, `cjshopt set-completion-max 50` allows
+up to 50 history suggestions.
+
 #### prompt-newline
 
 Control whether cjsh prints a blank line after every command, regardless of what your prompt already emitted.

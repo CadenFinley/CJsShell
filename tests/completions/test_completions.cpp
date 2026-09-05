@@ -26,6 +26,7 @@
   SOFTWARE.
 */
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdio>
@@ -49,6 +50,7 @@
 #include "completion_tracker.h"
 #include "completion_utils.h"
 #include "external_sub_completions.h"
+#include "shell_env.h"
 extern "C" {
 #include "completions.h"
 #include "env.h"
@@ -146,6 +148,24 @@ static bool generated_completions_include_replacement(const char* replacement) {
     }
 
     return false;
+}
+
+static std::vector<std::string> generated_completion_replacements() {
+    std::vector<std::string> replacements;
+    ic_env_t* env = ic_get_env();
+    if (env != nullptr && env->completions != nullptr) {
+        for (ssize_t i = 0; i < completions_count(env->completions); ++i) {
+            replacements.emplace_back(completions_get_replacement(env->completions, i));
+        }
+    }
+    return replacements;
+}
+
+static bool write_completion_history(const std::string& content) {
+    std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path());
+    history_file << content;
+    history_file.close();
+    return history_file.good();
 }
 
 static bool first_generated_completion_matches(const char* replacement, const char* source) {
@@ -510,11 +530,7 @@ static bool test_history_completer_exit_code_ordering(void) {
     (void)fs::create_directories(temp_dir, ec);
     EXPECT_FALSE(ec, test_name, "temporary history directory should be created");
 
-    fs::path history_path = temp_dir / "history.txt";
-    EXPECT_TRUE(setenv("CJSH_HISTORY_FILE", history_path.string().c_str(), 1) == 0, test_name,
-                "history path override should be set");
-
-    std::ofstream history_file(history_path);
+    std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path());
     EXPECT_TRUE(history_file.is_open(), test_name, "temporary history file should open");
     history_file << "# code=127 time=1\n";
     history_file << "typo_current\n";
@@ -565,7 +581,6 @@ static bool test_history_completer_exit_code_ordering(void) {
     EXPECT_FALSE(ec, test_name, "original completion directory should be restored");
 
     (void)fs::remove_all(temp_dir, ec);
-    (void)unsetenv("CJSH_HISTORY_FILE");
 
     EXPECT_TRUE(count == 2, test_name, "only non-127 history entries should be offered");
     EXPECT_TRUE(has_good, test_name, "successful history entry should remain available");
@@ -585,6 +600,126 @@ static bool test_history_completer_exit_code_ordering(void) {
                 "successful history completion should precede file completions");
     EXPECT_TRUE(file_index < failed_history_index, test_name,
                 "failed history completion should follow file completions");
+    return true;
+}
+
+static bool test_empty_prompt_history_ranking(void) {
+    const char* test_name = "empty_prompt_history_ranking";
+    EXPECT_TRUE(
+        write_completion_history("# timestamp=100 frequency=900 code=0\necho old\n"
+                                 "# timestamp=400 frequency=1 code=1\ncat ./recent.txt\n"
+                                 "# timestamp=300 frequency=2 code=0\necho lower_frequency\n"
+                                 "# timestamp=300 frequency=20 code=0\necho frequent\n"
+                                 "# timestamp=300 frequency=20 code=0\necho tied_later\n"
+                                 "# timestamp=350 frequency=901 code=0\necho old\n"
+                                 "# timestamp=500 frequency=1 code=127\nnotfound\n"),
+        test_name, "history fixture should be written");
+
+    const std::vector<std::string> expected = {"cat ./recent.txt", "echo old", "echo tied_later",
+                                               "echo frequent", "echo lower_frequency"};
+    for (const char* input : {"", " \t", "\n  "}) {
+        const ssize_t count = run_completion_generation(input, &cjsh_default_completer, 256);
+        EXPECT_TRUE(count == 5, test_name,
+                    "blank prompts should offer only unique eligible history entries");
+        EXPECT_TRUE(generated_completion_replacements() == expected, test_name,
+                    "recency should outrank frequency, with later records breaking exact ties");
+        EXPECT_TRUE(first_generated_completion_matches("cat ./recent.txt", "history: 1"), test_name,
+                    "paths and nonzero exit codes should not override usage ranking");
+        clear_generated_completions();
+    }
+
+    (void)run_completion_generation("echo o", &cjsh_default_completer, 256);
+    EXPECT_TRUE(first_generated_completion_matches("echo old", "history: 0"), test_name,
+                "typed prefixes should retain their usual history completions");
+    clear_generated_completions();
+    return true;
+}
+
+static bool test_empty_prompt_history_limits(void) {
+    const char* test_name = "empty_prompt_history_limits";
+    std::string history;
+    for (int i = 0; i < 60; ++i) {
+        history += "# timestamp=" + std::to_string(i + 1) + " frequency=1 code=0\necho entry_" +
+                   std::to_string(i) + "\n";
+    }
+    for (int i = 0; i < 20; ++i) {
+        history +=
+            "# timestamp=" + std::to_string(i + 100) + " frequency=1 code=0\necho repeated\n";
+    }
+    history += "# timestamp=1000 frequency=1 code=0\necho newest\n";
+    EXPECT_TRUE(write_completion_history(history), test_name, "history fixture should be written");
+
+    std::vector<std::string> expected = {"echo newest", "echo repeated"};
+    for (int i = 59; i >= 0; --i) {
+        expected.push_back("echo entry_" + std::to_string(i));
+    }
+    const long previous_limit = get_completion_max_results();
+    for (long limit : {1L, 2L, 25L, 55L, get_completion_default_max_results()}) {
+        const size_t expected_count = std::min(expected.size(), static_cast<size_t>(limit));
+        const std::vector<std::string> limited_expected(expected.begin(),
+                                                        expected.begin() + expected_count);
+        for (const char* input : {"", " \t"}) {
+            EXPECT_TRUE(set_completion_max_results(limit), test_name,
+                        "completion cap should be accepted");
+            const ssize_t count = run_completion_generation(input, &cjsh_default_completer, 256);
+            const auto replacements = generated_completion_replacements();
+            (void)set_completion_max_results(previous_limit);
+            clear_generated_completions();
+            EXPECT_TRUE(count == static_cast<ssize_t>(expected_count), test_name,
+                        "blank prompts should use the configured cap, including values above 15");
+            EXPECT_TRUE(replacements == limited_expected, test_name,
+                        "the configured cap must apply after ranking and deduplication of all "
+                        "history entries, including those beyond the first 50 matches");
+        }
+    }
+    return true;
+}
+
+static bool test_empty_prompt_legacy_history(void) {
+    const char* test_name = "empty_prompt_legacy_history";
+    EXPECT_TRUE(write_completion_history(
+                    "echo legacy_old\n"
+                    "# timestamp=broken frequency=-1\necho malformed\n"
+                    "# timestamp=999999999999999999999999 frequency=999999999999999999999999\n"
+                    "echo overflow\n"
+                    "# timestamp=100 frequency=1 code=0\necho dated\n"
+                    "echo legacy_new\n"
+                    "# timestamp=200 frequency=1 code=127\nnotfound\n"
+                    "echo after_hidden\n"
+                    "# timestamp=300 frequency=1 code=0\n   \n"
+                    "echo first\\necho second\n"),
+                test_name, "legacy history fixture should be written");
+    (void)run_completion_generation("", &cjsh_default_completer, 256);
+    const std::vector<std::string> expected = {
+        "echo dated",    "echo first\necho second", "echo after_hidden", "echo legacy_new",
+        "echo overflow", "echo malformed",          "echo legacy_old"};
+    EXPECT_TRUE(generated_completion_replacements() == expected, test_name,
+                "undated records should follow dated records in reverse file order; invalid "
+                "metadata must not leak to following records");
+    clear_generated_completions();
+    return true;
+}
+
+static bool test_empty_prompt_without_history(void) {
+    const char* test_name = "empty_prompt_without_history";
+    EXPECT_TRUE(write_completion_history("# timestamp=100 frequency=1 code=0\necho saved\n"),
+                test_name, "history fixture should be written");
+    const bool history_enabled = config::history_enabled;
+    config::history_enabled = false;
+    const ssize_t disabled_count = run_completion_generation("", &cjsh_default_completer, 256);
+    config::history_enabled = history_enabled;
+    clear_generated_completions();
+    EXPECT_TRUE(disabled_count == 0, test_name, "disabled history should leave empty Tab empty");
+
+    EXPECT_TRUE(write_completion_history(""), test_name, "history fixture should be cleared");
+    EXPECT_TRUE(run_completion_generation("", &cjsh_default_completer, 256) == 0, test_name,
+                "empty history should not fall back to files or PATH commands");
+    std::error_code ec;
+    (void)std::filesystem::remove(cjsh_filesystem::g_cjsh_history_path(), ec);
+    EXPECT_FALSE(ec, test_name, "history fixture should be removed");
+    EXPECT_TRUE(run_completion_generation(" \t", &cjsh_default_completer, 256) == 0, test_name,
+                "missing history should not fall back to files or PATH commands");
+    clear_generated_completions();
     return true;
 }
 
@@ -1861,6 +1996,10 @@ typedef struct test_case_s {
 
 static const test_case_t kTests[] = {
     {"history_completer_exit_code_ordering", test_history_completer_exit_code_ordering},
+    {"empty_prompt_history_ranking", test_empty_prompt_history_ranking},
+    {"empty_prompt_history_limits", test_empty_prompt_history_limits},
+    {"empty_prompt_legacy_history", test_empty_prompt_legacy_history},
+    {"empty_prompt_without_history", test_empty_prompt_without_history},
     {"quote_and_unquote_paths", test_quote_and_unquote_paths},
     {"quote_path_special_characters", test_quote_path_special_characters},
     {"quote_path_empty_and_dollar", test_quote_path_empty_and_dollar},
@@ -1932,6 +2071,19 @@ static const test_case_t kTests[] = {
 };
 
 int main(void) {
+    // The history path is cached on first use; give all completion tests one isolated location.
+    namespace fs = std::filesystem;
+    const auto unique_suffix = std::chrono::steady_clock::now().time_since_epoch().count();
+    const fs::path history_dir =
+        fs::temp_directory_path() / ("cjsh_completion_history_" + std::to_string(unique_suffix));
+    std::error_code ec;
+    (void)fs::create_directories(history_dir, ec);
+    if (ec || setenv("CJSH_HISTORY_FILE", (history_dir / "history.txt").c_str(), 1) != 0) {
+        (void)std::fprintf(stderr, "Failed to create isolated completion history\n");
+        (void)fs::remove_all(history_dir, ec);
+        return 1;
+    }
+
     size_t failures = 0;
     const size_t test_count = sizeof(kTests) / sizeof(kTests[0]);
 
@@ -1941,6 +2093,8 @@ int main(void) {
             failures += 1;
         }
     }
+
+    (void)fs::remove_all(history_dir, ec);
 
     if (failures > 0) {
         (void)std::fprintf(stderr, "%zu/%zu completion tests failed\n", failures, test_count);

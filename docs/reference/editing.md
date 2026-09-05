@@ -201,7 +201,7 @@ CJ's Shell features a sophisticated completion system that provides context-awar
 
 **Features:**
 - Fuzzy matching for typo tolerance
-- Frequency-based ranking (commonly used completions appear first)
+- Empty-prompt history suggestions ranked by last use, then frequency
 - Source attribution (shows where completions come from)
 - Preview of selected completion
 - Optional expanded-by-default completion menu layout
@@ -244,6 +244,13 @@ cjshopt set-completion-max <number|default|status>
 
 Lower or raise the completion cap (any value >= 1) to keep the menu focused when working inside
 directories that contain thousands of files or deeply nested command trees.
+
+At an empty or whitespace-only prompt, `Tab` offers unique history entries up to the
+`cjshopt set-completion-max` limit (default: **1000**), newest first. Commands with the same last-use
+timestamp are ordered by frequency, then by their position in the history file (later entries
+first). Entries without valid timestamps follow dated entries. If history is disabled, missing,
+or has no eligible entries, no completions are shown. Typing a command or path prefix uses the
+usual context-aware completion sources.
 
 **Using Completions:**
 - Press `Tab` to show completions

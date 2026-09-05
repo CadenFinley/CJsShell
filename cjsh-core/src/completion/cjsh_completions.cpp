@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -1312,6 +1313,8 @@ struct HistoryMatch {
     std::string command;
     bool has_exit_code;
     int exit_code;
+    long long timestamp = 0;
+    long long frequency = 1;
 };
 
 struct HistoryCompletionBatch {
@@ -1320,7 +1323,7 @@ struct HistoryCompletionBatch {
 };
 
 bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* prefix,
-                                        HistoryCompletionBatch& batch) {
+                                        HistoryCompletionBatch& batch, bool rank_by_usage = false) {
     std::string prefix_str;
     size_t prefix_len = 0;
     if (!prepare_prefix_state(cenv, prefix, prefix_str, prefix_len))
@@ -1342,14 +1345,18 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
 
     int last_exit_code = 0;
     bool has_last_exit_code = false;
+    long long last_timestamp = 0;
+    long long last_frequency = 1;
 
-    while (std::getline(history_file, line) && batch.matches.size() < 50) {
+    while (std::getline(history_file, line) && (rank_by_usage || batch.matches.size() < 50)) {
         if (line.empty())
             continue;
 
         if (!line.empty() && line[0] == '#') {
             last_exit_code = 0;
             has_last_exit_code = false;
+            last_timestamp = 0;
+            last_frequency = 1;
 
             const char* cursor = line.c_str() + 1;
             while (*cursor == ' ' || *cursor == '\t')
@@ -1374,6 +1381,18 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
                             last_exit_code = static_cast<int>(exit_ll);
                             has_last_exit_code = true;
                         }
+                    } else if (rank_by_usage && (key == "timestamp" || key == "frequency")) {
+                        long long parsed = 0;
+                        const auto result =
+                            std::from_chars(value.data(), value.data() + value.size(), parsed);
+                        if (result.ec == std::errc{} && result.ptr == value.data() + value.size() &&
+                            parsed >= 0) {
+                            if (key == "timestamp") {
+                                last_timestamp = parsed;
+                            } else if (parsed > 0) {
+                                last_frequency = parsed;
+                            }
+                        }
                     }
                 }
             }
@@ -1387,9 +1406,12 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
         const std::string& entry_text = decoded_line;
 
         if ((has_last_exit_code && last_exit_code == kHistoryCompletionHiddenExitCode) ||
-            looks_like_file_path(entry_text)) {
+            (!rank_by_usage && looks_like_file_path(entry_text)) ||
+            string_utils::trim_ascii_whitespace_copy(entry_text).empty()) {
             last_exit_code = 0;
             has_last_exit_code = false;
+            last_timestamp = 0;
+            last_frequency = 1;
             continue;
         }
 
@@ -1402,13 +1424,38 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
         }
 
         if (should_match) {
-            batch.matches.push_back(HistoryMatch{entry_text, has_last_exit_code, last_exit_code});
+            batch.matches.push_back(HistoryMatch{entry_text, has_last_exit_code, last_exit_code,
+                                                 last_timestamp, last_frequency});
         }
 
         last_exit_code = 0;
         has_last_exit_code = false;
+        last_timestamp = 0;
+        last_frequency = 1;
 
         line.clear();
+    }
+
+    if (rank_by_usage) {
+        // History is stored oldest-first. Prefer later records when metadata ties or is absent.
+        std::reverse(batch.matches.begin(), batch.matches.end());
+        std::stable_sort(batch.matches.begin(), batch.matches.end(),
+                         [](const HistoryMatch& lhs, const HistoryMatch& rhs) {
+                             if (lhs.timestamp != rhs.timestamp)
+                                 return lhs.timestamp > rhs.timestamp;
+                             return lhs.frequency > rhs.frequency;
+                         });
+        // Deduplicate before applying the suggestion cap so repeats cannot crowd out other
+        // commands.
+        std::unordered_set<std::string> seen;
+        batch.matches.erase(
+            std::remove_if(batch.matches.begin(), batch.matches.end(),
+                           [&](const HistoryMatch& match) {
+                               return !seen.insert(string_utils::trim_right_ascii_whitespace_copy(
+                                                       match.command))
+                                           .second;
+                           }),
+            batch.matches.end());
     }
 
     return true;
@@ -1428,8 +1475,7 @@ bool history_match_is_in_group(const HistoryMatch& match, HistoryCompletionGroup
 }
 
 void add_history_completion_matches(ic_completion_env_t* cenv, const HistoryCompletionBatch& batch,
-                                    HistoryCompletionGroup group) {
-    const size_t max_suggestions = 15;
+                                    HistoryCompletionGroup group, size_t max_suggestions = 15) {
     size_t considered = 0;
 
     for (const auto& match : batch.matches) {
@@ -1752,6 +1798,18 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
     const char* current_line_prefix = active_prefix.c_str();
 
     completion_tracker::completion_session_begin(cenv, effective_prefix);
+
+    const char* full_input = raw_input != nullptr ? raw_input : effective_prefix;
+    if (string_utils::trim_ascii_whitespace_copy(full_input).empty()) {
+        HistoryCompletionBatch history_matches;
+        if (config::history_enabled &&
+            collect_history_completion_matches(cenv, "", history_matches, true)) {
+            add_history_completion_matches(cenv, history_matches, HistoryCompletionGroup::ALL,
+                                           static_cast<size_t>(get_completion_max_results()));
+        }
+        completion_tracker::completion_session_end();
+        return;
+    }
 
     CompletionContext context = detect_completion_context(command_context);
 
