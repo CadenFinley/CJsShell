@@ -42,9 +42,9 @@
 
 class ShellScriptInterpreter {
    public:
-    static constexpr int exit_break = 253;
+    static constexpr int exit_return = 253;
     static constexpr int exit_continue = 254;
-    static constexpr int exit_return = 255;
+    static constexpr int exit_break = 255;
     static constexpr int exit_command_not_found = 127;
 
     ShellScriptInterpreter();
@@ -148,6 +148,9 @@ class ShellScriptInterpreter {
     bool unset_local_variable(const std::string& name);
     void mark_local_as_exported(const std::string& name);
     bool in_function_scope() const;
+    void push_source_scope();
+    void pop_source_scope();
+    bool in_source_scope() const;
 
     VariableManager& get_variable_manager();
 
@@ -172,6 +175,7 @@ class ShellScriptInterpreter {
 
     bool skip_validation_mode = false;
     std::string error_source;
+    size_t source_depth = 0;
 
     bool should_interpret_as_cjsh_script(const std::string& path) const;
 

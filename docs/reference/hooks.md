@@ -34,6 +34,8 @@ CJ's Shell provides a lightweight hook system that allows you to execute custom 
 
 ### `precmd`
 Executed before the prompt is displayed, after the previous command has completed.
+The previous command's exit status is available as `$?`, and `CJSH_COMMAND_DURATION_MS` contains
+its execution time in milliseconds.
 
 **Use cases:**
 - Update dynamic prompt elements
@@ -51,6 +53,8 @@ hook add precmd my_precmd
 
 ### `preexec`
 Executed after you press Enter but before the command is actually executed.
+The command that will execute is passed as `$1`. If history expansion changed the submitted line,
+`$1` contains the expanded command.
 
 **Use cases:**
 - Log commands before execution

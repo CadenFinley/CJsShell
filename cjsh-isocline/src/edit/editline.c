@@ -4349,6 +4349,16 @@ ic_public const char* ic_get_buffer(void) {
     return sbuf_string(eb->input);
 }
 
+ic_public bool ic_execute_key_action(ic_key_action_t action) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL || action == IC_KEY_ACTION_RUNOFF ||
+        action < IC_KEY_ACTION_NONE || action >= IC_KEY_ACTION__MAX) {
+        return false;
+    }
+
+    return key_action_execute(env, env->current_editor, action, KEY_NONE);
+}
+
 ic_public bool ic_get_cursor_pos(size_t* out_pos) {
     ic_env_t* env = ic_get_env();
     if (env == NULL || env->current_editor == NULL || out_pos == NULL)

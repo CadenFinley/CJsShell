@@ -807,6 +807,7 @@ Available subcommands include:
 - `get-buffer` / `set-buffer` – Read or replace the active input buffer
 - `get-cursor` / `set-cursor` – Inspect or move the cursor (byte offsets)
 - `insert` / `append` / `clear` – Modify buffer contents near the cursor or reset the line
+- `action <name>` – Execute a built-in editor action such as `cursor-up`
 - `accept` – Simulate pressing Enter to submit the current buffer
 
 These commands are primarily used from custom key bindings and widgets rather than typed

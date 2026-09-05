@@ -149,6 +149,16 @@ else
     fail_test ".cjshrc forced-interactive command order (got '$OUT')"
 fi
 
+KEYBIND_HOME="$TEST_HOME/keybind_home"
+mkdir -p "$KEYBIND_HOME"
+echo "cjshopt keybind ext set ctrl-r ':'" > "$KEYBIND_HOME/.cjshrc"
+OUT=$(HOME="$KEYBIND_HOME" CJSH_ENV= "$CJSH_PATH" -i -c "echo command-ran" 2>&1)
+if [ "$OUT" = "command-ran" ]; then
+    pass_test "startup files can replace default key bindings quietly"
+else
+    fail_test "startup key binding override emitted output (got '$OUT')"
+fi
+
 LOGIN_HOME="$TEST_HOME/login_home"
 mkdir -p "$LOGIN_HOME"
 echo "echo logout-ran" > "$LOGIN_HOME/.cjlogout"

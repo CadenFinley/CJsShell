@@ -568,7 +568,7 @@ int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>
         exit_code = execute_block(function_definition.body_lines);
     }
 
-    if (exit_code == exit_break) {
+    if (exit_code == exit_return) {
         if (cjsh_env::shell_variable_is_set("CJSH_RETURN_CODE")) {
             std::string return_code_env = cjsh_env::get_shell_variable_value("CJSH_RETURN_CODE");
             try {
@@ -1891,7 +1891,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                     if (!is_function_call && is_control_flow_exit_code(code)) {
                         bool control_flow_error = false;
-                        if (code == 253 && !in_function_scope()) {
+                        if (code == exit_return && !in_function_scope() && !in_source_scope()) {
                             print_error({ErrorType::INVALID_ARGUMENT,
                                          "return",
                                          "return outside function",
@@ -2179,6 +2179,20 @@ void ShellScriptInterpreter::mark_local_as_exported(const std::string& name) {
 
 bool ShellScriptInterpreter::in_function_scope() const {
     return variable_manager.in_function_scope();
+}
+
+void ShellScriptInterpreter::push_source_scope() {
+    ++source_depth;
+}
+
+void ShellScriptInterpreter::pop_source_scope() {
+    if (source_depth > 0) {
+        --source_depth;
+    }
+}
+
+bool ShellScriptInterpreter::in_source_scope() const {
+    return source_depth > 0;
 }
 
 void ShellScriptInterpreter::push_loop_scope() {

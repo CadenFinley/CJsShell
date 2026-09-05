@@ -137,6 +137,36 @@ else
 fi
 rm -f /tmp/test_source.sh
 
+SOURCE_RETURN_FILE=$(mktemp)
+printf '%s\n' 'echo before-return' 'return 7' 'echo after-return' > "$SOURCE_RETURN_FILE"
+OUT=$(
+    "$CJSH_PATH" -c ". '$SOURCE_RETURN_FILE'; source_status=\$?; echo status:\$source_status; echo caller-continued" 2>&1
+)
+EXPECTED="before-return
+status:7
+caller-continued"
+if [ "$OUT" = "$EXPECTED" ]; then
+    pass_test "return exits a sourced file with its requested status"
+else
+    fail_test "return from sourced file (got '$OUT')"
+    rm -f "$SOURCE_RETURN_FILE"
+    exit 1
+fi
+
+OUT=$(
+    "$CJSH_PATH" -c "source_wrapper() { . '$SOURCE_RETURN_FILE'; echo function-continued; }; source_wrapper" 2>&1
+)
+EXPECTED="before-return
+function-continued"
+if [ "$OUT" = "$EXPECTED" ]; then
+    pass_test "return from sourced file does not exit the calling function"
+else
+    fail_test "return from source inside function (got '$OUT')"
+    rm -f "$SOURCE_RETURN_FILE"
+    exit 1
+fi
+rm -f "$SOURCE_RETURN_FILE"
+
 OUT=$("$CJSH_PATH" -c "version")
 if [ -z "$OUT" ]; then
     fail_test "version command should return version info"

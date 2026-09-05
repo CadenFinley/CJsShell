@@ -128,7 +128,7 @@ class Shell {
     void unregister_hook(HookType hook_type, const std::string& function_name);
     std::vector<std::string> get_hooks(HookType hook_type) const;
     void clear_hooks(HookType hook_type);
-    void execute_hooks(HookType hook_type);
+    void execute_hooks(HookType hook_type, const std::vector<std::string>& arguments = {});
 
     void apply_no_exec(bool enabled);
     void set_shell_option(ShellOption option, bool value);

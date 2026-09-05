@@ -50,6 +50,7 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "numeric_utils.h"
+#include "pipeline_status_utils.h"
 #include "prompt.h"
 #include "shell_env.h"
 #include "string_utils.h"
@@ -433,8 +434,17 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
 
     const std::string previous_error_source = shell_script_interpreter->get_error_source();
     shell_script_interpreter->set_error_source(display_path);
+    shell_script_interpreter->push_source_scope();
     int exit_code = shell_script_interpreter->execute_block(parsed_lines);
+    shell_script_interpreter->pop_source_scope();
     shell_script_interpreter->set_error_source(previous_error_source);
+
+    if (exit_code == ShellScriptInterpreter::exit_return) {
+        exit_code = numeric_utils::parse_exit_status_or(
+            cjsh_env::get_shell_variable_value("CJSH_RETURN_CODE"), 0, false);
+        (void)cjsh_env::unset_shell_variable_value("CJSH_RETURN_CODE");
+        pipeline_status_utils::set_last_status_env(exit_code);
+    }
     return exit_code;
 }
 

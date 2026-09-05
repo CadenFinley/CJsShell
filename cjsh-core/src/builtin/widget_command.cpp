@@ -82,6 +82,7 @@ int widget_builtin(const std::vector<std::string>& args) {
                       "  insert <text>     Insert text at cursor position",
                       "  append <text>     Append text to end of buffer",
                       "  clear             Clear the input buffer",
+                      "  action <name>     Execute a built-in editor action",
                       "  accept            Accept/execute the current line (like pressing Enter)",
                       "", "Environment variables (available in keybindings):",
                       "  CJSH_LINE         Current buffer content (like READLINE_LINE/BUFFER)",
@@ -206,6 +207,30 @@ int widget_builtin(const std::vector<std::string>& args) {
 
     if (subcommand == "clear") {
         if (!ic_set_buffer("")) {
+            return report_no_active_readline_session();
+        }
+        return 0;
+    }
+
+    if (subcommand == "action") {
+        if (args.size() < 3) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "cjsh-widget",
+                         "action requires an editor action name",
+                         {"Usage: cjsh-widget action <name>",
+                          "Use 'cjshopt keybind --help' to list editor actions."}});
+            return 1;
+        }
+
+        const ic_key_action_t action = ic_key_action_from_name(args[2].c_str());
+        if (action == IC_KEY_ACTION__MAX || action == IC_KEY_ACTION_RUNOFF) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "cjsh-widget",
+                         "Unknown or non-executable editor action: " + args[2],
+                         {"Use 'cjshopt keybind --help' to list editor actions."}});
+            return 1;
+        }
+        if (!ic_execute_key_action(action)) {
             return report_no_active_readline_session();
         }
         return 0;

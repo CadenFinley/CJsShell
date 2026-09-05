@@ -602,6 +602,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_subcommand("insert", "Insert text at the cursor"),
                  make_subcommand("append", "Append text to the buffer"),
                  make_subcommand("clear", "Clear the input buffer"),
+                 make_subcommand("action", "Execute a built-in editor action"),
                  make_subcommand("accept", "Accept and submit the current buffer")});
 
         add_doc(

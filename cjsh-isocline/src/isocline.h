@@ -1070,6 +1070,13 @@ ic_key_action_t ic_key_action_from_name(const char* name);
 /// @returns The name of the action, or NULL if invalid.
 const char* ic_key_action_name(ic_key_action_t action);
 
+/// Execute a named editor action in the active readline session.
+/// This is intended for command-backed widgets that need to delegate to a
+/// built-in editing behavior without synthesizing a key press.
+/// @param action The editor action to execute.
+/// @returns `true` if an editor is active and the action was handled.
+bool ic_execute_key_action(ic_key_action_t action);
+
 /// Parse a key specification string into a keycode.
 /// @param spec The key specification string (e.g., "ctrl-c", "alt-x").
 /// @param out_key Pointer to receive the parsed keycode.

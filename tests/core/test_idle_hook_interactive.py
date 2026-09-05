@@ -33,6 +33,7 @@ import fcntl
 import os
 import pty
 import re
+import shlex
 import signal
 import sys
 import tempfile
@@ -163,10 +164,86 @@ def main() -> int:
 
     binary = os.path.abspath(sys.argv[1])
     with tempfile.TemporaryDirectory(prefix="cjsh-idle-hook-") as home:
+        foreground_probe = os.path.join(home, "foreground-widget-probe")
+        with open(foreground_probe, "w", encoding="utf-8") as probe_file:
+            probe_file.write(
+                "#!/bin/sh\n"
+                "printf 'FOREGROUND-WIDGET\\n'\n"
+                "IFS= read -r response </dev/tty\n"
+                "printf 'echo FOREGROUND-%s' \"$response\" >&2\n"
+            )
+        os.chmod(foreground_probe, 0o755)
+
         session = IdleHookSession(binary, home)
         try:
             session.wait_for_prompt(0)
             session.run_command(b"cjshopt status-line off")
+
+            session.run_command(
+                b"preexec_probe() { printf 'PREEXEC-ARG:%s\\n' \"$1\"; }"
+            )
+            session.run_command(
+                b"precmd_probe() { printf 'PRECMD-STATUS:%s:DURATION:%s\\n' "
+                b'"$?" "$CJSH_COMMAND_DURATION_MS"; }'
+            )
+            session.run_command(b"hook add preexec preexec_probe")
+            session.run_command(b"hook add precmd precmd_probe")
+            hook_start = session.run_command(b"false")
+            hook_output = normalize_terminal_output(bytes(session.output[hook_start:]))
+            if b"PREEXEC-ARG:false" not in hook_output:
+                raise AssertionError(
+                    f"preexec hook did not receive the command: {hook_output!r}"
+                )
+            if re.search(rb"PRECMD-STATUS:1:DURATION:[0-9]+", hook_output) is None:
+                raise AssertionError(
+                    "precmd hook did not receive status and duration metadata: "
+                    f"{hook_output!r}"
+                )
+            session.run_command(b"hook remove preexec preexec_probe")
+            session.run_command(b"hook remove precmd precmd_probe")
+
+            session.run_command(
+                b"cursor_left_widget() { cjsh-widget action cursor-left; }"
+            )
+            session.run_command(b"cjshopt keybind ext set F6 cursor_left_widget")
+            widget_start = len(session.output)
+            session.write(b"echo AB\x1b[17~X\r")
+            session.wait_for_prompt(widget_start, command_completed=True)
+            widget_output = normalize_terminal_output(
+                bytes(session.output[widget_start:])
+            )
+            if b"\nAXB\n" not in widget_output:
+                raise AssertionError(
+                    f"editor action did not preserve its cursor move: {widget_output!r}"
+                )
+
+            probe_command = (
+                "foreground_widget() { local selection; "
+                f'{shlex.quote(foreground_probe)} 2>"$HOME/widget-result"; '
+                'selection=$(cat "$HOME/widget-result"); '
+                'rm -f "$HOME/widget-result"; CJSH_LINE=$selection; }'
+            )
+            session.run_command(probe_command.encode())
+            session.run_command(b"cjshopt keybind ext set F7 foreground_widget")
+            foreground_start = len(session.output)
+            session.write(b"discarded\x1b[18~")
+            session.wait_for(b"FOREGROUND-WIDGET", foreground_start)
+            session.write(b"OK\r")
+            session.pump(0.2)
+            session.write(b"\r")
+            session.wait_for_prompt(foreground_start, command_completed=True)
+            foreground_output = normalize_terminal_output(
+                bytes(session.output[foreground_start:])
+            )
+            if b"\nFOREGROUND-OK\n" not in foreground_output:
+                raise AssertionError(
+                    "foreground external widget did not update the editor: "
+                    f"{foreground_output!r}"
+                )
+            if b"Stopped" in foreground_output:
+                raise AssertionError(
+                    "foreground external widget was stopped by terminal job control"
+                )
 
             probe = (
                 b"idle_probe() { /bin/sh -c 'set -- $(ps -o tpgid= -o pgid= -p $$); "

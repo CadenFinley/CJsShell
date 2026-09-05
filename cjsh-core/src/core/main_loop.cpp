@@ -134,7 +134,7 @@ CommandProcessResult process_command_line(const std::string& command) {
 
     // execute preexec hooks and debug traps
     if (!config::posix_mode) {
-        g_shell->execute_hooks(HookType::Preexec);
+        g_shell->execute_hooks(HookType::Preexec, {expanded_command});
     }
     trap_manager_execute_debug_trap();
 
@@ -150,6 +150,8 @@ CommandProcessResult process_command_line(const std::string& command) {
     // handle post command execution tasks
     Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
     pipeline_status_utils::apply_execution_status_env(exit_code, exec_ptr);
+    (void)cjsh_env::set_shell_variable_value("CJSH_COMMAND_DURATION_MS",
+                                             std::to_string(static_cast<long long>(elapsed_ms)));
 
     // add to history
     if (config::history_enabled) {
@@ -356,7 +358,8 @@ bool execute_custom_editor_command(const std::string& command) {
         std::string new_point_env = cjsh_env::get_shell_variable_value("CJSH_POINT");
         char* endptr;
         long new_pos = strtol(new_point_env.c_str(), &endptr, 10);
-        if (endptr != new_point_env.c_str() && new_pos >= 0) {
+        if (endptr != new_point_env.c_str() && new_pos >= 0 &&
+            static_cast<size_t>(new_pos) != cursor_pos) {
             (void)ic_set_cursor_pos((size_t)new_pos);
         }
     }
