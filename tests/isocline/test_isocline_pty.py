@@ -746,6 +746,36 @@ def main() -> int:
         print(f"driver binary not found: {binary}", file=sys.stderr)
         return 2
 
+    for scenario, keys, expected in [
+        ("notification_edit", LEFT + b"\x1b[17~X\r", "aXb"),
+        ("notification_edit", b"c\x1b[17~\x1f\r", "ab"),
+        ("notification_edit", b"c\x1f\x1b[17~\x19\r", "abc"),
+        ("notification_completion", b"\t\x1b\r\r", "plan"),
+        ("notification_submit", b"\r", "ab"),
+        (
+            "notification_multiline",
+            LEFT + b"\x1b[17~X\r",
+            "first\nsecond\nthird\nfourth\nfifth\nsixth\nseventXh",
+        ),
+    ]:
+        actual, output = run_case(binary, scenario, keys, capture_output=True)
+        if actual != expected:
+            raise AssertionError(f"{scenario}: expected {expected!r}, got {actual!r}")
+        first = output.find("NOTICE-ONE [b]")
+        second = output.find("NOTICE-TWO", first)
+        restored = output.find("NOTICE-TOP", second)
+        if min(first, second, restored) < 0 or output.count("NOTICE-ONE [b]") != 1:
+            raise AssertionError(f"{scenario}: missing/duplicate notification or prompt: {output!r}")
+        # The old prompt prefix, input and hint rows must all be erased before
+        # any notification text reaches the terminal.
+        prior_prompt = output.rfind("pty", 0, first)
+        if output[prior_prompt:first].count("\x1b[K") < 3:
+            raise AssertionError(f"{scenario}: editor rows were not cleared: {output!r}")
+        if "NOTICE-RIGHT" in output[:first] and "NOTICE-RIGHT" not in output[restored:]:
+            raise AssertionError(f"{scenario}: right prompt was not restored: {output!r}")
+        if "\x1b[?2004l" in output[:second]:
+            raise AssertionError(f"{scenario}: notification released terminal modes: {output!r}")
+
     insert = run_case(binary, "insert_backspace", b"ab\x7fcd\r")
     if insert != "acd":
         raise AssertionError(f"insert_backspace expected 'acd', got {insert!r}")

@@ -55,7 +55,14 @@ def normalize_terminal_output(output: bytes) -> bytes:
 
 
 class IdleHookSession:
-    def __init__(self, binary: str, home: str) -> None:
+    def __init__(self, binary: str, home: str, editor_args: list[str] | None = None) -> None:
+        if editor_args is None:
+            editor_args = [
+                "--no-prompt-vars",
+                "--no-completions",
+                "--no-syntax-highlighting",
+                "--no-history",
+            ]
         self.output = bytearray()
         self.query_tail = b""
         self.pid, self.fd = pty.fork()
@@ -70,10 +77,7 @@ class IdleHookSession:
                     binary,
                     "--no-source",
                     "--no-titleline",
-                    "--no-prompt-vars",
-                    "--no-completions",
-                    "--no-syntax-highlighting",
-                    "--no-history",
+                    *editor_args,
                 ],
                 env,
             )  # nosemgrep

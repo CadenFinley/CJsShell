@@ -124,6 +124,7 @@ typedef uint32_t ic_keycode_t;
 #define IC_KEY_EVENT_MOUSE_OTHER (IC_KEY_EVENT_BASE + 9)
 #define IC_KEY_EVENT_FOCUS_IN (IC_KEY_EVENT_BASE + 10)
 #define IC_KEY_EVENT_FOCUS_OUT (IC_KEY_EVENT_BASE + 11)
+#define IC_KEY_EVENT_READLINE (IC_KEY_EVENT_BASE + 12)
 
 // Convenience macros (mirroring legacy names)
 #define IC_KEY_CTRL_UP (IC_KEY_WITH_CTRL(IC_KEY_UP))

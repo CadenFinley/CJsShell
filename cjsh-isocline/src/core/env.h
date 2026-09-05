@@ -81,8 +81,12 @@ struct ic_env_s {
     char* history_search_sort_key;    // metadata key for history metadata sort modes
     ic_highlight_fun_t* highlighter;  // highlight callback
     void* highlighter_arg;            // user state for the highlighter.
-    ic_unhandled_key_fun_t* unhandled_key_handler;     // callback for unhandled keys
-    void* unhandled_key_arg;                           // user state for unhandled key handler
+    ic_unhandled_key_fun_t* unhandled_key_handler;  // callback for unhandled keys
+    void* unhandled_key_arg;                        // user state for unhandled key handler
+    ic_readline_event_fun_t* readline_event_callback;
+    void* readline_event_arg;
+    bool readline_event_pending;                       // deferred while a nested menu is open
+    stringbuf_t* notifications;                        // text queued on the readline thread
     ic_status_message_fun_t* status_message_callback;  // callback for status message text
     void* status_message_arg;                          // user state for status callback
     ic_check_for_continuation_or_return_fun_t*
@@ -172,6 +176,7 @@ struct ic_env_s {
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text, const char* inline_right_text);
 
 ic_private ic_env_t* ic_get_env(void);
+ic_private ic_env_t* ic_get_env_if_initialized(void);
 ic_private const char* ic_env_get_auto_braces(ic_env_t* env);
 ic_private const char* ic_env_get_match_braces(ic_env_t* env);
 ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input,

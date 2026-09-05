@@ -228,6 +228,7 @@ static void ic_env_free(ic_env_t* env) {
     bbcode_free(env->bbcode);
     sbuf_free(env->typeahead_input_buffer);
     sbuf_free(env->typeahead_pending_raw_bytes);
+    sbuf_free(env->notifications);
     term_free(env->term);
     tty_free(env->tty);
     if (env->abbreviations != NULL) {
@@ -275,6 +276,10 @@ static void ic_env_free(ic_env_t* env) {
 
 static ic_env_t* rpenv = NULL;
 static bool ic_default_abbreviations_initialized = false;
+
+ic_private ic_env_t* ic_get_env_if_initialized(void) {
+    return rpenv;
+}
 
 static void ic_atexit(void) {
     if (rpenv != NULL) {

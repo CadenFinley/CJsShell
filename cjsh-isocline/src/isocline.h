@@ -165,6 +165,22 @@ bool ic_push_key_event(ic_keycode_t key);
 /// Safe to call from a signal handler; triggers a wakeup of the input loop.
 void ic_notify_resize(void);
 
+/// Wake readline to run its event callback between editing operations.
+/// Safe to call from a POSIX signal handler; preserves errno. Events are coalesced
+/// and deferred until an open menu or bracketed paste finishes.
+void ic_notify_readline(void);
+
+typedef void(ic_readline_event_fun_t)(void* arg);
+/// The callback runs on the readline thread and may queue notifications. It must
+/// not write directly to the terminal or recursively call readline.
+void ic_set_readline_event_callback(ic_readline_event_fun_t* callback, void* arg);
+
+/// Copy text for display above the active prompt at the next safe editing boundary.
+/// Call only on the readline thread, including from completion/render callbacks.
+/// Text is not interpreted as BBCode; a trailing newline is added if needed.
+/// Returns false if no editor owns the terminal or the text could not be queued.
+bool ic_queue_notification(const char* text);
+
 /// Callback function type for runoff key events.
 /// This callback is invoked when a key is bound to `IC_KEY_ACTION_RUNOFF`.
 /// The callback receives the keycode and can return true

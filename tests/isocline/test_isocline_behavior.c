@@ -26,6 +26,7 @@
   SOFTWARE.
 */
 
+#include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -1336,6 +1337,10 @@ struct tty_s {
     bool is_utf8;
     bool has_term_resize_event;
     bool term_resize_event;
+#if !defined(_WIN32)
+    volatile sig_atomic_t readline_event;
+    volatile sig_atomic_t readline_wakeup_enabled;
+#endif
     bool lost_terminal;
     alloc_t* mem;
     code_t pushbuf[32];

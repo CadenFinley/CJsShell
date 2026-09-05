@@ -34,6 +34,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "common.h"
 #include "env.h"
@@ -145,6 +146,37 @@ ic_public bool ic_push_key_event(ic_keycode_t key) {
     if (env == NULL || env->tty == NULL)
         return false;
     tty_code_pushback(env->tty, key);
+    return true;
+}
+
+ic_public void ic_set_readline_event_callback(ic_readline_event_fun_t* callback, void* arg) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return;
+    env->readline_event_callback = callback;
+    env->readline_event_arg = arg;
+}
+
+ic_public bool ic_queue_notification(const char* text) {
+    ic_env_t* env = ic_get_env_if_initialized();
+    if (env == NULL || env->current_editor == NULL || env->readline_terminal_suspended ||
+        text == NULL) {
+        return false;
+    }
+    if (text[0] == '\0') {
+        return true;
+    }
+    if (env->notifications == NULL) {
+        env->notifications = sbuf_new(env->mem);
+        if (env->notifications == NULL)
+            return false;
+    }
+    const ssize_t previous_len = sbuf_len(env->notifications);
+    if (sbuf_append(env->notifications, text) < 0 ||
+        (text[strlen(text) - 1] != '\n' && sbuf_append(env->notifications, "\n") < 0)) {
+        sbuf_delete_from(env->notifications, previous_len);
+        return false;
+    }
     return true;
 }
 

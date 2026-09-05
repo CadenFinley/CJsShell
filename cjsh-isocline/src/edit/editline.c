@@ -478,23 +478,23 @@ static bool edit_menu_read_key(ic_env_t* env, editor_t* eb, code_t* code) {
     if (env == NULL || eb == NULL || code == NULL || env->tty == NULL) {
         return false;
     }
-    if (env->idle_timeout <= 0) {
-        *code = tty_read(env->tty);
-        return true;
-    }
-
     while (true) {
-        long idle_remaining = edit_milliseconds_until(eb->idle_deadline_ms);
+        long idle_remaining =
+            (env->idle_timeout > 0 ? edit_milliseconds_until(eb->idle_deadline_ms) : -1);
         if (idle_remaining == 0) {
             return false;
         }
         if (tty_read_timeout(env->tty, idle_remaining, code)) {
+            if (*code == KEY_EVENT_READLINE) {
+                env->readline_event_pending = true;
+                continue;
+            }
             if (*code != KEY_EVENT_RESIZE) {
                 edit_note_input_activity(env, eb);
             }
             return true;
         }
-        if (edit_milliseconds_until(eb->idle_deadline_ms) == 0) {
+        if (env->idle_timeout > 0 && edit_milliseconds_until(eb->idle_deadline_ms) == 0) {
             return false;
         }
     }
@@ -510,6 +510,14 @@ ic_private char* ic_editline(ic_env_t* env, const char* prompt_text,
     tty_end_raw(env->tty);
     if (!idle_timeout) {
         term_writeln(env->term, "");
+    }
+    // A final redraw callback may have queued another message. The editor has
+    // now been released, so drain it without invoking any more render callbacks.
+    if (env->notifications != NULL) {
+        ic_term_abort_input_region(env);
+        term_write(env->term, sbuf_string(env->notifications));
+        sbuf_free(env->notifications);
+        env->notifications = NULL;
     }
     term_flush(env->term);
     term_set_track_output(env->term, true);
@@ -1974,6 +1982,42 @@ static void edit_clear_with_prompt_prefix(ic_env_t* env, editor_t* eb,
         term_writeln(env->term, "");
     }
     term_up(env->term, total_rows);
+}
+
+// Only called between editing operations, never from a completion/highlight callback.
+// Keep the editor (including undo, input, hints and cursor) alive while moving its
+// display below the notifications. Nested menus defer this until they return.
+static void edit_flush_notifications(ic_env_t* env, editor_t* eb) {
+    if (env->notifications != NULL && sbuf_len(env->notifications) > 0 &&
+        !env->readline_terminal_suspended) {
+        stringbuf_t* messages = env->notifications;
+        env->notifications = NULL;
+        edit_clear_with_prompt_prefix(env, eb, eb->prompt_prefix_lines);
+        ic_term_abort_input_region(env);
+        term_write(env->term, sbuf_string(messages));
+        sbuf_free(messages);
+
+        term_reset_line_state(env->term);
+        term_start_of_line(env->term);
+        eb->cur_row = 0;
+        eb->cur_rows = 1;
+        eb->input_rows = 1;
+        eb->view_first_row = 0;
+        eb->view_rows = 1;
+        eb->view_input_rows = 1;
+        eb->last_screen_cursor_known = false;
+        redraw_prompt_prefix_lines(env, eb);
+        edit_refresh(env, eb);
+    }
+}
+
+static void edit_process_readline_event(ic_env_t* env) {
+    if (env->readline_event_pending) {
+        env->readline_event_pending = false;
+        if (env->readline_event_callback != NULL) {
+            env->readline_event_callback(env->readline_event_arg);
+        }
+    }
 }
 
 // clear screen and refresh
@@ -3723,6 +3767,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     // Set this editor as the current active editor
     env->current_editor = &eb;
+    // Catch events that arrived before this readline installed its wakeup channel.
+    env->readline_event_pending = (env->readline_event_callback != NULL);
     edit_reset_mouse_reporting_session(env, &eb, true);
 
     // Insert initial input if present
@@ -3789,6 +3835,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 edit_loop_entry:
     if (!initial_requests_submit) {
         while (true) {
+            edit_process_readline_event(env);
             if (edit_update_status_message(env, &eb)) {
                 if (eb.refresh_suppressed) {
                     eb.refresh_pending = true;
@@ -3796,6 +3843,7 @@ edit_loop_entry:
                     edit_refresh(env, &eb);
                 }
             }
+            edit_flush_notifications(env, &eb);
 
             if (eb.request_submit) {
                 // Clear history preview when submitting
@@ -3855,7 +3903,7 @@ edit_loop_entry:
                         }
 
                         if (tty_read_timeout(env->tty, wait_ms, &c)) {
-                            if (c != KEY_EVENT_RESIZE) {
+                            if (c != KEY_EVENT_RESIZE && c != KEY_EVENT_READLINE) {
                                 edit_note_input_activity(env, &eb);
                                 hint_delay_satisfied = false;
                                 if (waiting_for_hint) {
@@ -3895,7 +3943,7 @@ edit_loop_entry:
                             edit_refresh(env, &eb);
                         }
                         c = tty_read(env->tty);
-                    } else {
+                    } else if (c != KEY_EVENT_READLINE) {
                         // clear the pending hint if we got input before the delay
                         // expired
                         sbuf_clear(eb.hint);
@@ -3915,6 +3963,11 @@ edit_loop_entry:
             }
             if (should_resize) {
                 (void)edit_resize(env, &eb);
+            }
+
+            if (c == KEY_EVENT_READLINE) {
+                env->readline_event_pending = true;
+                continue;
             }
 
             // clear hint only after a potential resize (so resize row calculations
@@ -4266,6 +4319,9 @@ edit_loop_entry:
 
     // goto end
 
+    edit_process_readline_event(env);
+    edit_flush_notifications(env, &eb);
+
     if (!idle_timeout_received) {
         eb.pos = sbuf_len(eb.input);
     }
@@ -4293,6 +4349,7 @@ edit_loop_entry:
         env->no_bracematch = true;
         edit_refresh(env, &eb);
         env->no_bracematch = bm;
+        edit_flush_notifications(env, &eb);
     }
 
     // save result
@@ -4475,6 +4532,7 @@ ic_public bool ic_resume_readline_terminal(void) {
     }
 
     env->readline_terminal_suspended = false;
+    env->readline_event_pending = (env->readline_event_callback != NULL);
     if (env->suspended_mouse_reporting_enabled) {
         edit_set_mouse_reporting_enabled(env, eb, true);
     }

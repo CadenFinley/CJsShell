@@ -65,6 +65,10 @@ struct tty_s {
     bool is_utf8;
     bool has_term_resize_event;
     bool term_resize_event;
+#if !defined(_WIN32)
+    volatile sig_atomic_t readline_event;
+    volatile sig_atomic_t readline_wakeup_enabled;
+#endif
     bool lost_terminal;
     alloc_t* mem;
     code_t pushbuf[TTY_PUSH_MAX];
@@ -270,13 +274,43 @@ ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* code) {
     while (true) {
         tty_clear_last_mouse_event(tty);
 
+#if !defined(_WIN32)
+        if (!tty->paste_mode && tty->readline_event != 0) {
+            tty->readline_event = 0;
+            tty_drain_wakeup_pipe(tty);
+            *code = KEY_EVENT_READLINE;
+            return true;
+        }
+#endif
+
         if (tty_code_pop(tty, code)) {
             return true;
         }
 
         uint8_t c;
 
-        if (!tty_readc_noblock(tty, &c, timeout_ms)) {
+        // A wakeup may interrupt the wait for a key, but never the remaining
+        // bytes of an escape/UTF-8 sequence or a terminal query response.
+#if !defined(_WIN32)
+        tty->readline_wakeup_enabled = 1;
+        if (!tty->paste_mode && tty->readline_event != 0) {
+            tty->readline_wakeup_enabled = 0;
+            continue;
+        }
+#endif
+        const bool have_char = tty_readc_noblock(tty, &c, timeout_ms);
+#if !defined(_WIN32)
+        tty->readline_wakeup_enabled = 0;
+        if (tty->readline_event != 0) {
+            tty_drain_wakeup_pipe(tty);
+        }
+#endif
+        if (!have_char) {
+#if !defined(_WIN32)
+            if (!tty->paste_mode && tty->readline_event != 0) {
+                continue;
+            }
+#endif
             if (tty->term_resize_event) {
                 *code = KEY_EVENT_RESIZE;
                 tty->term_resize_event = false;
@@ -922,9 +956,21 @@ ic_private bool tty_readc_noblock(tty_t* tty, uint8_t* c, long timeout_ms) {
     struct timeval time;
     FD_ZERO(&readset);
     FD_SET(tty->fd_in, &readset);
+    int maxfd = tty->fd_in;
+    const bool allow_wakeup = (tty->wake_pipe_initialized && tty->readline_wakeup_enabled != 0);
+    if (allow_wakeup) {
+        FD_SET(tty->wake_pipe[0], &readset);
+        if (tty->wake_pipe[0] > maxfd) {
+            maxfd = tty->wake_pipe[0];
+        }
+    }
     time.tv_sec = (timeout_ms > 0 ? timeout_ms / 1000 : 0);
     time.tv_usec = (timeout_ms > 0 ? 1000 * (timeout_ms % 1000) : 0);
-    if (select(tty->fd_in + 1, &readset, NULL, NULL, &time) == 1) {
+    if (select(maxfd + 1, &readset, NULL, NULL, &time) > 0) {
+        if (allow_wakeup && FD_ISSET(tty->wake_pipe[0], &readset)) {
+            tty_drain_wakeup_pipe(tty);
+            return false;
+        }
         return tty_readc_blocking(tty, c);
     }
 #else
@@ -1066,6 +1112,19 @@ ic_public void ic_notify_resize(void) {
         sig_tty->term_resize_event = true;
         tty_wakeup(sig_tty);
     }
+#endif
+}
+
+ic_public void ic_notify_readline(void) {
+#if !defined(_WIN32) && defined(SIGWINCH) && defined(SA_RESTART)
+    const int saved_errno = errno;
+    if (sig_tty != NULL) {
+        sig_tty->readline_event = 1;
+        if (sig_tty->readline_wakeup_enabled != 0) {
+            tty_wakeup(sig_tty);
+        }
+    }
+    errno = saved_errno;
 #endif
 }
 

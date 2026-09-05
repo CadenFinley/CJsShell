@@ -30,6 +30,7 @@
 
 #include "cjsh_filesystem.h"
 #include "exec.h"
+#include "isocline.h"
 #include "numeric_utils.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -49,6 +50,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string_view>
 
 #include "error_out.h"
@@ -56,6 +58,14 @@
 namespace {
 
 std::atomic<pid_t> g_atomic_last_background_pid{-1};
+
+void print_job_notification(const std::string& message) {
+    if (config::interactive_mode && isatty(STDERR_FILENO) &&
+        ic_queue_notification(message.c_str())) {
+        return;
+    }
+    std::cerr << '\n' << message;
+}
 
 std::string signal_status_message(int signal_number) {
     std::string signal_name = SignalHandler::signal_to_name(signal_number);
@@ -709,8 +719,10 @@ void JobManager::notify_job_stopped(const std::shared_ptr<JobControlJob>& job) c
         status_char = '-';
     }
 
-    std::cerr << "\n[" << job->job_id << "]" << status_char << "  Stopped\t"
-              << job->display_command() << '\n';
+    std::ostringstream message;
+    message << '[' << job->job_id << "]" << status_char << "  Stopped\t" << job->display_command()
+            << '\n';
+    print_job_notification(message.str());
 
     job->stop_notified.store(true, std::memory_order_relaxed);
 }
@@ -740,7 +752,8 @@ void JobManager::notify_job_finished(const std::shared_ptr<JobControlJob>& job) 
         return;
     }
 
-    std::cerr << "\n[" << job->job_id << "]";
+    std::ostringstream message;
+    message << '[' << job->job_id << "]";
     if (!is_background) {
         char status_char = ' ';
         if (job->job_id == current_job) {
@@ -748,19 +761,20 @@ void JobManager::notify_job_finished(const std::shared_ptr<JobControlJob>& job) 
         } else if (job->job_id == previous_job) {
             status_char = '-';
         }
-        std::cerr << status_char << "  ";
+        message << status_char << "  ";
     } else {
-        std::cerr << ' ';
+        message << ' ';
     }
 
     if (state == JobState::TERMINATED) {
-        std::cerr << signal_status_message(job->termination_signal);
+        message << signal_status_message(job->termination_signal);
     } else if (job->exit_status == 0) {
-        std::cerr << "Done";
+        message << "Done";
     } else {
-        std::cerr << "Exit " << job->exit_status;
+        message << "Exit " << job->exit_status;
     }
-    std::cerr << '\t' << job->display_command() << '\n';
+    message << '\t' << job->display_command() << '\n';
+    print_job_notification(message.str());
     job->notified = true;
 }
 

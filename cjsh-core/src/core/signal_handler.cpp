@@ -39,7 +39,7 @@
 
 #include "error_out.h"
 #include "exec.h"
-// #include "isocline.h"
+#include "isocline.h"
 #include "job_control.h"
 #include "numeric_utils.h"
 #include "shell.h"
@@ -529,6 +529,7 @@ void SignalHandler::signal_handler(int signum) {
 
         case SIGCHLD: {
             s_sigchld_received = 1;
+            ic_notify_readline();
             should_mark_pending = true;
             break;
         }

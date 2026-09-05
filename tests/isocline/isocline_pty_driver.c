@@ -58,6 +58,28 @@ typedef enum completion_mode_e {
 } completion_mode_t;
 
 static completion_mode_t g_completion_mode = COMPLETION_MODE_NONE;
+static bool g_notify_from_completion = false;
+
+static void queue_test_notifications(void) {
+    if (!ic_queue_notification("NOTICE-ONE [b]\n") || !ic_queue_notification("NOTICE-TWO")) {
+        exit(9);
+    }
+}
+
+static bool notification_runoff_handler(ic_keycode_t key, void* arg) {
+    (void)arg;
+    if (key != IC_KEY_F6)
+        return false;
+    queue_test_notifications();
+    return true;
+}
+
+static bool notification_submit_handler(const char* input, void* arg) {
+    (void)input;
+    (void)arg;
+    queue_test_notifications();
+    return true;
+}
 
 static bool pty_custom_menu_runoff_handler(ic_keycode_t key, void* arg) {
     (void)arg;
@@ -79,6 +101,10 @@ static bool pty_custom_menu_runoff_handler(ic_keycode_t key, void* arg) {
 }
 
 static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* prefix) {
+    if (g_notify_from_completion) {
+        g_notify_from_completion = false;
+        queue_test_notifications();
+    }
     if (g_completion_mode == COMPLETION_MODE_SINGLE) {
         static const char* single_words[] = {"hello", NULL};
         (void)ic_add_completions(cenv, prefix, single_words);
@@ -411,7 +437,27 @@ static int run_case(const char* scenario) {
     bool external_pre_prompt_output = false;
     bool typeahead_two_readlines = false;
     const bool capture_typeahead_from_pty = (strncmp(scenario, "typeahead_capture_", 18) == 0);
-    if (strcmp(scenario, "cursor_move_insert") == 0) {
+    if (strncmp(scenario, "notification_", 13) == 0) {
+        initial_input = "ab";
+        prompt_text = "NOTICE-TOP\npty";
+        inline_right_text = "NOTICE-RIGHT";
+        (void)ic_set_status_hint_mode(IC_STATUS_HINT_PERSISTENT);
+        ic_set_unhandled_key_handler(notification_runoff_handler, NULL);
+        (void)ic_bind_key(IC_KEY_F6, IC_KEY_ACTION_RUNOFF);
+        if (strcmp(scenario, "notification_completion") == 0) {
+            initial_input = "pla";
+            g_notify_from_completion = true;
+            g_completion_mode = COMPLETION_MODE_DUAL;
+            ic_set_default_completer(pty_completion_dispatcher, NULL);
+        } else if (strcmp(scenario, "notification_submit") == 0) {
+            ic_set_check_for_continuation_or_return_callback(notification_submit_handler, NULL);
+        } else if (strcmp(scenario, "notification_multiline") == 0) {
+            (void)ic_enable_multiline(true);
+            (void)ic_enable_line_numbers(false);
+            initial_input = "first\nsecond\nthird\nfourth\nfifth\nsixth\nseventh";
+            (void)ic_set_multiline_max_line_count(3);
+        }
+    } else if (strcmp(scenario, "cursor_move_insert") == 0) {
         initial_input = "ab";
     } else if (strcmp(scenario, "home_insert") == 0) {
         initial_input = "bc";

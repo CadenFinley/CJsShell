@@ -190,6 +190,12 @@ void update_job_management() {
     JobManager::instance().cleanup_finished_jobs();
 }
 
+void handle_readline_event(void*) {
+    // Poll children without executing signal traps inside the editor. Notifications
+    // are copied into isocline's queue and printed after this callback returns.
+    update_job_management();
+}
+
 std::string generate_prompt() {
     return prompt::render_primary_prompt();
 }
@@ -583,6 +589,7 @@ void initialize_isocline() {
     (void)ic_enable_multiline_continuation_retention(true);
     ic_set_prompt_marker("", nullptr);
     ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);
+    ic_set_readline_event_callback(handle_readline_event, nullptr);
     ic_set_command_palette_entry_handler(handle_command_palette_entry, nullptr);
     refresh_command_palette_entries();
     (void)ic_bind_key(IC_KEY_EVENT_PROMPT_REFRESH, IC_KEY_ACTION_RUNOFF);

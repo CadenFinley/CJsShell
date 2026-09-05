@@ -414,6 +414,10 @@ jobs [-lprs] [job_spec|pid...]
 
 `-r` and `-s` select running and stopped jobs. `-p` prints one process-group leader per job.
 
+While you edit a command, job stop and completion notifications appear above the prompt.
+Your input, cursor position, and undo history are preserved. Notifications wait until an
+open completion/search menu or bracketed paste finishes before the prompt is redrawn.
+
 ### fg
 Bring a job to the foreground.
 
