@@ -41,6 +41,7 @@ struct ParseResult {
 };
 
 ParseResult parse_arguments(int argc, char* argv[]);
+bool is_login_shell_invocation();
 void apply_profile_startup_flags();
 void apply_posix_mode_settings();
 void save_startup_arguments(int argc, char* argv[]);

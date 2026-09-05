@@ -67,10 +67,12 @@ constexpr int kOptNoPromptVars = 262;
 constexpr int kOptNoHistory = 263;
 constexpr int kOptNoAgent = 264;
 std::vector<std::string> positional_parameters;
+bool login_shell_invocation = false;
 
 void detect_login_mode(char* argv[]) {
     // detect argv[0] being -cjsh
-    if ((argv != nullptr) && (argv[0] != nullptr) && argv[0][0] == '-') {
+    login_shell_invocation = (argv != nullptr) && (argv[0] != nullptr) && argv[0][0] == '-';
+    if (login_shell_invocation) {
         config::login_mode = true;
     }
 }
@@ -96,6 +98,10 @@ void apply_minimal_mode() {
 }
 
 }  // namespace
+
+bool is_login_shell_invocation() {
+    return login_shell_invocation;
+}
 
 void apply_posix_mode_settings() {
     config::posix_mode = true;

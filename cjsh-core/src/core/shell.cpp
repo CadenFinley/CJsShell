@@ -45,6 +45,7 @@
 #include "command_lookup.h"
 #include "error_out.h"
 #include "exec.h"
+#include "flags.h"
 #include "interpreter.h"
 #include "isocline.h"
 #include "job_control.h"
@@ -511,7 +512,10 @@ void Shell::setup_job_control() {
 
     // If cjsh was started in the background, wait until the parent shell foregrounds this
     // process group. An ignored SIGTTIN disposition survives exec, so explicitly restore the
-    // default before using the signal for the standard foreground handshake.
+    // default before using the signal for the standard foreground handshake. Login launchers
+    // may create the shell's process group before assigning the terminal to it. In that case the
+    // shell must claim the terminal itself: stopping here can deadlock with a launcher that only
+    // waits for its login shell to exit.
     (void)signal(SIGTTIN, SIG_DFL);
     for (;;) {
         const pid_t foreground_pgid = tcgetpgrp(shell_terminal);
@@ -522,6 +526,9 @@ void Shell::setup_job_control() {
             return;
         }
         if (foreground_pgid == shell_pgid) {
+            break;
+        }
+        if (flags::is_login_shell_invocation()) {
             break;
         }
         if (kill(-shell_pgid, SIGTTIN) < 0 && errno != EINTR) {
@@ -552,7 +559,24 @@ void Shell::setup_job_control() {
         }
     }
 
-    if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+    sigset_t sigttou_mask{};
+    sigset_t previous_mask{};
+    sigemptyset(&sigttou_mask);
+    sigaddset(&sigttou_mask, SIGTTOU);
+    const bool sigttou_blocked = sigprocmask(SIG_BLOCK, &sigttou_mask, &previous_mask) == 0;
+
+    int foreground_result;
+    do {
+        foreground_result = tcsetpgrp(shell_terminal, shell_pgid);
+    } while (foreground_result < 0 && errno == EINTR);
+    const int foreground_error = errno;
+
+    if (sigttou_blocked) {
+        (void)sigprocmask(SIG_SETMASK, &previous_mask, nullptr);
+    }
+
+    if (foreground_result < 0) {
+        errno = foreground_error;
         const auto error_text = std::system_category().message(errno);
         print_error({ErrorType::RUNTIME_ERROR,
                      ErrorSeverity::WARNING,

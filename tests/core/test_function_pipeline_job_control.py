@@ -475,7 +475,9 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
     )
 
 
-def run_background_shell_startup_case(binary: str) -> JobControlResult:
+def run_background_shell_startup_case(
+    binary: str, login_shell: bool = False
+) -> JobControlResult:
     driver_pid, master_fd = pty.fork()
     if driver_pid == 0:
         nested_pid = os.fork()
@@ -491,7 +493,7 @@ def run_background_shell_startup_case(binary: str) -> JobControlResult:
             os.execve(  # nosemgrep
                 binary,
                 [
-                    binary,
+                    "-cjsh" if login_shell else binary,
                     "--no-source",
                     "--no-titleline",
                     "--minimal",
@@ -531,7 +533,11 @@ def run_background_shell_startup_case(binary: str) -> JobControlResult:
         stop_signal = 0
         nested_exit = -1
         restored = False
-        if first_status is not None and os.WIFSTOPPED(first_status):
+        if (
+            not login_shell
+            and first_status is not None
+            and os.WIFSTOPPED(first_status)
+        ):
             stop_signal = os.WSTOPSIG(first_status)
             signal.signal(signal.SIGTTOU, signal.SIG_IGN)
             os.tcsetpgrp(0, nested_pid)
@@ -552,8 +558,18 @@ def run_background_shell_startup_case(binary: str) -> JobControlResult:
             nested_exit = os.waitstatus_to_exitcode(final_status)
             os.tcsetpgrp(0, os.getpgrp())
             restored = os.tcgetpgrp(0) == os.getpgrp()
+        elif first_status is not None and not os.WIFSTOPPED(first_status):
+            nested_exit = os.waitstatus_to_exitcode(first_status)
         else:
+            if first_status is not None and os.WIFSTOPPED(first_status):
+                stop_signal = os.WSTOPSIG(first_status)
             if first_status is None:
+                try:
+                    os.killpg(nested_pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                _, first_status = os.waitpid(nested_pid, 0)
+            else:
                 try:
                     os.killpg(nested_pid, signal.SIGKILL)
                 except ProcessLookupError:
@@ -561,12 +577,18 @@ def run_background_shell_startup_case(binary: str) -> JobControlResult:
                 _, first_status = os.waitpid(nested_pid, 0)
             nested_exit = os.waitstatus_to_exitcode(first_status)
 
+        signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+        os.tcsetpgrp(0, os.getpgrp())
+        restored = os.tcgetpgrp(0) == os.getpgrp()
+
         message = (
             f"startup_stop={stop_signal} nested_exit={nested_exit} "
             f"foreground_restored={int(restored)}\n"
         )
         os.write(1, message.encode())
-        expected = stop_signal == signal.SIGTTIN and nested_exit == 0 and restored
+        expected = (
+            stop_signal == 0 if login_shell else stop_signal == signal.SIGTTIN
+        ) and nested_exit == 0 and restored
         os._exit(0 if expected else 1)
 
     os.set_blocking(master_fd, False)
@@ -766,6 +788,9 @@ def main(argv: list[str]) -> int:
         )
         control_character_result = run_control_character_case(argv[0])
         background_startup_result = run_background_shell_startup_case(argv[0])
+        login_startup_result = run_background_shell_startup_case(
+            argv[0], login_shell=True
+        )
         termios_state_file = f"/tmp/cjsh-termios-state-{os.getpid()}-{time.monotonic_ns()}"
         try:
             os.unlink(termios_state_file)
@@ -991,6 +1016,19 @@ def main(argv: list[str]) -> int:
                 and "foreground_restored=1" in background_startup_result.output,
                 "interactive startup did not honor foreground process-group semantics:\n"
                 f"{background_startup_result.output}",
+            ),
+        ),
+        (
+            "login shell claims its launcher's foreground terminal",
+            lambda: require(
+                not login_startup_result.timed_out
+                and login_startup_result.return_code == 0
+                and "background-init-ok" in login_startup_result.output
+                and "startup_stop=0" in login_startup_result.output
+                and "nested_exit=0" in login_startup_result.output
+                and "foreground_restored=1" in login_startup_result.output,
+                "login shell startup deadlocked before claiming the terminal:\n"
+                f"{login_startup_result.output}",
             ),
         ),
         (
