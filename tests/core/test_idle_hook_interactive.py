@@ -119,7 +119,20 @@ class IdleHookSession:
             self.query_tail = pending[-(len(CURSOR_QUERY) - 1) :]
 
     def write(self, data: bytes) -> None:
-        os.write(self.fd, data)
+        deadline = time.monotonic() + 4.0
+        offset = 0
+        while offset < len(data):
+            try:
+                written = os.write(self.fd, data[offset:])
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise AssertionError("timed out writing to the cjsh PTY")
+                self.pump()
+                continue
+
+            if written == 0:
+                raise AssertionError("cjsh PTY accepted a zero-length write")
+            offset += written
 
     def wait_for(self, needle: bytes, start: int = 0, timeout_s: float = 4.0) -> int:
         deadline = time.monotonic() + timeout_s
