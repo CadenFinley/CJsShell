@@ -41,6 +41,8 @@ import time
 
 CURSOR_QUERY = b"\x1b[6n"
 CURSOR_RESPONSE = b"\x1b[1;1R"
+COMMAND_OUTPUT_END = b"\x1b]133;D;"
+PROMPT_INPUT_START = b"\x1b]133;B\x1b\\"
 ANSI_CSI_RE = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
 ANSI_OSC_RE = re.compile(rb"\x1b\].*?(?:\x07|\x1b\\)", re.S)
 
@@ -109,7 +111,28 @@ class Session:
             self.query_tail = pending[-(len(CURSOR_QUERY) - 1) :]
 
     def write(self, data: bytes) -> None:
-        os.write(self.master_fd, data)
+        deadline = time.monotonic() + 4.0
+        offset = 0
+        while offset < len(data):
+            try:
+                written = os.write(self.master_fd, data[offset:])
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise AssertionError("timed out writing to the cjsh PTY")
+                self.pump()
+                continue
+            if written == 0:
+                raise AssertionError("cjsh PTY accepted a zero-length write")
+            offset += written
+
+    def run_command(self, command: bytes) -> None:
+        start = len(self.output)
+        self.write(b"\x1b[200~" + command + b"\x1b[201~\r")
+        # Prompt text also appears in input redraws. Only a prompt following
+        # command completion proves the new configuration is active.
+        self.wait_for(COMMAND_OUTPUT_END, start=start)
+        command_end = self.output.index(COMMAND_OUTPUT_END, start)
+        self.wait_for(PROMPT_INPUT_START, start=command_end + len(COMMAND_OUTPUT_END))
 
     def wait_for(self, needle: bytes, timeout: float = 4.0, start: int = 0) -> None:
         deadline = time.monotonic() + timeout
@@ -567,10 +590,8 @@ def main() -> int:
             bind_command = (
                 "cjshopt keybind ext set F3 "
                 + shlex.quote(f"touch {custom_key_result}")
-                + "\r"
             )
-            session.write(bind_command.encode())
-            session.pump(0.3)
+            session.run_command(bind_command.encode())
             with open(prompt_capture, encoding="utf-8") as captured:
                 capture_before_custom_key = captured.read()
             session.write(b"custom binding request\x1bOR")
@@ -579,8 +600,8 @@ def main() -> int:
             with open(prompt_capture, encoding="utf-8") as captured:
                 if captured.read() != capture_before_custom_key:
                     raise AssertionError("the agent overrode a custom command key binding")
-            session.write(b"\x15cjshopt keybind ext clear F3\r")
-            session.pump(0.3)
+            session.write(b"\x15")
+            session.run_command(b"cjshopt keybind ext clear F3")
             restored_key_start = len(session.output)
             session.write(b"restored agent key\x1bOR")
             session.wait_for(b"agent command:", start=restored_key_start)
@@ -589,23 +610,17 @@ def main() -> int:
                 if route != "default" or not prompt.endswith(
                     "\n\nCommand request:\nrestored agent key"
                 ):
-                    raise AssertionError("clearing the custom key did not restore agent mode")
+                    raise AssertionError(
+                        "clearing the custom key did not restore agent mode: "
+                        f"route={route!r}, prompt={prompt!r}"
+                    )
             session.write(b"\x03")
             session.pump(0.1)
             session.write(b"\x15")
 
             # Without a fallback executor, direct activation uses the first
             # configured prefix executor without stripping unrelated input.
-            clear_default_start = len(session.output)
-            session.write(b"cjshopt agent-mode clear --default\r")
-            session.wait_for(
-                b"Agent executor configuration cleared.", start=clear_default_start
-            )
-            # The status line is written before the editor has necessarily
-            # installed and rendered the next prompt.  Wait for that prompt so
-            # the activation request cannot race the editor transition on a
-            # slower runner (notably the hosted Intel macOS runner).
-            session.wait_for(b"cjsh> ", start=clear_default_start)
+            session.run_command(b"cjshopt agent-mode clear --default")
             first_configured_start = len(session.output)
             session.write(b"request without a fallback\x1bOR")
             session.wait_for(b"agent command:", start=first_configured_start)

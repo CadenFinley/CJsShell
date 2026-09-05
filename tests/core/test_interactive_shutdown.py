@@ -193,7 +193,10 @@ class InteractiveSession:
                 self.pump(0.1)
                 return return_code
 
-        raise AssertionError(f"{self.label}: cjsh did not exit within {timeout_s:.1f}s")
+        raise AssertionError(
+            f"{self.label}: cjsh did not exit within {timeout_s:.1f}s: "
+            f"{bytes(self.output[-4096:])!r}"
+        )
 
     def assert_running(self) -> None:
         if self.process is None:
@@ -403,8 +406,12 @@ def run_terminal_region_marking(binary: str) -> None:
 
 def run_interrupt_then_exit(binary: str) -> None:
     with InteractiveSession(binary, "ctrl-c interrupt") as session:
-        session.pump(duration_s=0.6)
+        session.wait_for_prompt(after=0, timeout_s=3.0, command_completed=False)
+        interrupt_start = len(session.output)
         session.write(b"\x03")
+        session.wait_for_prompt(
+            after=interrupt_start, timeout_s=3.0, command_completed=False
+        )
         session.assert_running()
         session.write(b"exit 0\r")
 
@@ -415,7 +422,7 @@ def run_interrupt_then_exit(binary: str) -> None:
 
 def run_interrupt_with_queued_exit(binary: str) -> None:
     with InteractiveSession(binary, "ctrl-c queued exit") as session:
-        session.pump(duration_s=0.6)
+        session.wait_for_prompt(after=0, timeout_s=3.0, command_completed=False)
         session.write(b"\x03exit 0\r")
 
         return_code = session.wait_for_exit(timeout_s=3.0)

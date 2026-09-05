@@ -154,7 +154,10 @@ class IdleHookSession:
 
     def run_command(self, command: bytes) -> int:
         start = len(self.output)
-        self.write(command + b"\r")
+        # Paste setup commands as a block. Typing long function definitions
+        # redraws the whole buffer for every character and can fill the PTY
+        # output queue before a slower runner reaches the command's Return.
+        self.write(b"\x1b[200~" + command + b"\x1b[201~\r")
         self.wait_for_prompt(start, command_completed=True)
         return start
 
