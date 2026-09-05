@@ -1,10 +1,10 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.7`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.8`.
 
 ## 1.4.8 - 2026-09-05
 
-Range: `v1.4.7..HEAD` (6 commits, 30 files changed)
+Range: `v1.4.7..v1.4.8` (13 commits, 77 files changed)
 
 ### Added
 
@@ -13,12 +13,17 @@ Range: `v1.4.7..HEAD` (6 commits, 30 files changed)
 
 ### Changed
 
+- Changed Tab completion at empty or whitespace-only prompts to offer unique history entries ordered by most recent use, then frequency, up to the `cjshopt set-completion-max` limit (default: 1000). No candidates are shown when history is disabled or unavailable.
+- Aligned builtin help, completion metadata, and command documentation with supported options, startup modes, and immediately applied key-binding changes.
 - Temporarily restore normal terminal mode while external custom-key commands run, then reacquire and redraw the active editor so interactive programs can safely read from the terminal.
 - Allowed `return [status]` in sourced files to stop only the sourced file, propagate its requested status, and continue the calling script or function.
 - Suppressed expected key-override warnings while startup files configure custom bindings.
 
 ### Fixed
 
+- Corrected `history COUNT` to show the most recent entries and `cjshopt hint-delay status` to report the actual delay, including its 5000-millisecond maximum.
+- Fixed `kill -s SIGNAL` and `kill -n SIGNUM` parsing and rejected malformed numeric signal and editor-option values.
+- Standardized builtin and job-control diagnostics, rejected unsupported options and extra operands, and preserved operand uses of `-h` in `echo` and `test`.
 - Prevented login-shell startup from stopping on `SIGTTIN` or deadlocking while taking ownership of its launcher's foreground terminal.
 - Kept idle timeouts active inside completion, history-search, command-palette, and custom menus so they close cleanly before the idle hook runs.
 - Collapsed unselected multiline completion-source labels to a single abbreviated line instead of allowing their metadata to occupy multiple menu rows.
@@ -26,6 +31,8 @@ Range: `v1.4.7..HEAD` (6 commits, 30 files changed)
 ### Internal and Tests
 
 - Added regression coverage for hook context, sourced-file returns, editor actions, foreground interactive widgets, login-shell terminal startup, idle timeouts in menus, quiet startup key overrides, and multiline completion metadata.
+- Added regression coverage for empty-prompt history ranking, deduplication, configurable completion limits, legacy history metadata, builtin options, and error formatting.
+- Stabilized interactive agent, idle-hook, shutdown, and signal tests with prompt synchronization, partial PTY-write handling, and reliable process cleanup.
 
 ## 1.4.7 - 2026-09-04
 
