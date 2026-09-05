@@ -1305,12 +1305,13 @@ falls back to the default search paths.</p>
 <li><code>-v, --version</code> – print the version banner and exit</li>
 <li><code>-l, --login</code> – treat the shell as a login shell (source <code>~/.cjprofile</code>)</li>
 <li><code>-i, --interactive</code> – force interactive behavior even if stdin is not a tty</li>
-<li><code>-c, --command=&lt;string&gt;</code> – execute a single command and exit (disables history expansion)</li>
+<li><code>-c, --command &lt;string&gt;</code> – execute a single command and exit (disables history expansion)</li>
 <li><code>--no-exec</code> – read commands but do not execute them</li>
 <li><code>--posix</code> – enable POSIX mode and reject non-POSIX syntax and non-POSIX builtins</li>
-<li><code>-m, --minimal</code> – disable prompt themes/colors, completions and completion learning, syntax
+<li><code>-m, --minimal</code> – disable colors, completions and completion learning, syntax
   highlighting, rc sourcing, smart cd, the title line, history expansion, the status line,
-  multiline line numbers, the startup time banner, error suggestions, and prompt vars</li>
+  multiline line numbers, the startup time banner, error suggestions, prompt vars, and special
+  lifecycle handlers</li>
 <li><code>-C, --no-colors</code></li>
 <li><code>-L, --no-titleline</code></li>
 <li><code>-U, --show-startup-time</code></li>
@@ -1327,7 +1328,8 @@ falls back to the default search paths.</p>
 <li><code>-H, --no-history-expansion</code></li>
 <li><code>--no-history</code> – disable history recording (also disables history expansion)</li>
 <li><code>-W, --no-sh-warning</code> – suppress the reminder shown when cjsh is invoked via <code>sh</code></li>
-<li><code>-s, --secure</code> – skip <code>~/.cjshenv</code>, <code>~/.cjprofile</code>, <code>~/.cjshrc</code>, and <code>~/.cjlogout</code> entirely</li>
+<li><code>-s, --secure</code> – skip <code>~/.cjshenv</code>, <code>~/.cjprofile</code>, <code>~/.cjshrc</code>, and <code>~/.cjlogout</code>, disable
+  history persistence and smart cd, and ignore special lifecycle handlers</li>
 <li><code>-X, --startup-test</code> – diagnostic mode used by the bundled tests</li>
 </ul>
 <p>Flags affecting feature toggles take effect early in startup and can also be injected via

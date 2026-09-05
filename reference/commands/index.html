@@ -2544,8 +2544,12 @@ already exist. It has no arguments.</p>
 </ul>
 <h3 id="pwd">pwd</h3>
 <p>Print the current working directory.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">pwd</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">pwd</span><span class="w"> </span><span class="o">[</span>-L<span class="p">|</span>-P<span class="o">]</span>
 </span></code></pre></div>
+<ul>
+<li><code>-L</code> uses the logical path from <code>PWD</code> and is the default</li>
+<li><code>-P</code> resolves the physical path without symlinks</li>
+</ul>
 <h2 id="text-output">Text Output</h2>
 <h3 id="echo">echo</h3>
 <p>Print arguments separated by spaces.</p>
@@ -2589,15 +2593,15 @@ already exist. It has no arguments.</p>
 <h2 id="script-execution">Script Execution</h2>
 <h3 id="source">source / .</h3>
 <p>Execute commands from a file in the current shell context.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nb">source</span><span class="w"> </span>filename<span class="w"> </span><span class="o">[</span>arguments...<span class="o">]</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>.<span class="w"> </span>filename<span class="w"> </span><span class="o">[</span>arguments...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nb">source</span><span class="w"> </span>filename
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>.<span class="w"> </span>filename
 </span></code></pre></div>
 <p>When you execute a script file directly (for example, <code>./script.sh</code>) CJSH can infer an interpreter
 from the file extension if the file has no shebang. Toggle this with
 <code>cjshopt script-extension-interpreter</code> or <code>--no-script-extension-interpreter</code>.</p>
 <h3 id="eval">eval</h3>
 <p>Evaluate a string as shell code.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nb">eval</span><span class="w"> </span><span class="o">[</span>args...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nb">eval</span><span class="w"> </span>string<span class="w"> </span><span class="o">[</span>string...<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="exec">exec</h3>
 <p>Replace the shell process with another program.</p>
@@ -2606,15 +2610,15 @@ from the file extension if the file has no shebang. Toggle this with
 <h2 id="variables-and-environment">Variables and Environment</h2>
 <h3 id="export">export</h3>
 <p>Set or display environment variables.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nb">export</span><span class="w"> </span><span class="o">[</span>name<span class="o">[=</span>value<span class="o">]</span>...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nb">export</span><span class="w"> </span><span class="o">[</span>-p<span class="o">]</span><span class="w"> </span><span class="o">[</span>name<span class="o">[=</span>value<span class="o">]</span>...<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="unset">unset</h3>
 <p>Remove environment variables.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nb">unset</span><span class="w"> </span>name<span class="w"> </span><span class="o">[</span>name...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nb">unset</span><span class="w"> </span><span class="o">[</span>-n<span class="p">|</span>-v<span class="o">]</span><span class="w"> </span>name<span class="w"> </span><span class="o">[</span>name...<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="local">local</h3>
 <p>Declare local variables inside functions.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nb">local</span><span class="w"> </span>name<span class="o">[=</span>value<span class="o">]</span><span class="w"> </span><span class="o">[</span>name<span class="o">[=</span>value<span class="o">]</span>...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nb">local</span><span class="w"> </span><span class="o">[</span>-aAnrx<span class="o">]</span><span class="w"> </span>name<span class="o">[=</span>value<span class="o">]</span><span class="w"> </span><span class="o">[</span>name<span class="o">[=</span>value<span class="o">]</span>...<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="declare-typeset">declare / typeset</h3>
 <p>Set variable attributes and values.</p>
@@ -2634,7 +2638,7 @@ from the file extension if the file has no shebang. Toggle this with
 </ul>
 <h3 id="readonly">readonly</h3>
 <p>Mark variables as read-only.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nb">readonly</span><span class="w"> </span>name<span class="o">[=</span>value<span class="o">]</span><span class="w"> </span><span class="o">[</span>name<span class="o">[=</span>value<span class="o">]</span>...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nb">readonly</span><span class="w"> </span><span class="o">[</span>-pf<span class="o">]</span><span class="w"> </span>name<span class="o">[=</span>value<span class="o">]</span><span class="w"> </span><span class="o">[</span>name<span class="o">[=</span>value<span class="o">]</span>...<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="set">set</h3>
 <p>Adjust shell options or positional parameters.</p>
@@ -2662,11 +2666,11 @@ descriptor redirections such as <code>&gt;&amp;${COPROC[1]}</code> to communicat
 <h2 id="aliases">Aliases</h2>
 <h3 id="alias">alias</h3>
 <p>Create or list command aliases.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nb">alias</span><span class="w"> </span><span class="o">[</span>name<span class="o">[=</span>value<span class="o">]</span>...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nb">alias</span><span class="w"> </span><span class="o">[</span>-p<span class="o">]</span><span class="w"> </span><span class="o">[</span>name<span class="o">[=</span>value<span class="o">]</span>...<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="unalias">unalias</h3>
 <p>Remove command aliases.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="nb">unalias</span><span class="w"> </span>name<span class="w"> </span><span class="o">[</span>name...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="nb">unalias</span><span class="w"> </span><span class="o">[</span>-a<span class="o">]</span><span class="w"> </span><span class="o">[</span>name...<span class="o">]</span>
 </span></code></pre></div>
 <h2 id="abbreviations">Abbreviations</h2>
 <h3 id="abbr">abbr</h3>
@@ -2685,7 +2689,7 @@ descriptor redirections such as <code>&gt;&amp;${COPROC[1]}</code> to communicat
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>unabbr<span class="w"> </span>name<span class="w"> </span><span class="o">[</span>name...<span class="o">]</span>
 </span></code></pre></div>
 <ul>
-<li>Removing a non-existent abbreviation prints a warning but does not stop processing the rest</li>
+<li>Removing a non-existent abbreviation reports an error but continues processing the rest</li>
 <li>Pair with <code>abbr</code> to keep a clean set of triggers in your session configuration</li>
 </ul>
 <h2 id="control-flow">Control Flow</h2>
@@ -2735,7 +2739,7 @@ descriptor redirections such as <code>&gt;&amp;${COPROC[1]}</code> to communicat
 <h2 id="job-control">Job Control</h2>
 <h3 id="jobs">jobs</h3>
 <p>List background jobs.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="nb">jobs</span><span class="w"> </span><span class="o">[</span>-lprs<span class="o">]</span><span class="w"> </span><span class="o">[</span>job_spec...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="nb">jobs</span><span class="w"> </span><span class="o">[</span>-lprs<span class="o">]</span><span class="w"> </span><span class="o">[</span>job_spec<span class="p">|</span>pid...<span class="o">]</span>
 </span></code></pre></div>
 <p><code>-r</code> and <code>-s</code> select running and stopped jobs. <code>-p</code> prints one process-group leader per job.</p>
 <h3 id="fg">fg</h3>
@@ -2744,7 +2748,7 @@ descriptor redirections such as <code>&gt;&amp;${COPROC[1]}</code> to communicat
 </span></code></pre></div>
 <h3 id="bg">bg</h3>
 <p>Resume a job in the background.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="nb">bg</span><span class="w"> </span><span class="o">[</span>job_spec...<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="nb">bg</span><span class="w"> </span><span class="o">[</span>job_spec<span class="p">|</span>pid...<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="auto-background-on-ctrlz">Auto-background on Ctrl+Z</h3>
 <p>Append <code>&amp;^</code> to a command to mark it for automatic backgrounding the first time you press
@@ -2762,7 +2766,8 @@ prompt stays clean. Output is restored if you bring the job back with <code>fg</
 termination, and <code>-p</code> stores the selected process-group leader or PID.</p>
 <h3 id="kill">kill</h3>
 <p>Send signals to jobs or processes.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-43-1"><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="nb">kill</span><span class="w"> </span><span class="o">[</span>-signal<span class="o">]</span><span class="w"> </span>pid<span class="p">|</span>job_spec
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-43-1"><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="nb">kill</span><span class="w"> </span><span class="o">[</span>-s<span class="w"> </span>signal<span class="p">|</span>-n<span class="w"> </span>signum<span class="p">|</span>-signal<span class="o">]</span><span class="w"> </span>pid<span class="p">|</span>job_spec<span class="w"> </span><span class="o">[</span>...<span class="o">]</span>
+</span><span id="__span-43-2"><a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a><span class="nb">kill</span><span class="w"> </span>-l
 </span></code></pre></div>
 <h3 id="disown">disown</h3>
 <p>Detach jobs from the shell so they are no longer listed or sent hangup signals when cjsh exits.</p>
@@ -2770,7 +2775,7 @@ termination, and <code>-p</code> stores the selected process-group leader or PID
 </span></code></pre></div>
 <ul>
 <li>With no arguments, the current job is disowned</li>
-<li><code>-a/--all</code> selects every tracked job; <code>-r</code> restricts the selection to running jobs</li>
+<li><code>-a/--all</code> selects every tracked job; <code>-r/--running</code> restricts the selection to running jobs</li>
 <li><code>-h</code> leaves selected jobs in the table but excludes them from SIGHUP propagation</li>
 <li>Job specs include <code>%N</code>, <code>%+</code>, <code>%-</code>, <code>%prefix</code>, and <code>%?substring</code>; a tracked PID is also accepted</li>
 <li>Disowned jobs continue running even if <code>set -o huponexit</code> is enabled later in the session</li>
@@ -2779,12 +2784,13 @@ termination, and <code>-p</code> stores the selected process-group leader or PID
 <p>Assign or update a friendly display name for a tracked job. The name shows up in <code>jobs</code>, <code>fg</code>, <code>bg</code>,
 and completions while the job remains in the table.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-45-1"><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>jobname<span class="w"> </span>JOB_SPEC<span class="w"> </span>NEW_NAME
+</span><span id="__span-45-2"><a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a>jobname<span class="w"> </span>JOB_SPEC<span class="w"> </span><span class="o">[</span>-c<span class="p">|</span>--clear<span class="o">]</span>
 </span></code></pre></div>
 <ul>
 <li><code>JOB_SPEC</code> can be a <code>%job_id</code>, a PID, or any command prefix that normally resolves jobs (<code>fg</code>
 and <code>bg</code>-style matching)</li>
 <li><code>NEW_NAME</code> is treated as the rest of the command line after <code>JOB_SPEC</code>, so spaces are allowed</li>
-<li>Names must contain at least one non-whitespace character; use the original command to revert</li>
+<li>Names must contain at least one non-whitespace character; use <code>-c</code> or <code>--clear</code> to revert</li>
 </ul>
 <h2 id="signal-handling">Signal Handling</h2>
 <h3 id="trap">trap</h3>
@@ -2797,7 +2803,7 @@ and <code>bg</code>-style matching)</li>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-47-1"><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="nb">type</span><span class="w"> </span>name<span class="w"> </span><span class="o">[</span>name...<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="which">which</h3>
-<p>Locate executables in PATH.</p>
+<p>Locate commands, including aliases, builtins, and executables in PATH.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-48-1"><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>which<span class="w"> </span>name<span class="w"> </span><span class="o">[</span>name...<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="hash">hash</h3>
@@ -2867,7 +2873,7 @@ with <code>cjshopt idle-timeout</code>; they run in the foreground and preserve 
 <p>Fix Command - edit and re-execute commands from history (POSIX-compliant).</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-57-1"><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a><span class="nb">fc</span><span class="w"> </span><span class="o">[</span>-e<span class="w"> </span>editor<span class="o">]</span><span class="w"> </span><span class="o">[</span>-lnr<span class="o">]</span><span class="w"> </span><span class="o">[</span>first<span class="w"> </span><span class="o">[</span>last<span class="o">]]</span>
 </span><span id="__span-57-2"><a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a><span class="nb">fc</span><span class="w"> </span>-s<span class="w"> </span><span class="o">[</span><span class="nv">old</span><span class="o">=</span>new<span class="o">]</span><span class="w"> </span><span class="o">[</span>command<span class="o">]</span>
-</span><span id="__span-57-3"><a id="__codelineno-57-3" name="__codelineno-57-3" href="#__codelineno-57-3"></a><span class="nb">fc</span><span class="w"> </span>-c<span class="w"> </span>command_string
+</span><span id="__span-57-3"><a id="__codelineno-57-3" name="__codelineno-57-3" href="#__codelineno-57-3"></a><span class="nb">fc</span><span class="w"> </span><span class="o">(</span>-c<span class="p">|</span>--command<span class="o">)</span><span class="w"> </span>command_string
 </span></code></pre></div>
 <p><strong>Options:</strong>
 - <code>-e editor</code> - Use specified editor (default: <code>$FCEDIT</code>, <code>$EDITOR</code>, or <code>nano</code>)
@@ -2875,7 +2881,7 @@ with <code>cjshopt idle-timeout</code>; they run in the foreground and preserve 
 - <code>-n</code> - Suppress line numbers when listing
 - <code>-r</code> - Reverse order of commands when listing
 - <code>-s</code> - Re-execute a matching command, with optional <code>old=new</code> substitution
-- <code>-c string</code> - Open the editor with <code>string</code> as initial content</p>
+- <code>-c string</code>, <code>--command string</code> - Open the editor with <code>string</code> as initial content</p>
 <p><strong>Arguments:</strong>
 - <code>first</code> - First command to edit/list (default: previous command)
 - <code>last</code> - Last command to edit/list (default: same as first)</p>
@@ -3068,7 +3074,7 @@ editing behaviors.</p>
 </tr>
 <tr>
 <td><code>--no-source</code></td>
-<td>Skip sourcing interactive configuration files</td>
+<td>Skip sourcing <code>~/.cjshrc</code></td>
 </tr>
 <tr>
 <td><code>--no-completions</code></td>
@@ -3120,11 +3126,11 @@ editing behaviors.</p>
 </tr>
 <tr>
 <td><code>--minimal</code></td>
-<td>Disable prompt themes/colors, completions and completion learning, syntax highlighting, smart cd, rc sourcing, title line, history expansion, the status line, multiline line numbers, startup time banner, error suggestions, prompt vars, and special lifecycle handlers</td>
+<td>Disable colors, completions and completion learning, syntax highlighting, smart cd, rc sourcing, title line, history expansion, the status line, multiline line numbers, startup time banner, error suggestions, prompt vars, and special lifecycle handlers</td>
 </tr>
 <tr>
 <td><code>--secure</code></td>
-<td>Skip profile/rc/logout sourcing even for login shells, and ignore special lifecycle handlers</td>
+<td>Skip environment/profile/rc/logout sourcing, disable history persistence and smart cd, and ignore special lifecycle handlers</td>
 </tr>
 <tr>
 <td><code>--posix</code></td>
@@ -3309,7 +3315,7 @@ persist the setting across sessions.</p>
 <p>Examples:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-99-1"><a id="__codelineno-99-1" name="__codelineno-99-1" href="#__codelineno-99-1"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span><span class="m">100</span><span class="w">     </span><span class="c1"># Set hint delay to 100 milliseconds</span>
 </span><span id="__span-99-2"><a id="__codelineno-99-2" name="__codelineno-99-2" href="#__codelineno-99-2"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span><span class="m">0</span><span class="w">       </span><span class="c1"># Show hints immediately</span>
-</span><span id="__span-99-3"><a id="__codelineno-99-3" name="__codelineno-99-3" href="#__codelineno-99-3"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>status<span class="w">  </span><span class="c1"># Prints hint-delay command guidance</span>
+</span><span id="__span-99-3"><a id="__codelineno-99-3" name="__codelineno-99-3" href="#__codelineno-99-3"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>status<span class="w">  </span><span class="c1"># Show the current delay</span>
 </span></code></pre></div>
 <ul>
 <li>Accepted input: any non-negative integer</li>

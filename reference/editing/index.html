@@ -1864,8 +1864,8 @@ When there's a single possible completion, a hint is displayed inline with dimme
 </p><div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Enable/disable hints (enabled by default)</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Set hint delay in milliseconds (0ms by default)</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>&lt;milliseconds&gt;
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Set or show the hint delay in milliseconds (0ms by default)</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>&lt;milliseconds<span class="p">|</span>status&gt;
 </span></code></pre></div><p></p>
 <p><strong>Inline Help:</strong>
 Short help messages are displayed for certain operations:
@@ -2195,9 +2195,8 @@ action.</p>
 </span><span id="__span-21-13"><a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="c1"># Clear every custom command binding</span>
 </span><span id="__span-21-14"><a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>reset
 </span></code></pre></div>
-<p>Command key bindings typically leverage the <code>cjsh-widget</code> builtin to read or modify editor state. As
-with standard bindings, modifications must be placed in configuration files; inspection commands can
-run interactively, but setters only take effect during startup.</p>
+<p>Command key bindings typically leverage the <code>cjsh-widget</code> builtin to read or modify editor state.
+Changes apply immediately in the current shell; add the same commands to <code>~/.cjshrc</code> to persist them.</p>
 <h2 id="prompt-customization">Prompt Customization</h2>
 <h3 id="prompt-spacing">Prompt Spacing</h3>
 <p>Control whether cjsh inserts a blank line after command execution.</p>
@@ -2382,7 +2381,7 @@ Commands can pre-populate the input buffer (used by <code>fc</code> command for 
 </span><span id="__span-27-34"><a id="__codelineno-27-34" name="__codelineno-27-34" href="#__codelineno-27-34"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>operator<span class="w"> </span><span class="s2">"bold"</span>
 </span></code></pre></div>
 <h3 id="minimal-configuration">Minimal Configuration</h3>
-<p>For a minimal, fast setup (<code>--minimal</code> disables prompt themes/colors, completions and completion learning, syntax highlighting, smart <code>cd</code>, rc sourcing, the title line, history expansion, the status line, multiline line numbers, the startup time banner, error suggestions, and prompt vars):</p>
+<p>For a minimal, fast setup (<code>--minimal</code> disables colors, completions and completion learning, syntax highlighting, smart <code>cd</code>, rc sourcing, the title line, history expansion, the status line, multiline line numbers, the startup time banner, error suggestions, prompt vars, and special lifecycle handlers):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># Use the --minimal flag at startup, or configure selectively:</span>
 </span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on
 </span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>off
