@@ -3604,6 +3604,9 @@ press <code>Tab</code>.</p>
 <p>Lowering the cap trims visual noise and speeds up completion-heavy commands, especially when
 thousands of filesystem matches would otherwise be generated. Add the command to <code>~/.cjshrc</code>
 to persist the preference.</p>
+<p>At an empty or whitespace-only prompt, <code>Tab</code> offers unique history entries up to this same cap,
+ranked by most recent use and then frequency. For example, <code>cjshopt set-completion-max 50</code> allows
+up to 50 history suggestions.</p>
 <h4 id="prompt-newline">prompt-newline</h4>
 <p>Control whether cjsh prints a blank line after every command, regardless of what your prompt already emitted.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-139-1"><a id="__codelineno-139-1" name="__codelineno-139-1" href="#__codelineno-139-1"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>on

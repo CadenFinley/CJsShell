@@ -1125,6 +1125,10 @@
 commands learn their options and subcommands automatically by reading their manual pages. This guide
 explains how that pipeline works and how to author or override completion data when you need to fill
 in gaps or add custom behaviour.</p>
+<p>At an empty or whitespace-only prompt, <code>Tab</code> shows unique history entries up to the
+<code>cjshopt set-completion-max</code> limit (default: 1000), ordered by most recent use and then frequency
+for matching timestamps. Empty-prompt completion shows no candidates when history is disabled or
+no eligible history entries exist.</p>
 <h2 id="how-automatic-completions-are-generated">How automatic completions are generated</h2>
 <ul>
 <li><strong>On-demand scraping:</strong> The first time you request completions for an external command that
