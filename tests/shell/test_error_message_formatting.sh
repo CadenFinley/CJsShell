@@ -180,6 +180,8 @@ expect_nonempty_output_nonzero "getopts illegal option reports message" "getopts
 expect_invalid_option_message "history invalid option reports message" "history -z"
 expect_invalid_option_message "kill invalid option reports message" "kill -z 1"
 expect_invalid_option_message "generate-completions invalid option reports message" "generate-completions --jobs nope"
+expect_output_contains "kill invalid signal identifies the signal" "kill -z 1" "invalid signal"
+expect_output_contains "invalid completion job count identifies --jobs" "generate-completions --jobs nope" "jobs: nope"
 expect_output_contains "source permission denied reports message" ". $NOPERM_FILE" "permission denied"
 expect_output_contains "nested source reports deepest source path" "source $NESTED_SOURCE_LEVEL1" "source $NESTED_SOURCE_LEVEL3"
 expect_output_contains "nested source keeps deepest line number" "source $NESTED_SOURCE_LEVEL1" "line 1, source $NESTED_SOURCE_LEVEL3"

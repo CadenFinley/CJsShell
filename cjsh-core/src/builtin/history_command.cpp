@@ -76,6 +76,13 @@ int history_command(const std::vector<std::string>& args) {
 
         int limit = static_cast<int>(entries.size());
         if (args.size() > 1) {
+            if (args.size() > 2) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "history",
+                             "too many arguments",
+                             {"Usage: history [COUNT]"}});
+                return 2;
+            }
             if (!args[1].empty() && args[1][0] == '-' &&
                 (args[1].size() == 1 || !std::isdigit(static_cast<unsigned char>(args[1][1])))) {
                 print_error(
@@ -83,8 +90,10 @@ int history_command(const std::vector<std::string>& args) {
                 return 2;
             }
             if (!numeric_utils::parse_int_strict(args[1], limit)) {
-                print_error(
-                    {ErrorType::INVALID_ARGUMENT, "history", "invalid argument: " + args[1], {}});
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "history",
+                             "invalid history count: " + args[1],
+                             {}});
                 return 1;
             }
 
@@ -99,7 +108,8 @@ int history_command(const std::vector<std::string>& args) {
             limit = std::min(limit, static_cast<int>(entries.size()));
         }
 
-        for (int i = 0; i < limit; ++i) {
+        const int start = static_cast<int>(entries.size()) - limit;
+        for (int i = start; i < static_cast<int>(entries.size()); ++i) {
             std::cout << std::setw(5) << i << "  " << entries[static_cast<size_t>(i)] << '\n';
         }
 
@@ -109,7 +119,7 @@ int history_command(const std::vector<std::string>& args) {
     try {
         return run();
     } catch (...) {
-        print_error({ErrorType::INVALID_ARGUMENT, "history", "invalid argument", {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "history", "unable to process arguments", {}});
         return 1;
     }
 }

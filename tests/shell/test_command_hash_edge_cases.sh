@@ -64,10 +64,10 @@ chmod +x "$TMP_DIR/-dashcmd"
 
 OUT=$("$CJSH_PATH" -c "command" 2>&1)
 STATUS=$?
-if [ $STATUS -eq 2 ] && echo "$OUT" | grep -q "usage:"; then
-    pass_test "command shows usage with no args"
+if [ $STATUS -eq 2 ] && echo "$OUT" | grep -q "missing command operand"; then
+    pass_test "command reports its missing operand"
 else
-    fail_test "command no-args usage (status=$STATUS, out='$OUT')"
+    fail_test "command no-args error (status=$STATUS, out='$OUT')"
 fi
 
 OUT=$("$CJSH_PATH" -c "command -z echo" 2>&1)

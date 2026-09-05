@@ -63,6 +63,14 @@ else
     pass_test "echo -n option"
 fi
 
+OUT=$("$CJSH_PATH" -c "echo -h")
+if [ "$OUT" != "-h" ]; then
+    fail_test "echo treats undocumented -h as an operand (got '$OUT')"
+    exit 1
+else
+    pass_test "echo treats undocumented -h as an operand"
+fi
+
 OUT=$("$CJSH_PATH" -c "printf '%s %d\n' hello 42")
 if [ "$OUT" != "hello 42" ]; then
     fail_test "printf builtin (got '$OUT')"
@@ -250,6 +258,19 @@ if [ $? -ne 0 ]; then
 else
     pass_test "test builtin file check"
 fi
+
+SYMLINK_TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/cjsh-test-symlink.XXXXXX")
+touch "$SYMLINK_TEST_DIR/target"
+ln -s target "$SYMLINK_TEST_DIR/link"
+"$CJSH_PATH" -c "test -h '$SYMLINK_TEST_DIR/link'"
+if [ $? -ne 0 ]; then
+    fail_test "test -h symlink check"
+    rm -rf "$SYMLINK_TEST_DIR"
+    exit 1
+else
+    pass_test "test -h symlink check"
+fi
+rm -rf "$SYMLINK_TEST_DIR"
 
 "$CJSH_PATH" -c "test 1 -eq 1"
 if [ $? -ne 0 ]; then
@@ -457,6 +478,30 @@ fi
 
 "$CJSH_PATH" -c "kill -0 $$" >/dev/null 2>&1
 pass_test "kill builtin (basic functionality)"
+
+"$CJSH_PATH" -c "kill -s 0 \$\$" >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    fail_test "kill -s signal form"
+    exit 1
+else
+    pass_test "kill -s signal form"
+fi
+
+"$CJSH_PATH" -c "kill -n 0 \$\$" >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    fail_test "kill -n signal form"
+    exit 1
+else
+    pass_test "kill -n signal form"
+fi
+
+OUT=$("$CJSH_PATH" -c "cjsh-widget --help" 2>&1)
+if [ $? -eq 0 ] && echo "$OUT" | grep -q "get-buffer"; then
+    pass_test "cjsh-widget --help"
+else
+    fail_test "cjsh-widget --help (got '$OUT')"
+    exit 1
+fi
 
 "$CJSH_PATH" -c "break 2>/dev/null || true" >/dev/null 2>&1
 "$CJSH_PATH" -c "continue 2>/dev/null || true" >/dev/null 2>&1

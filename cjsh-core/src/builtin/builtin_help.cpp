@@ -39,7 +39,7 @@ bool is_help_requested(const std::vector<std::string>& args, BuiltinHelpScanMode
         return false;
     }
 
-    auto is_help_flag = [](const std::string& flag) { return flag == "--help" || flag == "-h"; };
+    auto is_help_flag = [](const std::string& flag) { return flag == "--help"; };
     if (scan_mode == BuiltinHelpScanMode::FirstArgument) {
         return is_help_flag(args[1]);
     }

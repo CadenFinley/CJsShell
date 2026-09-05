@@ -630,6 +630,11 @@ ic_public long ic_set_hint_delay(long delay_ms) {
     return prev;
 }
 
+ic_public long ic_get_hint_delay(void) {
+    ic_env_t* env = ic_get_env();
+    return (env == NULL ? 0 : env->hint_delay);
+}
+
 ic_public long ic_set_idle_timeout(long timeout_ms) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

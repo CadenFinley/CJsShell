@@ -146,8 +146,8 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 ## Additional Non-POSIX Behaviours
 
 - **Startup diagnostics** – `--show-startup-time` prints the duration spent initializing CJSH.
-- **Secure mode** – `--secure` skips all profile/rc/logout sourcing for hardened sessions, disables
-  history persistence, and ignores `PROMPT_COMMAND`.
+- **Secure mode** – `--secure` skips environment/profile/rc/logout sourcing for hardened sessions,
+  disables history persistence and smart cd, and ignores special lifecycle handlers.
 - **Auto-background on suspend** – Append `&^` to a command to resume it in the background when
   you press `Ctrl+Z`. Append `&^!` to resume it and discard stdout/stderr after the suspend so the
   prompt stays clean.

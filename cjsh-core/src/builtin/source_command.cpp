@@ -39,14 +39,13 @@
 extern std::unique_ptr<Shell> g_shell;
 
 int source_command(const std::vector<std::string>& args) {
+    const bool invoked_as_source = !args.empty() && args[0] == "source";
+    const std::string command_name = invoked_as_source ? "source" : ".";
     if (builtin_handle_help(args,
-                            {"Usage: source FILE",
+                            {"Usage: " + command_name + " FILE",
                              "Execute commands from FILE in the current shell environment."})) {
         return 0;
     }
-
-    const bool invoked_as_source = !args.empty() && args[0] == "source";
-    std::string command_name = invoked_as_source ? "source" : "source (.)";
 
     if (config::posix_mode && invoked_as_source) {
         print_error({ErrorType::INVALID_ARGUMENT,

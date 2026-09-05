@@ -111,7 +111,7 @@ int open_controlling_terminal(bool& should_close) {
 
 int bg_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(
-            args, {"Usage: bg [JOB_SPEC ...]", "Resume stopped jobs in the background."})) {
+            args, {"Usage: bg [JOB_SPEC|PID ...]", "Resume stopped jobs in the background."})) {
         return 0;
     }
 
@@ -148,8 +148,8 @@ int bg_command(const std::vector<std::string>& args) {
         const int job_id = resolved_job->job_id;
         if (job->state.load(std::memory_order_relaxed) != JobState::STOPPED) {
             print_error({ErrorType::INVALID_ARGUMENT,
-                         std::to_string(job_id),
-                         "job already running",
+                         "bg",
+                         std::to_string(job_id) + ": job already running",
                          {"Use 'jobs' to list job states"}});
             had_error = true;
             continue;
@@ -178,12 +178,15 @@ int bg_command(const std::vector<std::string>& args) {
 }
 
 int fg_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args, {"Usage: fg [%JOB]", "Bring a job to the foreground."})) {
+    if (builtin_handle_help(args, {"Usage: fg [JOB_SPEC|PID]", "Bring a job to the foreground."})) {
         return 0;
     }
 
     if (args.size() > 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, args[2], "fg accepts one job spec", {}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "fg",
+                     "too many arguments",
+                     {"Usage: fg [JOB_SPEC|PID]"}});
         return 1;
     }
     auto& job_manager = JobManager::instance();
@@ -212,8 +215,8 @@ int fg_command(const std::vector<std::string>& args) {
 
     if (consume_completed_job().has_value()) {
         print_error({ErrorType::INVALID_ARGUMENT,
-                     std::to_string(job_id),
-                     "job has already completed",
+                     "fg",
+                     std::to_string(job_id) + ": job has already completed",
                      {"Use 'jobs' to list available jobs"}});
         return 1;
     }
@@ -307,8 +310,10 @@ int fg_command(const std::vector<std::string>& args) {
 
 int jobs_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(
-            args, {"Usage: jobs [-lprs] [JOB_SPEC ...]",
-                   "List jobs. -l shows process groups, -p prints process-group leaders only."})) {
+            args, {"Usage: jobs [-lprs] [JOB_SPEC|PID ...]", "List jobs.",
+                   "  -l  Show process-group leaders and status",
+                   "  -p  Print process-group leaders only", "  -r  Show running jobs only",
+                   "  -s  Show stopped jobs only"})) {
         return 0;
     }
 
@@ -362,7 +367,7 @@ int jobs_command(const std::vector<std::string>& args) {
     }
 
     if (jobs.empty()) {
-        if (!pid_only) {
+        if (!pid_only && !had_error) {
             std::cout << "No jobs" << '\n';
         }
         return had_error ? 1 : 0;
@@ -425,9 +430,12 @@ int jobs_command(const std::vector<std::string>& args) {
 }
 
 int wait_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(
-            args, {"Usage: wait [-fn] [-p VARNAME] [ID ...]",
-                   "Wait for specified jobs or processes. Without IDs, waits for all."})) {
+    if (builtin_handle_help(args,
+                            {"Usage: wait [-fn] [-p VARNAME] [ID ...]",
+                             "Wait for specified jobs or processes. Without IDs, wait for all.",
+                             "  -f          Wait for termination instead of a stop",
+                             "  -n          Wait for the next selected job or process",
+                             "  -p VARNAME  Store the waited job or process ID"})) {
         return 0;
     }
 
@@ -455,8 +463,10 @@ int wait_command(const std::vector<std::string>& args) {
         if (arg == "-p" || arg.rfind("-p", 0) == 0) {
             if (arg == "-p") {
                 if (++operand_index >= args.size()) {
-                    print_error(
-                        {ErrorType::INVALID_ARGUMENT, "wait", "-p needs a variable name", {}});
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "wait",
+                                 "-p requires a variable name",
+                                 {"Usage: wait [-fn] [-p VARNAME] [ID ...]"}});
                     return 2;
                 }
                 result_variable = args[operand_index];
@@ -466,7 +476,10 @@ int wait_command(const std::vector<std::string>& args) {
             continue;
         }
         if (!arg.empty() && arg[0] == '-') {
-            print_error({ErrorType::INVALID_ARGUMENT, "wait", "invalid option: " + arg, {}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "wait",
+                         "invalid option: " + arg,
+                         {"Usage: wait [-fn] [-p VARNAME] [ID ...]"}});
             return 2;
         }
         break;
@@ -479,8 +492,10 @@ int wait_command(const std::vector<std::string>& args) {
             std::all_of(result_variable.begin() + 1, result_variable.end(),
                         [](unsigned char ch) { return std::isalnum(ch) != 0 || ch == '_'; });
         if (!valid_name) {
-            print_error(
-                {ErrorType::INVALID_ARGUMENT, result_variable, "not a valid variable name", {}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "wait",
+                         "'" + result_variable + "' is not a valid variable name",
+                         {}});
             return 2;
         }
         (void)cjsh_env::unset_shell_variable_value(result_variable);
@@ -510,8 +525,8 @@ int wait_command(const std::vector<std::string>& args) {
         auto parsed_pid = job_control_helpers::parse_pid_specifier(operand);
         if (!parsed_pid || *parsed_pid <= 0) {
             print_error({ErrorType::INVALID_ARGUMENT,
-                         operand,
-                         "Arguments must be process or job IDs",
+                         "wait",
+                         operand + ": expected a process ID or job specification",
                          {"Use 'jobs' to list available jobs"}});
             target_error = true;
             continue;
@@ -641,8 +656,10 @@ int wait_command(const std::vector<std::string>& args) {
             auto result = job_control_helpers::wait_for_job(target.job, job_manager,
                                                             !force_completion, &status_pid);
             if (!result) {
-                print_error(
-                    {ErrorType::RUNTIME_ERROR, target.operand, "not a child of this shell", {}});
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "wait",
+                             target.operand + ": not a child of this shell",
+                             {}});
                 return 127;
             }
             last_exit_status = *result;
@@ -672,8 +689,10 @@ int wait_command(const std::vector<std::string>& args) {
                 publish_waited_id(target.pid);
                 continue;
             }
-            print_error(
-                {ErrorType::RUNTIME_ERROR, target.operand, "not a child of this shell", {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "wait",
+                         target.operand + ": not a child of this shell",
+                         {}});
             return 127;
         }
         last_exit_status =
@@ -688,10 +707,12 @@ int wait_command(const std::vector<std::string>& args) {
 }
 
 int disown_command(const std::vector<std::string>& args) {
-    if (std::find(args.begin() + std::min<size_t>(1, args.size()), args.end(), "--help") !=
-        args.end()) {
-        std::cout << "Usage: disown [-arh] [JOB_SPEC ...]\n"
-                     "Remove jobs, or mark them to be excluded from SIGHUP.\n";
+    if (builtin_handle_help(
+            args,
+            {"Usage: disown [-arh] [JOB_SPEC|PID ...]", "       disown [--all|--running] [-h]",
+             "Remove jobs, or mark them to be excluded from SIGHUP.",
+             "  -a, --all      Select every job", "  -r, --running  Select running jobs only",
+             "  -h             Keep jobs but suppress SIGHUP"})) {
         return 0;
     }
 
@@ -736,7 +757,10 @@ int disown_command(const std::vector<std::string>& args) {
                 }
             }
             if (!valid) {
-                print_error({ErrorType::INVALID_ARGUMENT, args[i], "invalid disown option", {}});
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "disown",
+                             "invalid option: " + args[i],
+                             {"Usage: disown [-arh] [JOB_SPEC|PID ...]"}});
                 return 1;
             }
             continue;
@@ -788,7 +812,7 @@ int disown_command(const std::vector<std::string>& args) {
             return 0;
         }
         print_error({ErrorType::INVALID_ARGUMENT,
-                     "",
+                     "disown",
                      "no current job",
                      {"Use 'jobs' to identify targets"}});
         return 1;
@@ -848,9 +872,9 @@ std::string kill_signal_list_text() {
 }  // namespace
 
 int jobname_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: jobname JOB_SPEC NEW_NAME", "       jobname JOB_SPEC --clear",
-                             "Assign a temporary display name to a job, or clear it."})) {
+    if (builtin_handle_help(
+            args, {"Usage: jobname JOB_SPEC NEW_NAME", "       jobname JOB_SPEC [-c|--clear]",
+                   "Assign a temporary display name to a job, or clear it."})) {
         return 0;
     }
 
@@ -858,7 +882,7 @@ int jobname_command(const std::vector<std::string>& args) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "jobname",
                      "missing job spec or new name",
-                     {"Usage: jobname JOB_SPEC NEW_NAME", "       jobname JOB_SPEC --clear"}});
+                     {"Usage: jobname JOB_SPEC NEW_NAME", "       jobname JOB_SPEC [-c|--clear]"}});
         return 1;
     }
 
@@ -874,8 +898,8 @@ int jobname_command(const std::vector<std::string>& args) {
     auto job = resolved->job;
     if (!job) {
         print_error({ErrorType::INVALID_ARGUMENT,
-                     args[1],
-                     "no such job",
+                     "jobname",
+                     args[1] + ": no such job",
                      {"Use 'jobs' to list available jobs"}});
         return 1;
     }
@@ -902,48 +926,79 @@ int jobname_command(const std::vector<std::string>& args) {
 
 int kill_command(const std::vector<std::string>& args) {
     auto run = [&]() -> int {
-        if (builtin_handle_help(args,
-                                {"Usage: kill [-s SIGNAL| -SIGNAL] ID ...",
-                                 "Send a signal to processes or jobs. Use -l to list signals."})) {
+        static const std::vector<std::string> usage_lines = {
+            "Usage: kill [-s SIGNAL|-n SIGNUM|-SIGNAL] ID ...",
+            "       kill -l",
+            "Send a signal to processes or jobs.",
+            "  -s SIGNAL  Specify a signal by name or number",
+            "  -n SIGNUM  Specify a signal number",
+            "  -SIGNAL    Specify a signal by name or number",
+            "  -l          List available signals"};
+        if (builtin_handle_help(args, usage_lines)) {
             return 0;
         }
         if (args.size() < 2) {
             print_error({ErrorType::INVALID_ARGUMENT,
-                         "",
-                         "No targets specified",
-                         {"Provide at least one PID or job ID"}});
+                         "kill",
+                         "no targets specified",
+                         {"Usage: kill [-s SIGNAL|-n SIGNUM|-SIGNAL] ID ..."}});
             return 2;
         }
 
         int signal = SIGTERM;
         size_t start_index = 1;
 
-        if (args[1].substr(0, 1) == "-") {
+        if (!args[1].empty() && args[1][0] == '-') {
             if (args[1] == "-l") {
+                if (args.size() != 2) {
+                    print_error({ErrorType::INVALID_ARGUMENT, "kill", "-l accepts no operands",
+                                 usage_lines});
+                    return 2;
+                }
                 std::cout << kill_signal_list_text() << '\n';
                 return 0;
             }
 
-            if (args.size() < 3) {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             "",
-                             "No targets specified",
-                             {"kill: usage: kill [-s sigspec | -n signum | -sigspec] pid "
-                              "| jobspec ..."}});
-                return 2;
+            std::string signal_str;
+            if (args[1] == "-s" || args[1] == "-n") {
+                if (args.size() < 3) {
+                    print_error({ErrorType::INVALID_ARGUMENT, "kill",
+                                 args[1] + " requires a signal", usage_lines});
+                    return 2;
+                }
+                signal_str = args[2];
+                start_index = 3;
+            } else {
+                signal_str = args[1].substr(1);
+                start_index = 2;
             }
 
-            std::string signal_str = args[1].substr(1);
-            signal = job_control_helpers::parse_signal(signal_str);
-            if (signal == -1) {
+            if (args[1] == "-n" &&
+                !std::all_of(signal_str.begin(), signal_str.end(),
+                             [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
                 print_error({ErrorType::INVALID_ARGUMENT,
                              "kill",
-                             "invalid option: " + args[1],
+                             "invalid signal number: " + signal_str,
                              {"Use -l to list valid signals"}});
                 return 1;
             }
 
-            start_index = 2;
+            signal = job_control_helpers::parse_signal(signal_str);
+            if (signal == -1) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "kill",
+                             "invalid signal: " + signal_str,
+                             {"Use -l to list valid signals"}});
+                return 1;
+            }
+        }
+
+        if (start_index >= args.size()) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "kill",
+                         "no targets specified",
+                         {"Usage: kill [-s SIGNAL|-n SIGNUM|-SIGNAL] ID ..."}});
+            return 2;
         }
 
         auto& job_manager = JobManager::instance();
@@ -1010,12 +1065,8 @@ int kill_command(const std::vector<std::string>& args) {
             update_job_state_after_signal(job);
         };
 
-        auto handle_job_target = [&](const std::string& spec, const std::string& original) -> bool {
+        auto handle_job_target = [&](const std::string& original) -> bool {
             std::vector<std::string> lookup_args = {"kill", original};
-            if (!spec.empty() && spec[0] != '%' && (original.empty() || original[0] != '%')) {
-                lookup_args[1] = "%" + spec;
-            }
-
             auto resolved =
                 job_control_helpers::resolve_control_job_target(lookup_args, job_manager);
             if (!resolved) {
@@ -1031,7 +1082,7 @@ int kill_command(const std::vector<std::string>& args) {
             const std::string& target = args[i];
 
             if (!target.empty() && target[0] == '%') {
-                handle_job_target(target.substr(1), target);
+                handle_job_target(target);
                 continue;
             }
 
@@ -1050,7 +1101,7 @@ int kill_command(const std::vector<std::string>& args) {
             }
 
             if (!treated_as_pid) {
-                handle_job_target(target, target);
+                handle_job_target(target);
             }
         }
 
@@ -1060,7 +1111,7 @@ int kill_command(const std::vector<std::string>& args) {
     try {
         return run();
     } catch (...) {
-        print_error({ErrorType::INVALID_ARGUMENT, "kill", "invalid argument", {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "kill", "unable to process arguments", {}});
         return 1;
     }
 }

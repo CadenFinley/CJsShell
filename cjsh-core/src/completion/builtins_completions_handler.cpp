@@ -251,52 +251,55 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_alias("abbreviate", "abbr");
         add_alias("unabbreviate", "unabbr");
 
-        add_doc("alias", "Create or inspect command aliases", {});
-        add_doc("unalias", "Remove command aliases", {});
+        add_doc("alias", "Create or inspect command aliases",
+                {make_option("-p", "Print aliases in reusable form")});
+        add_doc("unalias", "Remove command aliases", {make_option("-a", "Remove all aliases")});
 
-        add_doc("cjsh", "POSIX Shell Scripting meets Modern Shell Features",
-                {make_option("-h", "Display help message and exit"),
-                 make_option("--help", "Display help message and exit"),
-                 make_option("-v", "Print version information and exit"),
-                 make_option("--version", "Print version information and exit"),
-                 make_option("-l", "Start as a login shell"),
-                 make_option("--login", "Start as a login shell (load ~/.cjprofile)"),
-                 make_option("-i", "Force interactive mode"),
-                 make_option("--interactive", "Force interactive mode"),
-                 make_option("-c", "Execute the specified command string and exit"),
-                 make_option("--command=", "Execute the specified command string and exit"),
-                 make_option("--no-exec", "Read commands without executing"),
-                 make_option("--posix", "Enable POSIX mode and reject non-POSIX syntax"),
-                 make_option("-m", "Disable cjsh enhancements"),
-                 make_option("--minimal", "Disable cjsh enhancements"),
-                 make_option("-C", "Disable color output"),
-                 make_option("--no-colors", "Disable color output"),
-                 make_option("-N", "Skip sourcing ~/.cjshrc"),
-                 make_option("--no-source", "Skip sourcing ~/.cjshrc"),
-                 make_option("-O", "Disable tab completions"),
-                 make_option("--no-completions", "Disable tab completions"),
-                 make_option("--no-completion-learning", "Disable on-demand completion learning"),
-                 make_option("--no-script-extension-interpreter",
-                             "Disable extension-based script runners"),
-                 make_option("--no-smart-cd", "Disable smart cd auto-jumps"),
-                 make_option("-S", "Disable syntax highlighting"),
-                 make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
-                 make_option("--no-error-suggestions", "Disable error suggestions"),
-                 make_option("--no-agent", "Disable agent-assisted command writing"),
-                 make_option("--no-prompt-vars", "Ignore PS1/PS2 prompt variables"),
-                 make_option("--no-history", "Disable history recording and history expansion"),
-                 make_option("-H", "Disable history expansion"),
-                 make_option("--no-history-expansion", "Disable history expansion (!commands)"),
-                 make_option("-W", "Suppress the sh invocation warning"),
-                 make_option("--no-sh-warning", "Suppress the sh invocation warning"),
-                 make_option("-L", "Disable title line on startup"),
-                 make_option("--no-titleline", "Disable title line on startup"),
-                 make_option("-U", "Display startup time"),
-                 make_option("--show-startup-time", "Display startup time"),
-                 make_option("-s", "Secure mode: disable cjshenv/profile/rc/logout files"),
-                 make_option("--secure", "Secure mode: disable cjshenv/profile/rc/logout files"),
-                 make_option("-X", "Enable startup test mode"),
-                 make_option("--startup-test", "Enable startup test mode (internal)")});
+        add_doc(
+            "cjsh", "POSIX Shell Scripting meets Modern Shell Features",
+            {make_option("-h", "Display help message and exit"),
+             make_option("--help", "Display help message and exit"),
+             make_option("-v", "Print version information and exit"),
+             make_option("--version", "Print version information and exit"),
+             make_option("-l", "Start as a login shell"),
+             make_option("--login", "Start as a login shell (load ~/.cjprofile)"),
+             make_option("-i", "Force interactive mode"),
+             make_option("--interactive", "Force interactive mode"),
+             make_value_option("--command", {"-c"}, "Execute the specified command string and exit",
+                               ValueRequirement::Required, ValueType::Text, "COMMAND",
+                               ValueSeparator::Either),
+             make_option("--no-exec", "Read commands without executing"),
+             make_option("--posix", "Enable POSIX mode and reject non-POSIX syntax"),
+             make_option("-m", "Disable cjsh enhancements"),
+             make_option("--minimal", "Disable cjsh enhancements"),
+             make_option("-C", "Disable color output"),
+             make_option("--no-colors", "Disable color output"),
+             make_option("-N", "Skip sourcing ~/.cjshrc"),
+             make_option("--no-source", "Skip sourcing ~/.cjshrc"),
+             make_option("-O", "Disable tab completions"),
+             make_option("--no-completions", "Disable tab completions"),
+             make_option("--no-completion-learning", "Disable on-demand completion learning"),
+             make_option("--no-script-extension-interpreter",
+                         "Disable extension-based script runners"),
+             make_option("--no-smart-cd", "Disable smart cd auto-jumps"),
+             make_option("-S", "Disable syntax highlighting"),
+             make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
+             make_option("--no-error-suggestions", "Disable error suggestions"),
+             make_option("--no-agent", "Disable agent-assisted command writing"),
+             make_option("--no-prompt-vars", "Ignore PS1/PS2 prompt variables"),
+             make_option("--no-history", "Disable history recording and history expansion"),
+             make_option("-H", "Disable history expansion"),
+             make_option("--no-history-expansion", "Disable history expansion (!commands)"),
+             make_option("-W", "Suppress the sh invocation warning"),
+             make_option("--no-sh-warning", "Suppress the sh invocation warning"),
+             make_option("-L", "Disable title line on startup"),
+             make_option("--no-titleline", "Disable title line on startup"),
+             make_option("-U", "Display startup time"),
+             make_option("--show-startup-time", "Display startup time"),
+             make_option("-s", "Secure mode: disable cjshenv/profile/rc/logout files"),
+             make_option("--secure", "Secure mode: disable cjshenv/profile/rc/logout files"),
+             make_option("-X", "Enable startup test mode"),
+             make_option("--startup-test", "Enable startup test mode (internal)")});
 
         add_doc("break", "Exit the innermost enclosing loop", {});
         add_doc("continue", "Advance to the next loop iteration", {});
@@ -344,7 +347,11 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("false", "Exit with a non-zero status", {});
         add_doc(":", "No-op that always succeeds", {});
 
-        add_doc("local", "Declare variables local to the current function", {});
+        add_doc(
+            "local", "Declare variables local to the current function",
+            {make_option("-a", "Declare indexed arrays"),
+             make_option("-A", "Declare associative arrays"), make_option("-n", "Declare namerefs"),
+             make_option("-r", "Mark names readonly"), make_option("-x", "Mark names exported")});
         add_doc(
             "declare", "Set variable attributes and values",
             {make_option("-a", "Declare indexed arrays"),
@@ -357,8 +364,11 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_option("+x", "Remove export attribute")});
         add_alias("typeset", "declare");
         add_doc("coproc", "Run a command asynchronously with a two-way pipe", {});
-        add_doc("export", "Export environment variables", {});
-        add_doc("unset", "Remove variables from the environment", {});
+        add_doc("export", "Export environment variables",
+                {make_option("-p", "Print exported variables in reusable form")});
+        add_doc("unset", "Remove variables from the environment",
+                {make_option("-n", "Unset the nameref attribute"),
+                 make_option("-v", "Select variables")});
         add_doc("set", "Configure shell options or positional parameters",
                 {make_option("-e", "Exit immediately on errors"),
                  make_option("+e", "Disable exit-on-error"),
@@ -419,23 +429,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("done", "End the current loop body", {});
         add_doc("function", "Define a named shell function", {});
         add_doc("login-startup-arg", "Add cjsh startup flags",
-                {make_option("--login", "Run cjsh as a login shell"),
-                 make_option("--interactive", "Force interactive mode"),
-                 make_option("--no-exec", "Read commands without executing"),
-                 make_option("--no-colors", "Disable color output"),
-                 make_option("--no-titleline", "Disable terminal title updates"),
-                 make_option("--show-startup-time", "Display startup timing"),
-                 make_option("--no-source", "Skip sourcing configuration files"),
-                 make_option("--no-completions", "Disable completion initialization"),
-                 make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
-                 make_option("--no-error-suggestions", "Disable error suggestions"),
-                 make_option("--no-agent", "Disable agent-assisted command writing"),
-                 make_option("--no-prompt-vars", "Ignore PS1/PS2 prompt variables"),
-                 make_option("--no-history-expansion", "Disable history expansion"),
-                 make_option("--no-sh-warning", "Suppress the sh invocation warning"),
-                 make_option("--minimal", "Disable cjsh enhancements"),
-                 make_option("--secure", "Skip env/profile/rc/logout sourcing"),
-                 make_option("--startup-test", "Enable startup test mode")});
+                build_startup_flag_completion_entries());
 
         add_doc("history", "Show command history", {});
         add_doc("fc", "Edit or list commands from history",
@@ -444,7 +438,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("-n", "Suppress line numbers when listing"),
                  make_option("-r", "Reverse the order when listing"),
                  make_option("-s", "Re-execute with substitution"),
-                 make_option("-c", "Edit the provided string")});
+                 make_option("-c", "Edit the provided string"),
+                 make_option("--command", "Edit the provided string")});
 
         add_doc("exit", "Exit the shell with an optional status", {});
         add_alias("quit", "exit");
@@ -492,7 +487,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
             "disown", "Remove jobs from the shell's management",
             {make_option("-a", "Select every job"), make_option("-r", "Select running jobs only"),
              make_option("-h", "Keep jobs but suppress SIGHUP"),
-             make_option("--all", "Select every job")});
+             make_option("--all", "Select every job"),
+             make_option("--running", "Select running jobs only")});
 
         add_doc("readonly", "Mark variables as read-only",
                 {make_option("-p", "Print current readonly variables"),
@@ -539,7 +535,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
             {make_option("-a", "Show all possible resolutions"),
              make_option("-f", "Force ignoring shell functions"),
              make_option("-p", "Force PATH lookup"), make_option("-t", "Print the type keyword"),
-             make_option("-P", "Search the default PATH"),
+             make_option("-P", "Force PATH lookup, ignoring functions"),
              make_option("--", "Stop processing options")});
 
         add_doc("which", "Locate commands in PATH",
@@ -547,8 +543,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--", "Stop processing options")});
 
         add_doc("hash", "Manage the command lookup cache",
-                {make_option("-r", "Reset cached entries"),
-                 make_option("-d", "Disable caching for specified names")});
+                {make_option("-r", "Reset cached entries")});
 
         add_doc("generate-completions", "Regenerate cached external completions",
                 {make_option("--quiet", "Suppress per-command output"),

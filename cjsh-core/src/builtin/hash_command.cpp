@@ -57,7 +57,7 @@ void print_cache_entries(const std::vector<cjsh_filesystem::PathHashEntry>& entr
 }
 
 void report_target_missing(const std::string& name) {
-    print_error({ErrorType::COMMAND_NOT_FOUND,
+    print_error({ErrorType::UNKNOWN_ERROR,
                  "hash",
                  name + ": not found in PATH or not cacheable",
                  {"Only bare command names without '/' can be hashed."}});

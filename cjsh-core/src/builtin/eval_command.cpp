@@ -36,7 +36,8 @@
 
 int eval_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(
-            args, {"Usage: eval STRING", "Evaluate STRING in the current shell context."})) {
+            args, {"Usage: eval STRING [STRING ...]",
+                   "Join STRING operands with spaces and evaluate them in the current shell."})) {
         return 0;
     }
     if (args.size() < 2) {

@@ -50,7 +50,7 @@ int handle_generate_command_common(
     bool force = false;
     bool use_alternate = false;
 
-    std::string usage = "Usage: " + command_name + " [--force]";
+    std::string usage = "Usage: " + command_name + " [-f|--force]";
     if (alternate_target_path) {
         (void)usage.append(" [--alt]");
     }

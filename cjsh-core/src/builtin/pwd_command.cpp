@@ -85,13 +85,10 @@ char* logical_getcwd() {
 int pwd_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(
             args,
-            {"Usage: pwd [OPTION]...", "Print the full filename of the current working directory.",
-             "", "  -L, --logical   use PWD from environment, even if it contains symlinks",
-             "  -P, --physical  avoid all symlinks (default)", "",
-             "If no option is specified, -P is assumed.", "",
-             "NOTE: your shell may have its own version of pwd, which usually supersedes",
-             "the version described here. Please refer to your shell's documentation",
-             "for details about the options it supports."})) {
+            {"Usage: pwd [OPTION]...", "Print the current working directory.", "",
+             "  -L, --logical   use PWD from environment, even if it contains symlinks",
+             "  -P, --physical  avoid all symlinks", "  --version       print version information",
+             "", "If no option is specified, -L is assumed."})) {
         return 0;
     }
 
@@ -122,7 +119,7 @@ int pwd_command(const std::vector<std::string>& args) {
         } else if (arg == "--physical") {
             logical = false;
         } else if (arg == "--version") {
-            std::cout << "pwd (CJsShell coreutils)\n";
+            std::cout << "pwd (cjsh builtin)\n";
             return 0;
         } else if (arg == "--") {
             break;
@@ -137,7 +134,7 @@ int pwd_command(const std::vector<std::string>& args) {
                          ErrorSeverity::WARNING,
                          "pwd",
                          "ignoring non-option arguments",
-                         {"Use '--' to separate options from paths."}});
+                         {"pwd does not accept path operands."}});
         }
     }
 

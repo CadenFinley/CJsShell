@@ -114,6 +114,7 @@ const std::vector<std::string>& keybind_usage_lines() {
         "  reset                           Clear all custom key bindings and restore defaults",
         "  profile list                    List available key binding profiles",
         "  profile set <name>              Activate a key binding profile",
+        "  ext <subcommand> [...]          Manage custom command and palette bindings",
         "",
         "Use 'cjshopt keybind --help' for detailed guidance.",
     };

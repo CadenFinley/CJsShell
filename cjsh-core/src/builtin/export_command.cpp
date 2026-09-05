@@ -110,9 +110,10 @@ bool parse_unset_target(const std::string& text, std::string& base_name, bool& h
 }  // namespace
 
 int export_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args, {"Usage: export [NAME[=VALUE] ...]",
+    if (builtin_handle_help(args, {"Usage: export [-p] [NAME[=VALUE] ...]",
                                    "Set environment variables for the shell and subprocesses.",
-                                   "Without operands, list exported variables."})) {
+                                   "Without operands, list exported variables.",
+                                   "-p prints exported variables in reusable form."})) {
         return 0;
     }
     size_t start_index = 1;
@@ -202,8 +203,9 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 int unset_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args, {"Usage: unset [-n] NAME [NAME ...]",
-                                   "Remove variables from the environment and shell state."})) {
+    if (builtin_handle_help(args, {"Usage: unset [-n|-v] NAME [NAME ...]",
+                                   "Remove variables from the environment and shell state.",
+                                   "-n unsets the nameref attribute; -v selects variables."})) {
         return 0;
     }
     if (args.size() < 2) {

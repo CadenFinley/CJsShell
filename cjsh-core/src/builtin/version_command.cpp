@@ -30,6 +30,7 @@
 
 #include "builtin_help.h"
 #include "builtin_option_parser.h"
+#include "error_out.h"
 
 #include <cstdio>
 #include <string>
@@ -176,7 +177,22 @@ int version_command(const std::vector<std::string>& args) {
         } else if (arg == "--platform") {
             enable_field(show_platform);
         } else if (arg == "--") {
+            if (i + 1 < args.size()) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "version",
+                             "unexpected argument: " + args[i + 1],
+                             {"Usage: version [OPTIONS]"}});
+                return 2;
+            }
             break;
+        } else {
+            const std::string kind =
+                !arg.empty() && arg[0] == '-' ? "invalid option: " : "unexpected argument: ";
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "version",
+                         kind + arg,
+                         {"Try 'version --help' for available options."}});
+            return 2;
         }
     }
 

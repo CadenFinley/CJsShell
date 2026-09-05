@@ -76,8 +76,8 @@ bool assign_or_print_named_entries(const std::vector<std::string>& args, size_t 
         if (it != mapping.end()) {
             std::cout << command_name << " " << it->first << "='" << it->second << "'" << '\n';
         } else {
-            print_error({ErrorType::COMMAND_NOT_FOUND, command_name, args[i] + ": not found",
-                         not_found_hints});
+            print_error(
+                {ErrorType::UNKNOWN_ERROR, command_name, args[i] + ": not found", not_found_hints});
             all_successful = false;
         }
     }
@@ -95,7 +95,7 @@ bool remove_named_entries(const std::vector<std::string>& args, size_t start_ind
         if (it != mapping.end()) {
             mapping.erase(it);
         } else {
-            print_error({ErrorType::COMMAND_NOT_FOUND, command_name, name + ": not found", {}});
+            print_error({ErrorType::UNKNOWN_ERROR, command_name, name + ": not found", {}});
             success = false;
         }
     }
@@ -105,9 +105,11 @@ bool remove_named_entries(const std::vector<std::string>& args, size_t start_ind
 }  // namespace
 
 int alias_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args, {"Usage: alias [NAME[=VALUE] ...]", "List or define aliases.",
-                                   "With no operands, display all aliases.",
-                                   "NAME=VALUE defines an alias, NAME shows its definition."})) {
+    if (builtin_handle_help(args,
+                            {"Usage: alias [-p] [NAME[=VALUE] ...]", "List or define aliases.",
+                             "With no operands, display all aliases.",
+                             "NAME=VALUE defines an alias, NAME shows its definition.",
+                             "-p prints aliases in reusable form."})) {
         return 0;
     }
     bool print_mode = false;
@@ -144,7 +146,7 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
             if (it != aliases.end()) {
                 std::cout << "alias " << it->first << "='" << it->second << "'" << '\n';
             } else {
-                print_error({ErrorType::COMMAND_NOT_FOUND, "alias", args[i] + ": not found", {}});
+                print_error({ErrorType::UNKNOWN_ERROR, "alias", args[i] + ": not found", {}});
                 all_successful = false;
             }
         }
@@ -162,7 +164,8 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 int unalias_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args, {"Usage: unalias NAME [NAME ...]", "Remove one or more aliases.",
+    if (builtin_handle_help(args, {"Usage: unalias [-a] [NAME ...]", "Remove one or more aliases.",
+                                   "-a removes all aliases.",
                                    "Use 'alias --help' to learn how to create aliases."})) {
         return 0;
     }
@@ -216,15 +219,17 @@ int unalias_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 int abbr_command(const std::vector<std::string>& args, Shell* shell) {
+    const std::string command_name =
+        !args.empty() && args[0] == "abbreviate" ? "abbreviate" : "abbr";
     if (builtin_handle_help(
-            args, {"Usage: abbr [NAME=EXPANSION ...]", "List or define abbreviations.",
-                   "With no operands, display all abbreviations.",
+            args, {"Usage: " + command_name + " [NAME=EXPANSION ...]",
+                   "List or define abbreviations.", "With no operands, display all abbreviations.",
                    "NAME=EXPANSION defines an abbreviation, NAME shows its expansion."})) {
         return 0;
     }
 
     if (shell == nullptr) {
-        print_error({ErrorType::FATAL_ERROR, "abbr", "shell not initialized properly", {}});
+        print_error({ErrorType::FATAL_ERROR, command_name, "shell not initialized properly", {}});
         return 1;
     }
 
@@ -236,17 +241,18 @@ int abbr_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     bool all_successful = assign_or_print_named_entries(
-        args, 1, abbreviations, "abbr", {"Define it with 'abbr NAME=EXPANSION'."},
-        [](const std::string& name) {
+        args, 1, abbreviations, command_name, {"Define it with 'abbr NAME=EXPANSION'."},
+        [&command_name](const std::string& name) {
             if (name.empty()) {
-                print_error({ErrorType::INVALID_ARGUMENT, "abbr", "name cannot be empty", {}});
+                print_error(
+                    {ErrorType::INVALID_ARGUMENT, command_name, "name cannot be empty", {}});
                 return false;
             }
 
             for (char ch : name) {
                 if (std::isspace(static_cast<unsigned char>(ch)) != 0) {
                     print_error({ErrorType::INVALID_ARGUMENT,
-                                 "abbr",
+                                 command_name,
                                  "abbreviation name cannot contain whitespace",
                                  {}});
                     return false;
@@ -262,24 +268,26 @@ int abbr_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 int unabbr_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args,
-                            {"Usage: unabbr NAME [NAME ...]", "Remove one or more abbreviations.",
-                             "Use 'abbr --help' to learn how to create abbreviations."})) {
+    const std::string command_name =
+        !args.empty() && args[0] == "unabbreviate" ? "unabbreviate" : "unabbr";
+    if (builtin_handle_help(args, {"Usage: " + command_name + " NAME [NAME ...]",
+                                   "Remove one or more abbreviations.",
+                                   "Use 'abbr --help' to learn how to create abbreviations."})) {
         return 0;
     }
 
     if (shell == nullptr) {
-        print_error({ErrorType::FATAL_ERROR, "unabbr", "shell not initialized properly", {}});
+        print_error({ErrorType::FATAL_ERROR, command_name, "shell not initialized properly", {}});
         return 1;
     }
 
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "unabbr", "not enough arguments", {}});
+        print_error({ErrorType::INVALID_ARGUMENT, command_name, "not enough arguments", {}});
         return 1;
     }
 
     auto& abbreviations = shell->get_abbreviations();
-    bool success = remove_named_entries(args, 1, abbreviations, "unabbr");
+    bool success = remove_named_entries(args, 1, abbreviations, command_name);
 
     shell->set_abbreviations(abbreviations);
 

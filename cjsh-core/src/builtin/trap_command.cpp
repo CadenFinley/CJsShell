@@ -171,9 +171,11 @@ void print_trap_list(const std::vector<std::pair<int, std::string>>& traps) {
 }
 
 int trap_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args, {"Usage: trap [-lp] [ARG] [SIGNAL ...]",
-                                   "Set a command to execute when SIGNAL is received.",
-                                   "With no arguments, list active traps."})) {
+    static const std::vector<std::string> help_lines = {
+        "Usage: trap [ARG] [SIGNAL ...]", "       trap -l", "       trap -p",
+        "Set a command to execute when SIGNAL is received.",
+        "With no arguments or with -p, list active traps. -l lists available signals."};
+    if (builtin_handle_help(args, help_lines)) {
         return 0;
     }
     if (args.size() == 1) {
@@ -186,6 +188,11 @@ int trap_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() >= 2 && args[1] == "-l") {
+        if (args.size() != 2) {
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, "trap", "-l accepts no operands", help_lines});
+            return 2;
+        }
         for (const auto& pair : SignalHandler::trap_signal_names()) {
             std::cout << pair.first << ") SIG" << pair.second << '\n';
         }
@@ -193,14 +200,24 @@ int trap_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() >= 2 && args[1] == "-p") {
+        if (args.size() != 2) {
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, "trap", "-p accepts no operands", help_lines});
+            return 2;
+        }
         auto traps = trap_manager_list_traps();
         print_trap_list(traps);
         return 0;
     }
 
-    if (args.size() < 3) {
+    if (args.size() >= 2 && args[1].size() > 1 && args[1][0] == '-') {
         print_error(
-            {ErrorType::INVALID_ARGUMENT, "trap", "usage: trap [-lp] [arg] [signal ...]", {}});
+            {ErrorType::INVALID_ARGUMENT, "trap", "invalid option: " + args[1], help_lines});
+        return 2;
+    }
+
+    if (args.size() < 3) {
+        print_error({ErrorType::INVALID_ARGUMENT, "trap", "missing signal operand", help_lines});
         return 2;
     }
 

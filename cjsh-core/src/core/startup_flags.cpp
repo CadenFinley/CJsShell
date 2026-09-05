@@ -41,7 +41,7 @@ const std::vector<Descriptor>& descriptors() {
         {"--no-colors", "Disable colors"},
         {"--no-titleline", "Disable title line"},
         {"--show-startup-time", "Display shell startup time"},
-        {"--no-source", "Skip sourcing configuration files"},
+        {"--no-source", "Skip sourcing ~/.cjshrc"},
         {"--no-completions", "Disable tab completions"},
         {"--no-completion-learning", "Skip on-demand completion scraping"},
         {"--no-smart-cd", "Disable smart cd auto-jumps"},

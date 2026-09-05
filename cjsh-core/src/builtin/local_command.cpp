@@ -38,8 +38,11 @@
 #include "shell_env.h"
 
 int local_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args, {"Usage: local [-aAn] NAME[=VALUE] ...",
-                                   "Define local variables within a function scope."})) {
+    if (builtin_handle_help(args,
+                            {"Usage: local [-aAnrx] NAME[=VALUE] ...",
+                             "Define local variables within a function scope.",
+                             "Attributes: -a indexed array, -A associative array, -n nameref,",
+                             "            -r readonly, -x exported."})) {
         return 0;
     }
 

@@ -211,6 +211,7 @@ int echo_command(const std::vector<std::string>& args) {
                                    "  \\t      horizontal tab",
                                    "  \\v      vertical tab",
                                    "  \\0NNN   byte with octal value NNN (1 to 3 digits)",
+                                   "  \\NNN    byte with octal value NNN (1 to 3 digits)",
                                    "  \\xHH    byte with hexadecimal value HH (1 to 2 digits)"})) {
         return 0;
     }

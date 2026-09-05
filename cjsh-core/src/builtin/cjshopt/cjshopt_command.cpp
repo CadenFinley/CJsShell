@@ -216,7 +216,7 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "(default: 15)",
         std::string("  multiline-bottom-lines <count|status> Set the multiline cursor margin ") +
             "(default: 3)",
-        "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
+        "  hint-delay <milliseconds|status> Set or show the hint display delay",
         "  idle-timeout <seconds|off|status> Configure inactivity hooks (default: off)",
         std::string("  completion-preview <on|off|status> Configure completion preview ") +
             "(default: enabled)",
@@ -259,10 +259,10 @@ const std::vector<std::string>& cjshopt_usage_lines() {
         "  keybind <subcommand> [...]       Inspect or modify key bindings",
         "    - Changes apply immediately; add the same command to ~/.cjshrc to persist",
         "    - Use 'cjshopt keybind ext' for custom command keybindings",
-        "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile",
-        "  generate-env [--force] [--alt]           Create or overwrite ~/.cjshenv",
-        "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc",
-        "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjlogout",
+        "  generate-profile [-f|--force] [--alt]    Create or overwrite ~/.cjprofile",
+        "  generate-env [-f|--force] [--alt]        Create or overwrite ~/.cjshenv",
+        "  generate-rc [-f|--force] [--alt]         Create or overwrite ~/.cjshrc",
+        "  generate-logout [-f|--force] [--alt]     Create or overwrite ~/.cjlogout",
         "  set-history-max <number|default|status> Configure history persistence",
         "  set-completion-max <number|default|status> Limit completion suggestions",
         "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.",
@@ -274,6 +274,17 @@ void print_cjshopt_usage() {
     for (const auto& line : cjshopt_usage_lines()) {
         std::cout << line << '\n';
     }
+}
+
+std::string available_subcommands_message() {
+    std::string message = "Available subcommands: ";
+    for (size_t i = 0; i < kCjshoptSubcommandDescriptors.size(); ++i) {
+        if (i != 0) {
+            message += ", ";
+        }
+        message += kCjshoptSubcommandDescriptors[i].name;
+    }
+    return message;
 }
 }  // namespace
 
@@ -300,22 +311,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
     print_error({ErrorType::INVALID_ARGUMENT,
                  "cjshopt",
                  "unknown subcommand '" + subcommand + "'",
-                 {"Available subcommands: style_def, login-startup-arg, completion-case, "
-                  "history-search-case, completion-spell, completion-spell-enter, "
-                  "exit-confirmation, smart-cd, script-extension-interpreter, "
-                  "completion-learning, "
-                  "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
-                  "current-line-number-highlight, multiline-start-lines, multiline-max-lines, "
-                  "multiline-bottom-lines, hint-delay, idle-timeout, "
-                  "completion-preview, completion-menu-expanded, completion-click-accept, "
-                  "menu-highlighting, visible-whitespace, hint, "
-                  "multiline-indent, multiline, inline-help, "
-                  "status-hints, status-line, status-reporting, status-line-callback, "
-                  "mouse-clicking, mouse-clicking-status-line, auto-tab, prompt-newline, "
-                  "right-prompt-follow-cursor, "
-                  "agent-mode, keybind, "
-                  "generate-profile, generate-env, generate-rc, generate-logout, set-history-max, "
-                  "set-completion-max"}});
+                 {available_subcommands_message()}});
 
     return 1;
 }

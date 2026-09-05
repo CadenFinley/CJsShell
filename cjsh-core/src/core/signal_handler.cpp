@@ -41,6 +41,7 @@
 #include "exec.h"
 // #include "isocline.h"
 #include "job_control.h"
+#include "numeric_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "trap_command.h"
@@ -302,11 +303,8 @@ int SignalHandler::name_to_signal(const std::string& name) {
         }
     }
 
-    try {
-        return std::stoi(name);
-    } catch (const std::exception&) {
-        return -1;
-    }
+    int signal_number = 0;
+    return numeric_utils::parse_int_strict(name, signal_number) ? signal_number : -1;
 }
 
 int SignalHandler::parse_trap_signal_token(const std::string& token) {

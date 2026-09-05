@@ -72,8 +72,8 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 3) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "getopts",
-                     "usage: getopts optstring name [args...]",
-                     {}});
+                     "missing OPTSTRING or NAME operand",
+                     {"Usage: getopts OPTSTRING NAME [ARG ...]"}});
         return 2;
     }
 

@@ -281,7 +281,7 @@ Built_ins::Built_ins() : shell(nullptr) {
 
              auto builtin_it = builtins.find(target_command);
              if (builtin_it == builtins.end()) {
-                 ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND,
+                 ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
                                     "builtin",
                                     "'" + target_command + "' is not a builtin command",
                                     {"Use 'help' to list available builtins"}};
@@ -371,7 +371,7 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
     std::vector<std::string> suggestions;
     suggestions = suggestion_utils::generate_command_suggestions_if_enabled(args[0]);
 
-    ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0], "command not found", suggestions};
+    ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0], "", suggestions};
     print_error(error);
     return 127;
 }

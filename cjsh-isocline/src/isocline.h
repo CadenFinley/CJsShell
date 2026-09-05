@@ -983,6 +983,9 @@ bool ic_enable_spell_correct_on_enter(bool enable);
 /// default).
 long ic_set_hint_delay(long delay_ms);
 
+/// Return the current hint display delay in milliseconds.
+long ic_get_hint_delay(void);
+
 /// Set the inactivity timeout for the active readline loop in milliseconds.
 /// Zero disables idle timeouts. Returns the previous timeout.
 long ic_set_idle_timeout(long timeout_ms);

@@ -191,9 +191,10 @@ int launch_coprocess(const std::string& variable_name, const std::string& comman
 
 int coproc_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(
-            args,
-            {"Usage: coproc COMMAND [ARG ...]", "Run a command asynchronously with a two-way pipe.",
-             "The read and write descriptors are COPROC[0] and COPROC[1]."})) {
+            args, {"Usage: coproc COMMAND [ARG ...]", "       coproc [NAME] COMPOUND_COMMAND",
+                   "Run a command asynchronously with a two-way pipe.",
+                   "Descriptors are NAME[0]/NAME[1] and the process ID is NAME_PID.",
+                   "The default NAME is COPROC."})) {
         return 0;
     }
     if (config::posix_mode) {
@@ -235,7 +236,7 @@ int coproc_script_command(const std::string& command_text, Shell* shell) {
         print_error({ErrorType::INVALID_ARGUMENT, "coproc", "missing coprocess command", {}});
         return 2;
     }
-    if (remainder == "--help" || remainder == "-h") {
+    if (remainder == "--help") {
         return coproc_command({"coproc", remainder}, shell);
     }
 

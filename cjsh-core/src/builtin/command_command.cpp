@@ -53,8 +53,8 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "command",
-                     "usage: command [-pVv] command [arg ...]",
-                     {}});
+                     "missing command operand",
+                     {"Usage: command [-pVv] COMMAND [ARG ...]"}});
         return 2;
     }
 
@@ -86,8 +86,8 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
     if (start_index >= args.size()) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "command",
-                     "usage: command [-pVv] command [arg ...]",
-                     {}});
+                     "missing command operand",
+                     {"Usage: command [-pVv] COMMAND [ARG ...]"}});
         return 2;
     }
 
@@ -133,7 +133,7 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (verbose_description) {
-            print_error({ErrorType::COMMAND_NOT_FOUND,
+            print_error({ErrorType::UNKNOWN_ERROR,
                          ErrorSeverity::ERROR,
                          "command",
                          command_name + ": not found",

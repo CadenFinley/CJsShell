@@ -33,10 +33,32 @@
 #include <iostream>
 #include <string>
 
+#include "builtin_help.h"
 #include "error_out.h"
 #include "isocline.h"
 
 namespace {
+
+const std::vector<std::string>& widget_help_lines() {
+    static const std::vector<std::string> lines = {
+        "Usage: cjsh-widget <subcommand> [args...]",
+        "",
+        "Subcommands:",
+        "  get-buffer         Get current input buffer content",
+        "  set-buffer <text>  Set input buffer to specified text",
+        "  get-cursor         Get current cursor position",
+        "  set-cursor <pos>   Set cursor position (byte offset)",
+        "  insert <text>      Insert text at cursor position",
+        "  append <text>      Append text to end of buffer",
+        "  clear              Clear the input buffer",
+        "  action <name>      Execute a built-in editor action",
+        "  accept             Accept the current line (like pressing Enter)",
+        "",
+        "Environment variables available in keybindings:",
+        "  CJSH_LINE          Current buffer content (like READLINE_LINE/BUFFER)",
+        "  CJSH_POINT         Current cursor position (like READLINE_POINT/CURSOR)"};
+    return lines;
+}
 
 int report_no_active_readline_session() {
     print_error({ErrorType::RUNTIME_ERROR,
@@ -70,23 +92,12 @@ std::string join_widget_text(const std::vector<std::string>& args) {
 }  // namespace
 
 int widget_builtin(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args, widget_help_lines())) {
+        return 0;
+    }
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "cjsh-widget",
-                     "Missing subcommand",
-                     {"Usage: cjsh-widget <subcommand> [args...]", "",
-                      "Subcommands:", "  get-buffer        Get current input buffer content",
-                      "  set-buffer <text> Set input buffer to specified text",
-                      "  get-cursor        Get current cursor position",
-                      "  set-cursor <pos>  Set cursor position (byte offset)",
-                      "  insert <text>     Insert text at cursor position",
-                      "  append <text>     Append text to end of buffer",
-                      "  clear             Clear the input buffer",
-                      "  action <name>     Execute a built-in editor action",
-                      "  accept            Accept/execute the current line (like pressing Enter)",
-                      "", "Environment variables (available in keybindings):",
-                      "  CJSH_LINE         Current buffer content (like READLINE_LINE/BUFFER)",
-                      "  CJSH_POINT        Current cursor position (like READLINE_POINT/CURSOR)"}});
+        print_error({ErrorType::INVALID_ARGUMENT, "cjsh-widget", "missing subcommand",
+                     widget_help_lines()});
         return 1;
     }
 
@@ -141,7 +152,7 @@ int widget_builtin(const std::vector<std::string>& args) {
         if (*endptr != '\0' || pos < 0) {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "cjsh-widget",
-                         "Invalid position: " + args[2],
+                         "invalid position: " + args[2],
                          {"Position must be a non-negative integer"}});
             return 1;
         }
@@ -226,7 +237,7 @@ int widget_builtin(const std::vector<std::string>& args) {
         if (action == IC_KEY_ACTION__MAX || action == IC_KEY_ACTION_RUNOFF) {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "cjsh-widget",
-                         "Unknown or non-executable editor action: " + args[2],
+                         "unknown or non-executable editor action: " + args[2],
                          {"Use 'cjshopt keybind --help' to list editor actions."}});
             return 1;
         }
@@ -245,7 +256,7 @@ int widget_builtin(const std::vector<std::string>& args) {
 
     print_error({ErrorType::INVALID_ARGUMENT,
                  "cjsh-widget",
-                 "Unknown subcommand: " + subcommand,
-                 {"Use 'cjsh-widget' without arguments to see available subcommands"}});
+                 "unknown subcommand: " + subcommand,
+                 {"Use 'cjsh-widget --help' to see available subcommands"}});
     return 1;
 }

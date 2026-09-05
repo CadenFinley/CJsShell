@@ -99,8 +99,10 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
     if (args.size() < 2) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT, "type", "usage: type [-afptP] name [name ...]", {}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "type",
+                     "missing name operand",
+                     {"Usage: type [-afptP] NAME [NAME ...]"}});
         return 1;
     }
 
@@ -225,8 +227,10 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
     if (args.size() < 2) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT, "which", "usage: which [-as] name [name ...]", {}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "which",
+                     "missing name operand",
+                     {"Usage: which [-as] NAME [NAME ...]"}});
         return 1;
     }
 

@@ -751,10 +751,12 @@ int line_numbers_replace_prompt_command(const std::vector<std::string>& args) {
 
 int hint_delay_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: hint-delay <milliseconds>",
-        "Examples:", "  hint-delay 100    Set hint delay to 100 milliseconds",
+        "Usage: hint-delay <milliseconds|status>",
+        "Examples:",
+        "  hint-delay 100    Set hint delay to 100 milliseconds",
         "  hint-delay 0      Show hints immediately",
-        "  hint-delay status Show the current delay setting"};
+        "  hint-delay status Show the current delay setting",
+        "Values above 5000 milliseconds are clamped to 5000."};
 
     if (args.size() == 1) {
         print_error(
@@ -777,32 +779,32 @@ int hint_delay_command(const std::vector<std::string>& args) {
 
     if (parse_status_query(normalized) == StatusQuery::Status) {
         if (!cjsh_env::startup_active()) {
-            std::cout << "To check or modify hint delay, use: hint-delay <milliseconds>\n";
+            std::cout << "Hint delay is currently " << ic_get_hint_delay() << " milliseconds.\n";
         }
         return 0;
     }
 
-    try {
-        long delay_ms = std::stol(option);
-        if (delay_ms < 0) {
-            print_error({ErrorType::INVALID_ARGUMENT, "hint-delay", "Delay must be non-negative",
-                         usage_lines});
-            return 1;
-        }
-
-        (void)ic_set_hint_delay(delay_ms);
-
-        if (!cjsh_env::startup_active()) {
-            std::cout << "Hint delay set to " << delay_ms << " milliseconds.\n";
-            std::cout << "Add `cjshopt hint-delay " << delay_ms
-                      << "` to your ~/.cjshrc to persist this change.\n";
-        }
-        return 0;
-    } catch (...) {
+    long delay_ms = 0;
+    if (!numeric_utils::parse_long_strict(option, delay_ms) || delay_ms < 0) {
         print_error({ErrorType::INVALID_ARGUMENT, "hint-delay",
-                     "Invalid delay value '" + option + "' (expected a number)", usage_lines});
+                     "Invalid delay value '" + option + "' (expected a non-negative integer)",
+                     usage_lines});
         return 1;
     }
+
+    (void)ic_set_hint_delay(delay_ms);
+    const long applied_delay = ic_get_hint_delay();
+
+    if (!cjsh_env::startup_active()) {
+        if (applied_delay != delay_ms) {
+            std::cout << "Hint delay exceeds the supported maximum; using " << applied_delay
+                      << " milliseconds instead.\n";
+        }
+        std::cout << "Hint delay set to " << applied_delay << " milliseconds.\n";
+        std::cout << "Add `cjshopt hint-delay " << applied_delay
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
+    return 0;
 }
 
 int idle_timeout_command(const std::vector<std::string>& args) {
@@ -874,7 +876,7 @@ int idle_timeout_command(const std::vector<std::string>& args) {
 
 int multiline_start_lines_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: multiline-start-lines <count>",
+        "Usage: multiline-start-lines <count|status>",
         "Examples:", "  multiline-start-lines 1    Start editing on the first prompt line",
         "  multiline-start-lines 2    Start with two prompt lines (cursor on line 2)",
         "  multiline-start-lines status   Show the current setting"};
@@ -907,22 +909,14 @@ int multiline_start_lines_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    size_t requested = 0;
-    try {
-        unsigned long parsed = std::stoul(option);
-        requested = static_cast<size_t>(parsed);
-    } catch (...) {
+    long parsed = 0;
+    if (!numeric_utils::parse_long_strict(option, parsed) || parsed < 1) {
         print_error({ErrorType::INVALID_ARGUMENT, "multiline-start-lines",
                      "Invalid line count '" + option + "' (expected a positive integer)",
                      usage_lines});
         return 1;
     }
-
-    if (requested == 0) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline-start-lines",
-                     "Line count must be at least 1", usage_lines});
-        return 1;
-    }
+    const size_t requested = static_cast<size_t>(parsed);
 
     (void)ic_set_multiline_start_line_count(requested);
     const size_t applied = ic_get_multiline_start_line_count();

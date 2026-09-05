@@ -55,6 +55,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "external_sub_completions.h"
+#include "numeric_utils.h"
 #include "shell_env.h"
 #include "string_utils.h"
 
@@ -316,21 +317,16 @@ void print_missing_jobs_argument(const std::string& option_name) {
 }
 
 bool parse_job_count(const std::string& value, std::size_t& parsed_jobs) {
-    if (value.empty())
+    long raw = 0;
+    if (!numeric_utils::parse_long_strict(value, raw) || raw <= 0)
         return false;
 
-    std::size_t consumed = 0;
-    try {
-        const unsigned long long raw = std::stoull(value, &consumed);
-        if (consumed != value.size() || raw == 0 ||
-            raw > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max())) {
-            return false;
-        }
-        parsed_jobs = static_cast<std::size_t>(raw);
-        return true;
-    } catch (const std::exception&) {
+    if (static_cast<unsigned long long>(raw) >
+        static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max())) {
         return false;
     }
+    parsed_jobs = static_cast<std::size_t>(raw);
+    return true;
 }
 
 int parse_generate_completions_options(const std::vector<std::string>& args,
@@ -726,7 +722,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
     try {
         return run();
     } catch (...) {
-        print_error({ErrorType::INVALID_ARGUMENT, kCommandName, "invalid argument", {}});
+        print_error({ErrorType::INVALID_ARGUMENT, kCommandName, "unable to process arguments", {}});
         return 1;
     }
 }

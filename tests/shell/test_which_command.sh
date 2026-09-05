@@ -140,10 +140,10 @@ fi
 
 echo "Test 13: Which without arguments..."
 OUT=$("$CJSH_PATH" -c "which" 2>&1)
-if [ $? -ne 0 ] && echo "$OUT" | grep -q "usage:"; then
-    pass_test "which shows usage without arguments"
+if [ $? -ne 0 ] && echo "$OUT" | grep -q "missing name operand"; then
+    pass_test "which reports its missing operand"
 else
-    fail_test "which shows usage without arguments (output: '$OUT')"
+    fail_test "which reports its missing operand (output: '$OUT')"
 fi
 
 echo ""

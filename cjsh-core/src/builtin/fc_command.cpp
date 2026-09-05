@@ -57,7 +57,7 @@ const std::vector<std::string>& fc_help_lines() {
     static const std::vector<std::string> lines = {
         "Usage: fc [-e editor] [-lnr] [first [last]]",
         "       fc -s [old=new] [command]",
-        "       fc -c command_string",
+        "       fc (-c|--command) command_string",
         "",
         "Fix Command - Edit and re-execute commands from history.",
         "",
@@ -67,7 +67,7 @@ const std::vector<std::string>& fc_help_lines() {
         "  -n          Suppress line numbers when listing",
         "  -r          Reverse order of commands when listing",
         "  -s          Re-execute command with optional substitution",
-        "  -c string   Open editor with the provided string",
+        "  -c, --command string  Open editor with the provided string",
         "",
         "Arguments:",
         "  first       First command to edit/list (default: previous command)",

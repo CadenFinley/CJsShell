@@ -138,7 +138,7 @@ void print_readonly_variables(bool quote_values) {
 }
 
 int readonly_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args, {"Usage: readonly [-p] NAME[=VALUE] ...",
+    if (builtin_handle_help(args, {"Usage: readonly [-pf] NAME[=VALUE] ...",
                                    "Mark shell variables as readonly and optionally assign values.",
                                    "-p prints readonly variables.",
                                    "-f operates on shell functions instead of variables."})) {

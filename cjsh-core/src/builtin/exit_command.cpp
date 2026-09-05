@@ -62,7 +62,8 @@ int get_last_command_status() {
 }  // namespace
 
 int exit_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args, {"Usage: exit [-f|--force] [N]",
+    const std::string command_name = args.empty() ? "exit" : args[0];
+    if (builtin_handle_help(args, {"Usage: " + command_name + " [-f|--force] [N]",
                                    "Exit the shell with status N (default last command).",
                                    "Use --force to bypass confirmation and skip exit traps."})) {
         return 0;
@@ -84,7 +85,7 @@ int exit_command(const std::vector<std::string>& args) {
                 break;
             } else {
                 print_error({ErrorType::INVALID_ARGUMENT,
-                             "exit",
+                             command_name,
                              "invalid numeric argument: " + val,
                              {"Use a number between 0 and 255."}});
                 cjsh_env::request_exit();
@@ -96,7 +97,7 @@ int exit_command(const std::vector<std::string>& args) {
 
     if (non_flag_args > 1) {
         print_error({ErrorType::INVALID_ARGUMENT,
-                     "exit",
+                     command_name,
                      "too many arguments",
                      {"Use at most one exit status argument."}});
         cjsh_env::request_exit();

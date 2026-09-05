@@ -117,8 +117,11 @@ dirs
 Print the current working directory.
 
 ```bash
-pwd
+pwd [-L|-P]
 ```
+
+- `-L` uses the logical path from `PWD` and is the default
+- `-P` resolves the physical path without symlinks
 
 ## Text Output
 
@@ -184,8 +187,8 @@ restart [-n|--no-flags]
 Execute commands from a file in the current shell context.
 
 ```bash
-source filename [arguments...]
-. filename [arguments...]
+source filename
+. filename
 ```
 
 When you execute a script file directly (for example, `./script.sh`) CJSH can infer an interpreter
@@ -196,7 +199,7 @@ from the file extension if the file has no shebang. Toggle this with
 Evaluate a string as shell code.
 
 ```bash
-eval [args...]
+eval string [string...]
 ```
 
 ### exec
@@ -212,21 +215,21 @@ exec command [args...]
 Set or display environment variables.
 
 ```bash
-export [name[=value]...]
+export [-p] [name[=value]...]
 ```
 
 ### unset
 Remove environment variables.
 
 ```bash
-unset name [name...]
+unset [-n|-v] name [name...]
 ```
 
 ### local
 Declare local variables inside functions.
 
 ```bash
-local name[=value] [name[=value]...]
+local [-aAnrx] name[=value] [name[=value]...]
 ```
 
 ### declare / typeset
@@ -251,7 +254,7 @@ typeset [-aAnFfgprx] [name[=value] ...]
 Mark variables as read-only.
 
 ```bash
-readonly name[=value] [name[=value]...]
+readonly [-pf] name[=value] [name[=value]...]
 ```
 
 ### set
@@ -293,14 +296,14 @@ shift [n]
 Create or list command aliases.
 
 ```bash
-alias [name[=value]...]
+alias [-p] [name[=value]...]
 ```
 
 ### unalias
 Remove command aliases.
 
 ```bash
-unalias name [name...]
+unalias [-a] [name...]
 ```
 
 ## Abbreviations
@@ -325,7 +328,7 @@ Remove one or more fish-style abbreviations.
 unabbr name [name...]
 ```
 
-- Removing a non-existent abbreviation prints a warning but does not stop processing the rest
+- Removing a non-existent abbreviation reports an error but continues processing the rest
 - Pair with `abbr` to keep a clean set of triggers in your session configuration
 
 ## Control Flow
@@ -406,7 +409,7 @@ false
 List background jobs.
 
 ```bash
-jobs [-lprs] [job_spec...]
+jobs [-lprs] [job_spec|pid...]
 ```
 
 `-r` and `-s` select running and stopped jobs. `-p` prints one process-group leader per job.
@@ -422,7 +425,7 @@ fg [job_spec|pid]
 Resume a job in the background.
 
 ```bash
-bg [job_spec...]
+bg [job_spec|pid...]
 ```
 
 ### Auto-background on Ctrl+Z
@@ -451,7 +454,8 @@ termination, and `-p` stores the selected process-group leader or PID.
 Send signals to jobs or processes.
 
 ```bash
-kill [-signal] pid|job_spec
+kill [-s signal|-n signum|-signal] pid|job_spec [...]
+kill -l
 ```
 
 ### disown
@@ -462,7 +466,7 @@ disown [-arh] [job_spec|pid...]
 ```
 
 - With no arguments, the current job is disowned
-- `-a/--all` selects every tracked job; `-r` restricts the selection to running jobs
+- `-a/--all` selects every tracked job; `-r/--running` restricts the selection to running jobs
 - `-h` leaves selected jobs in the table but excludes them from SIGHUP propagation
 - Job specs include `%N`, `%+`, `%-`, `%prefix`, and `%?substring`; a tracked PID is also accepted
 - Disowned jobs continue running even if `set -o huponexit` is enabled later in the session
@@ -473,12 +477,13 @@ and completions while the job remains in the table.
 
 ```bash
 jobname JOB_SPEC NEW_NAME
+jobname JOB_SPEC [-c|--clear]
 ```
 
 - `JOB_SPEC` can be a `%job_id`, a PID, or any command prefix that normally resolves jobs (`fg`
 and `bg`-style matching)
 - `NEW_NAME` is treated as the rest of the command line after `JOB_SPEC`, so spaces are allowed
-- Names must contain at least one non-whitespace character; use the original command to revert
+- Names must contain at least one non-whitespace character; use `-c` or `--clear` to revert
 
 ## Signal Handling
 
@@ -499,7 +504,7 @@ type name [name...]
 ```
 
 ### which
-Locate executables in PATH.
+Locate commands, including aliases, builtins, and executables in PATH.
 
 ```bash
 which name [name...]
@@ -603,7 +608,7 @@ Fix Command - edit and re-execute commands from history (POSIX-compliant).
 ```bash
 fc [-e editor] [-lnr] [first [last]]
 fc -s [old=new] [command]
-fc -c command_string
+fc (-c|--command) command_string
 ```
 
 **Options:**
@@ -612,7 +617,7 @@ fc -c command_string
 - `-n` - Suppress line numbers when listing
 - `-r` - Reverse order of commands when listing
 - `-s` - Re-execute a matching command, with optional `old=new` substitution
-- `-c string` - Open the editor with `string` as initial content
+- `-c string`, `--command string` - Open the editor with `string` as initial content
 
 **Arguments:**
 - `first` - First command to edit/list (default: previous command)
@@ -831,7 +836,7 @@ Supported flags:
 | `--no-colors` | Disable colorized prompt and syntax output |
 | `--no-titleline` | Disable terminal title updates on startup |
 | `--show-startup-time` | Print the time spent initializing cjsh |
-| `--no-source` | Skip sourcing interactive configuration files |
+| `--no-source` | Skip sourcing `~/.cjshrc` |
 | `--no-completions` | Skip completion initialization |
 | `--no-completion-learning` | Skip on-demand man-page scraping for completions |
 | `--no-script-extension-interpreter` | Disable extension-based script runners |
@@ -844,8 +849,8 @@ Supported flags:
 | `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
 | `--no-sh-warning` | Suppress the reminder shown when cjsh is invoked via `sh` |
 | `--no-exec` | Read commands but do not execute them |
-| `--minimal` | Disable prompt themes/colors, completions and completion learning, syntax highlighting, smart cd, rc sourcing, title line, history expansion, the status line, multiline line numbers, startup time banner, error suggestions, prompt vars, and special lifecycle handlers |
-| `--secure` | Skip profile/rc/logout sourcing even for login shells, and ignore special lifecycle handlers |
+| `--minimal` | Disable colors, completions and completion learning, syntax highlighting, smart cd, rc sourcing, title line, history expansion, the status line, multiline line numbers, startup time banner, error suggestions, prompt vars, and special lifecycle handlers |
+| `--secure` | Skip environment/profile/rc/logout sourcing, disable history persistence and smart cd, and ignore special lifecycle handlers |
 | `--posix` | Enable POSIX mode, reject non-POSIX syntax and non-POSIX builtins, and ignore special lifecycle handlers |
 | `--startup-test` | Enable startup test mode |
 
@@ -1141,7 +1146,7 @@ Examples:
 ```bash
 cjshopt hint-delay 100     # Set hint delay to 100 milliseconds
 cjshopt hint-delay 0       # Show hints immediately
-cjshopt hint-delay status  # Prints hint-delay command guidance
+cjshopt hint-delay status  # Show the current delay
 ```
 
 - Accepted input: any non-negative integer

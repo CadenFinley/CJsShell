@@ -318,6 +318,12 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
         return 1;
     }
 
+    if (args.size() > 2) {
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "shift", "too many arguments", {"Usage: shift [N]"}});
+        return 2;
+    }
+
     int shift_count = 1;
 
     if (args.size() > 1) {

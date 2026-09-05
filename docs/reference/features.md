@@ -149,12 +149,13 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-v, --version` – print the version banner and exit
 - `-l, --login` – treat the shell as a login shell (source `~/.cjprofile`)
 - `-i, --interactive` – force interactive behavior even if stdin is not a tty
-- `-c, --command=<string>` – execute a single command and exit (disables history expansion)
+- `-c, --command <string>` – execute a single command and exit (disables history expansion)
 - `--no-exec` – read commands but do not execute them
 - `--posix` – enable POSIX mode and reject non-POSIX syntax and non-POSIX builtins
-- `-m, --minimal` – disable prompt themes/colors, completions and completion learning, syntax
+- `-m, --minimal` – disable colors, completions and completion learning, syntax
   highlighting, rc sourcing, smart cd, the title line, history expansion, the status line,
-  multiline line numbers, the startup time banner, error suggestions, and prompt vars
+  multiline line numbers, the startup time banner, error suggestions, prompt vars, and special
+  lifecycle handlers
 - `-C, --no-colors`
 - `-L, --no-titleline`
 - `-U, --show-startup-time`
@@ -171,7 +172,8 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-H, --no-history-expansion`
 - `--no-history` – disable history recording (also disables history expansion)
 - `-W, --no-sh-warning` – suppress the reminder shown when cjsh is invoked via `sh`
-- `-s, --secure` – skip `~/.cjshenv`, `~/.cjprofile`, `~/.cjshrc`, and `~/.cjlogout` entirely
+- `-s, --secure` – skip `~/.cjshenv`, `~/.cjprofile`, `~/.cjshrc`, and `~/.cjlogout`, disable
+  history persistence and smart cd, and ignore special lifecycle handlers
 - `-X, --startup-test` – diagnostic mode used by the bundled tests
 
 Flags affecting feature toggles take effect early in startup and can also be injected via

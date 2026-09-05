@@ -275,8 +275,8 @@ When there's a single possible completion, a hint is displayed inline with dimme
 # Enable/disable hints (enabled by default)
 cjshopt hint on|off|status
 
-# Set hint delay in milliseconds (0ms by default)
-cjshopt hint-delay <milliseconds>
+# Set or show the hint delay in milliseconds (0ms by default)
+cjshopt hint-delay <milliseconds|status>
 ```
 
 **Inline Help:**
@@ -684,9 +684,8 @@ cjshopt keybind ext clear ctrl-g
 cjshopt keybind ext reset
 ```
 
-Command key bindings typically leverage the `cjsh-widget` builtin to read or modify editor state. As
-with standard bindings, modifications must be placed in configuration files; inspection commands can
-run interactively, but setters only take effect during startup.
+Command key bindings typically leverage the `cjsh-widget` builtin to read or modify editor state.
+Changes apply immediately in the current shell; add the same commands to `~/.cjshrc` to persist them.
 
 ## Prompt Customization
 
@@ -933,7 +932,7 @@ cjshopt style_def operator "bold"
 
 ### Minimal Configuration
 
-For a minimal, fast setup (`--minimal` disables prompt themes/colors, completions and completion learning, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, the status line, multiline line numbers, the startup time banner, error suggestions, and prompt vars):
+For a minimal, fast setup (`--minimal` disables colors, completions and completion learning, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, the status line, multiline line numbers, the startup time banner, error suggestions, prompt vars, and special lifecycle handlers):
 
 ```bash
 # Use the --minimal flag at startup, or configure selectively:

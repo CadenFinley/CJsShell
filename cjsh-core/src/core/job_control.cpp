@@ -145,8 +145,8 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
 
     if (job_spec.empty()) {
         print_error({ErrorType::INVALID_ARGUMENT,
-                     args[1],
-                     "no such job",
+                     args[0],
+                     original_spec + ": no such job",
                      {"Use 'jobs' to list available jobs"}});
         return nullptr;
     }
@@ -155,18 +155,19 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
         int target_id =
             marker == '+' ? job_manager.get_current_job() : job_manager.get_previous_job();
         if (target_id < 0) {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         args[1],
-                         marker == '+' ? "current job not set" : "no previous job",
-                         {"Use 'jobs' to list available jobs"}});
+            print_error(
+                {ErrorType::INVALID_ARGUMENT,
+                 args[0],
+                 original_spec + (marker == '+' ? ": current job not set" : ": no previous job"),
+                 {"Use 'jobs' to list available jobs"}});
             return nullptr;
         }
 
         auto job = job_manager.get_job(target_id);
         if (!job) {
             print_error({ErrorType::INVALID_ARGUMENT,
-                         args[1],
-                         "no such job",
+                         args[0],
+                         original_spec + ": no such job",
                          {"Use 'jobs' to list available jobs"}});
             return nullptr;
         }
@@ -217,8 +218,8 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
                 }
                 if (match) {
                     print_error({ErrorType::INVALID_ARGUMENT,
-                                 original_spec,
-                                 "multiple jobs match command",
+                                 args[0],
+                                 original_spec + ": multiple jobs match command",
                                  {"Use job id or PID to disambiguate"}});
                     return nullptr;
                 }
@@ -240,13 +241,13 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
 
     if (ambiguous) {
         print_error({ErrorType::INVALID_ARGUMENT,
-                     original_spec,
-                     "multiple jobs match command",
+                     args[0],
+                     original_spec + ": multiple jobs match command",
                      {"Use job id or PID to disambiguate"}});
     } else {
         print_error({ErrorType::INVALID_ARGUMENT,
-                     original_spec,
-                     "no such job",
+                     args[0],
+                     original_spec + ": no such job",
                      {"Use 'jobs' to list available jobs"}});
     }
 

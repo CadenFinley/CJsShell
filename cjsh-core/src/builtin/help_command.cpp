@@ -84,6 +84,7 @@ std::string get_help() {
         {"eval", "Evaluate a string as shell code"},
         {"exec", "Replace the shell process with another program"},
         {"source / .", "Execute commands from a file in the current shell"},
+        {"coproc", "Run a command asynchronously with a two-way pipe"},
         {"command", "Execute command bypassing functions and aliases"},
         {"builtin", "Run a builtin directly, bypassing functions and PATH"},
 
@@ -108,7 +109,7 @@ std::string get_help() {
 
         // Command lookup and caching
         {"type", "Explain how a command name will be resolved"},
-        {"which", "Locate executables in PATH"},
+        {"which", "Locate commands and executables"},
         {"hash", "Cache command lookups or display the cache"},
         {"generate-completions", "Regenerate cached completion metadata"},
 
@@ -145,7 +146,7 @@ std::string get_help() {
         // Shell customization
         {"cjshopt", "Generate config files and adjust cjsh options"},
         {"cjsh-widget", "Drive the line editor from shell code"},
-        {"hook", "Manage shell hooks (precmd, preexec, chpwd)"}};
+        {"hook", "Manage shell hooks (precmd, preexec, chpwd, idle)"}};
 
     if (cjsh_filesystem::is_first_boot()) {
         builtins.insert(builtins.begin() + 12,
@@ -153,7 +154,7 @@ std::string get_help() {
     }
 
     output << std::left;
-    constexpr int column_width = 20;
+    constexpr int column_width = 22;
     for (const auto& item : builtins) {
         output << "  " << std::setw(column_width) << item.name << item.description << "\n";
     }
@@ -169,26 +170,27 @@ std::string get_help() {
 
     heading("Startup and shutdown");
     output << "  Startup sequence:\n";
-    output << "    1. ~/.cjshenv is sourced if present (or CJSH_ENV if set).\n";
-    output << "    2. Login shells load ~/.cjprofile (if present).\n";
+    output << "    1. ~/.cjshenv is sourced if present (or CJSH_ENV if set), unless secure.\n";
+    output << "    2. Login shells load ~/.cjprofile (if present), unless secure.\n";
     output << "    3. Stored startup flags from 'cjshopt login-startup-arg' are applied.\n";
     output << "    4. Interactive mode initializes colors, completions, and sources ~/.cjshrc\n"
               "       unless disabled with --no-source or secure mode.\n";
     output << "  Shutdown sequence:\n";
     output << "    - Registered EXIT traps run before teardown.\n";
-    output << "    - ~/.cjlogout is sourced for login shells (when it exists).\n";
-    output << "    - History and themes are flushed before exit.\n";
+    output << "    - ~/.cjlogout is sourced for login shells when it exists, unless secure.\n";
+    output << "    - History is flushed and shell resources are released before exit.\n";
 
     heading("Primary cjsh directories");
     output << "  ~/.cjshenv          Optional environment script sourced at startup.\n";
     output << "  ~/.cjprofile        Login configuration and persisted startup flags.\n";
-    output << "  ~/.cjshrc           Interactive configuration (aliases, themes).\n";
+    output
+        << "  ~/.cjshrc           Interactive configuration (aliases, prompt/editor settings).\n";
     output << "  ~/.cjlogout         Optional logout script sourced on exit.\n";
     output << "  ~/.config/cjsh/     Optional alternate config root for generated files.\n";
     output << "  ~/.cache/cjsh/      Cache directory (history.txt, exec cache).\n";
     output << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";
     output << "  approot [target]    Jump directly to cjsh config/cache/history/"
-              "firstboot/completion/bin dirs,\n"
+              "firstboot/completion roots or the cjsh executable,\n"
               "                      or print one with approot --print/--file.\n";
 
     heading("cjsh invocation and startup flags");
