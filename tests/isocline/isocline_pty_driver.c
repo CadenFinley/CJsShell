@@ -107,10 +107,11 @@ static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* 
         for (size_t i = 0; i < (sizeof(many_words) / sizeof(many_words[0])); i++) {
             const char* replacement = many_words[i];
             const char* display = (i == 1 ? multiline : replacement);
+            const char* source = (i == 4 ? "abbr first line\nabbr second line" : "history");
             if (i == 1 && g_completion_mode == COMPLETION_MODE_MANY_MULTILINE_REPLACEMENT) {
                 replacement = multiline;
             }
-            (void)ic_add_completion_prim_with_source(cenv, replacement, display, NULL, "history",
+            (void)ic_add_completion_prim_with_source(cenv, replacement, display, NULL, source,
                                                      delete_before, 0);
         }
         return;

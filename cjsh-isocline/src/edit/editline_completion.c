@@ -117,17 +117,27 @@ static const char* completion_source_view(alloc_t* mem, const char* source, ssiz
     if (source == NULL) {
         return NULL;
     }
-    if (max_chars <= 0 || allow_full_length) {
+    if (allow_full_length) {
         return source;
     }
-    ssize_t len = ic_strlen(source);
-    if (len <= max_chars) {
+
+    const char* line_end = edit_menu_first_line_end(source);
+    ssize_t len = (line_end == NULL ? ic_strlen(source) : (ssize_t)(line_end - source));
+    bool multiline = (line_end != NULL && (*line_end == '\n' || *line_end == '\r'));
+    if (!multiline && (max_chars <= 0 || len <= max_chars)) {
         return source;
     }
-    ssize_t ellipsis = (max_chars >= 3 ? 3 : 0);
-    ssize_t copy_len = max_chars - ellipsis;
-    if (copy_len < 0) {
-        copy_len = 0;
+
+    ssize_t ellipsis = (max_chars <= 0 || max_chars >= 3 ? 3 : 0);
+    ssize_t copy_len = len;
+    if (max_chars > 0) {
+        ssize_t max_copy_len = max_chars - ellipsis;
+        if (max_copy_len < 0) {
+            max_copy_len = 0;
+        }
+        if (copy_len > max_copy_len) {
+            copy_len = max_copy_len;
+        }
     }
     ssize_t total = copy_len + ellipsis;
     char* truncated = mem_malloc_tp_n(mem, char, total + 1);

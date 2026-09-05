@@ -2514,6 +2514,16 @@ def main() -> int:
             "expanded completion menu should not expand selected multiline candidate text, got "
             f"normalized_output={normalized_comp_multiline_preview_output!r}"
         )
+    if "m05 (abbr first line...)" not in normalized_comp_multiline_preview_output:
+        raise AssertionError(
+            "expanded completion menu should collapse an unselected multiline source, got "
+            f"normalized_output={normalized_comp_multiline_preview_output!r}"
+        )
+    if "abbr second line" in normalized_comp_multiline_preview_output:
+        raise AssertionError(
+            "expanded completion menu should keep unselected multiline sources to one row, got "
+            f"normalized_output={normalized_comp_multiline_preview_output!r}"
+        )
 
     comp_multiline_replacement, comp_multiline_replacement_output = run_case(
         binary,
