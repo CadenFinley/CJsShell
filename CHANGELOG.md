@@ -1,6 +1,31 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.6`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.7`.
+
+## 1.4.8 - 2026-09-05
+
+Range: `v1.4.7..HEAD` (6 commits, 30 files changed)
+
+### Added
+
+- Added `cjsh-widget action <name>` so command-backed widgets and custom key bindings can invoke built-in editor actions directly.
+- Added richer hook context: `preexec` functions receive the expanded command as `$1`, and `precmd` functions can read its duration in milliseconds from `CJSH_COMMAND_DURATION_MS` while retaining the command's exit status in `$?`.
+
+### Changed
+
+- Temporarily restore normal terminal mode while external custom-key commands run, then reacquire and redraw the active editor so interactive programs can safely read from the terminal.
+- Allowed `return [status]` in sourced files to stop only the sourced file, propagate its requested status, and continue the calling script or function.
+- Suppressed expected key-override warnings while startup files configure custom bindings.
+
+### Fixed
+
+- Prevented login-shell startup from stopping on `SIGTTIN` or deadlocking while taking ownership of its launcher's foreground terminal.
+- Kept idle timeouts active inside completion, history-search, command-palette, and custom menus so they close cleanly before the idle hook runs.
+- Collapsed unselected multiline completion-source labels to a single abbreviated line instead of allowing their metadata to occupy multiple menu rows.
+
+### Internal and Tests
+
+- Added regression coverage for hook context, sourced-file returns, editor actions, foreground interactive widgets, login-shell terminal startup, idle timeouts in menus, quiet startup key overrides, and multiline completion metadata.
 
 ## 1.4.7 - 2026-09-04
 
