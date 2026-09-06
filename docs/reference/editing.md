@@ -370,13 +370,20 @@ cjshopt completion-click-accept on|off|status
 - In `off` mode, editing remains under terminal control while interactive menus temporarily capture
   clicks and wheel events; collapsed completion lists remain non-clickable and `all-off` prevents
   capture everywhere
-- In `smart` mode, starting a selection in the prompt/gutter or status rows suspends mouse capture
-  so the terminal can highlight text; keyboard or focus-in input resumes capture
+- In `smart` mode, starting a selection in the prompt/gutter or status rows, or dragging with the
+  left mouse button, suspends mouse capture so the terminal can highlight text. The display stays
+  in place until keyboard or focus-in input resumes capture
 - Expanded completion, history, and command-palette menus temporarily capture mouse events in every
   mode except `all-off`
 - Clicking the prompt, menu header/help, or any area outside the selectable menu rows temporarily
   releases mouse capture; keyboard input or returning focus to the terminal restores it
 - Completion click acceptance follows `cjshopt completion-click-accept` (disabled by default)
+
+Smart mode releases capture as soon as the terminal reports a drag into another character cell,
+including inside interactive menus. Whether highlighting continues during that same drag depends
+on the terminal. If the first drag only releases capture, release the button and drag again before
+typing or changing focus. Terminals that report only clicks release capture when the button is
+released in a different cell. `F2` also lets you disable capture before starting a selection.
 
 ### Fish-Style Abbreviations
 

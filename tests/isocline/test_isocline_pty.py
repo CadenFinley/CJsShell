@@ -86,6 +86,34 @@ def mouse_left_press(column: int, row: int) -> bytes:
     return f"\x1b[<0;{column};{row}M".encode("ascii")
 
 
+def mouse_left_drag(column: int, row: int) -> bytes:
+    return f"\x1b[<32;{column};{row}M".encode("ascii")
+
+
+def mouse_left_release(column: int, row: int) -> bytes:
+    return f"\x1b[<0;{column};{row}m".encode("ascii")
+
+
+def assert_smart_mouse_capture_handoff(output: str, scenario: str) -> None:
+    enable = "\x1b[?1000h\x1b[?1006h\x1b[?1002h"
+    disable = "\x1b[?1002l\x1b[?1000l\x1b[?1006l"
+    initial_enable = output.find(enable)
+    selection_disable = output.find(disable, initial_enable + len(enable))
+    keyboard_resume = output.find(enable, selection_disable + len(disable))
+    if min(initial_enable, selection_disable, keyboard_resume) < 0:
+        raise AssertionError(
+            f"{scenario} should suspend capture for selection and resume on keyboard/focus input: "
+            f"output={output!r}"
+        )
+    during_selection = output[selection_disable + len(disable) : keyboard_resume]
+    if during_selection:
+        raise AssertionError(
+            f"{scenario} must preserve the display while selecting: {during_selection!r}"
+        )
+    if output.rfind(disable) < output.rfind(enable):
+        raise AssertionError(f"{scenario} must disable motion reporting when readline ends")
+
+
 def assert_smart_mouse_selection_suspends(
     binary: str, scenario: str, column: int, row: int, expected: str
 ) -> None:
@@ -98,16 +126,72 @@ def assert_smart_mouse_selection_suspends(
     if result != expected:
         raise AssertionError(f"{scenario} expected {expected!r}, got {result!r}")
 
-    enable = "\x1b[?1000h\x1b[?1006h"
-    disable = "\x1b[?1000l\x1b[?1006l"
-    initial_enable = output.find(enable)
-    selection_disable = output.find(disable, initial_enable + len(enable))
-    keyboard_resume = output.find(enable, selection_disable + len(disable))
-    if min(initial_enable, selection_disable, keyboard_resume) < 0:
-        raise AssertionError(
-            f"{scenario} should suspend capture for selection and resume on keyboard input: "
-            f"output={output!r}"
+    assert_smart_mouse_capture_handoff(output, scenario)
+
+
+def assert_smart_mouse_drag_cases(binary: str) -> None:
+    press = mouse_left_press(6, 1)
+    drag = mouse_left_drag(7, 1)
+    release = mouse_left_release(7, 1)
+    for label, keys, expected in [
+        ("drag_before_release", press + drag + b"X\r", "abcX"),
+        ("drag_queued_events", press + drag + mouse_left_drag(8, 1) + release + b"X\r", "abcX"),
+        ("drag_release_fallback", press + release + b"X\r", "abcX"),
+        ("drag_backward", mouse_left_press(7, 1) + mouse_left_drag(6, 1) + b"X\r", "abcX"),
+        ("drag_between_rows", press + mouse_left_drag(6, 2) + b"X\r", "abcX"),
+        ("drag_without_press", drag + b"X\r", "abcX"),
+        ("drag_with_modifiers", press + b"\x1b[<52;7;1M" + b"X\r", "abcX"),
+        ("drag_legacy", press + b"\x1b[M@'!" + b"X\r", "abcX"),
+        (
+            "drag_focus_resume",
+            press + drag + release + FOCUS_IN + mouse_left_click(6, 1) + b"X\r",
+            "Xabc",
+        ),
+        ("drag_interrupt_cleanup", press + drag + b"\x03", "<CTRL+C>"),
+    ]:
+        result, output = run_case(binary, "smart_mouse_input_click", keys, capture_output=True)
+        if result != expected:
+            raise AssertionError(f"{label} expected {expected!r}, got {result!r}")
+        assert_smart_mouse_capture_handoff(output, label)
+
+    # A click or a report within the original cell should still position the cursor.
+    # Other buttons and passive motion must not be interpreted as left dragging.
+    for label, keys, expected in [
+        ("click", mouse_left_click(6, 1) + b"X\r", "Xabc"),
+        (
+            "same_cell_motion",
+            press + mouse_left_drag(6, 1) + mouse_left_release(6, 1) + b"X\r",
+            "Xabc",
+        ),
+        ("other_motion", b"\x1b[<34;7;1M\x1b[<35;7;1M" + b"X\r", "abcX"),
+        ("stale_press", press + b"X" + release + b"\r", "abcX"),
+    ]:
+        result, output = run_case(binary, "smart_mouse_input_click", keys, capture_output=True)
+        if result != expected:
+            raise AssertionError(f"{label} expected {expected!r}, got {result!r}")
+        if output.count("\x1b[?1002h") != 1:
+            raise AssertionError(f"{label} must keep mouse capture enabled: {output!r}")
+
+    result, output = run_case(
+        binary, "simple_mouse_input_click", press + release + b"X\r", capture_output=True
+    )
+    if result != "aXbc" or "\x1b[?1002h" in output:
+        raise AssertionError(f"simple mode must retain click-only reporting: {result!r}, {output!r}")
+
+    for menu_keys in [b"s\t", b"s\t" + PAGEDOWN]:
+        result, output = run_case(
+            binary,
+            "completion_many_menu_smart",
+            menu_keys
+            + mouse_left_press(6, 4)
+            + mouse_left_drag(7, 4)
+            + mouse_left_release(7, 4)
+            + b"X\r",
+            capture_output=True,
         )
+        if result != "sX":
+            raise AssertionError(f"dragging a completion must not accept it: {result!r}")
+        assert_smart_mouse_capture_handoff(output, "completion_menu_drag")
 
 
 def assert_menu_mouse_suspends_until_focus(output: str, scenario: str) -> None:
@@ -1668,6 +1752,7 @@ def main() -> int:
     assert_smart_mouse_selection_suspends(
         binary, "smart_mouse_status_selection", 1, 2, "x"
     )
+    assert_smart_mouse_drag_cases(binary)
 
     smart_input_result, smart_input_output = run_case(
         binary,

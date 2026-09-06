@@ -374,6 +374,11 @@ static code_t esc_decode_mouse_event(tty_t* tty, uint32_t mouse_code, uint32_t m
                 code = KEY_EVENT_MOUSE_OTHER;
                 break;
         }
+    } else if ((mouse_code & 0x20U) != 0) {
+        // Motion must not masquerade as a press (or a release for button 3).
+        if ((mouse_code & 0x03U) == 0 && !is_release) {
+            event.action = TTY_MOUSE_ACTION_LEFT_DRAG;
+        }
     } else {
         uint32_t button = (mouse_code & 0x03U);
         if ((button == 0 && !is_release)) {

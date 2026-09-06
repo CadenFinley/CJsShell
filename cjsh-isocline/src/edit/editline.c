@@ -121,6 +121,9 @@ typedef struct editor_s {
     bool mouse_terminal_selection_suspended;  // preserve display while terminal selection is active
     bool mouse_focus_reporting_enabled;       // focus-in/focus-out reporting (CSI I/O) enabled
     ssize_t mouse_capture_depth;              // nested mouse tracking enablement depth
+    bool mouse_left_button_down;              // track click origins for terminals without motion
+    ssize_t mouse_left_press_column;
+    ssize_t mouse_left_press_row;
     alloc_t* mem;                             // allocator
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
@@ -1716,6 +1719,10 @@ static bool edit_current_line_is_empty(editor_t* eb) {
 }
 
 static void edit_refresh(ic_env_t* env, editor_t* eb) {
+    // Repainting can erase a terminal's native selection during the capture handoff.
+    if (eb->mouse_terminal_selection_suspended) {
+        return;
+    }
     eb->replace_prompt_line_with_number = prompt_line_should_use_line_numbers(env, eb);
     edit_set_rendered_hint_snapshot(eb, (sbuf_len(eb->hint) > 0 ? sbuf_string(eb->hint) : NULL));
     // calculate the new cursor row and total rows needed
@@ -3046,6 +3053,9 @@ static bool edit_enable_mouse_tracking(ic_env_t* env, editor_t* eb) {
 
     if (eb->mouse_capture_depth == 0) {
         term_write(env->term, "\x1b[?1000h\x1b[?1006h");
+        if (eb->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART) {
+            term_write(env->term, "\x1b[?1002h");
+        }
         term_flush(env->term);
     }
 
@@ -3061,12 +3071,13 @@ static void edit_force_mouse_tracking_disabled(ic_env_t* env, editor_t* eb) {
     }
 
     eb->mouse_capture_depth = 0;
+    eb->mouse_left_button_down = false;
 
     if (env == NULL || env->term == NULL || !term_is_interactive(env->term)) {
         return;
     }
 
-    term_write(env->term, "\x1b[?1000l\x1b[?1006l");
+    term_write(env->term, "\x1b[?1002l\x1b[?1000l\x1b[?1006l");
     term_flush(env->term);
 }
 
@@ -3081,7 +3092,8 @@ static void edit_disable_mouse_tracking(ic_env_t* env, editor_t* eb, bool enable
     }
 
     if (eb->mouse_capture_depth == 0) {
-        term_write(env->term, "\x1b[?1000l\x1b[?1006l");
+        eb->mouse_left_button_down = false;
+        term_write(env->term, "\x1b[?1002l\x1b[?1000l\x1b[?1006l");
         term_flush(env->term);
     }
 }
@@ -3237,6 +3249,10 @@ static void edit_maybe_resume_smart_mouse_reporting(ic_env_t* env, editor_t* eb,
         return;
     }
 
+    if (KEY_NO_MODS(key) != KEY_EVENT_MOUSE_OTHER && KEY_NO_MODS(key) != KEY_NONE) {
+        eb->mouse_left_button_down = false;
+    }
+
     if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART ||
         !eb->mouse_reporting_manual_enabled || !eb->mouse_reporting_auto_suspended) {
         return;
@@ -3251,6 +3267,36 @@ static void edit_maybe_resume_smart_mouse_reporting(ic_env_t* env, editor_t* eb,
     }
 }
 
+static bool edit_mouse_event_is_drag(editor_t* eb, const tty_mouse_event_t* event) {
+    if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART) {
+        return false;
+    }
+    if (event->column <= 0 || event->row <= 0) {
+        eb->mouse_left_button_down = false;
+        return false;
+    }
+    if (event->action == TTY_MOUSE_ACTION_LEFT_PRESS) {
+        eb->mouse_left_button_down = true;
+        eb->mouse_left_press_column = event->column;
+        eb->mouse_left_press_row = event->row;
+        return false;
+    }
+
+    const bool moved = (!eb->mouse_left_button_down ||
+                        event->column != eb->mouse_left_press_column ||
+                        event->row != eb->mouse_left_press_row);
+    if (event->action == TTY_MOUSE_ACTION_LEFT_DRAG) {
+        return moved;
+    }
+
+    // Some terminals/multiplexers only report presses and releases. A release in
+    // another cell still identifies a drag, though selection needs a new gesture.
+    const bool dragged = (event->action == TTY_MOUSE_ACTION_LEFT_RELEASE &&
+                          eb->mouse_left_button_down && moved);
+    eb->mouse_left_button_down = false;
+    return dragged;
+}
+
 static bool edit_mouse_event_starts_terminal_selection(ic_env_t* env, editor_t* eb) {
     if (env == NULL || eb == NULL || env->tty == NULL) {
         return false;
@@ -3259,6 +3305,12 @@ static bool edit_mouse_event_starts_terminal_selection(ic_env_t* env, editor_t* 
     tty_mouse_event_t mouse_event;
     if (!tty_get_last_mouse_event(env->tty, &mouse_event)) {
         return false;
+    }
+
+    if (edit_mouse_event_is_drag(eb, &mouse_event)) {
+        // Release capture on the first moved cell. Whether the terminal continues
+        // this same drag as a native selection depends on its mouse handling.
+        return true;
     }
 
     if (mouse_event.action != TTY_MOUSE_ACTION_LEFT_PRESS &&
@@ -3341,6 +3393,8 @@ static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool
     if (eb == NULL) {
         return;
     }
+
+    eb->mouse_left_button_down = false;
 
     if (env != NULL && env->tty != NULL) {
         tty_clear_last_mouse_event(env->tty);
@@ -4337,6 +4391,7 @@ edit_loop_entry:
         (void)edit_expand_abbreviation_if_needed(env, &eb, false);
     }
 
+    eb.mouse_terminal_selection_suspended = false;
     if (eb.status != NULL && sbuf_len(eb.status) > 0) {
         // Ensure status lines are cleared before handing control back to the caller
         sbuf_clear(eb.status);

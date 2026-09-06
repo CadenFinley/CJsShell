@@ -3191,6 +3191,11 @@ static bool test_tty_sgr_mouse_event_metadata(void) {
     static const uint8_t seq_wheel_up[] = {'\x1B', '[', '<', '6', '4', ';', '7', ';', '5', 'M'};
     static const uint8_t seq_wheel_down[] = {'\x1B', '[', '<', '6', '5', ';',
                                              '7',    '5', ';', '5', 'M'};
+    static const uint8_t seq_left_drag[] = "\x1b[<32;8;4M";
+    static const uint8_t seq_modified_drag[] = "\x1b[<52;8;4M";
+    static const uint8_t seq_right_drag[] = "\x1b[<34;8;4M";
+    static const uint8_t seq_hover[] = "\x1b[<35;8;4M";
+    static const uint8_t seq_legacy_drag[] = {'\x1b', '[', 'M', 64, 40, 36};
 
     static const struct {
         const uint8_t* raw;
@@ -3207,7 +3212,18 @@ static bool test_tty_sgr_mouse_event_metadata(void) {
                  {seq_wheel_up, sizeof(seq_wheel_up), KEY_EVENT_MOUSE_WHEEL_UP,
                   TTY_MOUSE_ACTION_WHEEL_UP, 7, 5, 0},
                  {seq_wheel_down, sizeof(seq_wheel_down), KEY_EVENT_MOUSE_WHEEL_DOWN,
-                  TTY_MOUSE_ACTION_WHEEL_DOWN, 75, 5, 0}};
+                  TTY_MOUSE_ACTION_WHEEL_DOWN, 75, 5, 0},
+                 {seq_left_drag, sizeof(seq_left_drag) - 1, KEY_EVENT_MOUSE_OTHER,
+                  TTY_MOUSE_ACTION_LEFT_DRAG, 8, 4, 0},
+                 {seq_modified_drag, sizeof(seq_modified_drag) - 1,
+                  KEY_EVENT_MOUSE_OTHER | KEY_MOD_SHIFT | KEY_MOD_CTRL,
+                  TTY_MOUSE_ACTION_LEFT_DRAG, 8, 4, KEY_MOD_SHIFT | KEY_MOD_CTRL},
+                 {seq_right_drag, sizeof(seq_right_drag) - 1, KEY_EVENT_MOUSE_OTHER,
+                  TTY_MOUSE_ACTION_OTHER, 8, 4, 0},
+                 {seq_hover, sizeof(seq_hover) - 1, KEY_EVENT_MOUSE_OTHER,
+                  TTY_MOUSE_ACTION_OTHER, 8, 4, 0},
+                 {seq_legacy_drag, sizeof(seq_legacy_drag), KEY_EVENT_MOUSE_OTHER,
+                  TTY_MOUSE_ACTION_LEFT_DRAG, 8, 4, 0}};
 
     for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); ++i) {
         EXPECT_TRUE(ic_push_raw_input(cases[i].raw, cases[i].raw_len),

@@ -643,6 +643,7 @@ static int run_case(const char* scenario) {
                strcmp(scenario, "completion_many_menu_all_off") == 0 ||
                strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0 ||
                strcmp(scenario, "completion_many_menu_mouse_default_on") == 0 ||
+               strcmp(scenario, "completion_many_menu_smart") == 0 ||
                strcmp(scenario, "completion_many_menu_multiline") == 0 ||
                strcmp(scenario, "completion_many_menu_long_multiline") == 0 ||
                strcmp(scenario, "completion_many_menu_multiline_replacement") == 0) {
@@ -677,6 +678,9 @@ static int run_case(const char* scenario) {
                 return 6;
             }
         } else if (strcmp(scenario, "completion_many_menu_mouse_default_on") == 0) {
+            (void)ic_enable_mouse_clicking(true);
+        } else if (strcmp(scenario, "completion_many_menu_smart") == 0) {
+            (void)ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_SMART);
             (void)ic_enable_mouse_clicking(true);
         }
     } else if (strcmp(scenario, "history_search_scroll") == 0 ||
@@ -821,6 +825,9 @@ static int run_case(const char* scenario) {
                strcmp(scenario, "smart_mouse_input_click") == 0) {
         initial_input = "abc";
         (void)ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_SMART);
+        (void)ic_enable_mouse_clicking(true);
+    } else if (strcmp(scenario, "simple_mouse_input_click") == 0) {
+        initial_input = "abc";
         (void)ic_enable_mouse_clicking(true);
     } else if (strcmp(scenario, "smart_mouse_status_selection") == 0) {
         initial_input = "x";

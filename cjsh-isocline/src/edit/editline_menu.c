@@ -79,6 +79,9 @@ static bool edit_menu_mouse_prepare_key(ic_env_t* env, editor_t* eb, code_t key,
     }
 
     const code_t key_no_mods = KEY_NO_MODS(key);
+    if (key_no_mods != KEY_EVENT_MOUSE_OTHER && key_no_mods != KEY_NONE) {
+        eb->mouse_left_button_down = false;
+    }
     if (key_no_mods == KEY_EVENT_FOCUS_OUT) {
         (void)edit_menu_mouse_suspend(env, eb, scroll_enabled, suspended);
         return true;
@@ -89,6 +92,13 @@ static bool edit_menu_mouse_prepare_key(ic_env_t* env, editor_t* eb, code_t key,
     }
     if (*suspended && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
         return true;
+    }
+    if (key_no_mods == KEY_EVENT_MOUSE_OTHER &&
+        (*scroll_enabled || eb->mouse_reporting_enabled)) {
+        tty_mouse_event_t event;
+        if (tty_get_last_mouse_event(env->tty, &event) && edit_mouse_event_is_drag(eb, &event)) {
+            return edit_menu_mouse_suspend(env, eb, scroll_enabled, suspended);
+        }
     }
     if (*suspended && !edit_key_is_mouse_toggle_binding(env, key) &&
         edit_mouse_auto_resume_triggered_by_key(key)) {

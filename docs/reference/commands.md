@@ -1484,8 +1484,11 @@ cjshopt mouse-clicking status  # Show the current setting
 `F2` (or any key bound to `toggle-mouse-reporting`) still toggles mouse clicking for the current
 prompt at runtime in `simple` and `smart` modes. In `smart` mode, wheel input and selections started
 above the editor, in the prompt or continuation gutter, or on status/helper rows suspend capture.
-Keyboard or focus-in input resumes it. `disabled` remains an alias for `all-off`; `menu-only` and
-`menus` are aliases for `off`.
+Dragging with the left mouse button also suspends capture, including inside menus, and preserves
+the display until keyboard or focus-in input resumes it. Some terminals require releasing the
+button and dragging again after capture is suspended to begin native highlighting. If motion
+reports are unavailable, a press and release in different cells still suspend capture.
+`disabled` remains an alias for `all-off`; `menu-only` and `menus` are aliases for `off`.
 
 While an interactive menu has mouse capture, clicking the prompt or anywhere outside its selectable
 rows temporarily releases capture to the terminal. Keyboard input or a terminal focus-in event
