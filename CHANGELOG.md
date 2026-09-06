@@ -1,6 +1,30 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.8`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.9`.
+
+## 1.4.9 - 2026-09-06
+
+Range: `v1.4.8..v1.4.9` (10 commits, 45 files changed)
+
+### Added
+
+- Added asynchronous job-completion and stop notifications above the interactive prompt while preserving the pending input, cursor position, and undo history. Notifications wait until menus and bracketed paste complete before redrawing.
+- Added terminal recovery around prompt and idle hooks, foreground jobs, and monitor-disabled shells so cjsh reclaims the terminal, restores its input settings, and preserves pending input after programs alter terminal state.
+
+### Changed
+
+- Improved smart mouse mode to suspend capture while dragging, including in interactive menus, so the terminal can select text. Capture resumes on a reported release, keyboard input, or supported focus-in events.
+- Updated CI and developer guidance to run the complete CTest suite with bounded parallelism, covering shell files alongside focused C, C++, and Python tests.
+
+### Fixed
+
+- Suppressed completions while the cursor is inside a recognized existing command or shell keyword, preventing insertions such as a filesystem candidate into `then` while retaining completion for unfinished words and word endings.
+- Corrected job-control synchronization, process-group handling, terminal recapture, and signal delivery across foreground jobs, notifications, and prompt recovery.
+
+### Internal and Tests
+
+- Added regression coverage for asynchronous job notifications, terminal-state recovery, foreground-terminal races, drag detection, mouse-capture resumption, completion context, and parallel CTest scheduling.
+- Finalized 1.4.9 as a stable release by clearing the default pre-release build marker.
 
 ## 1.4.8 - 2026-09-05
 
