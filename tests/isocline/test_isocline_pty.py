@@ -96,22 +96,24 @@ def mouse_left_release(column: int, row: int) -> bytes:
 
 def assert_smart_mouse_capture_handoff(output: str, scenario: str) -> None:
     enable = "\x1b[?1000h\x1b[?1006h\x1b[?1002h"
-    disable = "\x1b[?1002l\x1b[?1000l\x1b[?1006l"
+    disable = "\x1b[?1002l\x1b[?1000l"
     initial_enable = output.find(enable)
     selection_disable = output.find(disable, initial_enable + len(enable))
-    keyboard_resume = output.find(enable, selection_disable + len(disable))
-    if min(initial_enable, selection_disable, keyboard_resume) < 0:
+    resume = output.find(enable, selection_disable + len(disable))
+    if min(initial_enable, selection_disable, resume) < 0:
         raise AssertionError(
-            f"{scenario} should suspend capture for selection and resume on keyboard/focus input: "
+            f"{scenario} should suspend capture for selection and resume on release/key/focus input: "
             f"output={output!r}"
         )
-    during_selection = output[selection_disable + len(disable) : keyboard_resume]
+    during_selection = output[selection_disable + len(disable) : resume]
     if during_selection:
         raise AssertionError(
             f"{scenario} must preserve the display while selecting: {during_selection!r}"
         )
     if output.rfind(disable) < output.rfind(enable):
         raise AssertionError(f"{scenario} must disable motion reporting when readline ends")
+    if output.rfind("\x1b[?1006l") < output.rfind(enable):
+        raise AssertionError(f"{scenario} must disable SGR reporting when readline ends")
 
 
 def assert_smart_mouse_selection_suspends(
@@ -148,6 +150,26 @@ def assert_smart_mouse_drag_cases(binary: str) -> None:
             "Xabc",
         ),
         ("drag_interrupt_cleanup", press + drag + b"\x03", "<CTRL+C>"),
+        (
+            "drag_release_resume_click",
+            press + drag + release + mouse_left_click(6, 1) + b"X\r",
+            "Xabc",
+        ),
+        (
+            "drag_duplicate_release",
+            press + drag + release + release + b"X\r",
+            "abcX",
+        ),
+        (
+            "drag_release_ignores_trailing_motion",
+            press + drag + release + mouse_left_drag(8, 1) + b"X\r",
+            "abcX",
+        ),
+        (
+            "drag_tmux_release_resume",
+            press + drag + mouse_left_release(0, 0) + mouse_left_click(6, 1) + b"X\r",
+            "Xabc",
+        ),
     ]:
         result, output = run_case(binary, "smart_mouse_input_click", keys, capture_output=True)
         if result != expected:

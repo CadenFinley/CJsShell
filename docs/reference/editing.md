@@ -372,7 +372,8 @@ cjshopt completion-click-accept on|off|status
   capture everywhere
 - In `smart` mode, starting a selection in the prompt/gutter or status rows, or dragging with the
   left mouse button, suspends mouse capture so the terminal can highlight text. The display stays
-  in place until keyboard or focus-in input resumes capture
+  in place while selecting. A reported button release resumes capture without clearing the
+  highlight; the next click or keyboard input resumes repainting
 - Expanded completion, history, and command-palette menus temporarily capture mouse events in every
   mode except `all-off`
 - Clicking the prompt, menu header/help, or any area outside the selectable menu rows temporarily
@@ -383,7 +384,15 @@ Smart mode releases capture as soon as the terminal reports a drag into another 
 including inside interactive menus. Whether highlighting continues during that same drag depends
 on the terminal. If the first drag only releases capture, release the button and drag again before
 typing or changing focus. Terminals that report only clicks release capture when the button is
-released in a different cell. `F2` also lets you disable capture before starting a selection.
+released in a different cell. If the terminal stops reporting events during selection, keyboard
+or focus-in input still restores capture. `F2` also lets you disable capture before selecting.
+
+With tmux mouse mode enabled, tmux handles the selection after cjsh releases capture and does not
+forward the release to the shell. Add the hook in
+[`tmux-smart-mouse.conf`](../examples/tmux-smart-mouse.conf) to your tmux configuration and reload it
+to restore smart capture when tmux exits copy mode. This also works with Ghostty and preserves your
+existing copy bindings and clipboard plugins. The hook only notifies a cjsh pane whose smart
+capture is suspended; it does not enable mouse support in other applications or in `all-off` mode.
 
 ### Fish-Style Abbreviations
 

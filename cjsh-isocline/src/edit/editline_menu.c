@@ -78,6 +78,14 @@ static bool edit_menu_mouse_prepare_key(ic_env_t* env, editor_t* eb, code_t key,
         return false;
     }
 
+    if (edit_maybe_resume_smart_mouse_reporting(env, eb, key)) {
+        if (*suspended && !eb->mouse_reporting_auto_suspended) {
+            *scroll_enabled = (want_scroll ? edit_enable_menu_mouse_scroll(env) : false);
+            *suspended = false;
+        }
+        return true;
+    }
+
     const code_t key_no_mods = KEY_NO_MODS(key);
     if (key_no_mods != KEY_EVENT_MOUSE_OTHER && key_no_mods != KEY_NONE) {
         eb->mouse_left_button_down = false;

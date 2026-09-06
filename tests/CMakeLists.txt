@@ -135,6 +135,16 @@ if(Python3_Interpreter_FOUND)
                 $<TARGET_FILE:isocline_pty_driver>
     )
 
+    find_program(TMUX_EXECUTABLE NAMES tmux)
+    if(TMUX_EXECUTABLE)
+        cjsh_add_test(
+            NAME isocline_tmux_integration_tests
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/isocline/test_isocline_tmux.py"
+                    $<TARGET_FILE:cjsh> "${TMUX_EXECUTABLE}"
+        )
+        set_tests_properties(isocline_tmux_integration_tests PROPERTIES TIMEOUT 30)
+    endif()
+
     cjsh_add_test(
         NAME build_system_configuration_tests
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/build_system/test_build_system.py"

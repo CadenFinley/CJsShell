@@ -118,7 +118,7 @@ typedef struct editor_s {
     bool mouse_reporting_manual_enabled;      // user/default preference for this session
     bool mouse_reporting_auto_suspended;      // smart mode auto-disabled mouse capture
     bool mouse_terminal_selection_extra;      // rendered extra rows should select in the terminal
-    bool mouse_terminal_selection_suspended;  // preserve display while terminal selection is active
+    bool mouse_terminal_selection_suspended;  // pause repainting until selection is acted on
     bool mouse_focus_reporting_enabled;       // focus-in/focus-out reporting (CSI I/O) enabled
     ssize_t mouse_capture_depth;              // nested mouse tracking enablement depth
     bool mouse_left_button_down;              // track click origins for terminals without motion
@@ -3077,7 +3077,12 @@ static void edit_force_mouse_tracking_disabled(ic_env_t* env, editor_t* eb) {
         return;
     }
 
-    term_write(env->term, "\x1b[?1002l\x1b[?1000l\x1b[?1006l");
+    term_write(env->term, "\x1b[?1002l\x1b[?1000l");
+    // Keep the encoding enabled while waiting for a selection release. This
+    // does not capture mouse input, and lets tmux identify a suspended prompt.
+    if (!eb->mouse_reporting_auto_suspended || !eb->mouse_terminal_selection_suspended) {
+        term_write(env->term, "\x1b[?1006l");
+    }
     term_flush(env->term);
 }
 
@@ -3152,9 +3157,12 @@ static void edit_set_mouse_auto_suspended(ic_env_t* env, editor_t* eb, bool susp
     if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART ||
         !eb->mouse_reporting_manual_enabled) {
         suspended = false;
+        terminal_selection = false;
     }
 
-    const bool selection_suspended = (suspended && terminal_selection);
+    // Capture can resume on button release while repainting stays paused, so the
+    // native selection remains visible until the next click or keyboard input.
+    const bool selection_suspended = terminal_selection;
     if (eb->mouse_reporting_auto_suspended == suspended &&
         eb->mouse_terminal_selection_suspended == selection_suspended) {
         return;
@@ -3244,27 +3252,58 @@ static bool edit_mouse_auto_resume_triggered_by_key(code_t key) {
     return (key_no_mods < KEY_EVENT_BASE);
 }
 
-static void edit_maybe_resume_smart_mouse_reporting(ic_env_t* env, editor_t* eb, code_t key) {
+// Returns true when a selection event was consumed and must not position the
+// editing cursor or accept an item in a menu.
+static bool edit_maybe_resume_smart_mouse_reporting(ic_env_t* env, editor_t* eb, code_t key) {
     if (env == NULL || eb == NULL) {
-        return;
+        return false;
     }
 
-    if (KEY_NO_MODS(key) != KEY_EVENT_MOUSE_OTHER && KEY_NO_MODS(key) != KEY_NONE) {
+    const code_t key_no_mods = KEY_NO_MODS(key);
+    if (key_no_mods != KEY_EVENT_MOUSE_OTHER && key_no_mods != KEY_NONE) {
         eb->mouse_left_button_down = false;
     }
 
     if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART ||
-        !eb->mouse_reporting_manual_enabled || !eb->mouse_reporting_auto_suspended) {
-        return;
+        !eb->mouse_reporting_manual_enabled) {
+        return false;
+    }
+
+    if (eb->mouse_terminal_selection_suspended && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
+        tty_mouse_event_t event;
+        if (tty_get_last_mouse_event(env->tty, &event)) {
+            if (eb->mouse_reporting_auto_suspended &&
+                event.action == TTY_MOUSE_ACTION_LEFT_RELEASE) {
+                // Not all terminals deliver a release after tracking is disabled.
+                // When one does, restore capture without repainting the selection.
+                edit_set_mouse_auto_suspended(env, eb, false, true);
+                return true;
+            }
+            if (!eb->mouse_reporting_auto_suspended) {
+                if (event.action == TTY_MOUSE_ACTION_LEFT_PRESS) {
+                    edit_set_mouse_auto_suspended(env, eb, false, false);
+                } else {
+                    // Ignore trailing motion and duplicate releases from the drag.
+                    return true;
+                }
+            }
+        }
+    }
+
+    if (!eb->mouse_reporting_auto_suspended && !eb->mouse_terminal_selection_suspended) {
+        return false;
     }
 
     if (edit_key_is_mouse_toggle_binding(env, key)) {
-        return;
+        return false;
     }
 
-    if (edit_mouse_auto_resume_triggered_by_key(key)) {
+    if (edit_mouse_auto_resume_triggered_by_key(key) ||
+        (!eb->mouse_reporting_auto_suspended &&
+         (key_no_mods == KEY_EVENT_MOUSE_WHEEL_UP || key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN))) {
         edit_set_mouse_auto_suspended(env, eb, false, false);
     }
+    return false;
 }
 
 static bool edit_mouse_event_is_drag(editor_t* eb, const tty_mouse_event_t* event) {
@@ -4030,6 +4069,10 @@ edit_loop_entry:
                 continue;
             }
 
+            if (edit_maybe_resume_smart_mouse_reporting(env, &eb, c)) {
+                continue;
+            }
+
             // clear hint only after a potential resize (so resize row calculations
             // are correct)
             const bool had_hint = (sbuf_len(eb.hint) > 0);
@@ -4042,8 +4085,6 @@ edit_loop_entry:
             if (c == KEY_CTRL_O) {
                 c = KEY_ENTER;
             }
-
-            edit_maybe_resume_smart_mouse_reporting(env, &eb, c);
 
             if (edit_key_resets_last_arg_state(env, c)) {
                 edit_reset_last_arg_state(&eb);
