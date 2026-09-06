@@ -3536,12 +3536,12 @@ lists remain under terminal control and their items are not clickable in this mo
 prompt at runtime in <code>simple</code> and <code>smart</code> modes. In <code>smart</code> mode, wheel input and selections started
 above the editor, in the prompt or continuation gutter, or on status/helper rows suspend capture.
 Dragging with the left mouse button also suspends capture, including inside menus, and preserves
-the display. A reported button release restores capture without clearing the highlight; keyboard
-or focus-in input also restores it. Some terminals require releasing the
-button and dragging again after capture is suspended to begin native highlighting. If motion
-reports are unavailable, a press and release in different cells still suspend capture.
-Tmux users can install the <a href="../../examples/tmux-smart-mouse.conf">smart mouse hook</a> to restore capture
-when tmux finishes its selection, since tmux stops forwarding mouse events after capture is disabled.
+the display. A reported button release restores capture without clearing the highlight, but
+disabling mouse reporting also stops release reports, so this is best-effort. Keyboard input
+restores capture; focus-in input also restores it when supported by the terminal. No terminal-specific
+configuration is required. Some terminals require releasing the button and dragging again after
+capture is suspended to begin native highlighting. If motion reports are unavailable, a press and
+release in different cells still suspend capture.
 <code>disabled</code> remains an alias for <code>all-off</code>; <code>menu-only</code> and <code>menus</code> are aliases for <code>off</code>.</p>
 <p>While an interactive menu has mouse capture, clicking the prompt or anywhere outside its selectable
 rows temporarily releases capture to the terminal. Keyboard input or a terminal focus-in event
