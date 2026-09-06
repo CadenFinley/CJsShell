@@ -142,8 +142,8 @@ jobs:
       - name: Build
         run: cmake --build --preset release-artifact --parallel
 
-      - name: Run full shell integration suite
-        run: CJSH_TEST_SKIP_BUILD_SYSTEM=1 ./tests/run_shell_tests.sh build/release-artifact/cjsh
+      - name: Run all tests in parallel
+        run: ctest --preset release-artifact --parallel 4 -E '^build_system_configuration_tests$'
 
       - name: Verify Mach-O architectures and minimum macOS version
         env:
@@ -224,8 +224,8 @@ jobs:
       - name: Build
         run: cmake --build --preset release-artifact --parallel
 
-      - name: Run full shell integration suite
-        run: CJSH_TEST_SKIP_BUILD_SYSTEM=1 ./tests/run_shell_tests.sh build/release-artifact/cjsh
+      - name: Run all tests in parallel
+        run: ctest --preset release-artifact --parallel 4 -E '^build_system_configuration_tests$'
 
       - name: Verify glibc ELF binary
         env:
@@ -320,9 +320,7 @@ jobs:
               git config --global --add safe.directory /work
               cmake --preset release-static
               cmake --build --preset release-static --parallel
-              cd /tmp/cjsh-tests
-              su-exec cjsh-test env HOME=/home/cjsh-test CJSH_TEST_SKIP_BUILD_SYSTEM=1 CJSH_TEST_SKIP_PRELOAD_INJECTION=1 /work/tests/run_shell_tests.sh /work/build/release-static/cjsh
-              cd /work
+              su-exec cjsh-test env HOME=/home/cjsh-test CJSH_TEST_SKIP_PRELOAD_INJECTION=1 ctest --preset release-static --parallel 4 -E "^build_system_configuration_tests$"
               test "$(uname -m)" = "$EXPECTED_MACHINE"
               readelf -l build/release-static/cjsh > build/release-static/program-headers.txt
               if grep -q " INTERP " build/release-static/program-headers.txt; then
