@@ -1140,10 +1140,14 @@
 <li><code>minimal</code>: size-focused release profile</li>
 </ul>
 <h2 id="test">Test</h2>
-<p>Run the focused CTest suites:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ctest<span class="w"> </span>--preset<span class="w"> </span>release
+<p>Run all shell files and focused C, C++, and Python suites with four workers:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ctest<span class="w"> </span>--preset<span class="w"> </span>release<span class="w"> </span>--parallel<span class="w"> </span><span class="m">4</span>
 </span></code></pre></div>
-<p>Run the full shell and integration harness:</p>
+<p>Adjust <code>4</code> to control concurrency, or use <code>1</code> for a serial run. Timing and
+system-wide process-count tests run alone. Add <code>-L shell</code> to select only shell
+files, or <code>-LE shell</code> to select only focused suites.</p>
+<p>The serial shell and integration harness also remains available, with combined
+individual-test counts:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./tests/run_shell_tests.sh<span class="w"> </span><span class="s2">"build/release/cjsh"</span>
 </span></code></pre></div>
 <p>If you are changing parser behavior, runtime execution, job control, or interactive input handling, also build and test the <code>debug</code> preset.</p>

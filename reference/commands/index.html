@@ -2737,6 +2737,11 @@ descriptor redirections such as <code>&gt;&amp;${COPROC[1]}</code> to communicat
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-37-1"><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="nb">false</span>
 </span></code></pre></div>
 <h2 id="job-control">Job Control</h2>
+<p>cjsh reclaims the terminal and restores its input settings when returning to the prompt,
+including with monitor mode disabled (<code>set +m</code>). This also happens around prompt and idle
+hooks, so a program that exits or stops with altered terminal settings does not leave the
+next prompt using them. Pending input is preserved, and <code>fg</code> restores a stopped job's own
+terminal settings before resuming it.</p>
 <h3 id="jobs">jobs</h3>
 <p>List background jobs.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="nb">jobs</span><span class="w"> </span><span class="o">[</span>-lprs<span class="o">]</span><span class="w"> </span><span class="o">[</span>job_spec<span class="p">|</span>pid...<span class="o">]</span>
