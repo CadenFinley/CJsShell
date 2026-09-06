@@ -459,7 +459,7 @@ int read_exit_code_or(int fallback) {
     return fallback;
 }
 
-SignalProcessingResult Shell::process_pending_signals() {
+SignalProcessingResult Shell::process_pending_signals(bool reap_children) {
     if (!signal_handler) {
         return {};
     }
@@ -469,7 +469,7 @@ SignalProcessingResult Shell::process_pending_signals() {
     }
 
     Exec* exec_ptr = shell_exec ? shell_exec.get() : nullptr;
-    return signal_handler->process_pending_signals(exec_ptr);
+    return signal_handler->process_pending_signals(exec_ptr, reap_children);
 }
 
 void Shell::setup_signal_handlers() {

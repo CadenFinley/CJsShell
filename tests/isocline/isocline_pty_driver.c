@@ -63,6 +63,24 @@ typedef enum completion_mode_e {
 static completion_mode_t g_completion_mode = COMPLETION_MODE_NONE;
 static bool g_notify_from_completion = false;
 
+typedef struct paste_status_s {
+    bool saw_complete;
+    bool saw_partial;
+} paste_status_t;
+
+static const char* paste_status_callback(const char* input, void* arg) {
+    paste_status_t* state = (paste_status_t*)arg;
+    if (input[0] == '\0') {
+        return NULL;
+    }
+    if (strcmp(input, "pasted-status") == 0) {
+        state->saw_complete = true;
+        return "PASTE-STATUS-READY";
+    }
+    state->saw_partial = true;
+    return NULL;
+}
+
 static void queue_test_notifications(void) {
     if (!ic_queue_notification("NOTICE-ONE [b]\n") || !ic_queue_notification("NOTICE-TWO")) {
         exit(9);
@@ -410,6 +428,18 @@ static int run_paste_wakeup_case(void) {
 static int run_case(const char* scenario) {
     if (scenario == NULL) {
         return 2;
+    }
+
+    if (strcmp(scenario, "paste_status_callback") == 0) {
+        paste_status_t state = {false, false};
+        ic_set_status_message_callback(paste_status_callback, &state);
+        char* line = ic_readline("pty> ", NULL, NULL);
+        ic_set_status_message_callback(NULL, NULL);
+        const bool complete = line != NULL && strcmp(line, "pasted-status") == 0 &&
+                              state.saw_complete && !state.saw_partial;
+        emit_result(complete ? "batched-status" : "partial-status");
+        ic_free(line);
+        return 0;
     }
 
 #if !defined(_WIN32)

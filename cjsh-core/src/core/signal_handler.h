@@ -92,7 +92,7 @@ class SignalHandler {
     void setup_signal_handlers();
     void setup_interactive_handlers();
 
-    SignalProcessingResult process_pending_signals(Exec* shell_exec);
+    SignalProcessingResult process_pending_signals(Exec* shell_exec, bool reap_children = true);
     static bool has_pending_signals();
     static bool take_pending_sigint();
     static SignalHandler* instance();

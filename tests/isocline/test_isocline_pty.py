@@ -2709,6 +2709,18 @@ def main() -> int:
     bp_start = b"\x1b[200~"
     bp_end = b"\x1b[201~"
 
+    paste_result, paste_output = run_case(
+        binary,
+        "paste_status_callback",
+        bp_start + b"pasted-status" + bp_end + b"\r",
+        capture_output=True,
+    )
+    if paste_result != "batched-status" or "PASTE-STATUS-READY" not in paste_output:
+        raise AssertionError(
+            "bracketed paste must update status only after the complete paste: "
+            f"result={paste_result!r}, output={paste_output!r}"
+        )
+
     assert_case(
         binary,
         "bracketed_paste_plain",

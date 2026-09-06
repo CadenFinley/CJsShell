@@ -35,6 +35,7 @@ import re
 import signal
 import subprocess
 import sys
+import tempfile
 import termios
 import time
 from typing import Callable, NamedTuple
@@ -357,7 +358,8 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
     followup_commands_sent = False
     exit_command_sent = False
     cursor_tail = b""
-    started_at = time.monotonic()
+    stop_start = 0
+    interrupt_start = 0
 
     try:
         deadline = time.monotonic() + 10.0
@@ -380,26 +382,32 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
                 cursor_tail = pending[-(len(cursor_query) - 1) :]
 
             current_output = sanitize_output(output.decode(errors="replace"))
-            if not initial_command_sent and (
-                prompt_input_start in output or time.monotonic() - started_at >= 0.6
-            ):
+            # Wait for the editor at each handoff. Sending setup text during a
+            # cursor query or terminal recovery can consume its first bytes.
+            if not initial_command_sent and prompt_input_start in output:
                 os.write(
                     master_fd,
-                    b"sh -c 'printf \"foreground-%s\\n\" ready; "
-                    b"while :; do sleep 1; done'\r",
+                    b"\x1b[200~sh -c 'printf \"foreground-%s\\n\" ready; "
+                    b"while :; do sleep 1; done'\x1b[201~\r",
                 )
                 initial_command_sent = True
 
             if not sent_stop and "foreground-ready" in current_output:
                 initial_job_foreground = os.tcgetpgrp(master_fd) != pid
+                stop_start = len(output)
                 os.write(master_fd, b"\x1a")
                 sent_stop = True
 
-            if sent_stop and not followup_commands_sent and "Stopped" in current_output:
+            if (
+                sent_stop
+                and not followup_commands_sent
+                and "Stopped" in current_output
+                and prompt_input_start in output[stop_start:]
+            ):
                 os.write(
                     master_fd,
-                    b"jobs -s; bg; jobs -r; printf 'about-to-%s\\n' fg; "
-                    b"read fg_gate; fg\r",
+                    b"\x1b[200~jobs -s; bg; jobs -r; printf 'about-to-%s\\n' fg; "
+                    b"read fg_gate; fg\x1b[201~\r",
                 )
                 followup_commands_sent = True
 
@@ -412,6 +420,7 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
                 foreground_pgid = os.tcgetpgrp(master_fd)
                 if foreground_pgid > 0 and foreground_pgid != pid:
                     resumed_job_foreground = True
+                    interrupt_start = len(output)
                     os.write(master_fd, b"\x03")
                     sent_interrupt = True
 
@@ -420,10 +429,14 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
                     shell_foreground_after_interrupt = os.tcgetpgrp(master_fd) == pid
                 except OSError:
                     shell_foreground_after_interrupt = False
-                if shell_foreground_after_interrupt:
+                if (
+                    shell_foreground_after_interrupt
+                    and prompt_input_start in output[interrupt_start:]
+                ):
                     os.write(
                         master_fd,
-                        b"printf 'after-int=%s shell-%s\\n' \"$?\" alive; exit\r",
+                        b"\x1b[200~printf 'after-int=%s shell-%s\\n' \"$?\" alive; "
+                        b"exit\x1b[201~\r",
                     )
                     exit_command_sent = True
 
@@ -700,6 +713,33 @@ def run_injected_foreground_race_case(
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def check_interrupted_foreground_stop(binary: str, injector: str) -> None:
+    preload_variable = (
+        "DYLD_INSERT_LIBRARIES" if sys.platform == "darwin" else "LD_PRELOAD"
+    )
+    for prefix in ("", "printf input | "):
+        with tempfile.TemporaryDirectory(prefix="cjsh-wait-stop-race-") as directory:
+            marker = os.path.join(directory, "injected")
+            result = run_controlling_terminal_case(
+                binary,
+                prefix + "sh -c 'kill -STOP $$; exit 7'; "
+                "fg; printf 'resumed=%s\\n' \"$?\"",
+                {
+                    preload_variable: injector,
+                    "CJSH_TEST_WAIT_STOP_RACE_RESULT_FILE": marker,
+                },
+            )
+            require(
+                os.path.exists(marker)
+                and not result.timed_out
+                and result.return_code == 0
+                and "Stopped" in result.output
+                and "resumed=7" in result.output,
+                "interrupted foreground wait lost a stop report:\n"
+                f"pipeline={bool(prefix)} timed_out={result.timed_out}\n{result.output}",
+            )
 
 
 def run_checks(checks: list[tuple[str, Callable[[], None]]], suite_name: str) -> int:
@@ -1154,6 +1194,12 @@ def main(argv: list[str]) -> int:
     ]
 
     if not skip_preload_injection:
+        checks.append(
+            (
+                "interrupted foreground waits preserve child stop reports",
+                lambda: check_interrupted_foreground_stop(argv[0], argv[1]),
+            )
+        )
         checks.append(
             (
                 "fg recovers when termination races with terminal handoff",

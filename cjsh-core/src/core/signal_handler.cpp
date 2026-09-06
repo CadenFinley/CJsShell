@@ -754,7 +754,8 @@ void SignalHandler::restore_original_handlers() {
 #endif
 }
 
-SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) {
+SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec,
+                                                              bool reap_children) {
     bool should_process = s_signal_pending.exchange(false, std::memory_order_acq_rel);
     if (!should_process && !has_direct_pending_signal()) {
         return {};
@@ -787,7 +788,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         (void)fflush(stdout);
     }
 
-    if (s_sigchld_received != 0) {
+    if (reap_children && s_sigchld_received != 0) {
         s_sigchld_received = 0;
 
         if (shell_exec != nullptr) {

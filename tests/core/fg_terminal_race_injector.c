@@ -28,6 +28,8 @@
   This test-only tcsetpgrp interposer terminates a selected stopped process group immediately
   before fg hands it the terminal, then returns EINVAL so the shell must refresh the child status
   and recover from the race.
+  Its waitpid interposer can also return EINTR with a stop report still pending, checking that
+  general SIGCHLD processing leaves the report for the foreground waiter.
 */
 
 #define _DARWIN_C_SOURCE
@@ -120,6 +122,30 @@ static int injected_tcsetpgrp(int fd, pid_t pgrp) {
     return ioctl(fd, TIOCSPGRP, &pgrp);
 }
 
+static pid_t injected_waitpid(pid_t pid, int* status, int options) {
+    const char* result_path = getenv("CJSH_TEST_WAIT_STOP_RACE_RESULT_FILE");
+    if (!injection_fired && result_path != NULL && pid != 0 && (options & WUNTRACED) != 0 &&
+        (options & WNOHANG) == 0) {
+        // Leave a stop report pending, then interrupt the foreground wait. The
+        // general SIGCHLD processor must not steal that report from its waiter.
+        const idtype_t type = (pid == -1 ? P_ALL : (pid < 0 ? P_PGID : P_PID));
+        const id_t id = (pid == -1 ? 0 : (id_t)(pid < 0 ? -pid : pid));
+        siginfo_t info = {0};
+        int result;
+        do {
+            result = waitid(type, id, &info, WSTOPPED | WEXITED | WNOWAIT);
+        } while (result < 0 && errno == EINTR);
+        if (result == 0 && info.si_code == CLD_STOPPED) {
+            injection_fired = 1;
+            record_injection(result_path);
+            (void)raise(SIGCHLD);
+            errno = EINTR;
+            return -1;
+        }
+    }
+    return wait4(pid, status, options, NULL);
+}
+
 #if defined(__APPLE__)
 #define DYLD_INTERPOSE(replacement, replacee)                                  \
     __attribute__((used)) static struct {                                      \
@@ -129,8 +155,13 @@ static int injected_tcsetpgrp(int fd, pid_t pgrp) {
         (const void*)(unsigned long)&replacement, (const void*)(unsigned long)&replacee};
 
 DYLD_INTERPOSE(injected_tcsetpgrp, tcsetpgrp)
+DYLD_INTERPOSE(injected_waitpid, waitpid)
 #else
 int tcsetpgrp(int fd, pid_t pgrp) {
     return injected_tcsetpgrp(fd, pgrp);
+}
+
+pid_t waitpid(pid_t pid, int* status, int options) {
+    return injected_waitpid(pid, status, options);
 }
 #endif

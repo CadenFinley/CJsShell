@@ -3490,6 +3490,12 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     if (env == NULL || eb == NULL || eb->status == NULL)
         return false;
 
+    // A bracketed paste already batches redraws. Batch status callbacks too:
+    // they may parse the input or search the filesystem for every character.
+    // The next loop iteration after the paste ends updates the complete input.
+    if (eb->refresh_suppressed)
+        return false;
+
     const char* custom_message = NULL;
     if (env->status_message_callback != NULL) {
         const char* input_text = sbuf_string(eb->input);

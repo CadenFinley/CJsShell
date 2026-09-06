@@ -200,8 +200,19 @@ test_disown_pid_and_hup_mark() {
 
 test_wait_next_and_pipeline_lifetime() {
     log "Test: wait -n and pipeline lifetime/status tracking"
-    local output
-    output=$("$CJSH_PATH" -c "sh -c 'sleep 0.2' | sh -c 'exit 7' & p=\$!; sleep 0.05; jobs -r; wait \$p; pipeline=\$?; sleep 0.01 & wait -n -p winner; printf '%s|%s|%s' \"\$pipeline\" \"\$?\" \"\$winner\"" 2>/dev/null)
+    local output gate_dir
+    gate_dir=$(mktemp -d) || return 1
+    # Keep the first stage alive until jobs has inspected the pipeline, even
+    # when sanitizer overhead or a busy runner delays the parent shell.
+    output=$(CJSH_TEST_PIPELINE_GATE="$gate_dir/release" "$CJSH_PATH" -c '
+        sh -c '\''while [ ! -e "$CJSH_TEST_PIPELINE_GATE" ]; do sleep 0.01; done'\'' | sh -c '\''exit 7'\'' & p=$!
+        sleep 0.05; jobs -r; touch "$CJSH_TEST_PIPELINE_GATE"
+        wait $p; pipeline=$?
+        sleep 0.01 & wait -n -p winner
+        printf "%s|%s|%s" "$pipeline" "$?" "$winner"
+    ' 2>/dev/null)
+    rm -f "$gate_dir/release"
+    rmdir "$gate_dir"
 
     if echo "$output" | grep -q "Running" && echo "$output" | grep -Eq '7\|0\|[0-9]+'; then
         echo "PASS"

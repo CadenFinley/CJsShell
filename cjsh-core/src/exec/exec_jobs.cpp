@@ -282,10 +282,13 @@ void Exec::wait_for_job(int job_id) {
 
         if (pid == -1) {
             if (errno == EINTR) {
+                // This waiter owns the foreground children's status reports.
+                // Reaping a stop in general signal processing would leave the
+                // next waitpid blocked on a child that cannot run until `fg`.
                 if (g_shell) {
-                    (void)g_shell->process_pending_signals();
+                    (void)g_shell->process_pending_signals(false);
                 } else if (auto* signal_handler = SignalHandler::instance()) {
-                    (void)signal_handler->process_pending_signals(this);
+                    (void)signal_handler->process_pending_signals(this, false);
                 }
                 continue;
             }
