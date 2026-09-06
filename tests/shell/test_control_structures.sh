@@ -119,7 +119,7 @@ echo $i
 done'
 assert_stdin_error_contains "multiline for missing do" "$MULTILINE_FOR_MISSING_DO" "missing 'do' keyword"
 assert_error_contains "multiline for missing done" "for i in 1 2 3; do echo \$i" "missing closing 'done'"
-assert_error_contains "for missing iteration list" "for i in do done" "missing iteration list after 'in'"
+assert_error_contains "for keyword items still require a do delimiter" "for i in do done" "missing 'do' keyword"
 assert_error_contains "for missing do keyword" "for i in 1 2 3 echo \$i" "missing 'do' keyword"
 assert_error_contains "for missing do after semicolon" "for i in {1..3};" "missing 'do' keyword"
 assert_error_contains "while missing done" "while true; do echo ok" "missing 'done'"

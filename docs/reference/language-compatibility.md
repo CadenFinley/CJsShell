@@ -46,6 +46,12 @@ is the source of truth for the extensions that are intentionally supported.
 | Brace range strides | Supported extension | Numeric and character ranges accept `{start..end..stride}`. Direction is inferred, and numeric zero padding is preserved. |
 | Pattern replacement | Supported extension | `${parameter/pattern/replacement}` uses the leftmost-longest wildcard match; `//` replaces all matches and `/#`/`/%` anchor a single replacement. Escaped slashes, character classes, and extglobs are supported. |
 
+`for` and `select` require a literal variable name and an unquoted `in` keyword before
+an explicit list. Malformed headers such as `for i n 1 2; do ...; done` report a syntax
+error with status 2. Omitting the list (`for i; do ...; done`) uses positional parameters;
+an explicit empty `for` list runs no iterations. Loop lists use normal word expansion,
+including quoted literals and brace ranges with surrounding or following words.
+
 ## Configuration
 
 CJSH intentionally uses its own option interface rather than implementing Bash's `shopt` builtin:

@@ -1095,7 +1095,8 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
         } else {
             append_filtered_errors(loop_errors, [](const SyntaxError& err) {
                 return err.error_code == "SYN002" &&
-                       err.message.find("'do' keyword") != std::string::npos;
+                       (err.severity == ErrorSeverity::CRITICAL ||
+                        err.message.find("'do' keyword") != std::string::npos);
             });
             append_filtered_errors(conditional_errors, [](const SyntaxError& err) {
                 if (err.error_code == "SYN004") {

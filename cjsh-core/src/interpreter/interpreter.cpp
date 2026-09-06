@@ -2224,14 +2224,14 @@ ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_
         return {true, rc, idx};
     }
 
-    if (line == "for" || line.rfind("for ", 0) == 0) {
+    if (parser_starts_with_keyword_token(line, "for")) {
         // route for headers to loop_evaluator for header parsing and body collection through done
         size_t idx = line_index;
         int rc = handle_for_block(lines, idx);
         return {true, rc, idx};
     }
 
-    if (line == "select" || line.rfind("select ", 0) == 0) {
+    if (parser_starts_with_keyword_token(line, "select")) {
         size_t idx = line_index;
         int rc = handle_select_block(lines, idx);
         return {true, rc, idx};

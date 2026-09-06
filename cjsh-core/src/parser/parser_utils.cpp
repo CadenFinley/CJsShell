@@ -525,6 +525,52 @@ bool is_valid_identifier(const std::string& name) {
     return true;
 }
 
+NamedLoopHeader parse_named_loop_header(std::string header, std::string_view keyword) {
+    NamedLoopHeader result;
+    header = trim_whitespace(header);
+    if (!header.empty() && header.back() == ';' && !is_char_escaped(header, header.size() - 1)) {
+        header.pop_back();
+        header = trim_whitespace(header);
+    }
+
+    size_t pos = keyword.size();
+    auto next_word = [&]() {
+        while (pos < header.size() && std::isspace(static_cast<unsigned char>(header[pos]))) {
+            ++pos;
+        }
+        const size_t start = pos;
+        pos = find_token_end_with_quotes(header, pos, header.size(), ";&|<>()");
+        if (pos == start && pos < header.size()) {
+            ++pos;
+        }
+        return header.substr(start, pos - start);
+    };
+
+    result.variable = next_word();
+    if (result.variable.empty()) {
+        result.error = "expected a loop variable after '" + std::string(keyword) + "'";
+        return result;
+    }
+    if (!is_valid_identifier(result.variable)) {
+        result.error = "invalid loop variable '" + result.variable + "'";
+        return result;
+    }
+
+    const std::string token = next_word();
+    if (token.empty()) {
+        return result;
+    }
+    if (token != "in") {
+        result.error = "unexpected token '" + token + "' after loop variable '" + result.variable +
+                       "'; expected 'in' or the end of the loop header";
+        return result;
+    }
+
+    result.has_in = true;
+    result.words = trim_whitespace(header.substr(pos));
+    return result;
+}
+
 bool split_on_first_equals(const std::string& value, std::string& left, std::string& right,
                            bool require_nonempty_left);
 

@@ -98,7 +98,6 @@ size_t find_inline_do_position(const std::string& line);
 size_t find_inline_done_position(const std::string& line, size_t search_from);
 bool check_for_loop_keywords(const std::vector<std::string>& tokens,
                              const std::string& trimmed_line, bool allow_loose_do_detection);
-bool has_iteration_values_after_in(const std::vector<std::string>& tokens);
 bool inline_loop_body_missing_done(const std::string& trimmed_line);
 std::pair<std::vector<std::string>, std::string> tokenize_and_get_first(
     const std::string& trimmed_line);
@@ -153,11 +152,10 @@ void append_function_name_errors(std::vector<SyntaxError>& errors, size_t displa
 
 struct ForLoopCheckResult {
     bool incomplete = false;
-    bool missing_in_keyword = false;
     bool missing_do_keyword = false;
     bool has_inline_do = false;
     bool inline_body_without_done = false;
-    bool missing_iteration_list = false;
+    std::string header_error;
 };
 
 ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& tokens,

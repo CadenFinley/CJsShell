@@ -36,7 +36,6 @@
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -87,6 +86,11 @@ int report_inline_loop_syntax_error(const std::string& segment, std::string_view
                                             "' between the loop header and body (e.g. '" + keyword +
                                             " ...; do ...; done')."};
     print_error({ErrorType::SYNTAX_ERROR, ErrorSeverity::ERROR, keyword, message, suggestions});
+    return 2;
+}
+
+int report_loop_header_error(const std::string& keyword, const std::string& message) {
+    print_error({ErrorType::SYNTAX_ERROR, ErrorSeverity::ERROR, keyword, message, {}});
     return 2;
 }
 
@@ -295,30 +299,6 @@ bool collect_loop_body_lines(const std::vector<std::string>& src_lines, size_t s
 
     next_index = k;
     return depth == 0;
-}
-
-int iterate_numeric_range(int start, int end, int step,
-                          const std::function<LoopCommandOutcome(int)>& run_iteration) {
-    if (step == 0) {
-        step = start <= end ? 1 : -1;
-    }
-    int value = start;
-    int rc_local = 0;
-    while (step > 0 ? value <= end : value >= end) {
-        int signal_rc = 0;
-        if (check_loop_interrupt(signal_rc)) {
-            rc_local = signal_rc;
-            break;
-        }
-        LoopCommandOutcome outcome = run_iteration(value);
-        rc_local = outcome.code;
-        if (outcome.flow == LoopFlow::NONE || outcome.flow == LoopFlow::CONTINUE) {
-            value += step;
-            continue;
-        }
-        break;
-    }
-    return rc_local;
 }
 
 struct CStyleForHeader {
@@ -1000,7 +980,7 @@ int handle_for_block(
     const std::function<bool()>& should_abort_execution) {
     // main for evaluator called after interpreter classifies a block as for
     std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (first != "for" && first.rfind("for ", 0) != 0)
+    if (!parser_starts_with_keyword_token(first, "for") && first.rfind("for;", 0) != 0)
         return 1;
 
     std::string var;
@@ -1009,13 +989,6 @@ int handle_for_block(
     auto abort_pending = [&]() {
         return cjsh_env::exit_requested() || (should_abort_execution && should_abort_execution());
     };
-
-    struct RangeInfo {
-        bool is_range = false;
-        int start = 0;
-        int end = 0;
-        int step = 1;
-    } range_info;
 
     auto finalize_with_trailing_commands = [&](int loop_rc, const std::string& trailing_commands) {
         return execute_loop_trailing_commands(loop_rc, trailing_commands,
@@ -1032,10 +1005,11 @@ int handle_for_block(
         (void)cjsh_env::set_shell_variable_value(var, value);
     };
 
-    // parse header into c-style range or item-list form and capture loop variable metadata
+    // Validate literal syntax before expanding any words in the iteration list.
     auto parse_header = [&](const std::string& header) -> bool {
         std::string normalized_header = trim(header);
-        while (!normalized_header.empty() && normalized_header.back() == ';') {
+        if (!normalized_header.empty() && normalized_header.back() == ';' &&
+            !is_char_escaped(normalized_header, normalized_header.size() - 1)) {
             normalized_header.pop_back();
             normalized_header = trim(normalized_header);
         }
@@ -1044,81 +1018,30 @@ int handle_for_block(
             return true;
         }
 
-        c_style_header = CStyleForHeader{};
-
-        std::vector<std::string> raw_toks;
-
-        try {
-            std::istringstream iss(normalized_header);
-            std::string token;
-            while (iss >> token) {
-                raw_toks.push_back(token);
-            }
-        } catch (...) {
+        if (trim(normalized_header.substr(3)).rfind("((", 0) == 0) {
+            report_loop_header_error(
+                "for", "invalid C-style loop header; expected ((init; condition; update))");
             return false;
         }
 
-        size_t i = 0;
-        if (i < raw_toks.size() && raw_toks[i] == "for")
-            ++i;
-        if (i >= raw_toks.size())
+        const auto parsed = parse_named_loop_header(header, "for");
+        if (!parsed.error.empty()) {
+            report_loop_header_error("for", parsed.error);
             return false;
-        var = raw_toks[i++];
-
-        if (i < raw_toks.size() && raw_toks[i] == "in") {
-            ++i;
-
-            if (i < raw_toks.size() && raw_toks[i].find('{') != std::string::npos &&
-                raw_toks[i].find("..") != std::string::npos &&
-                raw_toks[i].find('}') != std::string::npos) {
-                const std::string& range_str = raw_toks[i];
-                size_t start_brace = range_str.find('{');
-                size_t end_brace = range_str.find('}');
-                std::string range_content =
-                    range_str.substr(start_brace + 1, end_brace - start_brace - 1);
-                size_t dots_pos = range_content.find("..");
-                if (dots_pos != std::string::npos) {
-                    std::string start_str = range_content.substr(0, dots_pos);
-                    std::string range_tail = range_content.substr(dots_pos + 2);
-                    size_t stride_pos = range_tail.find("..");
-                    std::string end_str = range_tail.substr(0, stride_pos);
-                    std::string stride_str = stride_pos == std::string::npos
-                                                 ? std::string{}
-                                                 : range_tail.substr(stride_pos + 2);
-                    try {
-                        range_info.start = std::stoi(start_str);
-                        range_info.end = std::stoi(end_str);
-                        int magnitude = stride_str.empty() ? 1 : std::abs(std::stoi(stride_str));
-                        if (magnitude == 0) {
-                            magnitude = 1;
-                        }
-                        range_info.step =
-                            range_info.start <= range_info.end ? magnitude : -magnitude;
-                        range_info.is_range = true;
-                        return !var.empty();
-                    } catch (...) {
-                        return false;
-                    }
-                }
-            }
-
-            std::vector<std::string> toks = shell_parser->parse_command(normalized_header);
-            i = 0;
-            if (i < toks.size() && toks[i] == "for")
-                ++i;
-            if (i >= toks.size())
+        }
+        var = parsed.variable;
+        if (parsed.has_in) {
+            // A fixed command prefix keeps list words out of alias/assignment-command handling.
+            auto toks = shell_parser->parse_command("for " + var + " in " + parsed.words);
+            if (toks.size() < 3) {
+                report_loop_header_error("for", "could not parse iteration words after 'in'");
                 return false;
-            var = toks[i++];
-            if (i < toks.size() && toks[i] == "in") {
-                ++i;
-                while (i < toks.size()) {
-                    items.push_back(toks[i++]);
-                }
             }
+            items.assign(toks.begin() + 3, toks.end());
         } else {
             items = flags::get_positional_parameters();
         }
-        return !var.empty();
+        return true;
     };
 
     auto execute_for_iterations = [&](const std::function<LoopCommandOutcome()>& run_iteration,
@@ -1202,12 +1125,6 @@ int handle_for_block(
                     }
                 }
             }
-        } else if (range_info.is_range) {
-            rc = iterate_numeric_range(range_info.start, range_info.end, range_info.step,
-                                       [&](int value) -> LoopCommandOutcome {
-                                           assign_loop_variable(std::to_string(value));
-                                           return run_iteration();
-                                       });
         } else {
             for (const auto& it : items) {
                 int signal_rc = 0;
@@ -1235,7 +1152,7 @@ int handle_for_block(
     ParsedLoopBlock parsed_loop;
     if (parse_inline_loop_block(first, shell_parser, parsed_loop)) {
         if (!parse_header(parsed_loop.header))
-            return 1;
+            return 2;
 
         auto run_cached_body = [&]() -> LoopCommandOutcome {
             // execute one iteration body then translate result into loop flow semantics
@@ -1270,10 +1187,13 @@ int handle_for_block(
         return execute_for_iterations(run_cached_body, parsed_loop.trailing_commands, []() {});
     }
 
-    if (!parse_multiline_loop_block(src_lines, idx, first, shell_parser, parsed_loop) ||
-        !parse_header(parsed_loop.header)) {
+    if (!parse_multiline_loop_block(src_lines, idx, first, shell_parser, parsed_loop)) {
         idx = parsed_loop.end_index;
-        return 1;
+        return report_loop_header_error("for", "expected 'do' and 'done' to complete the loop");
+    }
+    if (!parse_header(parsed_loop.header)) {
+        idx = parsed_loop.end_index;
+        return 2;
     }
 
     auto run_body_and_handle_result = [&]() -> LoopCommandOutcome {
@@ -1296,7 +1216,7 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
                         const std::function<int(const std::string&)>& execute_simple_or_pipeline,
                         Parser* shell_parser, const std::function<bool()>& should_abort_execution) {
     std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (first != "select" && first.rfind("select ", 0) != 0)
+    if (!parser_starts_with_keyword_token(first, "select") && first.rfind("select;", 0) != 0)
         return 1;
 
     std::string var;
@@ -1321,40 +1241,24 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
     };
 
     auto parse_header = [&](const std::string& header) -> bool {
-        std::string normalized_header = trim(header);
-        while (!normalized_header.empty() && normalized_header.back() == ';') {
-            normalized_header.pop_back();
-            normalized_header = trim(normalized_header);
+        const auto parsed = parse_named_loop_header(header, "select");
+        if (!parsed.error.empty()) {
+            report_loop_header_error("select", parsed.error);
+            return false;
         }
-
-        if (shell_parser == nullptr) {
+        if (parsed.has_in && parsed.words.empty()) {
+            report_loop_header_error("select", "expected selection words after 'in'");
             return false;
         }
 
-        std::vector<std::string> toks = shell_parser->parse_command(normalized_header);
-        size_t i = 0;
-        if (i < toks.size() && toks[i] == "select")
-            ++i;
-        if (i >= toks.size())
-            return false;
-
-        var = toks[i++];
-        if (!is_valid_identifier(var)) {
-            return false;
-        }
-
-        items.clear();
-        if (i < toks.size()) {
-            if (toks[i] != "in") {
+        var = parsed.variable;
+        if (parsed.has_in) {
+            auto toks = shell_parser->parse_command("select " + var + " in " + parsed.words);
+            if (toks.size() < 3) {
+                report_loop_header_error("select", "could not parse selection words after 'in'");
                 return false;
             }
-            ++i;
-            if (i >= toks.size()) {
-                return false;
-            }
-            while (i < toks.size()) {
-                items.push_back(toks[i++]);
-            }
+            items.assign(toks.begin() + 3, toks.end());
         } else {
             items = flags::get_positional_parameters();
         }
@@ -1424,15 +1328,18 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
     ParsedLoopBlock parsed_loop;
     if (parse_inline_loop_block(first, shell_parser, parsed_loop)) {
         if (!parse_header(parsed_loop.header))
-            return 1;
+            return 2;
 
         return execute_select_iterations(parsed_loop.body_lines, parsed_loop.trailing_commands);
     }
 
-    if (!parse_multiline_loop_block(src_lines, idx, first, shell_parser, parsed_loop) ||
-        !parse_header(parsed_loop.header)) {
+    if (!parse_multiline_loop_block(src_lines, idx, first, shell_parser, parsed_loop)) {
         idx = parsed_loop.end_index;
-        return 1;
+        return report_loop_header_error("select", "expected 'do' and 'done' to complete the loop");
+    }
+    if (!parse_header(parsed_loop.header)) {
+        idx = parsed_loop.end_index;
+        return 2;
     }
 
     int rc = execute_select_iterations(parsed_loop.body_lines, parsed_loop.trailing_commands);

@@ -74,6 +74,17 @@ std::string trim_whitespace(const std::string& s);
 bool is_valid_identifier_start(char c);
 bool is_valid_identifier_char(char c);
 bool is_valid_identifier(const std::string& name);
+
+struct NamedLoopHeader {
+    std::string variable;
+    bool has_in = false;
+    std::string words;
+    std::string error;
+};
+
+// Parse an unexpanded for/select header, excluding the do keyword and body.
+NamedLoopHeader parse_named_loop_header(std::string header, std::string_view keyword);
+
 bool parse_assignment(const std::string& arg, std::string& name, std::string& value,
                       bool strip_surrounding_quotes = false);
 bool parse_env_assignment(const std::string& arg, std::string& name, std::string& value,

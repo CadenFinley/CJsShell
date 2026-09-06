@@ -121,12 +121,16 @@ target_link_libraries(agent_mode_tests PRIVATE cjsh_core cjsh_isocline)
 add_executable(function_syntax_tests "${CMAKE_CURRENT_SOURCE_DIR}/core/test_function_syntax.cpp")
 target_link_libraries(function_syntax_tests PRIVATE cjsh_core cjsh_isocline)
 
+add_executable(loop_syntax_tests "${CMAKE_CURRENT_SOURCE_DIR}/core/test_loop_syntax.cpp")
+target_link_libraries(loop_syntax_tests PRIVATE cjsh_core cjsh_isocline)
+
 cjsh_add_test(NAME isocline_behavior_tests COMMAND isocline_behavior_tests)
 cjsh_add_test(NAME completion_tests COMMAND completion_tests)
 cjsh_add_test(NAME syntax_highlighting_tests COMMAND syntax_highlighting_tests)
 cjsh_add_test(NAME history_expansion_tests COMMAND history_expansion_tests)
 cjsh_add_test(NAME agent_mode_tests COMMAND agent_mode_tests)
 cjsh_add_test(NAME function_syntax_tests COMMAND function_syntax_tests)
+cjsh_add_test(NAME loop_syntax_tests COMMAND loop_syntax_tests)
 
 if(Python3_Interpreter_FOUND)
     cjsh_add_test(

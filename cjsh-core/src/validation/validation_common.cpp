@@ -39,6 +39,7 @@
 #include <sstream>
 #include <string>
 
+using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
 
@@ -535,26 +536,6 @@ size_t adjust_display_line(const std::string& text, size_t base_line, size_t off
     return base_line + static_cast<size_t>(std::count(text.begin(), end_it, '\n'));
 }
 
-bool has_iteration_values_after_in(const std::vector<std::string>& tokens) {
-    const auto in_it = std::find(tokens.begin(), tokens.end(), "in");
-    if (in_it == tokens.end()) {
-        return false;
-    }
-
-    for (auto iter = std::next(in_it); iter != tokens.end(); ++iter) {
-        const std::string& candidate = *iter;
-        if (candidate.empty()) {
-            continue;
-        }
-        if (candidate[0] == '#' || candidate == "do" || candidate == "done" ||
-            candidate == "then" || candidate == "elif" || candidate == "else") {
-            break;
-        }
-        return true;
-    }
-    return false;
-}
-
 bool inline_loop_body_missing_done(const std::string& trimmed_line) {
     const size_t inline_do_pos = find_inline_do_position(trimmed_line);
     if (inline_do_pos == std::string::npos) {
@@ -605,7 +586,16 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
             result.incomplete = true;
             return true;
         }
-        (void)after_close;
+        const size_t do_pos = parser_find_inline_do_position(trimmed_line, after_close);
+        std::string trailing = trim(strip_inline_comment(trimmed_line.substr(
+            after_close, do_pos == std::string::npos ? std::string::npos : do_pos - after_close)));
+        if (!trailing.empty() && trailing.back() == ';') {
+            trailing.pop_back();
+            trailing = trim(trailing);
+        }
+        if (!trailing.empty()) {
+            result.header_error = "invalid C-style loop header: unexpected text after '))'";
+        }
 
         std::string c_style_expr = trimmed_line.substr(content_start, content_end - content_start);
         int semicolon_count = 0;
@@ -659,7 +649,8 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
         }
 
         if (semicolon_count != 2) {
-            result.incomplete = true;
+            result.header_error =
+                "invalid C-style loop header; expected ((init; condition; update))";
         }
 
         return true;
@@ -670,20 +661,10 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
         return result;
     }
 
-    if (tokens.size() < 3) {
-        result.incomplete = true;
-        return result;
-    }
-
-    auto in_it = std::find(tokens.begin(), tokens.end(), "in");
-    if (in_it == tokens.end()) {
-        result.missing_in_keyword = true;
-        return result;
-    }
-
-    if (!has_iteration_values_after_in(tokens)) {
-        result.missing_iteration_list = true;
-    }
+    const size_t do_pos = find_inline_do_position(trimmed_line);
+    const auto header =
+        parse_named_loop_header(strip_inline_comment(trimmed_line.substr(0, do_pos)), "for");
+    result.header_error = header.error;
 
     apply_do_checks();
 

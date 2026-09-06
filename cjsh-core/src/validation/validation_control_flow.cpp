@@ -29,6 +29,7 @@
 #include "interpreter.h"
 
 #include "interpreter_utils.h"
+#include "parser_utils.h"
 #include "validation_common.h"
 
 #include <algorithm>
@@ -37,6 +38,7 @@
 #include <string>
 #include <vector>
 
+using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 namespace validation_internal = shell_validation::internal;
 
@@ -49,7 +51,6 @@ using validation_internal::check_for_loop_keywords;
 using validation_internal::create_tokenized_validator;
 using validation_internal::find_inline_do_position;
 using validation_internal::find_inline_done_position;
-using validation_internal::has_iteration_values_after_in;
 using validation_internal::inline_loop_body_missing_done;
 using validation_internal::next_effective_line_starts_with_keyword;
 using validation_internal::QuoteState;
@@ -115,22 +116,23 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         const auto& tokens = ctx.tokens;
         const std::string& first_token = ctx.first_token;
 
-        if (first_token == "for") {
+        if (first_token == "for" || first_token == "for;") {
             auto loop_check = analyze_for_loop_syntax(tokens, trimmed_line);
             bool missing_do_effective =
                 loop_check.missing_do_keyword &&
-                !next_effective_line_starts_with_keyword(ctx.all_lines, ctx.line_index, "do");
-            if (loop_check.incomplete) {
+                !next_effective_line_starts_with_keyword(ctx.all_lines, ctx.line_index, "do") &&
+                !next_effective_line_starts_with_keyword(ctx.all_lines, ctx.line_index, "in");
+            if (!loop_check.header_error.empty()) {
+                line_errors.push_back(SyntaxError(
+                    {display_line, 0, 0, 0}, ErrorSeverity::CRITICAL, ErrorCategory::CONTROL_FLOW,
+                    "SYN002", loop_check.header_error, line,
+                    "Use 'for name in words; do ...; done' or 'for name; do ...; done'"));
+            } else if (loop_check.incomplete) {
                 line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                                                   ErrorCategory::CONTROL_FLOW, "SYN002",
                                                   "'for' statement incomplete", line,
                                                   "Complete for statement: for var in list; do"));
-            } else if (loop_check.missing_iteration_list) {
-                line_errors.push_back(SyntaxError(
-                    {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
-                    "SYN002", "'for' statement missing iteration list after 'in'", line,
-                    "Add values after 'in': for var in 1 2 3; do"));
-            } else if (!loop_check.missing_in_keyword && missing_do_effective) {
+            } else if (missing_do_effective) {
                 line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                                                   ErrorCategory::CONTROL_FLOW, "SYN002",
                                                   "'for' statement missing 'do' keyword", line,
@@ -141,24 +143,25 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                     "SYN002", "'for' loop missing closing 'done' after inline body", line,
                     "End inline loop bodies with 'done' or move the body to a new line"));
             }
-        } else if (first_token == "select") {
-            if (tokens.size() < 2) {
+        } else if (first_token == "select" || first_token == "select;") {
+            const size_t do_pos = find_inline_do_position(trimmed_line);
+            const auto header = parse_named_loop_header(
+                strip_inline_comment(trimmed_line.substr(0, do_pos)), "select");
+            if (!header.error.empty()) {
                 line_errors.push_back(SyntaxError(
-                    {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
-                    "SYN002", "'select' statement incomplete", line,
-                    "Complete select statement: select var in list; do"));
+                    {display_line, 0, 0, 0}, ErrorSeverity::CRITICAL, ErrorCategory::CONTROL_FLOW,
+                    "SYN002", header.error, line,
+                    "Use 'select name in words; do ...; done' or 'select name; do ...; done'"));
                 return;
             }
 
-            bool missing_iteration_list = false;
-            auto in_it = std::find(tokens.begin(), tokens.end(), "in");
-            if (in_it != tokens.end()) {
-                missing_iteration_list = !has_iteration_values_after_in(tokens);
-            }
+            bool missing_iteration_list = header.has_in && header.words.empty();
 
             bool has_do = check_for_loop_keywords(tokens, trimmed_line, false);
-            bool missing_do_effective = !has_do && !next_effective_line_starts_with_keyword(
-                                                       ctx.all_lines, ctx.line_index, "do");
+            bool missing_do_effective =
+                !has_do &&
+                !next_effective_line_starts_with_keyword(ctx.all_lines, ctx.line_index, "do") &&
+                !next_effective_line_starts_with_keyword(ctx.all_lines, ctx.line_index, "in");
 
             if (missing_iteration_list) {
                 line_errors.push_back(SyntaxError(
