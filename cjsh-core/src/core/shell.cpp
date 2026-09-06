@@ -604,6 +604,44 @@ void Shell::setup_job_control() {
     shell_options[to_index(ShellOption::Monitor)] = true;
 }
 
+bool Shell::reclaim_terminal() {
+    // Only the interactive shell that completed the startup foreground handshake may
+    // reclaim this terminal. Forked subshells must not take it from their parent.
+    // This remains necessary when the user disables monitor mode with `set +m`.
+    if (!interactive_job_control_available || shell_pgid <= 0 || getpid() != shell_pgid ||
+        getpgrp() != shell_pgid) {
+        return false;
+    }
+
+    pid_t foreground_pgid;
+    do {
+        foreground_pgid = tcgetpgrp(shell_terminal);
+    } while (foreground_pgid < 0 && errno == EINTR);
+    if (foreground_pgid < 0) {
+        return false;
+    }
+    if (foreground_pgid == shell_pgid) {
+        return true;
+    }
+
+    sigset_t sigttou_mask{};
+    sigset_t previous_mask{};
+    sigemptyset(&sigttou_mask);
+    sigaddset(&sigttou_mask, SIGTTOU);
+    if (sigprocmask(SIG_BLOCK, &sigttou_mask, &previous_mask) != 0) {
+        return false;
+    }
+
+    int result;
+    do {
+        result = tcsetpgrp(shell_terminal, shell_pgid);
+    } while (result < 0 && errno == EINTR);
+    const int foreground_error = errno;
+    (void)sigprocmask(SIG_SETMASK, &previous_mask, nullptr);
+    errno = foreground_error;
+    return result == 0;
+}
+
 bool Shell::is_job_control_enabled() const {
     return job_control_enabled;
 }

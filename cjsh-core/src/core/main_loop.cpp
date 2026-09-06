@@ -95,6 +95,18 @@ bool typeahead_capture_allowed(void*) {
     return !JobManager::instance().foreground_job_reads_stdin();
 }
 
+void recover_prompt_terminal() {
+    if (!g_shell->reclaim_terminal()) {
+        return;
+    }
+
+    // A command or hook can leave terminal modes behind even without a job-control
+    // handoff. Preserve queued input before restoring isocline's between-prompt modes.
+    // Re-enabling capture reapplies those modes without clearing an enabled buffer.
+    (void)ic_typeahead_capture_available_input();
+    (void)ic_enable_typeahead(true);
+}
+
 struct CommandProcessResult {
     bool exit_requested;
     int exit_status;
@@ -147,6 +159,8 @@ CommandProcessResult process_command_line(const std::string& command) {
         std::chrono::duration_cast<std::chrono::milliseconds>(command_end_time - command_start_time)
             .count();
 
+    recover_prompt_terminal();
+
     // handle post command execution tasks
     Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
     pipeline_status_utils::apply_execution_status_env(exit_code, exec_ptr);
@@ -179,9 +193,6 @@ CommandProcessResult process_command_line(const std::string& command) {
     // do nothing for other platforms
 #endif
 
-    // handle typeahead that happened while command was executing
-    (void)ic_typeahead_capture_available_input();
-
     return {cjsh_env::exit_requested(), exit_code};
 }
 
@@ -208,6 +219,7 @@ struct ReadlinePromptState {
 ReadlinePromptState prepare_readline_prompt() {
     if (!config::posix_mode) {
         prompt::execute_prompt_command();
+        recover_prompt_terminal();
         prompt::apply_terminal_window_title();
     }
     (void)cjsh_env::update_terminal_dimensions();
@@ -237,9 +249,12 @@ std::optional<std::string> get_next_command() {
     // main input getting
     std::string command_to_run;
 
+    recover_prompt_terminal();
+
     // handle hooks
     if (!config::posix_mode) {
         g_shell->execute_hooks(HookType::Precmd);
+        recover_prompt_terminal();
     }
 
     thread_local static size_t consecutive_readline_errors = 0;
@@ -249,6 +264,8 @@ std::optional<std::string> get_next_command() {
     ReadlinePromptState prompt_state = prepare_readline_prompt();
 
     while (true) {
+        // Prompt expansion and idle hooks may also execute external programs.
+        recover_prompt_terminal();
         const char* inline_right_ptr = prompt_state.inline_right_text.empty()
                                            ? nullptr
                                            : prompt_state.inline_right_text.c_str();

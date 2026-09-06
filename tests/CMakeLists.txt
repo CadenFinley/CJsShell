@@ -30,6 +30,52 @@ endif()
 
 find_package(Python3 COMPONENTS Interpreter QUIET)
 
+# Isolate both stdin and /dev/tty: job-control tests can reopen the controlling
+# terminal even when stdin is redirected. Interactive tests create their own PTYs.
+add_executable(cjsh_test_runner "${CMAKE_CURRENT_SOURCE_DIR}/runner/run_test.c")
+
+function(cjsh_add_test)
+    cmake_parse_arguments(PARSE_ARGV 0 test "" "NAME" "COMMAND")
+    list(POP_FRONT test_COMMAND executable)
+    if(TARGET "${executable}")
+        set(executable "$<TARGET_FILE:${executable}>")
+    endif()
+    add_test(
+        NAME "${test_NAME}"
+        COMMAND cjsh_test_runner "${executable}" ${test_COMMAND}
+    )
+endfunction()
+
+# Register shell files individually so CTest can schedule them with --parallel.
+file(GLOB CJSH_SHELL_TEST_SCRIPTS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shell/test_*.sh")
+foreach(test_script IN LISTS CJSH_SHELL_TEST_SCRIPTS)
+    get_filename_component(test_name "${test_script}" NAME_WE)
+    set(test_work_dir "${CMAKE_CURRENT_BINARY_DIR}/shell/${test_name}")
+    file(MAKE_DIRECTORY "${test_work_dir}")
+    cjsh_add_test(
+        NAME "shell.${test_name}"
+        COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/run_shell_tests.sh"
+                $<TARGET_FILE:cjsh> --test "${test_name}"
+    )
+    set_tests_properties(
+        "shell.${test_name}"
+        PROPERTIES LABELS "shell" WORKING_DIRECTORY "${test_work_dir}"
+    )
+
+    # Timing checks need an idle runner. Process-count checks observe all system
+    # processes, and test_performance also deletes a shared /tmp/cjsh_test_* glob.
+    if(test_name MATCHES "performance"
+       OR test_name MATCHES "^test_(exit_command|signal_exits|sigchld_handling|zombie_processes|zombie_edge_cases)$")
+        set_tests_properties("shell.${test_name}" PROPERTIES RUN_SERIAL TRUE)
+    endif()
+endforeach()
+
+# These legacy suites both write and remove /tmp/exit_code_test.out.
+set_tests_properties(
+    shell.test_edge_cases shell.test_security_validation
+    PROPERTIES RESOURCE_LOCK "shell_exit_code_test_output"
+)
+
 add_executable(isocline_behavior_tests "${CMAKE_CURRENT_SOURCE_DIR}/isocline/test_isocline_behavior.c")
 target_link_libraries(isocline_behavior_tests PRIVATE cjsh_isocline)
 
@@ -75,47 +121,47 @@ target_link_libraries(agent_mode_tests PRIVATE cjsh_core cjsh_isocline)
 add_executable(function_syntax_tests "${CMAKE_CURRENT_SOURCE_DIR}/core/test_function_syntax.cpp")
 target_link_libraries(function_syntax_tests PRIVATE cjsh_core cjsh_isocline)
 
-add_test(NAME isocline_behavior_tests COMMAND isocline_behavior_tests)
-add_test(NAME completion_tests COMMAND completion_tests)
-add_test(NAME syntax_highlighting_tests COMMAND syntax_highlighting_tests)
-add_test(NAME history_expansion_tests COMMAND history_expansion_tests)
-add_test(NAME agent_mode_tests COMMAND agent_mode_tests)
-add_test(NAME function_syntax_tests COMMAND function_syntax_tests)
+cjsh_add_test(NAME isocline_behavior_tests COMMAND isocline_behavior_tests)
+cjsh_add_test(NAME completion_tests COMMAND completion_tests)
+cjsh_add_test(NAME syntax_highlighting_tests COMMAND syntax_highlighting_tests)
+cjsh_add_test(NAME history_expansion_tests COMMAND history_expansion_tests)
+cjsh_add_test(NAME agent_mode_tests COMMAND agent_mode_tests)
+cjsh_add_test(NAME function_syntax_tests COMMAND function_syntax_tests)
 
 if(Python3_Interpreter_FOUND)
-    add_test(
+    cjsh_add_test(
         NAME isocline_pty_integration_tests
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/isocline/test_isocline_pty.py"
                 $<TARGET_FILE:isocline_pty_driver>
     )
 
-    add_test(
+    cjsh_add_test(
         NAME build_system_configuration_tests
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/build_system/test_build_system.py"
                 "${CMAKE_SOURCE_DIR}"
     )
 
-    add_test(
+    cjsh_add_test(
         NAME interactive_shutdown_hangup_tests
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_interactive_shutdown.py"
                 $<TARGET_FILE:cjsh>
     )
 
-    add_test(
+    cjsh_add_test(
         NAME agent_mode_interactive_tests
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_agent_mode_interactive.py"
                 $<TARGET_FILE:cjsh>
     )
 
     if(UNIX)
-        add_test(
+        cjsh_add_test(
             NAME idle_hook_interactive_tests
             COMMAND
                 "${Python3_EXECUTABLE}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/core/test_idle_hook_interactive.py"
                 $<TARGET_FILE:cjsh>
         )
-        add_test(
+        cjsh_add_test(
             NAME job_notification_interactive_tests
             COMMAND
                 "${Python3_EXECUTABLE}"
@@ -125,7 +171,7 @@ if(Python3_Interpreter_FOUND)
     endif()
 
     if(UNIX)
-        add_test(
+        cjsh_add_test(
             NAME generate_completions_integration_tests
             COMMAND
                 "${Python3_EXECUTABLE}"
@@ -135,7 +181,7 @@ if(Python3_Interpreter_FOUND)
     endif()
 
     if(TARGET fg_terminal_race_injector)
-        add_test(
+        cjsh_add_test(
             NAME function_pipeline_job_control_tests
             COMMAND
                 "${Python3_EXECUTABLE}"
@@ -143,4 +189,15 @@ if(Python3_Interpreter_FOUND)
                 $<TARGET_FILE:cjsh> $<TARGET_FILE:fg_terminal_race_injector>
         )
     endif()
+
+    cjsh_add_test(
+        NAME test_runner_terminal_safety
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/runner/test_terminal_safety.py"
+                $<TARGET_FILE:cjsh_test_runner> $<TARGET_FILE:function_syntax_tests>
+    )
+    cjsh_add_test(
+        NAME terminal_recovery_tests
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_terminal_recovery.py"
+                $<TARGET_FILE:cjsh>
+    )
 endif()

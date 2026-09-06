@@ -732,11 +732,17 @@ ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
         restore_flags = true;
     }
 
-    const bool decode_swapped_crlf = tty->typeahead_crlf_swapped;
+    bool decode_swapped_crlf = tty->typeahead_crlf_swapped;
     struct termios original_termios;
     memset(&original_termios, 0, sizeof(original_termios));
     bool restore_termios = false;
     if (tcgetattr(tty->fd_in, &original_termios) == 0) {
+        // A foreground program can leave raw input active without updating our
+        // cached capture state. Its queued Return bytes are already CR; swapping
+        // them would replay Ctrl+J instead of submitting the user's command.
+        if ((original_termios.c_iflag & ICRNL) == 0) {
+            decode_swapped_crlf = false;
+        }
         struct termios raw_termios = original_termios;
         if (!decode_swapped_crlf) {
             raw_termios.c_iflag &= (tcflag_t)(~(ICRNL | INLCR));

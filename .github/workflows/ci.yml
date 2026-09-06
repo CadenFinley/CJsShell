@@ -73,5 +73,5 @@ jobs:
       - name: Build
         run: cmake --build --preset ${{ matrix.preset }} --parallel
 
-      - name: Run full shell integration suite
-        run: ./tests/run_shell_tests.sh "build/${{ matrix.preset }}/cjsh"
+      - name: Run all tests in parallel
+        run: ctest --preset ${{ matrix.preset }} --parallel 4

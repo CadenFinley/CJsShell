@@ -249,7 +249,9 @@ def main() -> int:
             session.write(b"discarded\x1b[18~")
             session.wait_for(b"FOREGROUND-WIDGET", foreground_start)
             session.write(b"OK\r")
-            session.pump(0.2)
+            # Wait for the widget to finish and the editor to apply its replacement.
+            # A fixed delay can send Return while a slower ASan build is still cooked.
+            session.wait_for(b"echo FOREGROUND-OK", foreground_start)
             session.write(b"\r")
             session.wait_for_prompt(foreground_start, command_completed=True)
             foreground_output = normalize_terminal_output(

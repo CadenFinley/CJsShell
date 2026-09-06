@@ -62,13 +62,18 @@ Useful presets:
 
 ## Test
 
-Run the focused CTest suites:
+Run all shell files and focused C, C++, and Python suites with four workers:
 
 ```bash
-ctest --preset release
+ctest --preset release --parallel 4
 ```
 
-Run the full shell and integration harness:
+Adjust `4` to control concurrency, or use `1` for a serial run. Timing and
+system-wide process-count tests run alone. Add `-L shell` to select only shell
+files, or `-LE shell` to select only focused suites.
+
+The serial shell and integration harness also remains available, with combined
+individual-test counts:
 
 ```bash
 ./tests/run_shell_tests.sh "build/release/cjsh"

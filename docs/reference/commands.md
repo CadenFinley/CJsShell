@@ -405,6 +405,12 @@ false
 
 ## Job Control
 
+cjsh reclaims the terminal and restores its input settings when returning to the prompt,
+including with monitor mode disabled (`set +m`). This also happens around prompt and idle
+hooks, so a program that exits or stops with altered terminal settings does not leave the
+next prompt using them. Pending input is preserved, and `fg` restores a stopped job's own
+terminal settings before resuming it.
+
 ### jobs
 List background jobs.
 

@@ -44,6 +44,15 @@ else
     fi
 fi
 
+SINGLE_TEST=""
+if [ "$#" -ne 0 ]; then
+    if [ "$#" -ne 2 ] || [ "$1" != "--test" ] || [ -z "$2" ]; then
+        echo "Usage: $0 [cjsh-binary] [--test test_name]" >&2
+        exit 2
+    fi
+    SINGLE_TEST="$2"
+fi
+
 if [ "${CJSH_CANDIDATE#/}" = "$CJSH_CANDIDATE" ]; then
     CJSH_CANDIDATE="$(pwd)/$CJSH_CANDIDATE"
 fi
@@ -381,7 +390,7 @@ run_external_suite() {
     TOTAL_FILES=$((TOTAL_FILES + 1))
     printf "  %-50s " "$suite_name:"
 
-    suite_output=$("$@" 2>&1)
+    suite_output=$("$@" </dev/null 2>&1)
     suite_exit_code=$?
     suite_output_clean=$(sanitize_terminal_output "$suite_output")
 
@@ -491,6 +500,12 @@ run_test() {
     fi
 }
 
+
+# CTest runs each shell file separately so it can schedule independent files.
+if [ -n "$SINGLE_TEST" ]; then
+    run_test "$SINGLE_TEST"
+    exit "$FILES_FAIL"
+fi
 
 # echo "${YELLOW}=== Running All Shell Tests ===${NC}"
 test_list=$(discover_test_files)

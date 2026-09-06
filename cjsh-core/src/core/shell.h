@@ -109,6 +109,7 @@ class Shell {
     void save_terminal_state();
     void restore_terminal_state();
     void setup_job_control();
+    bool reclaim_terminal();
     bool is_job_control_enabled() const;
     bool set_job_control_enabled(bool enabled);
 

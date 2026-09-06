@@ -79,6 +79,8 @@ class Session:
             env=env,
             cwd=cwd,
             close_fds=True,
+            # A slave PTY alone does not detach the caller's controlling terminal.
+            start_new_session=True,
         )
         os.close(slave_fd)
         self.output = bytearray()

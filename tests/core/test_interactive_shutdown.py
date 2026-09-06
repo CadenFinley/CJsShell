@@ -85,6 +85,7 @@ class InteractiveSession:
                 stderr=self.slave_fd,
                 env=env,
                 close_fds=True,
+                start_new_session=True,
             )
             set_nonblocking(self.master_fd)
             return self

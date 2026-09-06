@@ -93,6 +93,7 @@ def run_job_control_case(
             stderr=slave_fd,
             env=env,
             close_fds=True,
+            start_new_session=True,
         )
         os.close(slave_fd)
         slave_fd = -1

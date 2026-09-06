@@ -86,6 +86,7 @@ def run_in_pty(arguments: list[str], environment: dict[str, str]) -> tuple[int, 
         stderr=slave_fd,
         env=environment,
         close_fds=True,
+        start_new_session=True,
     )
     os.close(slave_fd)
 

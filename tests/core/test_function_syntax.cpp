@@ -103,6 +103,10 @@ bool test_invalid_keyword_function_name_still_fails_validation() {
 int main() {
     cjsh_env::reset_shell_state();
     cjsh_env::set_startup_active(false);
+    // Shell's constructor performs job-control setup; disable it before the
+    // constructor can claim the terminal from the test runner.
+    config::interactive_mode = false;
+    config::force_interactive = false;
     g_shell = std::make_unique<Shell>();
     g_shell->set_interactive_mode(false);
 

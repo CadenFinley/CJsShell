@@ -73,8 +73,7 @@ List presets with `cmake --list-presets`.
 Before opening a pull request, run the checks that match the scope of your change. For most code changes, that means:
 
 ```bash
-ctest --preset release
-./tests/run_shell_tests.sh "build/release/cjsh"
+ctest --preset release --parallel 4
 ```
 
 If you touch parser, interpreter, job control, interactive input, or other memory-sensitive runtime code, also test the debug preset:
@@ -82,11 +81,25 @@ If you touch parser, interpreter, job control, interactive input, or other memor
 ```bash
 cmake --preset debug
 cmake --build --preset debug --parallel
-ctest --preset debug
-./tests/run_shell_tests.sh "build/debug/cjsh"
+ctest --preset debug --parallel 4
 ```
 
-The shell test harness is the broadest local regression check and is the best default verification step before opening a pull request.
+CTest runs all shell files and the focused C, C++, and Python suites. `--parallel 4`
+runs up to four independent suites at once; adjust the number for your machine or
+use `--parallel 1` for a serial run. Timing and system-wide process-count checks
+run alone, and tests sharing temporary files are locked against each other.
+GitHub CI uses the same four-worker configuration for each build preset.
+Each CTest worker runs in a separate process session with `/dev/null` on stdin,
+so tests cannot read or change the invoking terminal through stdin or `/dev/tty`.
+The launcher forwards cancellation signals to the worker's process group.
+Interactive suites create their own pseudoterminals.
+
+Use `ctest --preset release --parallel 4 -L shell` for just the shell files, or
+`ctest --preset release --parallel 4 -LE shell` for just the focused suites.
+`ctest --preset release --rerun-failed --output-on-failure` repeats failed suites.
+The serial harness remains available as `./tests/run_shell_tests.sh build/release/cjsh`
+when you want its combined individual-test counts. To run one shell file with
+that harness, append `--test test_alias` (using the filename without `.sh`).
 
 ## Code Style
 
