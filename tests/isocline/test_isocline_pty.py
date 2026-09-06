@@ -1243,6 +1243,24 @@ def main() -> int:
             f"{multiline_backslash_with_following_content!r}"
         )
 
+    multiline_auto_indent = run_case(
+        binary, "multiline_auto_continuation_indent", b"if true; then\recho ok\r"
+    )
+    if multiline_auto_indent != "if true; then\n  echo ok":
+        raise AssertionError(
+            "Automatic continuation should indent a shell block body, got "
+            f"{multiline_auto_indent!r}"
+        )
+
+    multiline_auto_indent_disabled = run_case(
+        binary, "multiline_auto_continuation_indent_disabled", b"if true; then\recho ok\r"
+    )
+    if multiline_auto_indent_disabled != "if true; then\necho ok":
+        raise AssertionError(
+            "Disabling multiline indentation should leave an automatic continuation unindented, got "
+            f"{multiline_auto_indent_disabled!r}"
+        )
+
     multiline_initial = run_case(binary, "multiline_initial_ctrl_j", b"\x0acd\r")
     if multiline_initial != "ab\ncd":
         raise AssertionError(

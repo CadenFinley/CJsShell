@@ -862,8 +862,9 @@ ic_menu_highlight_mode_t ic_set_menu_highlight_mode(ic_menu_highlight_mode_t mod
 /// Returns the current completion/history menu item highlighting mode.
 ic_menu_highlight_mode_t ic_get_menu_highlight_mode(void);
 
-/// Disable or enable automatic identation of continuation lines in multiline
-/// input so it aligns with the initial prompt. (enabled by default)
+/// Disable or enable automatic indentation of continuation lines in multiline
+/// input. This aligns continuation prompts and indents lines created by
+/// automatic continuation. (enabled by default)
 /// Returns the previous setting.
 bool ic_enable_multiline_indent(bool enable);
 

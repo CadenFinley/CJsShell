@@ -206,6 +206,7 @@ static void edit_delete_to_start_of_line(ic_env_t* env, editor_t* eb);
 static void edit_delete_to_end_of_line(ic_env_t* env, editor_t* eb);
 static void edit_swap_char(ic_env_t* env, editor_t* eb);
 static void edit_insert_char(ic_env_t* env, editor_t* eb, char c);
+static void edit_insert_auto_indented_linefeed(ic_env_t* env, editor_t* eb);
 static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool boundary_char_present,
                                          bool modification_started);
 static void edit_refresh(ic_env_t* env, editor_t* eb);
@@ -2635,6 +2636,73 @@ static void edit_insert_unicode(ic_env_t* env, editor_t* eb, unicode_t u) {
     edit_refresh_hint(env, eb);
 }
 
+// The continuation callback determines whether a buffer is incomplete.  The
+// editor can then give its newly created line a useful shell-style indent
+// without needing to understand the caller's full grammar.
+static bool edit_line_opens_indented_block(const char* input, ssize_t line_start,
+                                           ssize_t line_end) {
+    while (line_end > line_start &&
+           (input[line_end - 1] == ' ' || input[line_end - 1] == '\t')) {
+        --line_end;
+    }
+    if (line_end <= line_start)
+        return false;
+
+    const char last = input[line_end - 1];
+    if (last == '{' || last == '(' || last == '[')
+        return true;
+
+    ssize_t word_start = line_end;
+    while (word_start > line_start && isalpha((unsigned char)input[word_start - 1])) {
+        --word_start;
+    }
+    const ssize_t word_len = line_end - word_start;
+    return (word_len == 2 && strncmp(input + word_start, "do", 2) == 0) ||
+           (word_len == 4 && strncmp(input + word_start, "then", 4) == 0) ||
+           (word_len == 2 && strncmp(input + word_start, "in", 2) == 0);
+}
+
+static void edit_insert_auto_indented_linefeed(ic_env_t* env, editor_t* eb) {
+    assert(env != NULL && eb != NULL);
+
+    const ssize_t line_end = eb->pos;
+    const char* input = sbuf_string(eb->input);
+    ssize_t line_start = line_end;
+    while (line_start > 0 && input[line_start - 1] != '\n') {
+        --line_start;
+    }
+    ssize_t inherited_indent = line_start;
+    while (inherited_indent < line_end &&
+           (input[inherited_indent] == ' ' || input[inherited_indent] == '\t')) {
+        ++inherited_indent;
+    }
+    inherited_indent -= line_start;
+    const bool add_indent_level =
+        !env->no_multiline_indent && edit_line_opens_indented_block(input, line_start, line_end);
+
+    editor_start_modify(eb);
+    ssize_t nextpos = sbuf_insert_char_at(eb->input, '\n', eb->pos);
+    if (nextpos < 0)
+        return;
+    eb->pos = nextpos;
+
+    if (!env->no_multiline_indent) {
+        for (ssize_t i = 0; i < inherited_indent; ++i) {
+            const char whitespace = sbuf_char_at(eb->input, line_start + i);
+            nextpos = sbuf_insert_char_at(eb->input, whitespace, eb->pos);
+            if (nextpos < 0)
+                break;
+            eb->pos = nextpos;
+        }
+        if (add_indent_level) {
+            nextpos = sbuf_insert_at(eb->input, "  ", eb->pos);
+            if (nextpos >= 0)
+                eb->pos = nextpos;
+        }
+    }
+    edit_refresh(env, eb);
+}
+
 static bool edit_is_word_char(char ch) {
     return (ch != 0 && (isalnum((unsigned char)ch) || ch == '_'));
 }
@@ -3948,16 +4016,14 @@ edit_loop_entry:
                 bool should_submit = edit_should_submit_current_buffer(env, &eb);
                 if (!should_submit && !env->singleline_only) {
                     eb.request_submit = false;
-                    has_pending_key = true;
-                    pending_key = KEY_LINEFEED;
+                    edit_insert_auto_indented_linefeed(env, &eb);
                     continue;
                 }
                 if (should_submit && edit_try_spell_correct_on_enter(env, &eb)) {
                     should_submit = edit_should_submit_current_buffer(env, &eb);
                     if (!should_submit && !env->singleline_only) {
                         eb.request_submit = false;
-                        has_pending_key = true;
-                        pending_key = KEY_LINEFEED;
+                        edit_insert_auto_indented_linefeed(env, &eb);
                         continue;
                     }
                 }
@@ -4384,8 +4450,7 @@ edit_loop_entry:
                 if (!should_submit && !env->singleline_only) {
                     request_submit = false;
                     eb.request_submit = false;
-                    has_pending_key = true;
-                    pending_key = KEY_LINEFEED;
+                    edit_insert_auto_indented_linefeed(env, &eb);
                     continue;
                 }
                 if (should_submit && edit_try_spell_correct_on_enter(env, &eb)) {
@@ -4393,8 +4458,7 @@ edit_loop_entry:
                     if (!should_submit && !env->singleline_only) {
                         request_submit = false;
                         eb.request_submit = false;
-                        has_pending_key = true;
-                        pending_key = KEY_LINEFEED;
+                        edit_insert_auto_indented_linefeed(env, &eb);
                         continue;
                     }
                 }
@@ -4405,8 +4469,7 @@ edit_loop_entry:
     } else {
         if (!edit_should_submit_current_buffer(env, &eb) && !env->singleline_only) {
             initial_requests_submit = false;
-            has_pending_key = true;
-            pending_key = KEY_LINEFEED;
+            edit_insert_auto_indented_linefeed(env, &eb);
             goto edit_loop_entry;
         }
         (void)edit_expand_abbreviation_if_needed(env, &eb, false);

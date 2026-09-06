@@ -57,7 +57,7 @@ CJ's Shell supports seamless multiline input for complex commands, heredocs, and
 
 **Features:**
 - Automatic continuation when lines are incomplete
-- Smart indentation that aligns with the initial prompt
+- Smart indentation that aligns continuation prompts and indents automatic continuation lines
 - Line numbers for easy navigation
 - Both absolute and relative line numbering modes
 

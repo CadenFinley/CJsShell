@@ -102,6 +102,13 @@ static bool notification_submit_handler(const char* input, void* arg) {
     return true;
 }
 
+// Keep the first Enter in the editor, then submit after its automatic
+// continuation has created a second line.
+static bool auto_indent_continuation_handler(const char* input, void* arg) {
+    (void)arg;
+    return input != NULL && strchr(input, '\n') != NULL;
+}
+
 static bool pty_custom_menu_runoff_handler(ic_keycode_t key, void* arg) {
     (void)arg;
     if (key != IC_KEY_F3) {
@@ -485,6 +492,8 @@ static int run_case(const char* scenario) {
          strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
          strcmp(scenario, "multiline_backslash_continuation") == 0 ||
          strcmp(scenario, "multiline_backslash_continuation_retained") == 0 ||
+         strcmp(scenario, "multiline_auto_continuation_indent") == 0 ||
+         strcmp(scenario, "multiline_auto_continuation_indent_disabled") == 0 ||
          strcmp(scenario, "multiline_backslash_submit_with_following_content") == 0 ||
          strcmp(scenario, "multiline_initial_ctrl_j") == 0 ||
          strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0 ||
@@ -595,6 +604,11 @@ static int run_case(const char* scenario) {
         initial_input = "ab";
     } else if (strcmp(scenario, "multiline_backslash_submit_with_following_content") == 0) {
         initial_input = "echo \\\nhi";
+    } else if (strcmp(scenario, "multiline_auto_continuation_indent") == 0) {
+        ic_set_check_for_continuation_or_return_callback(auto_indent_continuation_handler, NULL);
+    } else if (strcmp(scenario, "multiline_auto_continuation_indent_disabled") == 0) {
+        ic_set_check_for_continuation_or_return_callback(auto_indent_continuation_handler, NULL);
+        (void)ic_enable_multiline_indent(false);
     } else if (strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0) {
         initial_input = "ab\ncd\nef";
     } else if (strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0) {
