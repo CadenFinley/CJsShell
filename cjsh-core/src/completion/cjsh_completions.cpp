@@ -38,6 +38,7 @@
 #include <functional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <unordered_map>
 #include <unordered_set>
@@ -612,6 +613,43 @@ bool command_resolution_is_unknown(const std::string& token) {
     const auto resolution = command_lookup::resolve_command(token, g_shell.get(), true);
     return !resolution.is_keyword && !resolution.is_builtin && !resolution.has_alias &&
            !resolution.has_function && !resolution.has_path;
+}
+
+bool cursor_is_inside_known_command(const char* input, long cursor,
+                                    const completion_context::CommandLineContext& context) {
+    if (input == nullptr || cursor < 0 || !context.cursor_in_command_position ||
+        context.current_raw_prefix.empty()) {
+        return false;
+    }
+
+    const std::string_view full_input(input);
+    const auto position = static_cast<std::size_t>(cursor);
+    if (position >= full_input.size() || context.current_raw_prefix.size() > position) {
+        return false;
+    }
+
+    // Completion uses a prefix scoped to the current command. Inspect the rest
+    // of that word before treating a prefix such as t|hen as unfinished input.
+    const std::size_t start = position - context.current_raw_prefix.size();
+    std::size_t end = start;
+    utils::QuoteState quote_state;
+    for (; end < full_input.size(); ++end) {
+        const char ch = full_input[end];
+        if (quote_state.consume_forward(ch) == utils::QuoteAdvanceResult::Continue) {
+            continue;
+        }
+        if (!quote_state.inside_quotes() && (std::isspace(static_cast<unsigned char>(ch)) != 0 ||
+                                             std::strchr("|&;()<>", ch) != nullptr)) {
+            break;
+        }
+    }
+
+    if (end <= position || quote_state.inside_quotes() || quote_state.escaped) {
+        return false;
+    }
+    const std::string word =
+        completion_utils::unquote_path(std::string(full_input.substr(start, end - start)));
+    return !command_resolution_is_unknown(word);
 }
 
 void add_command_spell_corrections(ic_completion_env_t* cenv,
@@ -1794,6 +1832,8 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::string completion_scope_prefix = extract_completion_scope_prefix(effective_prefix);
     completion_context::CommandLineContext command_context =
         completion_context::parse(completion_scope_prefix);
+    if (cursor_is_inside_known_command(raw_input, raw_cursor, command_context))
+        return;
     std::string active_prefix = command_context.segment_prefix;
     const char* current_line_prefix = active_prefix.c_str();
 

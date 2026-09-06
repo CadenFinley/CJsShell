@@ -38,6 +38,7 @@
 #include <string>
 #include <system_error>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "builtins_completions_handler.h"
@@ -861,18 +862,101 @@ static bool test_default_completer_suppresses_before_existing_word(void) {
     EXPECT_TRUE(done_start != std::string::npos, test_name,
                 "the regression fixture should contain the closing done");
 
-    ssize_t count = run_completion_generation_at(
-        input.c_str(), static_cast<ssize_t>(done_start), &cjsh_default_completer, 256);
+    ssize_t count = run_completion_generation_at(input.c_str(), static_cast<ssize_t>(done_start),
+                                                 &cjsh_default_completer, 256);
     clear_generated_completions();
     EXPECT_TRUE(count == 0, test_name,
                 "the cursor before done should not offer an insertion completion");
 
-    (void)run_completion_generation_at("done", 2, &cjsh_default_completer, 256);
-    bool inside_word_completion =
-        generated_completions_include_replacement("done ");
+    (void)run_completion_generation("do", &cjsh_default_completer, 256);
+    bool inside_word_completion = generated_completions_include_replacement("done ");
     clear_generated_completions();
     EXPECT_TRUE(inside_word_completion, test_name,
-                "completion should remain available after a real prefix inside a word");
+                "completion should remain available for an unfinished word");
+    return true;
+}
+
+static bool test_default_completer_suppresses_inside_known_command(void) {
+    const char* test_name = "default_completer_suppresses_inside_known_command";
+    const std::string input =
+        "MAX=1000000\n"
+        "primes=\"\"\n"
+        "i=2\n"
+        "while [ $i -le $MAX ]; do\n"
+        "    is_prime=1\n"
+        "    for p in $primes; do\n"
+        "        if [ $((p*p)) -gt $i ]; then\n"
+        "            break\n"
+        "        fi\n"
+        "        if [ $((i % p)) -eq 0 ]; then\n"
+        "            is_prime=0\n"
+        "            break\n"
+        "        fi\n"
+        "    done\n"
+        "    if [ $is_prime -eq 1 ]; then\n"
+        "        echo $i\n"
+        "        primes=\"$primes $i\"\n"
+        "    fi\n"
+        "    i=$((i+1))\n"
+        "done";
+    const std::size_t then_start = input.find("then", input.find("i % p"));
+    EXPECT_TRUE(then_start != std::string::npos, test_name,
+                "the regression fixture should contain then on line ten");
+    EXPECT_TRUE(write_completion_history("# code=0 time=1\ntests/\n"), test_name,
+                "a competing completion should be available for the t prefix");
+
+    // Inline hints use a smaller result budget than the completion menu.
+    for (ssize_t limit : {2, 256}) {
+        for (std::size_t offset : {1, 2, 3}) {
+            const ssize_t count = run_completion_generation_at(
+                input.c_str(), static_cast<ssize_t>(then_start + offset), &cjsh_default_completer,
+                limit);
+            clear_generated_completions();
+            EXPECT_TRUE(count == 0, test_name,
+                        "a cursor inside the existing then must not offer completions");
+        }
+    }
+
+    const std::vector<std::pair<std::string, ssize_t>> known_commands = {
+        {"done", 2},
+        {"echo argument", 2},
+        {"echo;next", 2},
+        {"echo>output", 2},
+        {"$(echo)", 4},
+        {"sudo echo argument", 7},
+        {"\"echo\" argument", 3},
+        {"e'cho' argument", 2},
+        {"ec\\ho argument", 2},
+    };
+    for (const auto& entry : known_commands) {
+        const ssize_t count = run_completion_generation_at(entry.first.c_str(), entry.second,
+                                                           &cjsh_default_completer, 256);
+        clear_generated_completions();
+        EXPECT_TRUE(count == 0, test_name,
+                    "a recognized command or keyword should not be completed from its prefix");
+    }
+    return true;
+}
+
+static bool test_default_completer_keeps_unfinished_command_completions(void) {
+    const char* test_name = "default_completer_keeps_unfinished_command_completions";
+    const std::vector<std::pair<std::string, ssize_t>> unfinished_commands = {
+        {"ech", 2},
+        {"ech", 3},
+        {"ech argument", 3},
+        {"echoes_not_a_command", 2},
+        {"\"echo argument\"", 3},
+        {"echo\\ argument", 2},
+        {"\"echo", 3},
+    };
+    for (const auto& entry : unfinished_commands) {
+        (void)run_completion_generation_at(entry.first.c_str(), entry.second,
+                                           &cjsh_default_completer, 256);
+        const bool has_echo = generated_completions_include_replacement("echo ");
+        clear_generated_completions();
+        EXPECT_TRUE(has_echo, test_name,
+                    "completion should remain available inside unknown words and at word ends");
+    }
     return true;
 }
 
@@ -2013,8 +2097,7 @@ static const test_case_t kTests[] = {
     {"completion_context_wrapper_value_state", test_completion_context_wrapper_value_state},
     {"completion_context_assignment_lhs_at_cursor",
      test_completion_context_assignment_lhs_at_cursor},
-    {"completion_context_before_existing_word",
-     test_completion_context_before_existing_word},
+    {"completion_context_before_existing_word", test_completion_context_before_existing_word},
     {"tokenize_shell_words_preserve_literals", test_tokenize_shell_words_preserve_literals},
     {"default_completer_command_in_command_substitution",
      test_default_completer_command_in_command_substitution},
@@ -2030,6 +2113,10 @@ static const test_case_t kTests[] = {
      test_default_completer_suppresses_assignment_lhs_midline},
     {"default_completer_suppresses_before_existing_word",
      test_default_completer_suppresses_before_existing_word},
+    {"default_completer_suppresses_inside_known_command",
+     test_default_completer_suppresses_inside_known_command},
+    {"default_completer_keeps_unfinished_command_completions",
+     test_default_completer_keeps_unfinished_command_completions},
     {"find_last_unquoted_space", test_find_last_unquoted_space},
     {"find_last_unquoted_space_with_tabs", test_find_last_unquoted_space_with_tabs},
     {"find_last_unquoted_space_with_escaped_space",

@@ -38,6 +38,10 @@ At an empty or whitespace-only prompt, `Tab` shows unique history entries up to 
 for matching timestamps. Empty-prompt completion shows no candidates when history is disabled or
 no eligible history entries exist.
 
+When the cursor is inside an existing recognized command or shell keyword, cjsh offers no
+completions for that word. For example, moving just after the `t` in `then` does not suggest
+`tests/`. Completion remains available for unfinished words and at the end of a word.
+
 ## How automatic completions are generated
 
 - **On-demand scraping:** The first time you request completions for an external command that
