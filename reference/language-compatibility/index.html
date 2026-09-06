@@ -1153,6 +1153,11 @@ is the source of truth for the extensions that are intentionally supported.</p>
 </tr>
 </tbody>
 </table>
+<p><code>for</code> and <code>select</code> require a literal variable name and an unquoted <code>in</code> keyword before
+an explicit list. Malformed headers such as <code>for i n 1 2; do ...; done</code> report a syntax
+error with status 2. Omitting the list (<code>for i; do ...; done</code>) uses positional parameters;
+an explicit empty <code>for</code> list runs no iterations. Loop lists use normal word expansion,
+including quoted literals and brace ranges with surrounding or following words.</p>
 <h2 id="configuration">Configuration</h2>
 <p>CJSH intentionally uses its own option interface rather than implementing Bash's <code>shopt</code> builtin:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cjshopt<span class="w"> </span>extglob<span class="w"> </span>on
