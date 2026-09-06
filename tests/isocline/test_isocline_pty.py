@@ -96,7 +96,7 @@ def mouse_left_release(column: int, row: int) -> bytes:
 
 def assert_smart_mouse_capture_handoff(output: str, scenario: str) -> None:
     enable = "\x1b[?1000h\x1b[?1006h\x1b[?1002h"
-    disable = "\x1b[?1002l\x1b[?1000l"
+    disable = "\x1b[?1002l\x1b[?1000l\x1b[?1006l"
     initial_enable = output.find(enable)
     selection_disable = output.find(disable, initial_enable + len(enable))
     resume = output.find(enable, selection_disable + len(disable))
@@ -145,8 +145,8 @@ def assert_smart_mouse_drag_cases(binary: str) -> None:
         ("drag_with_modifiers", press + b"\x1b[<52;7;1M" + b"X\r", "abcX"),
         ("drag_legacy", press + b"\x1b[M@'!" + b"X\r", "abcX"),
         (
-            "drag_focus_resume",
-            press + drag + release + FOCUS_IN + mouse_left_click(6, 1) + b"X\r",
+            "drag_focus_resume_without_release",
+            press + drag + FOCUS_IN + mouse_left_click(6, 1) + b"X\r",
             "Xabc",
         ),
         ("drag_interrupt_cleanup", press + drag + b"\x03", "<CTRL+C>"),
@@ -166,8 +166,8 @@ def assert_smart_mouse_drag_cases(binary: str) -> None:
             "abcX",
         ),
         (
-            "drag_tmux_release_resume",
-            press + drag + mouse_left_release(0, 0) + mouse_left_click(6, 1) + b"X\r",
+            "drag_legacy_release_resume",
+            press + drag + b"\x1b[M#'!" + mouse_left_click(6, 1) + b"X\r",
             "Xabc",
         ),
     ]:

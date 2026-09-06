@@ -384,15 +384,14 @@ Smart mode releases capture as soon as the terminal reports a drag into another 
 including inside interactive menus. Whether highlighting continues during that same drag depends
 on the terminal. If the first drag only releases capture, release the button and drag again before
 typing or changing focus. Terminals that report only clicks release capture when the button is
-released in a different cell. If the terminal stops reporting events during selection, keyboard
-or focus-in input still restores capture. `F2` also lets you disable capture before selecting.
+released in a different cell.
 
-With tmux mouse mode enabled, tmux handles the selection after cjsh releases capture and does not
-forward the release to the shell. Add the hook in
-[`tmux-smart-mouse.conf`](../examples/tmux-smart-mouse.conf) to your tmux configuration and reload it
-to restore smart capture when tmux exits copy mode. This also works with Ghostty and preserves your
-existing copy bindings and clipboard plugins. The hook only notifies a cjsh pane whose smart
-capture is suspended; it does not enable mouse support in other applications or in `all-off` mode.
+Smart mode uses standard terminal mouse reports without terminal-specific configuration. Turning
+off mouse reporting also stops button-release reports, so automatic resume on release is
+best-effort: it works only if a release still reaches cjsh, for example one already queued before
+capture was disabled. There is no portable notification that native text selection has ended.
+Keyboard input restores capture; focus-in input also restores it when supported by the terminal.
+`F2` lets you toggle capture manually before or after selecting.
 
 ### Fish-Style Abbreviations
 

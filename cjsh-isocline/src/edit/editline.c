@@ -3077,12 +3077,7 @@ static void edit_force_mouse_tracking_disabled(ic_env_t* env, editor_t* eb) {
         return;
     }
 
-    term_write(env->term, "\x1b[?1002l\x1b[?1000l");
-    // Keep the encoding enabled while waiting for a selection release. This
-    // does not capture mouse input, and lets tmux identify a suspended prompt.
-    if (!eb->mouse_reporting_auto_suspended || !eb->mouse_terminal_selection_suspended) {
-        term_write(env->term, "\x1b[?1006l");
-    }
+    term_write(env->term, "\x1b[?1002l\x1b[?1000l\x1b[?1006l");
     term_flush(env->term);
 }
 

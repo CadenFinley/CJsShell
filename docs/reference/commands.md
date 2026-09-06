@@ -1485,12 +1485,12 @@ cjshopt mouse-clicking status  # Show the current setting
 prompt at runtime in `simple` and `smart` modes. In `smart` mode, wheel input and selections started
 above the editor, in the prompt or continuation gutter, or on status/helper rows suspend capture.
 Dragging with the left mouse button also suspends capture, including inside menus, and preserves
-the display. A reported button release restores capture without clearing the highlight; keyboard
-or focus-in input also restores it. Some terminals require releasing the
-button and dragging again after capture is suspended to begin native highlighting. If motion
-reports are unavailable, a press and release in different cells still suspend capture.
-Tmux users can install the [smart mouse hook](../examples/tmux-smart-mouse.conf) to restore capture
-when tmux finishes its selection, since tmux stops forwarding mouse events after capture is disabled.
+the display. A reported button release restores capture without clearing the highlight, but
+disabling mouse reporting also stops release reports, so this is best-effort. Keyboard input
+restores capture; focus-in input also restores it when supported by the terminal. No terminal-specific
+configuration is required. Some terminals require releasing the button and dragging again after
+capture is suspended to begin native highlighting. If motion reports are unavailable, a press and
+release in different cells still suspend capture.
 `disabled` remains an alias for `all-off`; `menu-only` and `menus` are aliases for `off`.
 
 While an interactive menu has mouse capture, clicking the prompt or anywhere outside its selectable
