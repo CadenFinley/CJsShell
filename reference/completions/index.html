@@ -1129,6 +1129,9 @@ in gaps or add custom behaviour.</p>
 <code>cjshopt set-completion-max</code> limit (default: 1000), ordered by most recent use and then frequency
 for matching timestamps. Empty-prompt completion shows no candidates when history is disabled or
 no eligible history entries exist.</p>
+<p>When the cursor is inside an existing recognized command or shell keyword, cjsh offers no
+completions for that word. For example, moving just after the <code>t</code> in <code>then</code> does not suggest
+<code>tests/</code>. Completion remains available for unfinished words and at the end of a word.</p>
 <h2 id="how-automatic-completions-are-generated">How automatic completions are generated</h2>
 <ul>
 <li><strong>On-demand scraping:</strong> The first time you request completions for an external command that
