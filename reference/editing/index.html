@@ -1942,7 +1942,8 @@ Press <code>F1</code> at any time to display the complete key binding cheat shee
   capture everywhere
 - In <code>smart</code> mode, starting a selection in the prompt/gutter or status rows, or dragging with the
   left mouse button, suspends mouse capture so the terminal can highlight text. The display stays
-  in place until keyboard or focus-in input resumes capture
+  in place while selecting. A reported button release resumes capture without clearing the
+  highlight; the next click or keyboard input resumes repainting
 - Expanded completion, history, and command-palette menus temporarily capture mouse events in every
   mode except <code>all-off</code>
 - Clicking the prompt, menu header/help, or any area outside the selectable menu rows temporarily
@@ -1952,7 +1953,14 @@ Press <code>F1</code> at any time to display the complete key binding cheat shee
 including inside interactive menus. Whether highlighting continues during that same drag depends
 on the terminal. If the first drag only releases capture, release the button and drag again before
 typing or changing focus. Terminals that report only clicks release capture when the button is
-released in a different cell. <code>F2</code> also lets you disable capture before starting a selection.</p>
+released in a different cell. If the terminal stops reporting events during selection, keyboard
+or focus-in input still restores capture. <code>F2</code> also lets you disable capture before selecting.</p>
+<p>With tmux mouse mode enabled, tmux handles the selection after cjsh releases capture and does not
+forward the release to the shell. Add the hook in
+<a href="../../examples/tmux-smart-mouse.conf"><code>tmux-smart-mouse.conf</code></a> to your tmux configuration and reload it
+to restore smart capture when tmux exits copy mode. This also works with Ghostty and preserves your
+existing copy bindings and clipboard plugins. The hook only notifies a cjsh pane whose smart
+capture is suspended; it does not enable mouse support in other applications or in <code>all-off</code> mode.</p>
 <h3 id="fish-style-abbreviations">Fish-Style Abbreviations</h3>
 <p>CJ's Shell supports fish-style abbreviations that expand typed shortcuts into longer phrases as soon as you type a whitespace character or submit the line. This is powered directly by the isocline editor, so expansions happen inline without disrupting your cursor position or undo history.</p>
 <p><strong>Usage:</strong>
