@@ -36,7 +36,9 @@
 #include <time.h>
 
 #if !defined(_WIN32)
+#include <errno.h>
 #include <pthread.h>
+#include <sys/select.h>
 #include <unistd.h>
 #endif
 
@@ -44,6 +46,7 @@
 #include "history.h"
 #include "isocline.h"
 #include "isocline_typeahead.h"
+#include "tty.h"
 
 typedef enum completion_mode_e {
     COMPLETION_MODE_NONE = 0,
@@ -363,10 +366,68 @@ static void* delayed_raw_feed_thread(void* arg) {
 }
 #endif
 
+#if !defined(_WIN32)
+static int run_paste_wakeup_case(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->tty == NULL || !tty_start_raw(env->tty)) {
+        return 9;
+    }
+
+    code_t code;
+    const uint8_t start[] = "\x1b[200~";
+    (void)tty_replay_typeahead(env->tty, start, sizeof(start) - 1);
+    if (!tty_read_timeout(env->tty, -1, &code) || code != IC_KEY_PASTE_START) {
+        return 9;
+    }
+
+    // Consuming a pushed key leaves its wake byte queued. The end marker starts
+    // in replay and finishes on the PTY, exercising the escape decoder's reads.
+    tty_code_pushback(env->tty, 'x');
+    if (!tty_read_timeout(env->tty, -1, &code) || code != 'x') {
+        return 9;
+    }
+    const uint8_t escape = '\x1b';
+    (void)tty_replay_typeahead(env->tty, &escape, 1);
+    emit_typeahead_capture_ready();
+
+    int ready;
+    do {
+        fd_set input;
+        FD_ZERO(&input);
+        FD_SET(STDIN_FILENO, &input);
+        struct timeval timeout = {.tv_sec = 4, .tv_usec = 0};
+        ready = select(STDIN_FILENO + 1, &input, NULL, NULL, &timeout);
+    } while (ready < 0 && errno == EINTR);
+
+    const bool ended =
+        ready > 0 && tty_read_timeout(env->tty, -1, &code) && code == IC_KEY_PASTE_END;
+    tty_end_raw(env->tty);
+    emit_result(ended ? "paste-ended" : "broken-end-marker");
+    return 0;
+}
+#endif
+
 static int run_case(const char* scenario) {
     if (scenario == NULL) {
         return 2;
     }
+
+#if !defined(_WIN32)
+    if (strcmp(scenario, "typeahead_capture_empty") == 0) {
+        ic_env_t* env = ic_get_env();
+        if (env == NULL || env->tty == NULL) {
+            return 9;
+        }
+        (void)ic_enable_typeahead(true);
+        const bool captured = ic_typeahead_capture_available_input();
+        emit_result(!captured && !tty_lost_terminal(env->tty) ? "terminal-active"
+                                                              : "terminal-lost");
+        return 0;
+    }
+    if (strcmp(scenario, "typeahead_capture_paste_wakeup") == 0) {
+        return run_paste_wakeup_case();
+    }
+#endif
 
     if (strncmp(scenario, "status_", 7) == 0) {
         return run_readline_status_case(scenario + 7);

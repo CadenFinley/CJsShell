@@ -1028,6 +1028,8 @@ def main() -> int:
         "typeahead-beyond-the-legacy-pushback-limit"
     )
     typeahead_cases = [
+        ("typeahead_capture_empty", b"", "terminal-active"),
+        ("typeahead_capture_paste_wakeup", b"[201~", "paste-ended"),
         ("typeahead_capture_return", b"captured return\r", "captured return"),
         (
             "typeahead_capture_ctrl_j_then_return",

@@ -28,6 +28,12 @@
   SOFTWARE.
 */
 
+// Match the aggregated build's signal API visibility under strict C11. A POSIX-only
+// feature level would hide SIGWINCH on macOS and disable these handlers there.
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+
 #include "tty.h"
 
 #include <locale.h>
@@ -776,7 +782,8 @@ ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
         }
 
         if (bytes_read == 0) {
-            tty->lost_terminal = true;
+            // VMIN=0/VTIME=0 permits an empty read from a live terminal.
+            // Only the normal blocking reader can interpret zero as EOF.
             break;
         }
 
@@ -884,7 +891,9 @@ static tty_event_t tty_wait_for_tty_event(tty_t* tty) {
         FD_ZERO(&readset);
         FD_SET(tty->fd_in, &readset);
         int maxfd = tty->fd_in;
-        bool have_wakeup = tty->wake_pipe_initialized;
+        // A queued wakeup must not split escape sequences or terminal replies.
+        // Their timed reads also reach this blocking path when input is ready.
+        const bool have_wakeup = tty->wake_pipe_initialized && tty->readline_wakeup_enabled != 0;
         if (have_wakeup) {
             FD_SET(tty->wake_pipe[0], &readset);
             if (tty->wake_pipe[0] > maxfd) {
