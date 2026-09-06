@@ -90,6 +90,9 @@ void cleanup_resources() {
         return;
     }
 
+    // A terminating signal can arrive just as execution returns to main.
+    (void)g_shell->process_pending_signals();
+
     // otherwise we do a full shutdown with traps and everything
     trap_manager_set_shell(g_shell.get());
 

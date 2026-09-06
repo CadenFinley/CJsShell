@@ -65,7 +65,7 @@ foreach(test_script IN LISTS CJSH_SHELL_TEST_SCRIPTS)
     # Timing checks need an idle runner. Process-count checks observe all system
     # processes, and test_performance also deletes a shared /tmp/cjsh_test_* glob.
     if(test_name MATCHES "performance"
-       OR test_name MATCHES "^test_(exit_command|signal_exits|sigchld_handling|zombie_processes|zombie_edge_cases)$")
+       OR test_name MATCHES "^test_(sigchld_handling|zombie_processes|zombie_edge_cases)$")
         set_tests_properties("shell.${test_name}" PROPERTIES RUN_SERIAL TRUE)
     endif()
 endforeach()

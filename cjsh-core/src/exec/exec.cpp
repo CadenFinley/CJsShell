@@ -1971,17 +1971,33 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         if (!monitor_mode) {
             cjsh_filesystem::safe_close(launch_barrier[1]);
+            // Non-monitor foreground children still need to participate in
+            // signal cleanup, without signaling the caller's process group.
+            // Negative keys keep this private record out of background job numbering.
+            const int foreground_job_id = -pid;
+            {
+                std::lock_guard<std::mutex> lock(jobs_mutex);
+                jobs.emplace(
+                    foreground_job_id,
+                    make_single_process_job(pid, cmd.args[0], false, cmd.auto_background_on_stop,
+                                            cmd.auto_background_on_stop_silent, false));
+            }
+            const auto process_wait_signals = [&]() {
+                if (g_shell) {
+                    (void)g_shell->process_pending_signals(false);
+                } else if (auto* signal_handler = SignalHandler::instance()) {
+                    (void)signal_handler->process_pending_signals(this, false);
+                }
+            };
+            process_wait_signals();
             int status = 0;
             const int wait_options = cmd.auto_background_on_stop ? WUNTRACED : 0;
             pid_t wpid = waitpid(pid, &status, wait_options);
             while (wpid == -1 && errno == EINTR) {
-                if (g_shell) {
-                    (void)g_shell->process_pending_signals();
-                } else if (auto* signal_handler = SignalHandler::instance()) {
-                    (void)signal_handler->process_pending_signals(this);
-                }
+                process_wait_signals();
                 wpid = waitpid(pid, &status, wait_options);
             }
+            remove_job(foreground_job_id);
 
             if (wpid > 0 && cmd.auto_background_on_stop && WIFSTOPPED(status) &&
                 WSTOPSIG(status) == SIGTSTP) {

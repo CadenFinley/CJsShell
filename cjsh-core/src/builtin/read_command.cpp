@@ -49,6 +49,7 @@
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "signal_handler.h"
 
 namespace {
 
@@ -195,7 +196,7 @@ bool wait_for_input(const std::optional<std::chrono::steady_clock::time_point>& 
     int poll_result = 0;
     do {
         poll_result = poll(&pfd, 1, timeout_ms);
-    } while (poll_result < 0 && errno == EINTR);
+    } while (poll_result < 0 && errno == EINTR && !SignalHandler::has_pending_termination_signal());
 
     return poll_result > 0;
 }
@@ -211,6 +212,9 @@ ReadInputStatus collect_input(const ReadOptions& options, std::string& input) {
     bool timed_out = false;
     bool reached_eof = false;
     auto read_char = [&](char& out) -> bool {
+        if (SignalHandler::has_pending_termination_signal()) {
+            return false;
+        }
         if (!wait_for_input(deadline, options.input_fd)) {
             timed_out = true;
             return false;
@@ -218,7 +222,7 @@ ReadInputStatus collect_input(const ReadOptions& options, std::string& input) {
         ssize_t count = 0;
         do {
             count = read(options.input_fd, &out, 1);
-        } while (count < 0 && errno == EINTR);
+        } while (count < 0 && errno == EINTR && !SignalHandler::has_pending_termination_signal());
         reached_eof = count == 0;
         return count == 1;
     };

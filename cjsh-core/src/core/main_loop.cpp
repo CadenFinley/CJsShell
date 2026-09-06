@@ -202,6 +202,10 @@ void update_job_management() {
 }
 
 void handle_readline_event(void*) {
+    if (cjsh_env::exit_requested()) {
+        (void)ic_push_key_event(IC_KEY_EVENT_STOP);
+        return;
+    }
     // Poll children without executing signal traps inside the editor. Notifications
     // are copied into isocline's queue and printed after this callback returns.
     update_job_management();

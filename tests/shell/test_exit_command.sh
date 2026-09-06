@@ -63,6 +63,8 @@ fail() {
     printf "${RED}FAIL${NC} - %s\n" "$1"
 }
 
+. "$SCRIPT_DIR/process_cleanup_helpers.sh"
+
 if [ ! -x "$SHELL_TO_TEST" ]; then
     echo "Error: Shell '$SHELL_TO_TEST' not found or not executable"
     echo "Usage: $0 [path_to_shell]"
@@ -379,25 +381,22 @@ else
     fail "Forced exit should succeed even with stopped jobs, got $force_status"
 fi
 
-log_test "Resource cleanup verification"
-if command -v ps >/dev/null 2>&1; then
-    zombies_before=$(ps axo stat 2>/dev/null | grep '^Z' | wc -l 2>/dev/null || echo 0)
-    zombies_before=$(echo "$zombies_before" | tr -d ' \n')
-    
-    "$SHELL_TO_TEST" -c "sleep 0.1 & exit --force" 2>/dev/null
-    
-    sleep 0.2
-    
-    zombies_after=$(ps axo stat 2>/dev/null | grep '^Z' | wc -l 2>/dev/null || echo 0)
-    zombies_after=$(echo "$zombies_after" | tr -d ' \n')
-    
-    if [ "$zombies_after" -le "$zombies_before" ]; then
-        pass
-    else
-        fail "Resource cleanup may have failed (zombies: before=$zombies_before, after=$zombies_after)"
-    fi
+log_test "Resource cleanup verification with huponexit"
+if cleanup_output=$(check_process_cleanup "$SHELL_TO_TEST" force); then
+    pass
 else
-    fail "ps command not available for cleanup verification"
+    fail "$cleanup_output"
+fi
+
+log_test "Read accepts input inside a normal EXIT trap"
+exit_trap_output=$(printf '%s\n' exit-trap-input | "$SHELL_TO_TEST" -c '
+    trap '\''read value; printf "%s" "$value"'\'' EXIT
+    exit
+' 2>/dev/null)
+if [ "$exit_trap_output" = exit-trap-input ]; then
+    pass
+else
+    fail "Read in an EXIT trap should consume its input, got: $exit_trap_output"
 fi
 
 log_test "Exit with mixed valid/invalid arguments"

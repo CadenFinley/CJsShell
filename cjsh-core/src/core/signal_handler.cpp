@@ -221,6 +221,9 @@ SignalHandler::SignalHandler()
       m_old_sigalrm_handler(),
       m_old_sigwinch_handler(),
       m_old_sigpipe_handler() {
+    // Children can receive signals before exec resets their handlers. Record
+    // the owning shell now, before any fork, so those signals keep child defaults.
+    s_main_pid = getpid();
     signal_unblock_all();
     s_instance.store(this);
 }
@@ -264,6 +267,10 @@ bool SignalHandler::has_direct_pending_signal() {
 
 bool SignalHandler::has_pending_signals() {
     return s_signal_pending.load(std::memory_order_acquire) || has_direct_pending_signal();
+}
+
+bool SignalHandler::has_pending_termination_signal() {
+    return s_sighup_received != 0 || s_sigterm_received != 0;
 }
 
 bool SignalHandler::take_pending_sigint() {
@@ -544,10 +551,8 @@ void SignalHandler::signal_handler(int signum) {
         case SIGTERM: {
             s_sigterm_received = 1;
             cjsh_env::request_exit();
-
-            if (!is_observed) {
-                _exit(128 + SIGTERM);
-            }
+            // Defer termination until managed children can be killed and reaped.
+            ic_notify_readline();
             should_mark_pending = true;
             break;
         }
@@ -880,22 +885,13 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec,
 
         if (shell_exec != nullptr) {
             shell_exec->terminate_all_child_process();
-
-            auto& job_manager = JobManager::instance();
-            auto all_jobs = job_manager.get_all_jobs();
-            for (auto& job : all_jobs) {
-                const JobState state = job->state.load(std::memory_order_relaxed);
-                if (state == JobState::RUNNING || state == JobState::STOPPED) {
-                    if (killpg(job->pgid, SIGTERM) == 0) {
-                        job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
-                    }
-                }
-            }
         }
 
         if (is_signal_observed(SIGTERM)) {
             process_trapped_signal(SIGTERM);
             result.trapped_signals.push_back(SIGTERM);
+        } else {
+            std::_Exit(128 + SIGTERM);
         }
     }
 

@@ -63,31 +63,7 @@ fail() {
     printf "${RED}FAIL${NC} - %s\n" "$1"
 }
 
-count_zombies() {
-    if command -v ps >/dev/null 2>&1; then
-        count=$(ps axo stat 2>/dev/null | grep '^Z' | wc -l 2>/dev/null || echo 0)
-        echo "$count" | tr -d ' \n'
-    else
-        echo 0
-    fi
-}
-
-get_baseline_zombies() {
-    count_zombies
-}
-
-wait_for_process() {
-    local max_wait=20
-    local count=0
-    while [ $count -lt $max_wait ]; do
-        if kill -0 "$1" 2>/dev/null; then
-            return 0
-        fi
-        sleep 0.1
-        count=$((count + 1))
-    done
-    return 1
-}
+. "$SCRIPT_DIR/process_cleanup_helpers.sh"
 
 if [ ! -x "$SHELL_TO_TEST" ]; then
     echo "Error: Shell '$SHELL_TO_TEST' not found or not executable"
@@ -98,57 +74,18 @@ fi
 echo "Testing Signal Exit and Cleanup Behavior for: $SHELL_TO_TEST"
 echo "============================================================"
 
-BASELINE_ZOMBIES=$(get_baseline_zombies)
-echo "Baseline zombie count: $BASELINE_ZOMBIES"
-
 log_test "SIGTERM triggers graceful cleanup"
-
-"$SHELL_TO_TEST" -c "sleep 2" &
-shell_pid=$!
-
-if wait_for_process $shell_pid; then
-    kill -TERM $shell_pid 2>/dev/null
-    sleep 0.5
-    
-    if ! kill -0 $shell_pid 2>/dev/null; then
-        zombies_after=$(count_zombies)
-        new_zombies=$((zombies_after - BASELINE_ZOMBIES))
-        if [ $new_zombies -le 0 ]; then
-            pass
-        else
-            fail "SIGTERM cleanup left new zombies (baseline: $BASELINE_ZOMBIES, current: $zombies_after, new: $new_zombies)"
-        fi
-    else
-        kill -KILL $shell_pid 2>/dev/null
-        fail "Shell did not respond to SIGTERM"
-    fi
+if cleanup_output=$(check_process_cleanup "$SHELL_TO_TEST" TERM 0 redirected); then
+    pass
 else
-    fail "Shell process did not start properly"
+    fail "$cleanup_output"
 fi
 
 log_test "SIGHUP triggers graceful cleanup"
-
-"$SHELL_TO_TEST" -c "sleep 2" &
-shell_pid=$!
-
-if wait_for_process $shell_pid; then
-    kill -HUP $shell_pid 2>/dev/null
-    sleep 0.5
-    
-    if ! kill -0 $shell_pid 2>/dev/null; then
-        zombies_after=$(count_zombies)
-        new_zombies=$((zombies_after - BASELINE_ZOMBIES))
-        if [ $new_zombies -le 0 ]; then
-            pass
-        else
-            fail "SIGHUP cleanup left new zombies (baseline: $BASELINE_ZOMBIES, current: $zombies_after, new: $new_zombies)"
-        fi
-    else
-        kill -KILL $shell_pid 2>/dev/null
-        fail "Shell did not respond to SIGHUP"
-    fi
+if cleanup_output=$(check_process_cleanup "$SHELL_TO_TEST" HUP 0 redirected); then
+    pass
 else
-    fail "Shell process did not start properly"
+    fail "$cleanup_output"
 fi
 
 log_test "SIGINT handling in interactive mode"
@@ -199,70 +136,33 @@ else
 fi
 
 log_test "Background processes cleanup on signal exit"
-if command -v ps >/dev/null 2>&1; then
-    sleep_before=$(ps axo comm 2>/dev/null | grep -c "sleep" 2>/dev/null || echo 0)
-    sleep_before=$(echo "$sleep_before" | tr -d ' \n')
-    
-    "$SHELL_TO_TEST" -c "sleep 2 & sleep 2" &
-    shell_pid=$!
-    
-    if wait_for_process $shell_pid; then
-        kill -TERM $shell_pid 2>/dev/null
-        sleep 0.5
-        
-        sleep_after=$(ps axo comm 2>/dev/null | grep -c "sleep" 2>/dev/null || echo 0)
-        sleep_after=$(echo "$sleep_after" | tr -d ' \n')
-        
-        if [ "$sleep_after" -le "$sleep_before" ]; then
-            pass
-        else
-            sleep_orphans=$(($sleep_after - $sleep_before))
-            fail "Signal exit left orphaned background processes ($sleep_orphans found)"
-        fi
-    else
-        fail "Shell with background process did not start"
-    fi
-else
-    fail "ps command not available"
-fi
-
-log_test "Resource cleanup on forced exit"
-
-"$SHELL_TO_TEST" -c "sleep 0.1 & exit --force" 2>/dev/null
-sleep 0.3  # Give time for cleanup
-
-zombies_after=$(count_zombies)
-new_zombies=$((zombies_after - BASELINE_ZOMBIES))
-if [ $new_zombies -le 0 ]; then
+if cleanup_output=$(check_process_cleanup "$SHELL_TO_TEST" TERM 1); then
     pass
 else
-    fail "Forced exit cleanup failed (baseline: $BASELINE_ZOMBIES, current: $zombies_after, new: $new_zombies)"
+    fail "$cleanup_output"
 fi
 
-log_test "Emergency cleanup on unexpected termination"
-if command -v ps >/dev/null 2>&1; then
-    "$SHELL_TO_TEST" -c "sleep 2" &
-    shell_pid=$!
-    
-    if wait_for_process $shell_pid; then
-        kill -KILL $shell_pid 2>/dev/null
-        # Reap the shell itself before checking whether it left child zombies.
-        # Otherwise this test can count its own killed background child.
-        wait "$shell_pid" 2>/dev/null
-        sleep 0.3
-        
-        zombies_after=$(count_zombies)
-        new_zombies=$((zombies_after - BASELINE_ZOMBIES))
-        if [ $new_zombies -le 0 ]; then
-            pass
-        else
-            fail "SIGKILL may prevent proper cleanup (baseline: $BASELINE_ZOMBIES, current: $zombies_after, new: $new_zombies)"
-        fi
-    else
-        fail "Shell process did not start for emergency cleanup test"
-    fi
+log_test "Resource cleanup on forced exit with huponexit"
+if cleanup_output=$(check_process_cleanup "$SHELL_TO_TEST" force); then
+    pass
 else
-    fail "ps command not available"
+    fail "$cleanup_output"
+fi
+
+for read_mode in read timed-read; do
+    log_test "SIGTERM interrupts blocking $read_mode and cleans up background jobs"
+    if cleanup_output=$(check_process_cleanup "$SHELL_TO_TEST" TERM 1 "$read_mode"); then
+        pass
+    else
+        fail "$cleanup_output"
+    fi
+done
+
+log_test "Parent reaps a shell terminated by SIGKILL"
+if cleanup_output=$(check_process_cleanup "$SHELL_TO_TEST" KILL); then
+    pass
+else
+    fail "$cleanup_output"
 fi
 
 log_test "Signal handling preserves command execution"
@@ -276,63 +176,18 @@ else
 fi
 
 log_test "Multiple signal resistance"
-"$SHELL_TO_TEST" -c "sleep 1" &
-shell_pid=$!
-
-if wait_for_process $shell_pid; then
-    kill -TERM $shell_pid 2>/dev/null
-    kill -HUP $shell_pid 2>/dev/null
-    kill -TERM $shell_pid 2>/dev/null
-    
-    sleep 0.5
-    
-    if ! kill -0 $shell_pid 2>/dev/null; then
-        pass
-    else
-        kill -KILL $shell_pid 2>/dev/null
-        fail "Shell did not respond properly to multiple signals"
-    fi
+if cleanup_output=$(check_process_cleanup "$SHELL_TO_TEST" multiple 1); then
+    pass
 else
-    fail "Shell process did not start for multiple signal test"
+    fail "$cleanup_output"
 fi
 
 log_test "Signal handling consistency across modes"
-echo "sleep 2" | "$SHELL_TO_TEST" &
-script_shell_pid=$!
-
-"$SHELL_TO_TEST" -c "sleep 2" &
-command_shell_pid=$!
-
-if wait_for_process $script_shell_pid && wait_for_process $command_shell_pid; then
-    kill -TERM $script_shell_pid 2>/dev/null
-    sleep 0.1
-    kill -TERM $command_shell_pid 2>/dev/null
-
-    sleep 0.5
-
-    script_gone=0
-    command_gone=0
-
-    if ! kill -0 $script_shell_pid 2>/dev/null; then
-        script_gone=1
-    fi
-
-    if ! kill -0 $command_shell_pid 2>/dev/null; then
-        command_gone=1
-    fi
-
-    kill -KILL $script_shell_pid 2>/dev/null
-    kill -KILL $command_shell_pid 2>/dev/null
-
-    if [ $script_gone -eq 1 ] || [ $command_gone -eq 1 ]; then
-        pass
-    else
-        fail "Neither shell mode responded to signals properly"
-    fi
+if cleanup_output=$(check_process_cleanup "$SHELL_TO_TEST" TERM 1 script) &&
+   cleanup_output=$(check_process_cleanup "$SHELL_TO_TEST" TERM 1 command); then
+    pass
 else
-    kill -KILL $script_shell_pid 2>/dev/null
-    kill -KILL $command_shell_pid 2>/dev/null
-    fail "Could not start shell processes for signal consistency test"
+    fail "$cleanup_output"
 fi
 
 echo ""

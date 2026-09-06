@@ -486,7 +486,8 @@ void Exec::terminate_all_child_process(int signal) {
         }
     }
 
-    const auto send_signal_to_job = [](const Job& job, int signal) -> bool {
+    const auto send_signal_to_job = [](const Job& job, int signal,
+                                       std::vector<pid_t>* signaled_pids = nullptr) -> bool {
         bool pid_signaled = false;
 
         for (pid_t pid : job.pids) {
@@ -495,6 +496,9 @@ void Exec::terminate_all_child_process(int signal) {
             }
             if (kill(pid, signal) == 0) {
                 pid_signaled = true;
+                if (signaled_pids != nullptr) {
+                    signaled_pids->push_back(pid);
+                }
             }
         }
 
@@ -541,18 +545,33 @@ void Exec::terminate_all_child_process(int signal) {
             signaled_any = true;
         }
 
-        if (job.pgid > 0 || !job.pids.empty()) {
+        if (entry.id > 0 && (job.pgid > 0 || !job.pids.empty())) {
             std::cerr << "[" << entry.id << "] Terminated\t" << job.command << '\n';
         }
     }
 
+    std::vector<pid_t> terminated_pids;
     for (const auto& entry : job_snapshot) {
         const Job& job = entry.job;
         if (job.completed || (signal == SIGHUP && job.hup_protected)) {
             continue;
         }
 
-        (void)send_signal_to_job(job, SIGKILL);
+        (void)send_signal_to_job(job, SIGKILL, &terminated_pids);
+    }
+
+    // SIGKILL is asynchronous. WNOHANG alone can return before a killed child
+    // exits, leaving it to become an orphan or zombie after the shell exits.
+    // Wait only for children we killed, never for disowned or HUP-protected jobs.
+    for (pid_t pid : terminated_pids) {
+        int child_status = 0;
+        pid_t waited_pid;
+        do {
+            waited_pid = waitpid(pid, &child_status, 0);
+        } while (waited_pid == -1 && errno == EINTR);
+        if (waited_pid > 0) {
+            JobManager::instance().handle_child_status(waited_pid, child_status);
+        }
     }
 
     int status = 0;
