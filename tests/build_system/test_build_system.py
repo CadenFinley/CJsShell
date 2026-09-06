@@ -280,7 +280,10 @@ class BuildSystemConfigurationTests(unittest.TestCase):
         return build_dir, extract_definitions(args)
 
     def build_project(self, build_dir: Path, config: str = "Release") -> None:
-        command = ["cmake", "--build", str(build_dir), "--config", config, "--parallel"]
+        # This build runs inside CTest alongside other suites. A bare --parallel
+        # gives Make an unlimited job count and can starve the interactive tests.
+        # Keep this count aligned with the CTest PROCESSORS reservation.
+        command = ["cmake", "--build", str(build_dir), "--config", config, "--parallel", "2"]
         completed = subprocess.run(
             command,
             text=True,

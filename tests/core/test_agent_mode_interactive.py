@@ -41,7 +41,7 @@ import time
 
 CURSOR_QUERY = b"\x1b[6n"
 CURSOR_RESPONSE = b"\x1b[1;1R"
-COMMAND_OUTPUT_END = b"\x1b]133;D;"
+COMMAND_OUTPUT_END = b"\x1b]133;D"
 PROMPT_INPUT_START = b"\x1b]133;B\x1b\\"
 ANSI_CSI_RE = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
 ANSI_OSC_RE = re.compile(rb"\x1b\].*?(?:\x07|\x1b\\)", re.S)
@@ -127,14 +127,24 @@ class Session:
                 raise AssertionError("cjsh PTY accepted a zero-length write")
             offset += written
 
-    def run_command(self, command: bytes) -> None:
-        start = len(self.output)
-        self.write(b"\x1b[200~" + command + b"\x1b[201~\r")
+    def paste(self, text: bytes) -> None:
+        self.write(b"\x1b[200~" + text + b"\x1b[201~")
+
+    def enter_text(self, text: bytes, key: bytes = b"\r") -> None:
+        self.paste(text)
+        self.write(key)
+
+    def wait_for_next_prompt(self, start: int) -> None:
         # Prompt text also appears in input redraws. Only a prompt following
         # command completion proves the new configuration is active.
         self.wait_for(COMMAND_OUTPUT_END, start=start)
         command_end = self.output.index(COMMAND_OUTPUT_END, start)
         self.wait_for(PROMPT_INPUT_START, start=command_end + len(COMMAND_OUTPUT_END))
+
+    def run_command(self, command: bytes) -> None:
+        start = len(self.output)
+        self.enter_text(command)
+        self.wait_for_next_prompt(start)
 
     def wait_for(self, needle: bytes, timeout: float = 4.0, start: int = 0) -> None:
         deadline = time.monotonic() + timeout
@@ -278,15 +288,14 @@ def main() -> int:
         # selecting it inserts a runnable cjshopt help command.
         setup_session = Session(sys.argv[1], unconfigured_home)
         try:
-            setup_session.wait_for(b"Started in")
-            setup_session.pump(0.5)
+            setup_session.wait_for(PROMPT_INPUT_START)
             setup_start = len(setup_session.output)
-            setup_session.write(b"help me\x1ba")
+            setup_session.enter_text(b"help me", b"\x1ba")
             setup_session.wait_for(b"agent setup:", start=setup_start)
             setup_session.write(b"\r")
             setup_session.wait_for(b"Executor protocol:", start=setup_start)
-            setup_session.pump(0.2)
-            setup_session.write(b"exit 0\r")
+            setup_session.wait_for_next_prompt(setup_start)
+            setup_session.enter_text(b"exit 0")
             deadline = time.monotonic() + 4.0
             while time.monotonic() < deadline and setup_session.process.poll() is None:
                 setup_session.pump()
@@ -300,8 +309,7 @@ def main() -> int:
 
         session = Session(sys.argv[1], configured_home, cwd=context_workspace)
         try:
-            session.wait_for(b"Started in")
-            session.pump(1.0)
+            session.wait_for(PROMPT_INPUT_START)
 
             # External command bindings must receive a normal terminal, then return
             # terminal ownership to the active raw-mode editor.
@@ -316,34 +324,30 @@ def main() -> int:
                     "external command binding inherited the editor's raw terminal mode: "
                     f"{tty_flags!r}"
                 )
-            session.write(f"touch {shlex.quote(external_tty_resumed)}\r".encode())
+            session.run_command(f"touch {shlex.quote(external_tty_resumed)}".encode())
             session.wait_for_file(external_tty_resumed)
-            session.wait_for_quiet_prompt(start=tty_probe_start)
 
             # Empty activation and prefix-only input advance to a new prompt without
             # invoking any executor.
             empty_key_start = len(session.output)
             session.write(b"\x1bOR")
-            session.wait_for(b"cjsh> ", start=empty_key_start)
-            session.pump(0.2)
+            session.wait_for_next_prompt(empty_key_start)
             if os.path.exists(prompt_capture):
                 raise AssertionError("an empty activation key request invoked the executor")
 
-            session.write(b":   \r")
-            session.pump(0.2)
+            session.run_command(b":   ")
             if os.path.exists(prompt_capture):
                 raise AssertionError("a prefix-only request invoked the executor")
 
-            session.write(f"touch {empty_request_result}\r".encode())
+            session.run_command(f"touch {empty_request_result}".encode())
             session.wait_for_file(empty_request_result)
-            session.pump(0.3)
             if os.path.exists(prompt_capture):
                 raise AssertionError("empty agent requests should not reach an executor")
 
             # Non-zero exits, malformed output, and launch failures each present
             # an error menu and leave the editor usable afterward.
             failure_start = len(session.output)
-            session.write(b":fail request\r")
+            session.enter_text(b":fail request")
             session.wait_for(b"agent error:", start=failure_start)
             session.wait_for(b"Executor failed", start=failure_start)
             session.write(b"\x03")
@@ -351,7 +355,7 @@ def main() -> int:
             session.write(b"\x15")
 
             malformed_start = len(session.output)
-            session.write(b":malformed request\r")
+            session.enter_text(b":malformed request")
             session.wait_for(b"agent error:", start=malformed_start)
             session.wait_for(b"No command suggestions", start=malformed_start)
             with open(prompt_capture, encoding="utf-8") as captured:
@@ -363,24 +367,23 @@ def main() -> int:
             session.write(b"\x15")
 
             missing_start = len(session.output)
-            session.write(b":missing request\r")
+            session.enter_text(b":missing request")
             session.wait_for(b"agent error:", start=missing_start)
             session.wait_for(b"Executor failed", start=missing_start)
             session.write(b"\x03")
             session.pump(0.1)
             session.write(b"\x15")
-            session.write(f"touch {recovery_result}\r".encode())
+            session.run_command(f"touch {recovery_result}".encode())
             session.wait_for_file(recovery_result)
-            session.pump(0.3)
 
             # Escaping the suggestion menu keeps the original editor text.
             cancel_start = len(session.output)
-            session.write(b":cancel keep this request\r")
+            session.enter_text(b":cancel keep this request")
             session.wait_for(b"agent command:", start=cancel_start)
             session.write(b"\x03")
             session.pump(0.1)
             second_cancel_start = len(session.output)
-            session.write(b" appended\x1bOR")
+            session.enter_text(b" appended", b"\x1bOR")
             session.wait_for(b"agent command:", start=second_cancel_start)
             with open(prompt_capture, encoding="utf-8") as captured:
                 route, prompt = captured.read().split("|", 1)
@@ -395,7 +398,7 @@ def main() -> int:
             # Ctrl+C cancels an in-flight executor instead of leaving the shell
             # blocked or presenting an executor error.
             interrupt_start = len(session.output)
-            session.write(b":interrupt cancel this request")
+            session.paste(b":interrupt cancel this request")
             session.wait_for_normalized(
                 b":interrupt cancel this request", start=interrupt_start
             )
@@ -410,13 +413,12 @@ def main() -> int:
             if b":interrupt cancel this request" not in interrupted_output:
                 raise AssertionError("Ctrl+C did not restore the interrupted request buffer")
             session.write(b"\x15")
-            session.write(f"touch {interrupt_recovery}\r".encode())
+            session.run_command(f"touch {interrupt_recovery}".encode())
             session.wait_for_file(interrupt_recovery)
-            session.pump(0.2)
 
             # Overlapping prefixes route to the most specific executor.
             longest_start = len(session.output)
-            session.write(b":deep use the longest prefix\r")
+            session.enter_text(b":deep use the longest prefix")
             session.wait_for(b"Waiting for agent response...", start=longest_start)
             first_frame = session.output.find(b"Waiting for agent response.", longest_start)
             second_frame = session.output.find(b"Waiting for agent response..", first_frame + 1)
@@ -531,7 +533,7 @@ def main() -> int:
             session.pump(0.3)
 
             menu_start = len(session.output)
-            session.write(b": choose the second command\r")
+            session.enter_text(b": choose the second command")
             session.wait_for(b"agent command:", start=menu_start)
             session.write(b"\x1b[B\r")
             session.wait_for_file(selected_result)
@@ -555,7 +557,7 @@ def main() -> int:
 
             # The configured activation key invokes the same flow without requiring a prefix.
             activation_start = len(session.output)
-            session.write(b"activation key request\x1bOR")
+            session.enter_text(b"activation key request", b"\x1bOR")
             session.wait_for(b"agent command:", start=activation_start)
             with open(prompt_capture, encoding="utf-8") as captured:
                 route, prompt = captured.read().split("|", 1)
@@ -571,7 +573,7 @@ def main() -> int:
             # The custom command-palette entry invokes agent mode with the
             # buffer that existed before the palette opened.
             palette_start = len(session.output)
-            session.write(b"palette request\x1bp")
+            session.enter_text(b"palette request", b"\x1bp")
             session.wait_for(b"command palette:", start=palette_start)
             session.write(b"write command with agent")
             session.wait_for(b"Write command with agent", start=palette_start)
@@ -596,7 +598,7 @@ def main() -> int:
             session.run_command(bind_command.encode())
             with open(prompt_capture, encoding="utf-8") as captured:
                 capture_before_custom_key = captured.read()
-            session.write(b"custom binding request\x1bOR")
+            session.enter_text(b"custom binding request", b"\x1bOR")
             session.wait_for_file(custom_key_result)
             session.pump(0.2)
             with open(prompt_capture, encoding="utf-8") as captured:
@@ -605,7 +607,7 @@ def main() -> int:
             session.write(b"\x15")
             session.run_command(b"cjshopt keybind ext clear F3")
             restored_key_start = len(session.output)
-            session.write(b"restored agent key\x1bOR")
+            session.enter_text(b"restored agent key", b"\x1bOR")
             session.wait_for(b"agent command:", start=restored_key_start)
             with open(prompt_capture, encoding="utf-8") as captured:
                 route, prompt = captured.read().split("|", 1)
@@ -624,7 +626,7 @@ def main() -> int:
             # configured prefix executor without stripping unrelated input.
             session.run_command(b"cjshopt agent-mode clear --default")
             first_configured_start = len(session.output)
-            session.write(b"request without a fallback\x1bOR")
+            session.enter_text(b"request without a fallback", b"\x1bOR")
             session.wait_for(b"agent command:", start=first_configured_start)
             with open(prompt_capture, encoding="utf-8") as captured:
                 route, prompt = captured.read().split("|", 1)
@@ -639,7 +641,7 @@ def main() -> int:
             session.pump(0.1)
             session.write(b"\x15")
 
-            session.write(b"exit 0\r")
+            session.enter_text(b"exit 0")
             deadline = time.monotonic() + 4.0
             while time.monotonic() < deadline and session.process.poll() is None:
                 session.pump()
@@ -657,13 +659,16 @@ def main() -> int:
         )
         try:
             styled_session.wait_for(b"normal> ")
-            styled_session.pump(0.5)
+            styled_session.wait_for(PROMPT_INPUT_START)
             styled_start = len(styled_session.output)
-            styled_session.write(b":final prompt request\r")
+            styled_session.enter_text(b":final prompt request")
             styled_session.wait_for(b"agent command:", start=styled_start)
             accept_start = len(styled_session.output)
             styled_session.write(b"\t")
-            styled_session.pump(0.2)
+            styled_session.wait_for_normalized(
+                b"final> :final prompt request", start=accept_start
+            )
+            styled_session.wait_for_normalized(b"normal> touch ", start=accept_start)
 
             accepted_render = normalize_terminal_output(
                 bytes(styled_session.output[accept_start:])
@@ -690,7 +695,8 @@ def main() -> int:
                     f"{accepted_render!r}"
                 )
 
-            styled_session.write(b"\x15exit 0\r")
+            styled_session.write(b"\x15")
+            styled_session.enter_text(b"exit 0")
             deadline = time.monotonic() + 4.0
             while time.monotonic() < deadline and styled_session.process.poll() is None:
                 styled_session.pump()

@@ -140,6 +140,7 @@ if(Python3_Interpreter_FOUND)
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/build_system/test_build_system.py"
                 "${CMAKE_SOURCE_DIR}"
     )
+    set_tests_properties(build_system_configuration_tests PROPERTIES PROCESSORS 2)
 
     cjsh_add_test(
         NAME interactive_shutdown_hangup_tests

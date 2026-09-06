@@ -1272,6 +1272,23 @@ static bool test_str_next_ofs_with_utf8_and_escape_sequences(void) {
     return true;
 }
 
+static bool test_stringbuf_empty_non_utf8_result(void) {
+    stringbuf_t* sb = new_stringbuf();
+    EXPECT_TRUE(sb != NULL, "empty input buffer should allocate");
+
+    char* result = sbuf_strdup_from_utf8(sb);
+    EXPECT_STREQ(result, "", "empty non-UTF-8 input should be a successful empty submission");
+    ic_free(result);
+
+    sbuf_append(sb, "request");
+    sbuf_clear(sb);
+    result = sbuf_strdup_from_utf8(sb);
+    EXPECT_STREQ(result, "", "clearing an agent request should preserve empty submission");
+    ic_free(result);
+    sbuf_free(sb);
+    return true;
+}
+
 static bool test_stringbuf_utf8_navigation_and_deletion(void) {
     stringbuf_t* sb = new_stringbuf();
     if (sb == NULL)
@@ -4272,6 +4289,7 @@ static const test_case_t kTests[] = {
      test_unicode_width_calculation_with_invalid_and_ansi},
     {"str_next_ofs_with_utf8_and_escape_sequences",
      test_str_next_ofs_with_utf8_and_escape_sequences},
+    {"stringbuf_empty_non_utf8_result", test_stringbuf_empty_non_utf8_result},
     {"stringbuf_utf8_navigation_and_deletion", test_stringbuf_utf8_navigation_and_deletion},
     {"push_raw_input_preconditions", test_push_raw_input_preconditions},
     {"tty_character_pushback_capacity_guard", test_tty_character_pushback_capacity_guard},

@@ -362,7 +362,11 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
     interrupt_start = 0
 
     try:
+        # Give each terminal handoff its own deadline. Startup and command
+        # highlighting can otherwise consume the whole budget on a busy runner
+        # before Ctrl-Z has even been sent.
         deadline = time.monotonic() + 10.0
+        waiting_for = "initial prompt"
         while time.monotonic() < deadline:
             try:
                 chunk = os.read(master_fd, 4096)
@@ -391,12 +395,16 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
                     b"while :; do sleep 1; done'\x1b[201~\r",
                 )
                 initial_command_sent = True
+                deadline = time.monotonic() + 10.0
+                waiting_for = "foreground command readiness"
 
             if not sent_stop and "foreground-ready" in current_output:
                 initial_job_foreground = os.tcgetpgrp(master_fd) != pid
                 stop_start = len(output)
                 os.write(master_fd, b"\x1a")
                 sent_stop = True
+                deadline = time.monotonic() + 10.0
+                waiting_for = "prompt after Ctrl-Z"
 
             if (
                 sent_stop
@@ -410,11 +418,15 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
                     b"read fg_gate; fg\x1b[201~\r",
                 )
                 followup_commands_sent = True
+                deadline = time.monotonic() + 10.0
+                waiting_for = "foreground resume gate"
 
             if followup_commands_sent and not released_fg and "about-to-fg" in current_output:
                 shell_foreground_before_fg = os.tcgetpgrp(master_fd) == pid
                 os.write(master_fd, b"continue-to-fg\r")
                 released_fg = True
+                deadline = time.monotonic() + 10.0
+                waiting_for = "resumed foreground ownership"
 
             if released_fg and not sent_interrupt:
                 foreground_pgid = os.tcgetpgrp(master_fd)
@@ -423,6 +435,8 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
                     interrupt_start = len(output)
                     os.write(master_fd, b"\x03")
                     sent_interrupt = True
+                    deadline = time.monotonic() + 10.0
+                    waiting_for = "prompt after Ctrl-C"
 
             if sent_interrupt and not exit_command_sent:
                 try:
@@ -439,6 +453,8 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
                         b"exit\x1b[201~\r",
                     )
                     exit_command_sent = True
+                    deadline = time.monotonic() + 10.0
+                    waiting_for = "shell exit"
 
             waited_pid, status = os.waitpid(pid, os.WNOHANG)
             if waited_pid == pid:
@@ -448,6 +464,7 @@ def run_control_character_case(binary: str) -> ControlCharacterResult:
 
         if wait_status is None:
             timed_out = True
+            output.extend(f"\nTimed out waiting for {waiting_for}\n".encode())
     finally:
         if wait_status is None:
             try:
