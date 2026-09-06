@@ -2333,6 +2333,11 @@ def main() -> int:
             "runoff custom menu should render the application-provided prompt and items, "
             f"got {normalized_custom_menu_output!r}"
         )
+    if "CUSTOM-MENU-EXPANDED-DESCRIPTION" not in normalized_custom_menu_output:
+        raise AssertionError(
+            "the selected custom-menu item should expand its full description, "
+            f"got {normalized_custom_menu_output!r}"
+        )
 
     custom_menu_filtered = run_case(
         binary, "custom_menu_runoff", F3 + b"daemon\r\r"

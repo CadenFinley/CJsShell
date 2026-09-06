@@ -110,7 +110,10 @@ static bool pty_custom_menu_runoff_handler(ic_keycode_t key, void* arg) {
 
     static const ic_menu_item_t items[] = {
         {"Show status", "inspect the working tree", "git changes"},
-        {"Restart service", "restart the background worker", "reload daemon"},
+        {"Restart service",
+         "restart the background worker after it finishes outstanding requests; "
+         "CUSTOM-MENU-EXPANDED-DESCRIPTION",
+         "reload daemon"},
         {"Open logs", "view recent service output", "tail diagnostics"},
     };
     static const char* const values[] = {"status", "restart", "logs"};
