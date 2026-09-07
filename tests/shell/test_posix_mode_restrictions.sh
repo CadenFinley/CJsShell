@@ -268,14 +268,18 @@ printf 'echo from-cjshenv\n' > "$tmp_home/.cjshenv"
 printf 'echo from-cjprofile\n' > "$tmp_home/.cjprofile"
 printf 'echo from-cjsh-env-override\n' > "$tmp_env_override"
 
-log_test "startup files skipped in POSIX mode"
+log_test "native startup files skipped in POSIX login mode"
 startup_output=$(HOME="$tmp_home" CJSH_ENV="$tmp_env_override" \
     "$SHELL_TO_TEST" --posix --login -c 'echo command-ran' 2>&1)
-if [ "$startup_output" = "command-ran" ]; then
+startup_status=$?
+# POSIX login still reads /etc/profile, which may emit platform-specific diagnostics.
+if [ "$startup_status" -eq 0 ] &&
+   printf "%s\n" "$startup_output" | grep -Fxq -- "command-ran" &&
+   ! printf "%s\n" "$startup_output" | grep -Eq '^from-(cjshenv|cjprofile|cjsh-env-override)$'; then
     pass
 else
     clean_output=$(printf "%s" "$startup_output" | tr '\n' ' ')
-    fail "Expected only command output, got '$clean_output'"
+    fail "Expected command output without native startup markers (status=$startup_status, output=$clean_output)"
 fi
 
 log_test "command_not_found_handler ignored in POSIX mode"
