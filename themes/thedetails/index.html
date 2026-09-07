@@ -1191,10 +1191,13 @@ the standard shell prompt variables (<code>PS1</code>, <code>RPS1</code>/<code>R
 works, which escape sequences are available, and how to persist your preferred prompt layout.</p>
 <h2 id="quick-start">Quick Start</h2>
 <ul>
-<li>Set <code>PS1</code> to control the primary prompt. The default template now mirrors the classic Robby Russell
-  oh-my-zsh theme:
-  <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">PS1</span><span class="o">=</span><span class="s1">'\S  [color=#5fd7ff]\W[/color] \g'</span>
-</span></code></pre></div></li>
+<li>Set <code>PS1</code> to control the primary prompt. The default template shows a status arrow, an
+  abbreviated working directory, and Git information:
+  <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">PS1</span><span class="o">=</span><span class="s1">'\S  [color=#5fd7ff]\p[/color] \g'</span>
+</span></code></pre></div>
+  Parent directories shorten to their first character while the final directory stays in full:
+  <code>~/Documents/Github</code> becomes <code>~/D/Github</code>. Hidden parents keep their leading dot, so
+  <code>~/.config/tmux</code> becomes <code>~/.c/tmux</code>.</li>
 <li>Set <code>RPS1</code> (or <code>RPROMPT</code>) to control the right-aligned prompt. It is unset by default, so nothing
   renders on the right until you export one.</li>
 <li>Use <code>PROMPT_COMMAND</code> for commands that should run before each prompt.</li>
@@ -1263,6 +1266,8 @@ tags freely; the parser keeps a stack so <code>[b][color=hotpink]...[/color][/b]
 <li><code>\u</code> username</li>
 <li><code>\v</code> short cjsh version, <code>\V</code> full version string</li>
 <li><code>\w</code> working directory with <code>$HOME</code> shortened to <code>~</code>, <code>\W</code> basename of working directory</li>
+<li><code>\p</code> abbreviated working directory: <code>$HOME</code> becomes <code>~</code>, parent directories shorten to their
+  first character (after any leading dot), and the final directory remains in full</li>
 <li><code>\S</code> status arrow used by the default theme (green when <code>$?</code> is zero, red otherwise)</li>
 <li><code>\g</code> Git segment that renders <code>git:(branch)</code> plus a dirty marker; empty outside Git repos</li>
 <li><code>\$</code> <code>#</code> for root, otherwise <code>$</code></li>
