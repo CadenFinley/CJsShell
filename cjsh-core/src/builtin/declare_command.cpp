@@ -72,12 +72,13 @@ std::string preferred_command_name(const std::string& command_name) {
     return is_typeset_alias(command_name) ? "typeset" : "declare";
 }
 
-bool print_invalid_option(const std::string& command_name, char prefix, char option) {
-    print_error({ErrorType::INVALID_ARGUMENT,
-                 command_name,
-                 "invalid option: " + std::string(1, prefix) + option,
-                 {}});
+bool print_invalid_option(const std::string& command_name, const std::string& option) {
+    print_error({ErrorType::INVALID_ARGUMENT, command_name, "invalid option: " + option, {}});
     return false;
+}
+
+bool print_invalid_option(const std::string& command_name, char prefix, char option) {
+    return print_invalid_option(command_name, std::string(1, prefix) + option);
 }
 
 bool apply_option_char(char prefix, char option, const std::string& command_name,
@@ -138,6 +139,10 @@ bool parse_declare_options(const std::vector<std::string>& args, const std::stri
         if (token == "--") {
             operand_start = i + 1;
             break;
+        }
+
+        if (token.rfind("--", 0) == 0) {
+            return print_invalid_option(command_name, token);
         }
 
         if (token.size() <= 1 || (token[0] != '-' && token[0] != '+')) {

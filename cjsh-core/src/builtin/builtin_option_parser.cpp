@@ -48,8 +48,13 @@ bool builtin_parse_short_options_ex(const std::vector<std::string>& args, size_t
             break;
         }
 
-        if (passthrough_long_options && option.rfind("--", 0) == 0 && option.size() > 2) {
-            break;
+        if (option.rfind("--", 0) == 0 && option.size() > 2) {
+            if (passthrough_long_options) {
+                break;
+            }
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, command_name, "invalid option: " + option, {}});
+            return false;
         }
 
         if (option.empty() || option[0] != '-') {

@@ -225,6 +225,11 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
                 continue;
             }
 
+            if (arg.rfind("--", 0) == 0) {
+                report_invalid_option(arg);
+                return 1;
+            }
+
             if (!arg.empty() && (arg[0] == '-' || arg[0] == '+')) {
                 if (arg.size() == 1) {
                     parsing_options = false;

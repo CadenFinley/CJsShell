@@ -148,6 +148,40 @@ expect_invalid_option_message() {
     fi
 }
 
+run_option_cmd() {
+    output=$("$SHELL_TO_TEST" --secure -c "$1" 2>"$WORK_DIR/option.stderr")
+    status=$?
+    error_output=$(cat "$WORK_DIR/option.stderr")
+}
+
+expect_option_error() {
+    name="$1"
+    cmd="$2"
+    expected_status="$3"
+    needle="$4"
+    log_test "$name"
+    run_option_cmd "$cmd"
+    if [ "$status" -eq "$expected_status" ] && [ -z "$output" ] &&
+       printf '%s' "$error_output" | grep -Fq -- "$needle"; then
+        pass
+    else
+        fail "Expected status $expected_status, empty stdout and stderr containing '$needle'; status=$status stdout='$output' stderr='$error_output'"
+    fi
+}
+
+expect_option_success() {
+    name="$1"
+    cmd="$2"
+    expected_output="$3"
+    log_test "$name"
+    run_option_cmd "$cmd"
+    if [ "$status" -eq 0 ] && [ "$output" = "$expected_output" ] && [ -z "$error_output" ]; then
+        pass
+    else
+        fail "Expected status 0, stdout '$expected_output' and empty stderr; status=$status stdout='$output' stderr='$error_output'"
+    fi
+}
+
 expect_no_escape_sequences() {
     name="$1"
     cmd="$2"
@@ -188,6 +222,55 @@ expect_output_contains "nested source keeps deepest line number" "source $NESTED
 expect_output_not_contains "history invalid option avoids interpreter error" "history -z" "unknown interpreter error"
 expect_output_not_contains "kill invalid option avoids interpreter error" "kill -z 1" "unknown interpreter error"
 expect_output_not_contains "generate-completions invalid option avoids interpreter error" "generate-completions --jobs nope" "unknown interpreter error"
+
+# Keep the complete long option in diagnostics for every affected builtin.
+for builtin_name in alias unalias command export hash readonly declare typeset jobs read type which umask; do
+    case "$builtin_name" in
+        alias|unalias|command|export|hash|readonly|declare|typeset) option_status=2 ;;
+        *) option_status=1 ;;
+    esac
+    for invalid_option in --all --unknown=value; do
+        expect_option_error "$builtin_name reports complete $invalid_option" \
+            "$builtin_name $invalid_option" "$option_status" \
+            "$builtin_name: invalid argument: invalid option: $invalid_option"
+    done
+done
+for invalid_option in --all --unknown=value; do
+    expect_option_error "set reports complete $invalid_option" \
+        "set $invalid_option" 1 "set: invalid argument: option '$invalid_option' not supported"
+done
+
+expect_option_error "jobs reports long option after short options" "jobs -lp --all" 1 "invalid option: --all"
+expect_option_error "declare reports long option after short options" "declare -x --all" 2 "invalid option: --all"
+expect_option_error "typeset reports long option after plus options" "typeset +x --all" 2 "invalid option: --all"
+expect_option_error "set reports long option after short options" "set -u --all" 1 "option '--all' not supported"
+
+# Short-option clusters still identify the offending character.
+expect_option_error "jobs identifies invalid clustered short option" "jobs -lz" 1 "invalid option: -z"
+expect_option_error "declare identifies invalid clustered short option" "declare -xz" 2 "invalid option: -z"
+expect_option_error "typeset identifies invalid clustered plus option" "typeset +xg" 2 "invalid option: +g"
+expect_option_error "set identifies invalid clustered short option" "set -uz" 1 "option '-z' not supported"
+
+# After --, option-looking tokens must reach operand handling.
+expect_option_success "jobs accepts the option separator" "jobs --" "No jobs"
+expect_option_error "jobs treats long option after separator as a job" "jobs -- --all" 1 "--all: no such job"
+expect_option_error "declare treats long option after separator as a variable" "declare -- --all" 1 "invalid variable name: --all"
+expect_option_error "typeset treats long option after separator as a variable" "typeset -- --all" 1 "invalid variable name: --all"
+expect_option_success "set preserves long option after separator" \
+    'set -- --all; printf "%s" "$1"' "--all"
+expect_option_success "set preserves long option after an operand" \
+    'set first --all; printf "%s,%s" "$1" "$2"' "first,--all"
+
+# Supported long options and short-option values bypass invalid-option handling.
+expect_option_success "pwd keeps supported long options" "pwd --physical" "$(pwd -P)"
+expect_option_success "version keeps supported long options" \
+    'tag=$(version --tag) && test -n "$tag"' ""
+expect_option_success "set keeps supported long options with inline values" "set --errexit-severity=warning" ""
+expect_option_success "set keeps supported long options with separate values" "set --errexit_severity critical" ""
+expect_option_success "read accepts a separate option value beginning with --" \
+    'printf "hello-world\n" | { read -d -- delimiter_value; printf "%s" "$delimiter_value"; }' "hello"
+expect_option_success "read accepts an attached option value beginning with --" \
+    'printf "hello-world\n" | { read -d-- delimiter_value; printf "%s" "$delimiter_value"; }' "hello"
 
 echo ""
 echo "================================================================"
