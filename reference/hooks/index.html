@@ -1468,7 +1468,10 @@ This handler is ignored when cjsh starts with <code>--minimal</code>, <code>--se
 </span></code></pre></div>
 <h3 id="cjshexit"><code>cjshexit</code></h3>
 <p>Executed during shell shutdown before <code>trap ... EXIT</code> handlers.
-This handler is ignored when cjsh starts with <code>--minimal</code>, <code>--secure</code>, or <code>--posix</code>.</p>
+This handler is ignored when cjsh starts with <code>--minimal</code>, <code>--secure</code>, or <code>--posix</code>.
+Confirmed exits, <code>exit --force</code>, and untrapped HUP or TERM all use this ordering:
+<code>cjshexit</code>, the <code>EXIT</code> trap, then login-shell logout configuration. Each runs once.
+HUP and TERM traps that return normally leave the shell running; a trap may explicitly call <code>exit</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">function</span><span class="w"> </span>cjshexit<span class="o">()</span><span class="w"> </span><span class="o">{</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"bye from cjsh"</span>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="o">}</span>

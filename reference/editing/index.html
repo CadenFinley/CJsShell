@@ -1321,6 +1321,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#external-terminal-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External terminal settings
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2447,6 +2458,16 @@ Commands can pre-populate the input buffer (used by <code>fc</code> command for 
 <li>Check logs in debug mode</li>
 <li>Report issues on the CJsShell GitHub repository</li>
 </ul>
+<h2 id="external-terminal-settings">External terminal settings</h2>
+<p>After each foreground command, CJSH preserves canonical external settings such as
+<code>stty -isig</code>, <code>stty -icrnl</code>, <code>stty -opost</code>, and changes to interrupt, erase, and EOF
+characters. These settings apply to following external commands. Echo is restored.
+The editor keeps its own key bindings, input mappings and output modes, so changing
+an external control character does not rebind editor keys.</p>
+<p>Leaving noncanonical (<code>-icanon</code>/raw) mode behind is treated as an abandoned terminal
+session: CJSH restores the previous external baseline. This policy also recovers the
+prompt after a crash or stopped raw-mode application; <code>fg</code> restores the job's saved
+modes before continuing it. Intentional persistent noncanonical mode is not supported.</p>
 
 
 
