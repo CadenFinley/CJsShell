@@ -2224,7 +2224,7 @@ Use <code>cjshopt prompt-newline on|off|status</code>, then add the same command
 <h3 id="prompt-markers">Prompt Markers</h3>
 <p>The prompt system uses markers to indicate different states:</p>
 <p><strong>Primary Prompt Marker:</strong>
-Displayed as part of <code>PS1</code>. The default primary template is <code>\S  [color=#5fd7ff]\W[/color] \g</code> (or <code>cjsh&gt;</code> when running with <code>--minimal</code> or <code>--secure</code>).</p>
+Displayed as part of <code>PS1</code>. The default primary template is <code>\S  [color=#5fd7ff]\p[/color] \g</code>, which abbreviates parent directories and keeps the current directory name in full. With <code>--minimal</code> or <code>--secure</code>, the default is <code>cjsh&gt;</code>.</p>
 <p><strong>Continuation Prompt Marker:</strong>
 Displayed for continuation lines in multiline input. The default <code>PS2</code> template is <code>[ic-hint]&gt; [/ic-hint]</code>.</p>
 <p><strong>Select Prompt Marker:</strong>

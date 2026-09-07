@@ -1197,7 +1197,9 @@ works, which escape sequences are available, and how to persist your preferred p
 </span></code></pre></div>
   Parent directories shorten to their first character while the final directory stays in full:
   <code>~/Documents/Github</code> becomes <code>~/D/Github</code>. Hidden parents keep their leading dot, so
-  <code>~/.config/tmux</code> becomes <code>~/.c/tmux</code>.</li>
+  <code>~/.config/tmux</code> becomes <code>~/.c/tmux</code>.
+  If an older cjsh process exports the previous built-in <code>\W</code> template, startup refreshes it to
+  the current default. Custom inherited prompts and prompts set in startup files take precedence.</li>
 <li>Set <code>RPS1</code> (or <code>RPROMPT</code>) to control the right-aligned prompt. It is unset by default, so nothing
   renders on the right until you export one.</li>
 <li>Use <code>PROMPT_COMMAND</code> for commands that should run before each prompt.</li>
