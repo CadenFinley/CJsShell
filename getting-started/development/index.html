@@ -1146,6 +1146,11 @@
 <p>Adjust <code>4</code> to control concurrency, or use <code>1</code> for a serial run. Timing and
 system-wide process-count tests run alone. Add <code>-L shell</code> to select only shell
 files, or <code>-LE shell</code> to select only focused suites.</p>
+<p>CTest's built-in total counts registered suites and shell files. After it finishes,
+an additional summary shows the individual tests reported by the selected suites,
+with passed, failed, and skipped counts. Scripts that exercise one continuous
+integration scenario count as one test. Suites that stop before reporting results
+are listed separately when their individual counts are unavailable.</p>
 <p>The serial shell and integration harness also remains available, with combined
 individual-test counts:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./tests/run_shell_tests.sh<span class="w"> </span><span class="s2">"build/release/cjsh"</span>
