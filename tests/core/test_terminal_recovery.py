@@ -42,6 +42,9 @@ import unittest
 from test_idle_hook_interactive import IdleHookSession, normalize_terminal_output
 
 
+INPUT_ABORTED = b"\x1b]133;D\x1b\\"
+
+
 class TerminalRecoveryTests(unittest.TestCase):
     binary: str
 
@@ -59,9 +62,8 @@ class TerminalRecoveryTests(unittest.TestCase):
         start = len(self.session.output)
         # Exercise ordinary typing, Backspace, Left and Delete after recovery.
         self.session.write(b"printf 'editing-%s\\n' oX\x7fkX\x1b[D\x1b[3~\r")
-        self.session.wait_for_prompt(start, command_completed=True)
-        output = normalize_terminal_output(bytes(self.session.output[start:]))
-        self.assertIn(b"editing-ok", output)
+        output_start = self.session.wait_for(b"editing-ok\r\n", start)
+        self.session.wait_for_prompt(output_start, command_completed=True)
 
     def track_job(self, pid_file: Path) -> None:
         def cleanup() -> None:
@@ -106,10 +108,13 @@ class TerminalRecoveryTests(unittest.TestCase):
         self.session.wait_for(marker.name.encode(), start)
         start = len(self.session.output)
         os.kill(self.session.pid, signal.SIGINT)
+        # Redraws also emit prompt markers. Wait for cancellation, then for the
+        # empty command to finish, before checking that the old line was discarded.
+        start = self.session.wait_for(INPUT_ABORTED, start)
         self.session.wait_for_prompt(start)
         start = len(self.session.output)
         self.session.write(b"\r")
-        self.session.wait_for_prompt(start)
+        self.session.wait_for_prompt(start, command_completed=True)
         self.assertFalse(marker.exists())
         self.assert_prompt_recovered()
 
@@ -132,6 +137,7 @@ class TerminalRecoveryTests(unittest.TestCase):
                     self.assertEqual(session.wait_for_exit(), 128 + signum)
                     self.assertTrue(termios.tcgetattr(session.fd)[3] & termios.ICANON)
                 else:
+                    start = session.wait_for(INPUT_ABORTED, start)
                     session.wait_for_prompt(start)
                     start = session.run_command(b"printf 'menu-editing-ok\\n'")
                     output = normalize_terminal_output(bytes(session.output[start:]))
