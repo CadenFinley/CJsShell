@@ -195,6 +195,58 @@ else
     fail_test "--secure startup file skipping (got '$OUT')"
 fi
 
+PROMPT_HOME="$TEST_HOME/prompt_home"
+mkdir -p "$PROMPT_HOME/Documents/GitHub/CJsShell"
+PROMPT_HOME=$(cd "$PROMPT_HOME" && pwd -P)
+LEGACY_PS1='\S  [color=#5fd7ff]\W[/color] \g'
+# Xtrace uses the same prompt escape expansion and lets us check the rendered path.
+PROMPT_COMMAND_TEST='cd "$HOME/Documents/GitHub/CJsShell"; PS4="$PS1"; set -x; :'
+
+OUT=$(unset PS1; HOME="$PROMPT_HOME" "$CJSH_PATH" --no-source -c "$PROMPT_COMMAND_TEST" 2>&1)
+case "$OUT" in
+    *'[color=#5fd7ff]~/D/G/CJsShell[/color]'*)
+        pass_test "default prompt renders an abbreviated path" ;;
+    *) fail_test "default prompt path (got '$OUT')" ;;
+esac
+
+OUT=$(HOME="$PROMPT_HOME" PS1="$LEGACY_PS1" "$CJSH_PATH" --no-source -c "$PROMPT_COMMAND_TEST" 2>&1)
+case "$OUT" in
+    *'[color=#5fd7ff]~/D/G/CJsShell[/color]'*)
+        pass_test "inherited legacy default prompt upgrades to an abbreviated path" ;;
+    *) fail_test "inherited legacy default prompt path (got '$OUT')" ;;
+esac
+
+OUT=$(HOME="$PROMPT_HOME" PS1='custom \W> ' "$CJSH_PATH" --no-source -c "$PROMPT_COMMAND_TEST" 2>&1)
+if [ "$OUT" = 'custom CJsShell> :' ]; then
+    pass_test "custom inherited prompt keeps its directory-name escape"
+else
+    fail_test "custom inherited prompt (got '$OUT')"
+fi
+
+OUT=$(HOME="$PROMPT_HOME" PS1='' "$CJSH_PATH" --no-source -c "$PROMPT_COMMAND_TEST" 2>&1)
+if [ "$OUT" = ':' ]; then
+    pass_test "explicitly empty inherited prompt stays empty"
+else
+    fail_test "empty inherited prompt (got '$OUT')"
+fi
+
+for PROMPT_MODE in --minimal --secure; do
+    OUT=$(HOME="$PROMPT_HOME" PS1="$LEGACY_PS1" "$CJSH_PATH" "$PROMPT_MODE" --no-source -c "$PROMPT_COMMAND_TEST" 2>&1)
+    if [ "$OUT" = 'cjsh> :' ]; then
+        pass_test "$PROMPT_MODE replaces the legacy default with its fixed prompt"
+    else
+        fail_test "$PROMPT_MODE legacy default prompt (got '$OUT')"
+    fi
+done
+
+printf "PS1='%s'\n" "$LEGACY_PS1" > "$PROMPT_HOME/.cjshrc"
+OUT=$(HOME="$PROMPT_HOME" PS1="$LEGACY_PS1" "$CJSH_PATH" -i -c "$PROMPT_COMMAND_TEST" 2>&1)
+case "$OUT" in
+    *'[color=#5fd7ff]CJsShell[/color]'*)
+        pass_test "explicit prompt in cjshrc overrides the upgraded default" ;;
+    *) fail_test "configured prompt override (got '$OUT')" ;;
+esac
+
 echo ""
 echo "=== Test Summary ==="
 TOTAL_TESTS=$((TESTS_PASSED + TESTS_FAILED))

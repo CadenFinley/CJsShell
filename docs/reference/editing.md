@@ -723,7 +723,7 @@ Use `cjshopt prompt-newline on|off|status`, then add the same command to your st
 The prompt system uses markers to indicate different states:
 
 **Primary Prompt Marker:**
-Displayed as part of `PS1`. The default primary template is `\S  [color=#5fd7ff]\W[/color] \g` (or `cjsh> ` when running with `--minimal` or `--secure`).
+Displayed as part of `PS1`. The default primary template is `\S  [color=#5fd7ff]\p[/color] \g`, which abbreviates parent directories and keeps the current directory name in full. With `--minimal` or `--secure`, the default is `cjsh> `.
 
 **Continuation Prompt Marker:**
 Displayed for continuation lines in multiline input. The default `PS2` template is `[ic-hint]> [/ic-hint]`.

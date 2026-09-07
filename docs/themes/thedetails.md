@@ -43,6 +43,8 @@ works, which escape sequences are available, and how to persist your preferred p
   Parent directories shorten to their first character while the final directory stays in full:
   `~/Documents/Github` becomes `~/D/Github`. Hidden parents keep their leading dot, so
   `~/.config/tmux` becomes `~/.c/tmux`.
+  If an older cjsh process exports the previous built-in `\W` template, startup refreshes it to
+  the current default. Custom inherited prompts and prompts set in startup files take precedence.
 - Set `RPS1` (or `RPROMPT`) to control the right-aligned prompt. It is unset by default, so nothing
   renders on the right until you export one.
 - Use `PROMPT_COMMAND` for commands that should run before each prompt.

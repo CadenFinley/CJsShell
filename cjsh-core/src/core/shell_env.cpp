@@ -454,7 +454,11 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
     (void)env_vars.emplace_back("CJSH_VERSION", version_str);
 
     // Raw getenv here: PS1 bootstrap before shell vars exist.
-    if (getenv("PS1") == nullptr) {
+    // Older shells exported their built-in prompt, so refresh that inherited default.
+    // Startup files are sourced later and can still explicitly select the old template.
+    const char* inherited_ps1 = getenv("PS1");
+    constexpr const char* legacy_default_ps1 = "\\S  [color=#5fd7ff]\\W[/color] \\g";
+    if (inherited_ps1 == nullptr || std::strcmp(inherited_ps1, legacy_default_ps1) == 0) {
         std::string default_ps1 = prompt::default_primary_prompt_template();
         (void)setenv("PS1", default_ps1.c_str(), 1);
     }
