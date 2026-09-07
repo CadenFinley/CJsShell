@@ -1,6 +1,33 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.9`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.10`.
+
+## 1.4.10 - 2026-09-06
+
+Range: `v1.4.9..v1.4.10` (9 commits, 41 files changed)
+
+### Added
+
+- Added the `\\p` prompt escape for an abbreviated working directory: parent directories are shortened to their first character while the final directory name remains intact, including correct handling of hidden and UTF-8 directory names.
+- Added automatic indentation for incomplete multiline input. Continuation lines inherit their existing indentation and add a level after block-opening delimiters and shell keywords such as `do`, `then`, and `in`.
+
+### Changed
+
+- Updated the default primary prompt to use the abbreviated working-directory display. Startup refreshes the formerly built-in `\\W` default while preserving custom inherited prompts and prompts set by startup files.
+- Improved custom-menu rendering by expanding the selected item's description into a bounded multiline preview, with mouse selection accounting for the preview's rows.
+- Updated release-artifact CI to run the complete CTest suite with bounded parallelism, excluding only build-system configuration tests where appropriate.
+
+### Fixed
+
+- Strengthened `for` and `select` header validation: loops now require a valid variable and either a literal `in` or the end of the header, report malformed headers consistently, and preserve correct empty-list and positional-parameter behavior.
+- Corrected redirection backup handling so saved descriptors never occupy descriptors named by the command, preventing invalid descriptor duplications from succeeding. Shell terminal ownership is preserved when commands redirect or close the controlling terminal.
+- Fixed foreground-child cleanup and signal handling so non-monitor foreground commands participate in orderly termination without being displayed as jobs; shell shutdown waits for children it terminates.
+- Corrected builtin option parsing after `--`, including literal option-like operands for `declare` and `set`, and improved associated diagnostics.
+
+### Internal and Tests
+
+- Added regression coverage for multiline indentation, custom-menu previews and mouse selection, loop-header syntax, descriptor redirections, terminal recovery, process cleanup, option parsing, prompt startup behavior, and error formatting.
+- Finalized 1.4.10 as a stable release by clearing the default pre-release build marker.
 
 ## 1.4.9 - 2026-09-06
 
