@@ -35,11 +35,14 @@ works, which escape sequences are available, and how to persist your preferred p
 
 ## Quick Start
 
-- Set `PS1` to control the primary prompt. The default template now mirrors the classic Robby Russell
-  oh-my-zsh theme:
+- Set `PS1` to control the primary prompt. The default template shows a status arrow, an
+  abbreviated working directory, and Git information:
   ```bash
-  PS1='\S  [color=#5fd7ff]\W[/color] \g'
+  PS1='\S  [color=#5fd7ff]\p[/color] \g'
   ```
+  Parent directories shorten to their first character while the final directory stays in full:
+  `~/Documents/Github` becomes `~/D/Github`. Hidden parents keep their leading dot, so
+  `~/.config/tmux` becomes `~/.c/tmux`.
 - Set `RPS1` (or `RPROMPT`) to control the right-aligned prompt. It is unset by default, so nothing
   renders on the right until you export one.
 - Use `PROMPT_COMMAND` for commands that should run before each prompt.
@@ -120,6 +123,8 @@ Prompt templates use familiar POSIX/Bash escapes. CJ's Shell expands the followi
 - `\u` username
 - `\v` short cjsh version, `\V` full version string
 - `\w` working directory with `$HOME` shortened to `~`, `\W` basename of working directory
+- `\p` abbreviated working directory: `$HOME` becomes `~`, parent directories shorten to their
+  first character (after any leading dot), and the final directory remains in full
 - `\S` status arrow used by the default theme (green when `$?` is zero, red otherwise)
 - `\g` Git segment that renders `git:(branch)` plus a dirty marker; empty outside Git repos
 - `\$` `#` for root, otherwise `$`

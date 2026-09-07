@@ -361,6 +361,34 @@ std::string get_cwd(bool abbreviate_home, bool basename_only) {
     return cjsh_filesystem::formatted_current_directory(abbreviate_home, basename_only);
 }
 
+std::string get_abbreviated_cwd() {
+    const std::string path = get_cwd(true, false);
+    std::string abbreviated;
+    abbreviated.reserve(path.size());
+
+    size_t start = 0;
+    for (size_t separator = path.find('/'); separator != std::string::npos;
+         separator = path.find('/', start)) {
+        if (separator > start) {
+            // Keep the dot on hidden directories and the first complete UTF-8 character.
+            size_t initial = start;
+            if (path[initial] == '.' && initial + 1 < separator) {
+                ++initial;
+            }
+            const long next = ic_next_char(path.c_str(), static_cast<long>(initial));
+            const size_t end =
+                next > static_cast<long>(initial) ? static_cast<size_t>(next) : initial + 1;
+            abbreviated.append(path, start, end - start);
+        }
+        abbreviated.push_back('/');
+        start = separator + 1;
+    }
+
+    // Leave the final directory name intact (including '~' when already at home).
+    abbreviated.append(path, start, std::string::npos);
+    return abbreviated;
+}
+
 std::string get_terminal_name() {
     const char* tty = ttyname(STDIN_FILENO);
     if (tty == nullptr) {
@@ -905,6 +933,9 @@ std::string expand_prompt_string(const std::string& templ, PromptContext context
             case 'W':
                 result += get_cwd(true, true);
                 break;
+            case 'p':
+                result += get_abbreviated_cwd();
+                break;
             case 'S':
                 result += status_symbol();
                 break;
@@ -961,7 +992,7 @@ std::string default_primary_prompt_template() {
     if (config::minimal_mode || config::secure_mode) {
         return "cjsh> ";
     }
-    return "\\S  [color=#5fd7ff]\\W[/color] \\g";
+    return "\\S  [color=#5fd7ff]\\p[/color] \\g";
 }
 
 std::string default_secondary_prompt_template() {
