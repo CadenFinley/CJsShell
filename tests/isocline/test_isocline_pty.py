@@ -842,6 +842,31 @@ def observe_resize_case(
     )
 
 
+def assert_completion_preview_fits(
+    output: str, rows: int, cols: int, prefix_rows: int = 0
+) -> None:
+    normalized = normalize_terminal_output(output)
+    prompt_index = normalized.rfind("pty> ")
+    if prompt_index < 0:
+        raise AssertionError(f"completion preview lost its prompt: {normalized!r}")
+    render = normalized[prompt_index:].rstrip()
+    input_text, separator, menu = render.partition("\nShowing ")
+    if not separator or not input_text.startswith("pty> m02 first line"):
+        raise AssertionError(f"completion preview should retain its beginning: {render!r}")
+    if not input_text.endswith("...") or "preview line 20" in input_text:
+        raise AssertionError(f"tall completion preview should end with an ellipsis: {render!r}")
+    if "Showing " in menu or not any(
+        line.startswith(("→ m02", "> m02")) for line in menu.splitlines()
+    ):
+        raise AssertionError(f"tall completion should remain selected in one menu: {render!r}")
+    if "esc:cancel)" not in menu.replace("↵\n", ""):
+        raise AssertionError(f"completion preview hid the menu footer: {render!r}")
+    # These fixtures use single-column characters, including the selection/wrap arrows.
+    lines = render.splitlines()
+    if len(lines) + prefix_rows > rows or any(len(line) > cols for line in lines):
+        raise AssertionError(f"completion preview exceeds the {rows}x{cols} terminal: {render!r}")
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f"usage: {sys.argv[0]} <isocline_pty_driver>", file=sys.stderr)
@@ -2760,6 +2785,80 @@ def main() -> int:
         raise AssertionError(
             "expanded completion menu rendered too many rows for the multiline preview buffer, got "
             f"normalized_output={normalized_comp_multiline_replacement_output!r}"
+        )
+
+    tall_scenario = "completion_many_menu_tall_replacement"
+    for scenario, rows, expanded, prefix_rows in (
+        (tall_scenario, 8, False, 0),
+        (tall_scenario, 8, True, 0),
+        (tall_scenario, 24, True, 0),
+        ("completion_many_menu_tall_flattened", 24, False, 0),
+        ("completion_many_menu_tall_flattened", 24, True, 0),
+        ("completion_many_menu_tall_wrapped_input", 8, True, 0),
+        ("completion_many_menu_tall_prompt_prefix", 8, True, 2),
+    ):
+        output = observe_resize_case(
+            binary,
+            scenario,
+            [
+                ("send", b"m\t" + (b"\x0a" if expanded else b"") + DOWN),
+                ("idle", 0.1),
+            ],
+            initial_rows=rows,
+            initial_cols=80,
+        )
+        assert_completion_preview_fits(output, rows, 80, prefix_rows)
+
+    for cols in (80, 40):
+        output = observe_resize_case(
+            binary,
+            tall_scenario,
+            [
+                ("send", b"m\t\x0a" + DOWN),
+                ("wait", "preview line 15..."),
+                ("resize", (8, cols)),
+                # Wake the PTY read on platforms that restart it after SIGWINCH.
+                ("send", FOCUS_IN),
+                ("wait", "preview line 04..." if cols == 80 else "preview line 02..."),
+                ("idle", 0.1),
+            ],
+            initial_rows=24,
+            initial_cols=80,
+        )
+        assert_completion_preview_fits(output, 8, cols)
+
+    expected_tall_replacement = "m02 first line\n" + "\n".join(
+        f"preview line {line:02d}" for line in range(2, 21)
+    )
+    for keys, expected in (
+        (b"m\t" + DOWN + b"\r\r", expected_tall_replacement),
+        (b"m\t\x0a" + DOWN + b"\r\r", expected_tall_replacement),
+        (b"m\t\x0a" + DOWN + DOWN + b"\r\r", "m03"),
+        (b"m\t\x0a" + DOWN + b"\x0a\r\r", expected_tall_replacement),
+    ):
+        result = run_case(binary, tall_scenario, keys, initial_rows=8, initial_cols=80)
+        if result != expected:
+            raise AssertionError(
+                f"shortened completion preview changed acceptance/navigation: "
+                f"keys={keys!r}, expected={expected!r}, got={result!r}"
+            )
+
+    cancelled_preview = run_resize_case(
+        binary,
+        tall_scenario,
+        [
+            ("send", b"m\t\x0a" + DOWN),
+            ("wait", "preview line 04..."),
+            ("send", b"\x1b"),
+            ("idle", 0.5),
+            ("send", b"\r"),
+        ],
+        initial_rows=8,
+        initial_cols=80,
+    )
+    if cancelled_preview != "m":
+        raise AssertionError(
+            f"cancelling a shortened preview changed the input: {cancelled_preview!r}"
         )
 
     help_result, help_output = run_case(

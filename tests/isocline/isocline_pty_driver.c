@@ -55,6 +55,7 @@ typedef enum completion_mode_e {
     COMPLETION_MODE_MANY,
     COMPLETION_MODE_MANY_MULTILINE,
     COMPLETION_MODE_MANY_MULTILINE_REPLACEMENT,
+    COMPLETION_MODE_MANY_TALL_REPLACEMENT,
     COMPLETION_MODE_SPELL_SINGLE,
     COMPLETION_MODE_SPELL_MIXED,
     COMPLETION_MODE_SPELL_CROSS_TOKEN,
@@ -62,6 +63,8 @@ typedef enum completion_mode_e {
 
 static completion_mode_t g_completion_mode = COMPLETION_MODE_NONE;
 static bool g_notify_from_completion = false;
+static bool g_flatten_completion_display = false;
+static bool g_wrap_completion_input = false;
 
 typedef struct paste_status_s {
     bool saw_complete;
@@ -155,17 +158,45 @@ static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* 
         return;
     }
     if (g_completion_mode == COMPLETION_MODE_MANY_MULTILINE ||
-        g_completion_mode == COMPLETION_MODE_MANY_MULTILINE_REPLACEMENT) {
+        g_completion_mode == COMPLETION_MODE_MANY_MULTILINE_REPLACEMENT ||
+        g_completion_mode == COMPLETION_MODE_MANY_TALL_REPLACEMENT) {
         static const char* many_words[] = {
             "m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10", "m11", "m12",
         };
         const char* multiline = "m02 first line\nm02 second line";
+        if (g_completion_mode == COMPLETION_MODE_MANY_TALL_REPLACEMENT) {
+            multiline = "m02 first line\npreview line 02\npreview line 03\npreview line 04\n"
+                        "preview line 05\npreview line 06\npreview line 07\npreview line 08\n"
+                        "preview line 09\npreview line 10\npreview line 11\npreview line 12\n"
+                        "preview line 13\npreview line 14\npreview line 15\npreview line 16\n"
+                        "preview line 17\npreview line 18\npreview line 19\npreview line 20";
+        }
+        if (g_wrap_completion_input) {
+            multiline = "m02 first line\n"
+                        "a long preview line that wraps across the terminal before the next newline; "
+                        "a long preview line that wraps across the terminal before the next newline; "
+                        "a long preview line that wraps across the terminal before the next newline; "
+                        "a long preview line that wraps across the terminal before the next newline; "
+                        "a long preview line that wraps across the terminal before the next newline; "
+                        "a long preview line that wraps across the terminal before the next newline";
+        }
+        char flattened[512];
+        if (g_flatten_completion_display) {
+            (void)snprintf(flattened, sizeof(flattened), "%s", multiline);
+            for (char* p = flattened; *p != '\0'; p++) {
+                if (*p == '\n') {
+                    *p = ' ';
+                }
+            }
+        }
         const long delete_before = (prefix != NULL ? (long)strlen(prefix) : 0L);
         for (size_t i = 0; i < (sizeof(many_words) / sizeof(many_words[0])); i++) {
             const char* replacement = many_words[i];
-            const char* display = (i == 1 ? multiline : replacement);
+            const char* display =
+                (i == 1 ? (g_flatten_completion_display ? flattened : multiline) : replacement);
             const char* source = (i == 4 ? "abbr first line\nabbr second line" : "history");
-            if (i == 1 && g_completion_mode == COMPLETION_MODE_MANY_MULTILINE_REPLACEMENT) {
+            if (i == 1 && (g_completion_mode == COMPLETION_MODE_MANY_MULTILINE_REPLACEMENT ||
+                           g_completion_mode == COMPLETION_MODE_MANY_TALL_REPLACEMENT)) {
                 replacement = multiline;
             }
             (void)ic_add_completion_prim_with_source(cenv, replacement, display, NULL, source,
@@ -505,6 +536,14 @@ static int run_case(const char* scenario) {
          strcmp(scenario, "history_search_long_multiline_viewport") == 0 ||
          strcmp(scenario, "region_marking_multiline") == 0 ||
          strcmp(scenario, "completion_many_menu_multiline_replacement") == 0);
+    const bool tall_completion_case =
+        (strcmp(scenario, "completion_many_menu_tall_replacement") == 0 ||
+         strcmp(scenario, "completion_many_menu_tall_flattened") == 0 ||
+         strcmp(scenario, "completion_many_menu_tall_wrapped_input") == 0 ||
+         strcmp(scenario, "completion_many_menu_tall_prompt_prefix") == 0);
+    if (tall_completion_case) {
+        multiline_mode = true;
+    }
     (void)ic_enable_multiline(multiline_mode);
     (void)ic_enable_multiline_continuation_retention(
         strcmp(scenario, "multiline_backslash_continuation_retained") == 0);
@@ -663,12 +702,24 @@ static int run_case(const char* scenario) {
                strcmp(scenario, "completion_many_menu_smart") == 0 ||
                strcmp(scenario, "completion_many_menu_multiline") == 0 ||
                strcmp(scenario, "completion_many_menu_long_multiline") == 0 ||
-               strcmp(scenario, "completion_many_menu_multiline_replacement") == 0) {
+               strcmp(scenario, "completion_many_menu_multiline_replacement") == 0 ||
+               tall_completion_case) {
         if (strcmp(scenario, "completion_many_menu_multiline") == 0) {
             g_completion_mode = COMPLETION_MODE_MANY_MULTILINE;
         } else if (strcmp(scenario, "completion_many_menu_multiline_replacement") == 0) {
             g_completion_mode = COMPLETION_MODE_MANY_MULTILINE_REPLACEMENT;
             (void)ic_enable_completion_preview(true);
+        } else if (tall_completion_case) {
+            g_completion_mode = COMPLETION_MODE_MANY_TALL_REPLACEMENT;
+            (void)ic_enable_completion_preview(true);
+            g_flatten_completion_display =
+                (strcmp(scenario, "completion_many_menu_tall_flattened") == 0);
+            g_wrap_completion_input =
+                (strcmp(scenario, "completion_many_menu_tall_wrapped_input") == 0);
+            if (strcmp(scenario, "completion_many_menu_tall_prompt_prefix") == 0) {
+                prompt_text = "COMPLETION-PREFIX-TOP\nCOMPLETION-PREFIX-MIDDLE\npty";
+                (void)ic_enable_line_numbers_with_continuation_prompt(true);
+            }
         } else {
             g_completion_mode = COMPLETION_MODE_MANY;
         }
