@@ -4,7 +4,7 @@ This changelog documents tagged releases from `v1.1.2` through `v1.4.10`.
 
 ## 1.4.10 - 2026-09-06
 
-Range: `v1.4.9..v1.4.10` (9 commits, 41 files changed)
+Range: `v1.4.9..v1.4.10` (13 commits, 44 files changed)
 
 ### Added
 
@@ -16,6 +16,7 @@ Range: `v1.4.9..v1.4.10` (9 commits, 41 files changed)
 - Updated the default primary prompt to use the abbreviated working-directory display. Startup refreshes the formerly built-in `\\W` default while preserving custom inherited prompts and prompts set by startup files.
 - Improved custom-menu rendering by expanding the selected item's description into a bounded multiline preview, with mouse selection accounting for the preview's rows.
 - Updated release-artifact CI to run the complete CTest suite with bounded parallelism, excluding only build-system configuration tests where appropriate.
+- Expanded push CI to match the release workflow's platform and architecture coverage.
 
 ### Fixed
 
@@ -23,10 +24,13 @@ Range: `v1.4.9..v1.4.10` (9 commits, 41 files changed)
 - Corrected redirection backup handling so saved descriptors never occupy descriptors named by the command, preventing invalid descriptor duplications from succeeding. Shell terminal ownership is preserved when commands redirect or close the controlling terminal.
 - Fixed foreground-child cleanup and signal handling so non-monitor foreground commands participate in orderly termination without being displayed as jobs; shell shutdown waits for children it terminates.
 - Corrected builtin option parsing after `--`, including literal option-like operands for `declare` and `set`, and improved associated diagnostics.
+- Prevented early signals, including `SIGTERM`, from being lost during command startup by blocking signals across `fork` until child signal defaults are installed.
+- Fixed musl CI and release test permissions by giving the unprivileged test user ownership of the build directory before CTest writes logs and fixtures.
 
 ### Internal and Tests
 
 - Added regression coverage for multiline indentation, custom-menu previews and mouse selection, loop-header syntax, descriptor redirections, terminal recovery, process cleanup, option parsing, prompt startup behavior, and error formatting.
+- Added a 1,024-launch regression test for immediate `SIGTERM` delivery to background commands and pipelines under parallel load.
 - Finalized 1.4.10 as a stable release by clearing the default pre-release build marker.
 
 ## 1.4.9 - 2026-09-06
