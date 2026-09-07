@@ -86,6 +86,26 @@ void flush_standard_streams_before_fork() {
     (void)std::fflush(nullptr);
 }
 
+pid_t fork_command_child() {
+    // A signal can arrive before fork finishes restoring the child's runtime.
+    // Keep it pending until reset_child_signals installs the command's defaults;
+    // inherited handlers (including raise on macOS) are not safe in that window.
+    sigset_t blocked_signals{};
+    sigset_t previous_mask{};
+    sigfillset(&blocked_signals);
+    if (sigprocmask(SIG_BLOCK, &blocked_signals, &previous_mask) < 0) {
+        return -1;
+    }
+
+    const pid_t pid = fork();
+    const int fork_errno = errno;
+    if (pid != 0) {
+        (void)sigprocmask(SIG_SETMASK, &previous_mask, nullptr);
+    }
+    errno = fork_errno;
+    return pid;
+}
+
 std::string join_arguments(const std::vector<std::string>& args) {
     return string_utils::join_strings(args, " ");
 }
@@ -1425,7 +1445,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         (void)pipe(launch_barrier);
     }
 
-    pid_t pid = fork();
+    pid_t pid = fork_command_child();
 
     if (pid == -1) {
         set_error(ErrorType::RUNTIME_ERROR, cmd_args_value.empty() ? "unknown" : cmd_args_value[0],
@@ -1576,7 +1596,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         return *handler_exit_code;
     }
 
-    pid_t pid = fork();
+    pid_t pid = fork_command_child();
 
     if (pid == -1) {
         std::string cmd_name = cmd_args_value.empty() ? "unknown" : cmd_args_value[0];
@@ -1795,7 +1815,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             (void)pipe(launch_barrier);
         }
 
-        pid_t pid = fork();
+        pid_t pid = fork_command_child();
 
         if (pid == -1) {
             cleanup_process_substitutions(proc_resources, true);
@@ -2159,7 +2179,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 return finalize_exit(1);
             }
 
-            pid_t pid = fork();
+            pid_t pid = fork_command_child();
 
             if (pid == -1) {
                 std::string cmd_name = cmd.args.empty() ? "unknown" : cmd.args[0];

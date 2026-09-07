@@ -134,6 +134,12 @@ cjsh_add_test(NAME loop_syntax_tests COMMAND loop_syntax_tests)
 
 if(Python3_Interpreter_FOUND)
     cjsh_add_test(
+        NAME child_signal_startup_tests
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_child_signal_startup.py"
+                $<TARGET_FILE:cjsh>
+    )
+
+    cjsh_add_test(
         NAME isocline_pty_integration_tests
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/isocline/test_isocline_pty.py"
                 $<TARGET_FILE:isocline_pty_driver>

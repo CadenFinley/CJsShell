@@ -320,6 +320,8 @@ jobs:
               git config --global --add safe.directory /work
               cmake --preset release-static
               cmake --build --preset release-static --parallel
+              # CTest writes logs and test fixtures inside the root-built tree.
+              chown -R cjsh-test:cjsh-test build/release-static
               su-exec cjsh-test env HOME=/home/cjsh-test CJSH_TEST_SKIP_PRELOAD_INJECTION=1 ctest --preset release-static --parallel 4 -E "^build_system_configuration_tests$"
               test "$(uname -m)" = "$EXPECTED_MACHINE"
               readelf -l build/release-static/cjsh > build/release-static/program-headers.txt
