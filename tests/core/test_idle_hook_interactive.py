@@ -35,8 +35,10 @@ import pty
 import re
 import shlex
 import signal
+import struct
 import sys
 import tempfile
+import termios
 import time
 
 
@@ -55,7 +57,10 @@ def normalize_terminal_output(output: bytes) -> bytes:
 
 
 class IdleHookSession:
-    def __init__(self, binary: str, home: str, editor_args: list[str] | None = None) -> None:
+    def __init__(self, binary: str, home: str, editor_args: list[str] | None = None, *,
+                 argv: list[str] | None = None, stdout_path: str | None = None,
+                 cursor_response: bytes | None = CURSOR_RESPONSE,
+                 terminal_size: tuple[int, int] | None = None) -> None:
         if editor_args is None:
             editor_args = [
                 "--no-prompt-vars",
@@ -65,15 +70,22 @@ class IdleHookSession:
             ]
         self.output = bytearray()
         self.query_tail = b""
+        self.cursor_response = cursor_response
         self.pid, self.fd = pty.fork()
         if self.pid == 0:
+            if terminal_size is not None:
+                fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack('HHHH', *terminal_size, 0, 0))
+            if stdout_path is not None:
+                output_fd = os.open(stdout_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+                os.dup2(output_fd, 1)
+                os.close(output_fd)
             env = os.environ.copy()
             env["HOME"] = home
             env["XDG_CONFIG_HOME"] = os.path.join(home, ".config")
             env["TERM"] = "xterm-256color"
             os.execve(
                 binary,
-                [
+                argv if argv is not None else [
                     binary,
                     "--no-source",
                     "--no-titleline",
@@ -118,8 +130,9 @@ class IdleHookSession:
 
             self.output.extend(chunk)
             pending = self.query_tail + chunk
-            for _ in range(pending.count(CURSOR_QUERY)):
-                os.write(self.fd, CURSOR_RESPONSE)
+            if self.cursor_response is not None:
+                for _ in range(pending.count(CURSOR_QUERY)):
+                    os.write(self.fd, self.cursor_response)
             self.query_tail = pending[-(len(CURSOR_QUERY) - 1) :]
 
     def write(self, data: bytes) -> None:

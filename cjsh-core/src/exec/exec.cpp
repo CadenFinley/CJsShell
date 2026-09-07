@@ -1199,15 +1199,6 @@ Exec::Exec()
         owns_shell_terminal = true;
     }
 
-    if (shell_is_interactive && (isatty(shell_terminal) != 0)) {
-        if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
-            set_error(
-                ErrorType::FATAL_ERROR, "tcgetattr",
-                "failed to get terminal attributes in constructor: " + std::string(strerror(errno)),
-                {"Try running cjsh from a terminal/TTY.",
-                 "Avoid redirecting stdin when using interactive mode."});
-        }
-    }
 }
 
 Exec::~Exec() {

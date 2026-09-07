@@ -111,12 +111,14 @@ class SignalHandler {
     static void set_signal_disposition(int signum, SignalDisposition disp,
                                        const std::string& trap_command = "");
     static void ignore_signal(int signum);
+    static void restore_signal_disposition(int signum, const struct sigaction& action);
 
     static void observe_signal(int signum);
     static void unobserve_signal(int signum);
     static bool is_signal_observed(int signum);
 
     static void signal_handler(int signum);
+    static bool interrupt_pending() { return s_sigint_received != 0; }
 
    private:
     static std::atomic<SignalHandler*> s_instance;

@@ -37,7 +37,6 @@
 
 #include "agent_mode.h"
 #include "error_out.h"
-#include "isocline.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "startup_flags.h"
@@ -93,8 +92,6 @@ void apply_minimal_mode() {
     config::status_line_enabled = false;
     config::error_suggestions_enabled = false;
     config::prompt_vars_enabled = false;
-    (void)ic_enable_line_numbers(false);
-    // ic_enable_multiline_indent(false);
 }
 
 }  // namespace

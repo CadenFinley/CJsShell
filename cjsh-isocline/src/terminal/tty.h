@@ -79,6 +79,7 @@ ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* c);
 ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out);
 // Preserve the distinction between Return and Ctrl+J while readline is idle.
 ic_private void tty_enable_typeahead_capture_mode(tty_t* tty, bool enable);
+ic_private void tty_adopt_external_modes(tty_t* tty);
 // Queue raw typeahead bytes independently from the small parser pushback buffer.
 // The queue survives a readline boundary so bytes following Return are available
 // to the next readline cycle.
@@ -106,8 +107,9 @@ ic_private code_t tty_read_esc(tty_t* tty, long esc_initial_timeout,
                                long esc_timeout);  // in tty_esc.c
 
 // used by term.c to read back ANSI escape responses
+typedef bool (tty_response_fun_t)(const char* response, void* arg);
 ic_private bool tty_read_esc_response(tty_t* tty, char esc_start, bool final_st, char* buf,
-                                      ssize_t buflen);
+                                      ssize_t buflen, tty_response_fun_t* matches, void* arg);
 
 //-------------------------------------------------------------
 // Key codes: a code_t is 32 bits.
@@ -199,6 +201,7 @@ static inline code_t key_unicode(unicode_t u) {
 #define KEY_EVENT_RESIZE IC_KEY_EVENT_RESIZE
 #define KEY_EVENT_AUTOTAB IC_KEY_EVENT_AUTOTAB
 #define KEY_EVENT_STOP IC_KEY_EVENT_STOP
+#define KEY_EVENT_INTERRUPT IC_KEY_EVENT_INTERRUPT
 #define KEY_EVENT_PROMPT_REFRESH IC_KEY_EVENT_PROMPT_REFRESH
 #define KEY_EVENT_READLINE IC_KEY_EVENT_READLINE
 #define KEY_EVENT_MOUSE_WHEEL_UP IC_KEY_EVENT_MOUSE_WHEEL_UP

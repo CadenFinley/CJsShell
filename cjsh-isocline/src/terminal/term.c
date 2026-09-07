@@ -44,6 +44,7 @@
 #if defined(_WIN32)
 #include <windows.h>
 #define STDOUT_FILENO 1
+#define STDERR_FILENO 2
 #else
 #include <errno.h>
 #include <sys/ioctl.h>
@@ -476,6 +477,10 @@ ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent,
         return NULL;
 
     term->fd_out = (fd_out < 0 ? STDOUT_FILENO : fd_out);
+    if (fd_out < 0 && tty != NULL && isatty(term->fd_out) == 0 &&
+        isatty(STDERR_FILENO) != 0) {
+        term->fd_out = STDERR_FILENO;
+    }
     term->nocolor = nocolor || (isatty(term->fd_out) == 0);
     term->silent = silent;
     term->mem = mem;
@@ -566,7 +571,8 @@ ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent,
 }
 
 ic_private bool term_is_interactive(const term_t* term) {
-    ic_unused(term);
+    if (term == NULL || isatty(term->fd_out) == 0)
+        return false;
     // check dimensions (0 is used for debuggers)
     // if (term->width <= 0) return false;
 
@@ -1052,23 +1058,26 @@ static bool term_write_direct(term_t* term, const char* s, ssize_t len) {
 #if !defined(_WIN32)
 
 // send escape query that may return a response on the tty
-static bool term_esc_query_raw(term_t* term, const char* query, char* buf, ssize_t buflen) {
-    if (buf == NULL || buflen <= 0 || query[0] == 0)
+static bool term_esc_query_raw(term_t* term, const char* query, char* buf, ssize_t buflen,
+                               tty_response_fun_t* matches, void* arg) {
+    if (!term_is_interactive(term) || term->tty == NULL ||
+        tty_input_pending(term->tty) || buf == NULL || buflen <= 0 || query[0] == 0)
         return false;
     bool osc = (query[1] == ']');
     if (!term_write_direct(term, query, ic_strlen(query)))
         return false;
     debug_msg("term: read tty query response to: ESC %s\n", query + 1);
-    return tty_read_esc_response(term->tty, query[1], osc, buf, buflen);
+    return tty_read_esc_response(term->tty, query[1], osc, buf, buflen, matches, arg);
 }
 
-static bool term_esc_query(term_t* term, const char* query, char* buf, ssize_t buflen) {
-    if (term == NULL || term->tty == NULL)
+static bool term_esc_query(term_t* term, const char* query, char* buf, ssize_t buflen,
+                           tty_response_fun_t* matches, void* arg) {
+    if (!term_is_interactive(term) || term->tty == NULL)
         return false;
     const bool was_raw = tty_is_raw_enabled(term->tty);
     if (!was_raw && !tty_start_raw(term->tty))
         return false;
-    bool ok = term_esc_query_raw(term, query, buf, buflen);
+    bool ok = term_esc_query_raw(term, query, buf, buflen, matches, arg);
     if (!was_raw) {
         tty_end_raw(term->tty);
     }
@@ -1076,10 +1085,36 @@ static bool term_esc_query(term_t* term, const char* query, char* buf, ssize_t b
 }
 
 // get the cursor position via an ESC[6n
+static bool cursor_response_matches(const char* response, void* arg) {
+    ic_unused(arg);
+    const size_t rowlen = strspn(response, "0123456789");
+    if (rowlen == 0 || response[rowlen] != ';')
+        return false;
+    const char* column = response + rowlen + 1;
+    const size_t collen = strspn(column, "0123456789");
+    if (collen == 0 || column[collen] != 'R' || column[collen + 1] != 0)
+        return false;
+    // Validate bounds before committing the input bytes to this reply.
+    for (const char* p = response; *p != 'R';) {
+        ssize_t value = 0;
+        while (*p >= '0' && *p <= '9') {
+            const int digit = *p++ - '0';
+            if (value > (SSIZE_MAX - digit) / 10)
+                return false;
+            value = 10 * value + digit;
+        }
+        if (value == 0)
+            return false;
+        if (*p == ';')
+            p++;
+    }
+    return true;
+}
+
 static bool term_get_cursor_pos(term_t* term, ssize_t* row, ssize_t* col) {
     // send escape query
     char buf[128];
-    if (!term_esc_query(term, "\x1B[6n", buf, 128))
+    if (!term_esc_query(term, "\x1B[6n", buf, 128, cursor_response_matches, NULL))
         return false;
     char* end = strchr(buf, 'R');
     if (end != NULL) {
@@ -1095,6 +1130,8 @@ static void term_set_cursor_pos(term_t* term, ssize_t row, ssize_t col) {
 }
 
 ic_private bool term_update_dim(term_t* term) {
+    if (!term_is_interactive(term))
+        return false;
     ssize_t cols = 0;
     ssize_t rows = 0;
     struct winsize ws;
@@ -1175,19 +1212,34 @@ ic_private void term_end_raw(term_t* term, bool force) {
     }
 }
 
-static bool term_esc_query_color_raw(term_t* term, ssize_t color_idx, uint32_t* color) {
-    char buf[128 + 1];
-    snprintf(buf, 128, "\x1B]4;%zd;?\x1B\\", color_idx);
-    if (!term_esc_query_raw(term, buf, buf, 128)) {
-        debug_msg("esc query response not received\n");
+static bool color_response_matches(const char* buf, void* arg) {
+    const char* prefix = (const char*)arg;
+    const size_t prefix_len = strlen(prefix);
+    if (strncmp(buf, prefix, prefix_len) != 0)
         return false;
+    const char* rgb = buf + prefix_len;
+    for (int i = 0; i < 3; ++i) {
+        const size_t digits = strspn(rgb, "0123456789abcdefABCDEF");
+        if (digits == 0 || digits > 4)
+            return false;
+        rgb += digits;
+        if (i < 2) {
+            if (*rgb++ != '/')
+                return false;
+        }
     }
-    if (buf[0] != '4')
+    return *rgb == 0;
+}
+
+static bool term_esc_query_color_raw(term_t* term, ssize_t color_idx, uint32_t* color) {
+    char query[64];
+    char prefix[64];
+    char buf[128];
+    snprintf(query, sizeof(query), "\x1B]4;%zd;?\x1B\\", color_idx);
+    snprintf(prefix, sizeof(prefix), "4;%zd;rgb:", color_idx);
+    if (!term_esc_query_raw(term, query, buf, sizeof(buf), color_response_matches, prefix))
         return false;
-    const char* rgb = strchr(buf, ':');
-    if (rgb == NULL)
-        return false;
-    rgb++;  // skip ':'
+    const char* rgb = buf + strlen(prefix);
 
     unsigned long components[3] = {0};
     const char* cursor = rgb;
@@ -1222,6 +1274,8 @@ static bool term_esc_query_color_raw(term_t* term, ssize_t color_idx, uint32_t* 
 
 // update ansi 16 color palette for better color approximation
 static void term_update_ansi16(term_t* term) {
+    if (!term_is_interactive(term) || term->tty == NULL)
+        return;
     debug_msg("update ansi colors\n");
 #if defined(GIO_CMAP)
     // try ioctl first (on Linux)

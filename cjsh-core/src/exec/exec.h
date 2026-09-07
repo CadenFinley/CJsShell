@@ -82,7 +82,6 @@ class Exec {
     std::map<int, Job> jobs;
     int next_job_id = 1;
     pid_t shell_pgid;
-    struct termios shell_tmodes;
     int shell_terminal;
     bool owns_shell_terminal = false;
     bool shell_is_interactive;

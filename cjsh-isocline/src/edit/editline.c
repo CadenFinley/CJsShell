@@ -478,6 +478,8 @@ static void edit_note_input_activity(ic_env_t* env, editor_t* eb) {
 // Menus run nested input loops, so they must share the editor's idle deadline instead of
 // blocking indefinitely. A false return tells the menu to cancel and return to the main loop,
 // which then completes the readline with an idle disposition.
+static void edit_process_readline_event(ic_env_t* env);
+
 static bool edit_menu_read_key(ic_env_t* env, editor_t* eb, code_t* code) {
     if (env == NULL || eb == NULL || code == NULL || env->tty == NULL) {
         return false;
@@ -491,7 +493,14 @@ static bool edit_menu_read_key(ic_env_t* env, editor_t* eb, code_t* code) {
         if (tty_read_timeout(env->tty, idle_remaining, code)) {
             if (*code == KEY_EVENT_READLINE) {
                 env->readline_event_pending = true;
+                edit_process_readline_event(env);
                 continue;
+            }
+            if (*code == KEY_EVENT_STOP || *code == KEY_EVENT_INTERRUPT) {
+                // Unwind nested menus before the outer editor handles signals.
+                tty_code_pushback(env->tty, *code);
+                *code = KEY_ESC;
+                return false;
             }
             if (*code != KEY_EVENT_RESIZE) {
                 edit_note_input_activity(env, eb);
@@ -507,6 +516,7 @@ static bool edit_menu_read_key(ic_env_t* env, editor_t* eb, code_t* code) {
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text,
                              const char* inline_right_text) {
     (void)tty_start_raw(env->tty);
+    tty_enable_typeahead_capture_mode(env->tty, env->typeahead_enabled);
     term_start_raw(env->term);
     char* line = edit_line(env, prompt_text, inline_right_text);
     const bool idle_timeout = (env->last_readline_disposition == IC_READLINE_DISPOSITION_IDLE);
@@ -4244,7 +4254,7 @@ edit_loop_entry:
                     break;  // ctrl+D on empty quits with CTRL+D token
                 }
                 edit_delete_char(env, &eb);  // otherwise it is like delete
-            } else if (c == KEY_CTRL_C || c == KEY_EVENT_STOP) {
+            } else if (c == KEY_CTRL_C || c == KEY_EVENT_STOP || c == KEY_EVENT_INTERRUPT) {
                 // Clear history preview when cancelling
                 edit_clear_history_preview(&eb);
                 if (c == KEY_EVENT_STOP) {
@@ -4679,6 +4689,7 @@ ic_public bool ic_resume_readline_terminal(void) {
     }
 
     editor_t* eb = env->current_editor;
+    tty_adopt_external_modes(env->tty);
     if (!tty_start_raw(env->tty)) {
         return false;
     }

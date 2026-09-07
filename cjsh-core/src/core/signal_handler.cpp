@@ -483,6 +483,17 @@ void SignalHandler::ignore_signal(int signum) {
     set_signal_disposition(signum, SignalDisposition::IGNORE);
 }
 
+void SignalHandler::restore_signal_disposition(int signum, const struct sigaction& action) {
+    if (sigaction(signum, &action, nullptr) != 0) {
+        return;
+    }
+    auto& state = s_signal_states[signum];
+    state.disposition = action.sa_handler == SIG_IGN ? SignalDisposition::IGNORE :
+                        action.sa_handler == SIG_DFL ? SignalDisposition::DEFAULT :
+                                                      SignalDisposition::SYSTEM;
+    unobserve_signal(signum);
+}
+
 void SignalHandler::install_signal_handler(int signum, struct sigaction* old_action) {
     struct sigaction sa{};
     sa.sa_handler = signal_handler;
@@ -523,6 +534,7 @@ void SignalHandler::signal_handler(int signum) {
     switch (signum) {
         case SIGINT: {
             s_sigint_received = 1;
+            ic_notify_readline();
 
             if (!is_observed) {
                 if (!config::interactive_mode) {
@@ -544,6 +556,7 @@ void SignalHandler::signal_handler(int signum) {
         case SIGHUP: {
             s_sighup_received = 1;
             cjsh_env::request_exit();
+            ic_notify_readline();
             should_mark_pending = true;
             break;
         }

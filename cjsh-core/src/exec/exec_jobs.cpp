@@ -146,6 +146,9 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         getpid() == shell_pgid && getpgrp() == shell_pgid;
 
     bool terminal_control_acquired = false;
+    struct termios shell_modes{};
+    const bool shell_modes_saved =
+        main_shell_controls_terminal && tcgetattr(shell_terminal, &shell_modes) == 0;
     bool stopped_modes_saved = false;
     pid_t stopped_job_pgid = -1;
     struct termios stopped_job_modes{};
@@ -208,7 +211,10 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
             }
         }
 
-        if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
+        const bool restore_modes = current != jobs.end() &&
+                                   (current->second.stopped || WIFSIGNALED(current->second.status));
+        if (restore_modes && shell_modes_saved &&
+            tcsetattr(shell_terminal, TCSADRAIN, &shell_modes) < 0) {
             set_error(ErrorType::RUNTIME_ERROR, "tcsetattr",
                       "failed to restore terminal attributes: " + std::string(strerror(errno)));
         }

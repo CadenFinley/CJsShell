@@ -42,6 +42,7 @@ namespace {
 
 struct TrapManagerState {
     std::unordered_map<int, std::string> traps;
+    std::unordered_map<int, struct sigaction> original_actions;
     Shell* shell_ref = nullptr;
     bool exit_trap_executed = false;
     bool has_exit_trap = false;
@@ -66,6 +67,12 @@ void trap_manager_set_trap(int signal, const std::string& command) {
 
     auto& state = trap_manager_state();
 
+    if (signal > 0 && state.traps.find(signal) == state.traps.end()) {
+        struct sigaction action{};
+        if (sigaction(signal, nullptr, &action) == 0) {
+            state.original_actions[signal] = action;
+        }
+    }
     state.traps[signal] = command;
 
     if (signal == 0) {
@@ -88,6 +95,11 @@ void trap_manager_set_trap(int signal, const std::string& command) {
 void trap_manager_remove_trap(int signal) {
     auto& state = trap_manager_state();
     (void)state.traps.erase(signal);
+    auto original = state.original_actions.find(signal);
+    if (original != state.original_actions.end()) {
+        SignalHandler::restore_signal_disposition(signal, original->second);
+        state.original_actions.erase(original);
+    }
 
     if (signal == 0) {
         state.has_exit_trap = false;
@@ -232,7 +244,7 @@ int trap_command(const std::vector<std::string>& args) {
             return 1;
         }
 
-        if (command.empty() || command == "-") {
+        if (command == "-") {
             trap_manager_remove_trap(signal_num);
         } else {
             trap_manager_set_trap(signal_num, command);

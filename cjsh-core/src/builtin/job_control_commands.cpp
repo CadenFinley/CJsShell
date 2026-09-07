@@ -226,10 +226,10 @@ int fg_command(const std::vector<std::string>& args) {
     bool terminal_control_acquired = false;
     struct termios shell_modes{};
     const bool shell_modes_saved = terminal_fd >= 0 && tcgetattr(terminal_fd, &shell_modes) == 0;
-    auto restore_terminal_control = [&]() {
+    auto restore_terminal_control = [&](bool restore_modes = true) {
         if (terminal_control_acquired) {
             (void)tcsetpgrp(terminal_fd, getpgrp());
-            if (shell_modes_saved) {
+            if (restore_modes && shell_modes_saved) {
                 (void)tcsetattr(terminal_fd, TCSADRAIN, &shell_modes);
             }
             terminal_control_acquired = false;
@@ -292,9 +292,8 @@ int fg_command(const std::vector<std::string>& args) {
         job->tmodes_saved = true;
     }
 
-    restore_terminal_control();
-
     const JobState final_state = job->state.load(std::memory_order_relaxed);
+    restore_terminal_control(final_state != JobState::DONE);
     if (final_state == JobState::STOPPED) {
         job_manager.notify_job_stopped(job);
         return exit_status.value_or(128 + (job->stop_signal > 0 ? job->stop_signal : SIGTSTP));

@@ -83,6 +83,8 @@ add_executable(isocline_pty_driver "${CMAKE_CURRENT_SOURCE_DIR}/isocline/isoclin
 target_link_libraries(isocline_pty_driver PRIVATE cjsh_isocline Threads::Threads)
 
 if(UNIX)
+    add_executable(terminal_contract_driver "${CMAKE_CURRENT_SOURCE_DIR}/isocline/terminal_contract_driver.c")
+    target_link_libraries(terminal_contract_driver PRIVATE cjsh_isocline)
     add_library(
         fg_terminal_race_injector
         SHARED
@@ -133,6 +135,13 @@ cjsh_add_test(NAME function_syntax_tests COMMAND function_syntax_tests)
 cjsh_add_test(NAME loop_syntax_tests COMMAND loop_syntax_tests)
 
 if(Python3_Interpreter_FOUND)
+    if(UNIX)
+        cjsh_add_test(
+            NAME isocline_terminal_contract_tests
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/isocline/test_terminal_contract.py"
+                    $<TARGET_FILE:terminal_contract_driver>
+        )
+    endif()
     cjsh_add_test(
         NAME child_signal_startup_tests
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_child_signal_startup.py"

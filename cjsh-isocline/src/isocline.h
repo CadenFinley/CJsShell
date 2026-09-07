@@ -209,6 +209,13 @@ bool ic_suspend_readline_terminal(void);
 /// @returns true when a suspended editor was resumed, false otherwise.
 bool ic_resume_readline_terminal(void);
 
+/// Leave input capture modes before executing commands, preserving queued input.
+void ic_prepare_terminal_for_command(void);
+
+/// Adopt foreground-command terminal changes and repair the modes needed by the
+/// next prompt. Call after reclaiming terminal ownership and before prompt hooks.
+void ic_recover_terminal(void);
+
 /// An item displayed by ic_show_menu().
 typedef struct ic_menu_item_s {
     /// Primary text displayed for the item. Must not be NULL or empty.

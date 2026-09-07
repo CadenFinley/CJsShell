@@ -100,11 +100,9 @@ void recover_prompt_terminal() {
         return;
     }
 
-    // A command or hook can leave terminal modes behind even without a job-control
-    // handoff. Preserve queued input before restoring isocline's between-prompt modes.
-    // Re-enabling capture reapplies those modes without clearing an enabled buffer.
-    (void)ic_typeahead_capture_available_input();
-    (void)ic_enable_typeahead(true);
+    // Adopt command changes before preparing the next prompt. Prompt hooks also
+    // run with ordinary external modes, never the editor's capture translations.
+    ic_recover_terminal();
 }
 
 struct CommandProcessResult {
@@ -206,6 +204,10 @@ void handle_readline_event(void*) {
         (void)ic_push_key_event(IC_KEY_EVENT_STOP);
         return;
     }
+    if (SignalHandler::interrupt_pending()) {
+        (void)ic_push_key_event(IC_KEY_EVENT_INTERRUPT);
+        return;
+    }
     // Poll children without executing signal traps inside the editor. Notifications
     // are copied into isocline's queue and printed after this callback returns.
     update_job_management();
@@ -290,6 +292,7 @@ std::optional<std::string> get_next_command() {
                                 : ic_readline_with_status(prompt_state.prompt_text.c_str(),
                                                           inline_right_ptr, nullptr);
         prompt::set_prompt_refresh_allowed(false);
+        ic_prepare_terminal_for_command();
 
         char* input = readline_result.input;
         if (readline_result.disposition == IC_READLINE_DISPOSITION_IDLE) {
@@ -301,6 +304,7 @@ std::optional<std::string> get_next_command() {
             }
 
             g_shell->execute_hooks(HookType::Idle);
+            recover_prompt_terminal();
             if (cjsh_env::exit_requested()) {
                 return std::nullopt;
             }
@@ -604,6 +608,10 @@ bool continuation_or_return_callback(const char* input_buffer, void*) {
 
 void initialize_isocline() {
     // setup isocline environment and ui styling
+    // Defer editor initialization until after the shell owns the terminal.
+    if (config::minimal_mode) {
+        (void)ic_enable_line_numbers(false);
+    }
     initialize_completion_system();
     SyntaxHighlighter::initialize_syntax_highlighting();
     (void)ic_enable_history_duplicates(false);

@@ -36,6 +36,7 @@ import signal
 import sys
 import tempfile
 import termios
+import time
 import unittest
 
 from test_idle_hook_interactive import IdleHookSession, normalize_terminal_output
@@ -79,6 +80,132 @@ class TerminalRecoveryTests(unittest.TestCase):
                 command = "sh -c " + shlex.quote("stty raw -echo; " + ending)
                 self.session.run_command(command.encode())
                 self.assert_prompt_recovered()
+
+    def test_stdout_redirection_preserves_commands_and_terminal_editor(self) -> None:
+        target = Path(self.directory.name) / "stdout"
+        marker = Path(self.directory.name) / ".cache" / "cjsh" / ".first_boot"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch()
+        session = IdleHookSession(self.binary, self.directory.name, stdout_path=str(target),
+                                  terminal_size=(24, 100))
+        self.addCleanup(session.close)
+        session.wait_for_prompt(0)
+        start = len(session.output)
+        session.write(b"printf 'COMMAND-ONLY\\n'\r")
+        session.wait_for_prompt(start, command_completed=True)
+        self.assertEqual(target.read_bytes().strip(), b"COMMAND-ONLY")
+        self.assertIn(b"printf", normalize_terminal_output(bytes(session.output)))
+
+    def test_external_sigint_discards_partial_command_and_recovers(self) -> None:
+        marker = Path(self.directory.name) / "must-not-run"
+        self.session.write(("touch " + shlex.quote(str(marker))).encode())
+        self.session.pump(0.1)
+        start = len(self.session.output)
+        os.kill(self.session.pid, signal.SIGINT)
+        self.session.wait_for_prompt(start)
+        self.session.pump(0.1)
+        self.session.write(b"\r")
+        self.session.pump(0.1)
+        self.assertFalse(marker.exists())
+        self.assert_prompt_recovered()
+
+    def test_external_signals_unwind_history_menu(self) -> None:
+        for signum in (signal.SIGINT, signal.SIGHUP):
+            with self.subTest(signum=signum):
+                session = IdleHookSession(self.binary, self.directory.name, editor_args=[
+                    "--no-prompt-vars", "--no-completions", "--no-syntax-highlighting",
+                ])
+                self.addCleanup(session.close)
+                session.wait_for_prompt(0)
+                session.run_command(b"printf 'history-seed\\n'")
+                marker = Path(self.directory.name) / f"menu-must-not-run-{signum}"
+                start = len(session.output)
+                session.write(("touch " + shlex.quote(str(marker))).encode() + b"\x12")
+                session.wait_for(b"history search:", start)
+                start = len(session.output)
+                os.kill(session.pid, signum)
+                if signum == signal.SIGHUP:
+                    self.assertEqual(session.wait_for_exit(), 128 + signum)
+                    self.assertTrue(termios.tcgetattr(session.fd)[3] & termios.ICANON)
+                else:
+                    session.wait_for_prompt(start)
+                    start = session.run_command(b"printf 'menu-editing-ok\\n'")
+                    output = normalize_terminal_output(bytes(session.output[start:]))
+                    self.assertIn(b"menu-editing-ok\n", output)
+                self.assertFalse(marker.exists())
+
+    def test_reset_ignored_sigint_restores_editor_interrupt(self) -> None:
+        self.session.run_command(b"trap '' INT; trap - INT")
+        self.test_external_sigint_discards_partial_command_and_recovers()
+
+    def test_external_sighup_exits_with_terminal_still_open(self) -> None:
+        os.kill(self.session.pid, signal.SIGHUP)
+        self.assertEqual(self.session.wait_for_exit(), 128 + signal.SIGHUP)
+        self.assertTrue(termios.tcgetattr(self.session.fd)[3] & termios.ICANON)
+
+    def test_external_sigint_runs_trap_before_next_prompt(self) -> None:
+        self.session.run_command(b"trap 'printf \"signal-trap-ran\\n\"' INT")
+        start = len(self.session.output)
+        os.kill(self.session.pid, signal.SIGINT)
+        self.session.wait_for(b"signal-trap-ran\r\n", start)
+        self.session.wait_for_prompt(start)
+        self.assert_prompt_recovered()
+
+    def test_ignored_sigint_does_not_interrupt_editor(self) -> None:
+        self.session.run_command(b"trap '' INT")
+        start = len(self.session.output)
+        self.session.write(b"printf 'ignored-%s\\n' ok")
+        self.session.pump(0.1)
+        os.kill(self.session.pid, signal.SIGINT)
+        self.session.pump(0.1)
+        self.session.write(b"\r")
+        self.session.wait_for_prompt(start, command_completed=True)
+        self.assertIn(b"\nignored-ok\n", normalize_terminal_output(bytes(self.session.output[start:])))
+
+    def test_foreground_cat_receives_lf_immediately(self) -> None:
+        target = Path(self.directory.name) / "cat-output"
+        start = len(self.session.output)
+        self.session.write(("/bin/cat > " + shlex.quote(str(target)) + "\r").encode())
+        deadline = time.monotonic() + 4
+        while time.monotonic() < deadline and (not target.exists() or
+                os.tcgetpgrp(self.session.fd) == self.session.pid):
+            self.session.pump()
+        self.assertTrue(target.exists())
+        self.assertFalse(termios.tcgetattr(self.session.fd)[0] & termios.INLCR)
+        self.session.write(b"hello\n")
+        deadline = time.monotonic() + 4
+        while time.monotonic() < deadline and target.read_bytes() != b"hello\n":
+            self.session.pump()
+        self.assertEqual(target.read_bytes(), b"hello\n")
+        self.session.write(b"\x04")
+        self.session.wait_for_prompt(start, command_completed=True)
+        self.assert_prompt_recovered()
+
+    def test_stty_changes_persist_but_prompt_echo_recovers(self) -> None:
+        probe = Path(self.directory.name) / "tty_settings.py"
+        target = Path(self.directory.name) / "tty-settings.json"
+        probe.write_text("""
+import json, sys, termios
+a = termios.tcgetattr(0)
+with open(sys.argv[1], 'w') as output:
+    json.dump([bool(a[3] & termios.ECHO), bool(a[3] & termios.TOSTOP),
+               a[6][termios.VINTR][0], a[6][termios.VERASE][0]], output)
+""", encoding="utf-8")
+        command = shlex.join([sys.executable, str(probe), str(target)])
+        for monitor in (b"set -m", b"set +m"):
+            with self.subTest(monitor=monitor):
+                self.session.run_command(monitor)
+                self.session.run_command(("stty -echo intr '^G' erase '^H' tostop; " + command).encode())
+                self.assertEqual(json.loads(target.read_text()), [False, True, 7, 8])
+                self.session.run_command(command.encode())
+                self.assertEqual(json.loads(target.read_text()), [True, True, 7, 8])
+                start = len(self.session.output)
+                self.session.write(b"visible-echo-probe")
+                self.session.pump(0.1)
+                self.assertIn(b"visible-echo-probe", normalize_terminal_output(bytes(self.session.output[start:])))
+                self.session.write(b"\x15")
+                self.session.pump(0.1)
+                self.session.run_command(b"stty echo intr '^C' erase '^?' -tostop")
 
     def test_custom_fd_redirections_preserve_foreground_launches(self) -> None:
         file_list = Path(self.directory.name) / "files"
@@ -128,7 +255,11 @@ import os
 import sys
 import termios
 with open(sys.argv[1], 'w') as output:
-    json.dump([os.tcgetpgrp(0), termios.tcgetattr(0)[:6]], output)
+    # Check the modes needed by prompt hooks. Other stty changes now persist.
+    a = termios.tcgetattr(0)
+    json.dump([os.tcgetpgrp(0), a[0] & (termios.ICRNL | termios.INLCR),
+               a[1] & (termios.OPOST | termios.ONLCR),
+               a[3] & (termios.ECHO | termios.ICANON | termios.IEXTEN | termios.ISIG)], output)
 """, encoding="utf-8")
         self.session.run_command(b"set +m")
         probe_command = shlex.join([sys.executable, str(probe), str(result)])

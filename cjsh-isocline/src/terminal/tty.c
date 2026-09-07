@@ -64,6 +64,7 @@ WINBASEAPI ULONGLONG WINAPI GetTickCount64(VOID);
 #include "stringbuf.h"
 
 #define TTY_PUSH_MAX (32)
+#define TTY_CPUSH_MAX (256)
 
 struct tty_s {
     int fd_in;
@@ -79,7 +80,7 @@ struct tty_s {
     alloc_t* mem;
     code_t pushbuf[TTY_PUSH_MAX];
     ssize_t push_count;
-    uint8_t cpushbuf[TTY_PUSH_MAX];
+    uint8_t cpushbuf[TTY_CPUSH_MAX];
     ssize_t cpush_count;
     stringbuf_t* typeahead_replay;
     ssize_t typeahead_replay_pos;
@@ -429,43 +430,66 @@ ic_private code_t tty_read(tty_t* tty) {
 //-------------------------------------------------------------
 
 ic_private bool tty_read_esc_response(tty_t* tty, char esc_start, bool final_st, char* buf,
-                                      ssize_t buflen) {
+                                      ssize_t buflen, tty_response_fun_t* matches, void* arg) {
+    if (tty == NULL || buf == NULL || buflen <= 1 || buflen > TTY_CPUSH_MAX - 4)
+        return false;
     buf[0] = 0;
+    uint8_t consumed[TTY_CPUSH_MAX];
+    ssize_t count = 0;
     ssize_t len = 0;
     uint8_t c = 0;
-    if (!tty_readc_noblock(tty, &c, 2 * tty->esc_initial_timeout) || c != '\x1B') {
-        debug_msg("initial esc response failed: 0x%02x\n", c);
+    if (!tty_readc_noblock(tty, &c, 2 * tty->esc_initial_timeout))
         return false;
-    }
-    if (!tty_readc_noblock(tty, &c, tty->esc_timeout) || (c != esc_start))
-        return false;
-    while (len < buflen) {
+    consumed[count++] = c;
+    if (c != '\x1B')
+        goto rejected;
+    if (!tty_readc_noblock(tty, &c, tty->esc_timeout))
+        goto rejected;
+    consumed[count++] = c;
+    if (c != esc_start)
+        goto rejected;
+    while (len < buflen - 1) {
         if (!tty_readc_noblock(tty, &c, tty->esc_timeout))
-            return false;
+            goto rejected;
+        consumed[count++] = c;
         if (final_st) {
-            if (c == '\x07' || c == '\x02') {
-                break;
+            if (c == '\x07') {
+                goto complete;
             } else if (c == '\x1B') {
-                uint8_t c1;
-                if (!tty_readc_noblock(tty, &c1, tty->esc_timeout))
-                    return false;
-                if (c1 == '\\')
-                    break;
-                tty_cpush_char(tty, c1);
+                if (!tty_readc_noblock(tty, &c, tty->esc_timeout))
+                    goto rejected;
+                consumed[count++] = c;
+                if (c == '\\')
+                    goto complete;
+                goto rejected;
             }
+            if (c < 0x20 || c == 0x7F)
+                goto rejected;
         } else {
-            if (c == '\x02') {
-                break;
-            } else if (!((c >= '0' && c <= '9') || strchr("<=>?;:", c) != NULL)) {
+            if (c >= 0x40 && c <= 0x7E) {
                 buf[len++] = (char)c;
-                break;
+                goto complete;
             }
+            if (c < 0x20 || c > 0x3F)
+                goto rejected;
         }
         buf[len++] = (char)c;
     }
+    goto rejected;
+
+complete:
     buf[len] = 0;
-    debug_msg("tty: escape query response: %s\n", buf);
-    return true;
+    if (matches != NULL && matches(buf, arg))
+        return true;
+
+rejected:
+    // These bytes may be typing, paste, or a reply to a different query. Put
+    // them back ahead of unread input, including NUL and partial escapes.
+    assert(tty->cpush_count + count <= TTY_CPUSH_MAX);
+    while (count > 0)
+        tty->cpushbuf[tty->cpush_count++] = consumed[--count];
+    buf[0] = 0;
+    return false;
 }
 
 //-------------------------------------------------------------
@@ -559,7 +583,7 @@ ic_private ssize_t tty_typeahead_replay_count(const tty_t* tty) {
 
 static void tty_cpush(tty_t* tty, const char* s) {
     ssize_t len = ic_strlen(s);
-    if (tty->cpush_count + len > TTY_PUSH_MAX) {
+    if (tty->cpush_count + len > TTY_CPUSH_MAX) {
         debug_msg("tty: cpush buffer full! (pushing %s)\n", s);
         return;
     }
@@ -739,6 +763,7 @@ ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
     }
 
     bool decode_swapped_crlf = tty->typeahead_crlf_swapped;
+    bool decode_cooked_return = false;
     struct termios original_termios;
     memset(&original_termios, 0, sizeof(original_termios));
     bool restore_termios = false;
@@ -746,9 +771,11 @@ ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
         // A foreground program can leave raw input active without updating our
         // cached capture state. Its queued Return bytes are already CR; swapping
         // them would replay Ctrl+J instead of submitting the user's command.
-        if ((original_termios.c_iflag & ICRNL) == 0) {
+        if ((original_termios.c_iflag & (ICRNL | INLCR)) != (ICRNL | INLCR)) {
             decode_swapped_crlf = false;
         }
+        decode_cooked_return = !decode_swapped_crlf &&
+                               (original_termios.c_iflag & ICRNL) != 0;
         struct termios raw_termios = original_termios;
         if (!decode_swapped_crlf) {
             raw_termios.c_iflag &= (tcflag_t)(~(ICRNL | INLCR));
@@ -765,11 +792,11 @@ ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
     for (;;) {
         ssize_t bytes_read = read(tty->fd_in, buffer, sizeof(buffer));
         if (bytes_read > 0) {
-            if (decode_swapped_crlf) {
+            if (decode_swapped_crlf || decode_cooked_return) {
                 for (ssize_t i = 0; i < bytes_read; ++i) {
                     if (buffer[i] == '\n') {
                         buffer[i] = '\r';
-                    } else if (buffer[i] == '\r') {
+                    } else if (decode_swapped_crlf && buffer[i] == '\r') {
                         buffer[i] = '\n';
                     }
                 }
@@ -1048,26 +1075,36 @@ typedef struct signal_handler_s {
         int _avoid_warning;
         struct sigaction previous;
     } action;
+    bool installed;
 } signal_handler_t;
 
 static signal_handler_t sighandlers[] = {
     {SIGWINCH, {0}}, {SIGTERM, {0}}, {SIGINT, {0}},  {SIGQUIT, {0}}, {SIGHUP, {0}},  {SIGSEGV, {0}},
     {SIGTRAP, {0}},  {SIGBUS, {0}},  {SIGTSTP, {0}}, {SIGTTIN, {0}}, {SIGTTOU, {0}}, {0, {0}}};
 
-static bool sigaction_is_valid(struct sigaction* sa) {
-    return (sa->sa_sigaction != NULL && sa->sa_handler != SIG_DFL && sa->sa_handler != SIG_IGN);
+static void sig_handler(int signum, siginfo_t* siginfo, void* uap);
+
+static bool signal_install_wrapper(signal_handler_t* sh) {
+    struct sigaction handler = sh->action.previous;
+    handler.sa_sigaction = sig_handler;
+    handler.sa_flags = SA_SIGINFO | (handler.sa_flags & SA_RESTART);
+    sh->installed = (sigaction(sh->signum, &handler, NULL) == 0);
+    return sh->installed;
 }
 
 static void sig_handler(int signum, siginfo_t* siginfo, void* uap) {
+    ic_unused(siginfo);
+    ic_unused(uap);
+    const int saved_errno = errno;
+    tty_t* tty = sig_tty;
+    const bool resume_raw = (tty != NULL && tty->raw_enabled && signum != SIGWINCH);
     if (signum == SIGWINCH) {
-        if (sig_tty != NULL) {
-            sig_tty->term_resize_event = true;
+        if (tty != NULL) {
+            tty->term_resize_event = true;
         }
-    } else {
-        if (sig_tty != NULL && sig_tty->raw_enabled) {
-            (void)tcsetattr(sig_tty->fd_in, TCSAFLUSH, &sig_tty->orig_ios);
-            sig_tty->raw_enabled = false;
-        }
+    } else if (resume_raw) {
+        (void)tcsetattr(tty->fd_in, TCSANOW, &tty->orig_ios);
+        tty->raw_enabled = false;
     }
 
     signal_handler_t* sh = sighandlers;
@@ -1075,27 +1112,41 @@ static void sig_handler(int signum, siginfo_t* siginfo, void* uap) {
         sh++;
     }
     if (sh->signum == signum) {
-        if (sigaction_is_valid(&sh->action.previous)) {
-            (sh->action.previous.sa_sigaction)(signum, siginfo, uap);
+        // Let the kernel apply the saved disposition and mask. This also honors
+        // SA_RESETHAND on platforms that report it through sigaction. A default
+        // termination never returns; a caught signal or a stop followed by
+        // SIGCONT can.
+        if (sigaction(signum, &sh->action.previous, NULL) == 0) {
+            sigset_t blocked, unblocked;
+            (void)sigprocmask(SIG_SETMASK, NULL, &blocked);
+            unblocked = blocked;
+            sigdelset(&unblocked, signum);
+            (void)sigprocmask(SIG_SETMASK, &unblocked, NULL);
+            (void)raise(signum);
+            (void)sigprocmask(SIG_SETMASK, &blocked, NULL);
+            if (sig_tty == tty && sigaction(signum, NULL, &sh->action.previous) == 0) {
+                if (sh->action.previous.sa_handler == SIG_IGN) {
+                    sh->installed = false;
+                } else {
+                    (void)signal_install_wrapper(sh);
+                }
+            }
         }
     }
+    if (resume_raw && sig_tty == tty) {
+        (void)tty_start_raw(tty);
+    }
+    errno = saved_errno;
 }
 
 static void signals_install(tty_t* tty) {
     sig_tty = tty;
 
-    struct sigaction handler;
-    memset(&handler, 0, sizeof(handler));
-    sigemptyset(&handler.sa_mask);
-    handler.sa_sigaction = &sig_handler;
-    handler.sa_flags = SA_RESTART;
-
     for (signal_handler_t* sh = sighandlers; sh->signum != 0; sh++) {
+        sh->installed = false;
         if (sigaction(sh->signum, NULL, &sh->action.previous) == 0) {
             if (sh->action.previous.sa_handler != SIG_IGN) {
-                if (sigaction(sh->signum, &handler, &sh->action.previous) < 0) {
-                    sh->action.previous.sa_sigaction = NULL;
-                } else if (sh->signum == SIGWINCH) {
+                if (signal_install_wrapper(sh) && sh->signum == SIGWINCH) {
                     sig_tty->has_term_resize_event = true;
                 };
             }
@@ -1105,9 +1156,12 @@ static void signals_install(tty_t* tty) {
 
 static void signals_restore(void) {
     for (signal_handler_t* sh = sighandlers; sh->signum != 0; sh++) {
-        if (sigaction_is_valid(&sh->action.previous)) {
+        struct sigaction current;
+        if (sh->installed && sigaction(sh->signum, NULL, &current) == 0 &&
+            (current.sa_flags & SA_SIGINFO) != 0 && current.sa_sigaction == sig_handler) {
             (void)sigaction(sh->signum, &sh->action.previous, NULL);
-        };
+        }
+        sh->installed = false;
     }
     sig_tty = NULL;
 }
@@ -1160,8 +1214,6 @@ ic_private void tty_end_raw(tty_t* tty) {
         return;
     if (!tty->raw_enabled)
         return;
-    tty->cpush_count = 0;
-
     // Preserve bytes that arrived under raw-mode CR/LF semantics before
     // switching to the swapped capture termios. Otherwise a raw Return still
     // waiting in the kernel queue is later decoded as if it had been swapped
@@ -1208,18 +1260,20 @@ ic_private void tty_enable_typeahead_capture_mode(tty_t* tty, bool enable) {
         (enable && (tty->orig_ios.c_iflag & ICRNL) != 0 && (tty->orig_ios.c_iflag & IGNCR) == 0);
 }
 
-static bool tty_init_raw(tty_t* tty) {
-    if (tcgetattr(tty->fd_in, &tty->orig_ios) == -1)
-        return false;
-    tty->raw_ios = tty->orig_ios;
+static void tty_derive_capture_modes(tty_t* tty) {
     tty->typeahead_ios = tty->orig_ios;
 
     // With both mappings enabled, the line discipline maps terminal Return
     // (CR) to LF and Ctrl+J (LF) to CR. Capture swaps them back before replay.
-    // This preserves normal cooked-mode Enter behavior for foreground tools.
+    // This mode belongs only to shell capture, never to foreground commands.
     if ((tty->orig_ios.c_iflag & ICRNL) != 0 && (tty->orig_ios.c_iflag & IGNCR) == 0) {
         tty->typeahead_ios.c_iflag |= INLCR;
     }
+}
+
+static void tty_derive_modes(tty_t* tty) {
+    tty_derive_capture_modes(tty);
+    tty->raw_ios = tty->orig_ios;
 
     tty->raw_ios.c_iflag &= ~(unsigned long)(BRKINT | ICRNL | INLCR | INPCK | ISTRIP | IXON);
 
@@ -1229,6 +1283,36 @@ static bool tty_init_raw(tty_t* tty) {
 
     tty->raw_ios.c_cc[VTIME] = 0;
     tty->raw_ios.c_cc[VMIN] = 1;
+}
+
+ic_private void tty_adopt_external_modes(tty_t* tty) {
+    // Only adopt settings while commands own the modes. Editor/capture modes
+    // are implementation details and must never become the external baseline.
+    if (tty == NULL || tty->raw_enabled || tty->typeahead_capture_mode)
+        return;
+    struct termios modes;
+    if (tcgetattr(tty->fd_in, &modes) != 0)
+        return;
+    modes.c_lflag |= ECHO | ICANON | IEXTEN | ISIG;
+#ifdef FLUSHO
+    modes.c_lflag &= ~(tcflag_t)FLUSHO;
+#endif
+    modes.c_iflag = (modes.c_iflag | ICRNL) & ~(tcflag_t)(INLCR | IGNCR);
+    modes.c_oflag |= OPOST | ONLCR;
+    // Raw programs commonly overwrite these; restore the command baseline's
+    // read thresholds while retaining user control characters and other flags.
+    modes.c_cc[VMIN] = tty->orig_ios.c_cc[VMIN];
+    modes.c_cc[VTIME] = tty->orig_ios.c_cc[VTIME];
+    tty->orig_ios = modes;
+    // Keep the editor's own modes stable. Changes such as erase/intr/tostop
+    // belong to the external baseline; the editor has its own key bindings.
+    tty_derive_capture_modes(tty);
+}
+
+static bool tty_init_raw(tty_t* tty) {
+    if (tcgetattr(tty->fd_in, &tty->orig_ios) == -1)
+        return false;
+    tty_derive_modes(tty);
 
     signals_install(tty);
 
@@ -1247,6 +1331,10 @@ static void tty_done_raw(tty_t* tty) {
 // For best portability we push CSI escape sequences directly
 // to the character stream (instead of returning key codes).
 //-------------------------------------------------------------
+
+ic_private void tty_adopt_external_modes(tty_t* tty) {
+    ic_unused(tty);
+}
 
 static void tty_waitc_console(tty_t* tty, long timeout_ms);
 

@@ -1362,7 +1362,7 @@ struct tty_s {
     alloc_t* mem;
     code_t pushbuf[32];
     ssize_t push_count;
-    uint8_t cpushbuf[32];
+    uint8_t cpushbuf[256];
     ssize_t cpush_count;
     stringbuf_t* typeahead_replay;
     ssize_t typeahead_replay_pos;
@@ -1374,19 +1374,20 @@ static bool test_tty_character_pushback_capacity_guard(void) {
     struct tty_s tty_probe;
     memset(&tty_probe, 0, sizeof(tty_probe));
 
-    for (size_t i = 0; i < 33; ++i) {
+    const size_t capacity = sizeof(tty_probe.cpushbuf);
+    for (size_t i = 0; i <= capacity; ++i) {
         tty_cpush_char((tty_t*)&tty_probe, (uint8_t)('a' + (i % 26)));
     }
 
-    EXPECT_TRUE(tty_probe.cpush_count == 32,
-                "character pushback buffer should clamp at 32 entries");
+    EXPECT_TRUE(tty_probe.cpush_count == (ssize_t)capacity,
+                "character pushback buffer should clamp at its capacity");
 
     size_t pops = 0;
     uint8_t c = 0;
     while (tty_cpop((tty_t*)&tty_probe, &c)) {
         pops++;
     }
-    EXPECT_TRUE(pops == 32, "character pushback pop count should match clamped capacity");
+    EXPECT_TRUE(pops == capacity, "character pushback pop count should match clamped capacity");
 
     return true;
 }
