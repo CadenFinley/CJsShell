@@ -41,37 +41,210 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
+  build-macos:
+    name: Test ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Linux GCC Release
-            os: ubuntu-latest
-            preset: ci-linux-gcc-release
-          - name: macOS Clang Release
-            os: macos-latest
-            preset: ci-macos-clang-release
-          - name: Linux Minimal Preset
-            os: ubuntu-latest
-            preset: minimal
-
+          - target: macos-x86_64
+            runner: macos-15-intel
+            architectures: x86_64
+            verify_architectures: x86_64
+            architecture_count: 1
+            deployment_target: "12.0"
+          - target: macos-arm64
+            runner: macos-15
+            architectures: arm64
+            verify_architectures: arm64
+            architecture_count: 1
+            deployment_target: "15.0"
+          - target: macos-universal2
+            runner: macos-15
+            architectures: "x86_64;arm64"
+            verify_architectures: "x86_64 arm64"
+            architecture_count: 2
+            deployment_target: "12.0"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.x"
+          python-version: "3.13"
 
-      - name: Configure CMake
-        run: cmake --preset ${{ matrix.preset }}
+      - name: Configure
+        env:
+          OSX_ARCHITECTURES: ${{ matrix.architectures }}
+          OSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target }}
+        run: |
+          cmake --preset release-artifact \
+            -DCMAKE_OSX_ARCHITECTURES="$OSX_ARCHITECTURES" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="$OSX_DEPLOYMENT_TARGET"
 
       - name: Build
-        run: cmake --build --preset ${{ matrix.preset }} --parallel
+        run: cmake --build --preset release-artifact --parallel
 
       - name: Run all tests in parallel
-        run: ctest --preset ${{ matrix.preset }} --parallel 4
+        run: ctest --preset release-artifact --parallel 4
+
+      - name: Verify Mach-O architectures and minimum macOS version
+        env:
+          EXPECTED_ARCHITECTURES: ${{ matrix.verify_architectures }}
+          EXPECTED_ARCHITECTURE_COUNT: ${{ matrix.architecture_count }}
+          EXPECTED_DEPLOYMENT_TARGET: ${{ matrix.deployment_target }}
+        run: |
+          set -euo pipefail
+          binary=build/release-artifact/cjsh
+          read -r -a expected_architectures <<< "$EXPECTED_ARCHITECTURES"
+          lipo "$binary" -verify_arch "${expected_architectures[@]}"
+          architecture_count=$(lipo -archs "$binary" | wc -w | tr -d ' ')
+          if [[ "$architecture_count" != "$EXPECTED_ARCHITECTURE_COUNT" ]]; then
+            echo "Expected $EXPECTED_ARCHITECTURE_COUNT Mach-O slices, found $architecture_count" >&2
+            exit 1
+          fi
+          minimum_versions=$(otool -arch all -l "$binary" | awk '$1 == "minos" { print $2 }' | sort -u)
+          if [[ "$minimum_versions" != "$EXPECTED_DEPLOYMENT_TARGET" ]]; then
+            echo "Expected macOS $EXPECTED_DEPLOYMENT_TARGET minimum, found: $minimum_versions" >&2
+            exit 1
+          fi
+          file "$binary"
+
+  build-linux-gnu:
+    name: Test ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-gnu-x86_64
+            runner: ubuntu-22.04
+            machine: x86_64
+          - target: linux-gnu-arm64
+            runner: ubuntu-22.04-arm
+            machine: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Configure
+        run: cmake --preset release-artifact
+
+      - name: Build
+        run: cmake --build --preset release-artifact --parallel
+
+      - name: Run all tests in parallel
+        run: ctest --preset release-artifact --parallel 4
+
+      - name: Verify glibc ELF binary
+        env:
+          EXPECTED_MACHINE: ${{ matrix.machine }}
+        run: |
+          set -euo pipefail
+          binary=build/release-artifact/cjsh
+          if [[ "$(uname -m)" != "$EXPECTED_MACHINE" ]]; then
+            echo "Expected runner architecture $EXPECTED_MACHINE, found $(uname -m)" >&2
+            exit 1
+          fi
+          interpreter=$(readelf -l "$binary" | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')
+          if [[ "$interpreter" != *ld-linux* ]]; then
+            echo "Expected a glibc dynamic loader, found: $interpreter" >&2
+            exit 1
+          fi
+          file "$binary"
+          ldd "$binary"
+
+  build-linux-musl:
+    name: Test ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-musl-x86_64
+            runner: ubuntu-22.04
+            docker_platform: linux/amd64
+            machine: x86_64
+          - target: linux-musl-arm64
+            runner: ubuntu-22.04-arm
+            docker_platform: linux/arm64
+            machine: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Build and test static musl binary
+        env:
+          DOCKER_PLATFORM: ${{ matrix.docker_platform }}
+          EXPECTED_MACHINE: ${{ matrix.machine }}
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --platform "$DOCKER_PLATFORM" \
+            --cap-add MKNOD \
+            -e CI=true \
+            -e GITHUB_ACTIONS=true \
+            -e EXPECTED_MACHINE \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work \
+            alpine:3.22 \
+            sh -euxc '
+              apk add --no-cache bash binutils build-base cmake coreutils file findutils git grep linux-headers ninja procps python3 sed su-exec
+              adduser -D -u 1000 cjsh-test
+              install -d -o cjsh-test -g cjsh-test /tmp/cjsh-tests
+              mknod /dev/cjsh-test-block b 7 0
+              git config --global --add safe.directory /work
+              cmake --preset release-static
+              cmake --build --preset release-static --parallel
+              su-exec cjsh-test env HOME=/home/cjsh-test CJSH_TEST_SKIP_PRELOAD_INJECTION=1 ctest --preset release-static --parallel 4 -E "^build_system_configuration_tests$"
+              test "$(uname -m)" = "$EXPECTED_MACHINE"
+              readelf -l build/release-static/cjsh > build/release-static/program-headers.txt
+              if grep -q " INTERP " build/release-static/program-headers.txt; then
+                echo "musl release binary unexpectedly contains a dynamic interpreter" >&2
+                exit 1
+              fi
+              file build/release-static/cjsh
+            '
+
+  build-minimal:
+    name: Linux Minimal Preset
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Configure
+        run: cmake --preset minimal
+
+      - name: Build
+        run: cmake --build --preset minimal --parallel
+
+      - name: Run all tests in parallel
+        run: ctest --preset minimal --parallel 4
