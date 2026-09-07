@@ -109,6 +109,31 @@ int open_controlling_terminal(bool& should_close) {
 
 }  // namespace
 
+int suspend_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(
+            args, {"Usage: suspend [-f]", "Suspend this interactive shell until continued.",
+                   "-f allows suspension of a login shell."}))
+        return 0;
+    const bool force = args.size() == 2 && args[1] == "-f";
+    if (args.size() > 1 && !force) {
+        print_error({ErrorType::INVALID_ARGUMENT, "suspend", "Usage: suspend [-f]", {}});
+        return 2;
+    }
+    if (config::login_mode && !force) {
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "suspend", "cannot suspend a login shell; use -f", {}});
+        return 1;
+    }
+    if (!config::interactive_mode || !g_shell || !g_shell->suspend()) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "suspend",
+                     "requires an interactive shell with a controlling terminal",
+                     {}});
+        return 1;
+    }
+    return 0;
+}
+
 int bg_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(
             args, {"Usage: bg [JOB_SPEC|PID ...]", "Resume stopped jobs in the background."})) {

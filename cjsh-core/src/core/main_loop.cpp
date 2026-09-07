@@ -168,11 +168,6 @@ CommandProcessResult process_command_line(const std::string& command) {
 
     // add to history
     if (config::history_enabled) {
-        // Interactive readline already staged the submitted line in history.
-        // Replace that staging entry with the executed record so frequency tracks runs once.
-        if (command.size() > 1) {
-            ic_history_remove_last();
-        }
         const std::string exit_code_str = std::to_string(exit_code);
         const std::string elapsed_ms_str = std::to_string(static_cast<long long>(elapsed_ms));
         const ic_history_metadata_t metadata[] = {
@@ -623,6 +618,7 @@ void initialize_isocline() {
     initialize_completion_system();
     SyntaxHighlighter::initialize_syntax_highlighting();
     (void)ic_enable_history_duplicates(false);
+    (void)ic_enable_history_auto_add(false);
     (void)ic_enable_multiline_continuation_retention(true);
     ic_set_prompt_marker("", nullptr);
     ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);

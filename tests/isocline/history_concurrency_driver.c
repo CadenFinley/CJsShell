@@ -1,7 +1,7 @@
 /*
-  fuzzy_match.h
+  history_concurrency_driver.c
 
-  This file is part of isocline
+  This file is part of cjsh, CJ's Shell
 
   MIT License
 
@@ -26,24 +26,21 @@
   SOFTWARE.
 */
 
-/* Shared fuzzy matching helpers for isocline menus. */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "isocline.h"
 
-#pragma once
-#ifndef IC_FUZZY_MATCH_H
-#define IC_FUZZY_MATCH_H
-
-#include <stdbool.h>
-#include <stddef.h>
-
-#include "common.h"
-
-ic_private bool ic_fuzzy_char_equals(char left, char right, bool case_sensitive);
-ic_private bool ic_fuzzy_find_substring(const char* haystack, const char* needle,
-                                        bool case_sensitive, ssize_t* pos_out, ssize_t* len_out);
-ic_private int ic_fuzzy_match_score(const char* entry, const char* query, ssize_t* match_pos,
-                                    ssize_t* match_len, bool case_sensitive);
-ic_private bool ic_fuzzy_next_token(const char** cursor, const char** token_start,
-                                    size_t* token_len);
-ic_private bool ic_fuzzy_trim_token(const char** token_start, size_t* token_len);
-
-#endif  // IC_FUZZY_MATCH_H
+int main(int argc, char** argv) {
+    if (argc != 6)
+        return 2;
+    ic_set_history(argv[1], strtol(argv[2], NULL, 10));
+    for (int i = 0; i < atoi(argv[4]); ++i) {
+        char command[128];
+        snprintf(command, sizeof(command), "%s-%d", argv[3], i);
+        const ic_history_metadata_t metadata[] = {{"frequency", "0"}, {"worker", argv[3]}};
+        ic_history_add_with_metadata(strcmp(argv[5], "shared") == 0 ? "shared" : command, metadata,
+                                     2);
+    }
+    return 0;
+}

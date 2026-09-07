@@ -33,6 +33,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <iostream>
 #include <optional>
 
 #include "agent_mode.h"
@@ -65,6 +66,9 @@ constexpr int kOptNoErrorSuggestions = 261;
 constexpr int kOptNoPromptVars = 262;
 constexpr int kOptNoHistory = 263;
 constexpr int kOptNoAgent = 264;
+constexpr int kOptNoConfig = 265;
+constexpr int kOptConfigDir = 266;
+constexpr int kOptLoginPath = 267;
 std::vector<std::string> positional_parameters;
 bool login_shell_invocation = false;
 
@@ -131,6 +135,9 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"interactive", no_argument, nullptr, 'i'},
         {"command", required_argument, nullptr, 'c'},
         {"no-exec", no_argument, nullptr, kOptNoExec},
+        {"no-config", no_argument, nullptr, kOptNoConfig},
+        {"config-dir", required_argument, nullptr, kOptConfigDir},
+        {"login-path", no_argument, nullptr, kOptLoginPath},
         {"posix", no_argument, nullptr, kOptPosix},
         {"version", no_argument, nullptr, 'v'},
         {"help", no_argument, nullptr, 'h'},
@@ -154,7 +161,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"no-sh-warning", no_argument, nullptr, 'W'},
         {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:vhCLUNOSXmsHW";
+    const char* short_options = "+lic:nvhCLUNOSXmsHW";
 
     int option_index = 0;
     int c;
@@ -174,8 +181,25 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 config::interactive_mode = false;
                 config::history_expansion_enabled = false;
                 break;
+            case 'n':
             case kOptNoExec:
                 config::no_exec = true;
+                break;
+            case kOptNoConfig:
+                config::no_config = true;
+                break;
+            case kOptConfigDir:
+                if (optarg[0] == '\0') {
+                    std::cerr << "cjsh: --config-dir requires a nonempty directory\n"
+                              << get_usage();
+                    result.exit_code = 1;
+                    result.should_exit = true;
+                    return result;
+                }
+                config::config_directory = optarg;
+                break;
+            case kOptLoginPath:
+                config::login_path = true;
                 break;
             case kOptPosix:
                 apply_posix_mode_settings();
@@ -247,8 +271,8 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 config::suppress_sh_warning = true;
                 break;
             case '?':
-                (void)print_usage();
-                result.exit_code = 127;
+                std::cerr << get_usage();
+                result.exit_code = 1;
                 result.should_exit = true;
                 return result;
             default:
@@ -256,7 +280,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                              std::string(1, static_cast<char>(c)),
                              "Unrecognized option",
                              {"Check command line arguments"}});
-                result.exit_code = 127;
+                result.exit_code = 1;
                 result.should_exit = true;
                 return result;
         }

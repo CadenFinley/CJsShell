@@ -2,6 +2,8 @@
 
 # test_terminal_recovery.py
 #
+# This file is part of cjsh, CJ's Shell
+#
 # MIT License
 #
 # Copyright (c) 2026 Caden Finley

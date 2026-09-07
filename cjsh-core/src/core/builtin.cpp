@@ -90,7 +90,7 @@ bool is_posix_restricted_builtin(const std::string& name) {
            name == "type" || name == "which" || name == "jobname" || name == "disown" ||
            name == "generate-completions" || name == "firstboot" || name == "hook" ||
            name == "cjsh-widget" || name == "cjshopt" || name == "builtin" || name == "quit" ||
-           name == "bye";
+           name == "bye" || name == "suspend";
 }
 
 int reject_posix_restricted_builtin(const std::string& name) {
@@ -226,6 +226,7 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"wait", [](const std::vector<std::string>& args) { return ::wait_command(args); }},
         {"kill", [](const std::vector<std::string>& args) { return ::kill_command(args); }},
         {"disown", [](const std::vector<std::string>& args) { return ::disown_command(args); }},
+        {"suspend", [](const std::vector<std::string>& args) { return ::suspend_command(args); }},
         {"readonly", [](const std::vector<std::string>& args) { return ::readonly_command(args); }},
         {"read",
          [this](const std::vector<std::string>& args) { return ::read_command(args, shell); }},

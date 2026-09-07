@@ -177,7 +177,9 @@ std::filesystem::path normalize_override_path(std::string_view raw_value) {
 }
 
 const std::filesystem::path& g_cjsh_config_path() {
-    static const std::filesystem::path path = g_user_home_path() / ".config" / "cjsh";
+    static const std::filesystem::path path = config::config_directory.empty()
+                                                  ? g_user_home_path() / ".config" / "cjsh"
+                                                  : std::filesystem::path(config::config_directory);
     return path;
 }
 
@@ -187,22 +189,28 @@ const std::filesystem::path& g_cjsh_cache_path() {
 }
 
 const std::filesystem::path& g_cjsh_profile_path() {
-    static const std::filesystem::path path = g_user_home_path() / ".cjprofile";
+    static const std::filesystem::path path =
+        (config::config_directory.empty() ? g_user_home_path() : g_cjsh_config_path()) /
+        ".cjprofile";
     return path;
 }
 
 const std::filesystem::path& g_cjsh_env_path() {
-    static const std::filesystem::path path = g_user_home_path() / ".cjshenv";
+    static const std::filesystem::path path =
+        (config::config_directory.empty() ? g_user_home_path() : g_cjsh_config_path()) / ".cjshenv";
     return path;
 }
 
 const std::filesystem::path& g_cjsh_source_path() {
-    static const std::filesystem::path path = g_user_home_path() / ".cjshrc";
+    static const std::filesystem::path path =
+        (config::config_directory.empty() ? g_user_home_path() : g_cjsh_config_path()) / ".cjshrc";
     return path;
 }
 
 const std::filesystem::path& g_cjsh_logout_path() {
-    static const std::filesystem::path path = g_user_home_path() / ".cjlogout";
+    static const std::filesystem::path path =
+        (config::config_directory.empty() ? g_user_home_path() : g_cjsh_config_path()) /
+        ".cjlogout";
     return path;
 }
 
@@ -1093,63 +1101,52 @@ bool file_exists(const std::filesystem::path& path) {
 }
 
 bool initialize_cjsh_directories() {
-    if (!path_is_directory(g_user_home_path())) {
-        print_error(
-            {ErrorType::FATAL_ERROR,
-             "",
-             "User home path not found",
-             {"Set $HOME to an existing directory.", "Create the home directory and try again."}});
-        return false;
-    }
+    static bool initialized = false;
+    if (initialized)
+        return true;
+    initialized = true;
 
-    auto create_directory_or_report = [](const std::filesystem::path& directory) {
+    auto warn = [](const std::filesystem::path& path) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     ErrorSeverity::WARNING,
+                     path.string(),
+                     "persistence unavailable; continuing without this storage",
+                     {}});
+    };
+    auto prepare_directory = [](const std::filesystem::path& path) {
         std::error_code ec;
-        (void)std::filesystem::create_directories(directory, ec);
-        if (!ec) {
-            return true;
-        }
-
-        print_error({ErrorType::FATAL_ERROR,
-                     directory.string(),
-                     "Failed to initialize interactive filesystem: " + ec.message(),
-                     {"Ensure $HOME exists and is writable.",
-                      "Check permissions for ~/.config/cjsh and ~/.cache/cjsh."}});
-        return false;
+        (void)std::filesystem::create_directories(path, ec);
+        return !ec && access(path.c_str(), W_OK | X_OK) == 0;
     };
 
-    if (!create_directory_or_report(g_cjsh_config_path()) ||
-        !create_directory_or_report(g_cjsh_cache_path()) ||
-        !create_directory_or_report(g_cjsh_generated_completions_path())) {
-        return false;
+    // Never create a missing HOME as a side effect of starting a shell.
+    const bool home_exists = path_is_directory(g_user_home_path());
+    const bool cache_ok = home_exists && prepare_directory(g_cjsh_cache_path());
+    config::cache_persistence_enabled = cache_ok;
+    if (!cache_ok)
+        warn(g_cjsh_cache_path());
+
+    if (config::completion_learning_enabled &&
+        (!cache_ok || !prepare_directory(g_cjsh_generated_completions_path()))) {
+        config::completion_learning_enabled = false;
+        if (cache_ok)
+            warn(g_cjsh_generated_completions_path());
     }
 
-    if (!config::history_enabled) {
-        return true;
+    if (config::history_enabled) {
+        const auto& path = g_cjsh_history_path();
+        const bool custom = !cjsh_env::get_shell_variable_value("CJSH_HISTORY_FILE").empty();
+        const bool directory_ok = (custom || cache_ok) && prepare_directory(path.parent_path());
+        int fd = directory_ok ? open(path.c_str(),
+                                     O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC | O_NONBLOCK, 0600)
+                              : -1;
+        struct stat history_stat{};
+        config::history_persistence_enabled =
+            fd >= 0 && fstat(fd, &history_stat) == 0 && S_ISREG(history_stat.st_mode);
+        close_fd_if_valid(fd);
+        if (!config::history_persistence_enabled && (custom || cache_ok))
+            warn(path);
     }
-
-    const auto& history_path = g_cjsh_history_path();
-    const auto history_parent = history_path.parent_path();
-
-    if (!history_parent.empty()) {
-        std::error_code history_dir_error;
-        (void)std::filesystem::create_directories(history_parent, history_dir_error);
-        if (history_dir_error) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         history_parent.string(),
-                         "Failed to prepare history directory: " + history_dir_error.message(),
-                         {"Check CJSH_HISTORY_FILE or adjust permissions"}});
-            return false;
-        }
-    }
-
-    if (!file_exists(history_path)) {
-        auto write_result = write_file_content(history_path.string(), "");
-        if (!write_result.is_ok()) {
-            print_error({ErrorType::RUNTIME_ERROR, history_path.c_str(), write_result.error(), {}});
-            return false;
-        }
-    }
-
     return true;
 }
 
@@ -1324,7 +1321,7 @@ bool create_default_startup_file(const std::filesystem::path& target_path,
 }
 
 bool startup_files_disabled() {
-    return config::secure_mode || config::posix_mode;
+    return config::secure_mode || config::no_config || config::no_exec;
 }
 }  // namespace
 
@@ -1352,7 +1349,7 @@ bool create_logout_file(const std::filesystem::path& target_path) {
 }
 
 bool is_first_boot() {
-    return !file_exists(g_cjsh_first_boot_path());
+    return config::cache_persistence_enabled && !file_exists(g_cjsh_first_boot_path());
 }
 
 void process_profile_files() {
@@ -1360,12 +1357,18 @@ void process_profile_files() {
         return;
     }
 
+    if (config::posix_mode) {
+        (void)execute_startup_file_if_present("/etc/profile", true, true);
+        if (!cjsh_env::exit_requested())
+            (void)execute_startup_file_if_present(g_user_home_path() / ".profile", true, true);
+        return;
+    }
     (void)process_startup_file_with_fallback(g_cjsh_profile_path(), g_cjsh_profile_alt_path(),
                                              false, true);
 }
 
 void process_env_files() {
-    if (startup_files_disabled()) {
+    if (startup_files_disabled() || config::posix_mode) {
         return;
     }
 
@@ -1384,8 +1387,22 @@ void process_env_files() {
     (void)process_startup_file_with_fallback(g_cjsh_env_path(), g_cjsh_env_alt_path(), true, true);
 }
 
+void process_posix_env_file() {
+    if (!config::posix_mode || !config::interactive_mode || startup_files_disabled() ||
+        getuid() != geteuid() || getgid() != getegid())
+        return;
+    std::string path = cjsh_env::get_shell_variable_value("ENV");
+    if (path.empty())
+        return;
+    // Expand parameters (and arithmetic), without splitting, globbing, tilde
+    // expansion, PATH search, or evaluating ENV as a command string.
+    g_shell->get_parser()->expand_env_vars(path);
+    if (!path.empty() && !cjsh_env::exit_requested())
+        (void)execute_startup_file_if_present(path, true, true);
+}
+
 void process_logout_file() {
-    if (startup_files_disabled()) {
+    if (startup_files_disabled() || config::posix_mode) {
         return;
     }
 
@@ -1394,7 +1411,7 @@ void process_logout_file() {
 }
 
 void process_source_files() {
-    if (!config::source_enabled || startup_files_disabled()) {
+    if (!config::source_enabled || startup_files_disabled() || config::posix_mode) {
         return;
     }
 

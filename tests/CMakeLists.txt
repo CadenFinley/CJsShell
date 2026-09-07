@@ -91,6 +91,10 @@ add_executable(isocline_pty_driver "${CMAKE_CURRENT_SOURCE_DIR}/isocline/isoclin
 target_link_libraries(isocline_pty_driver PRIVATE cjsh_isocline Threads::Threads)
 
 if(UNIX)
+    add_executable(history_concurrency_driver "${CMAKE_CURRENT_SOURCE_DIR}/isocline/history_concurrency_driver.c")
+    target_link_libraries(history_concurrency_driver PRIVATE cjsh_isocline)
+    add_library(startup_policy_injector SHARED "${CMAKE_CURRENT_SOURCE_DIR}/core/startup_policy_injector.c")
+    set_target_properties(startup_policy_injector PROPERTIES PREFIX "")
     add_executable(lifecycle_probe "${CMAKE_CURRENT_SOURCE_DIR}/core/lifecycle_probe.c")
     add_executable(terminal_contract_driver "${CMAKE_CURRENT_SOURCE_DIR}/isocline/terminal_contract_driver.c")
     target_link_libraries(terminal_contract_driver PRIVATE cjsh_isocline)
@@ -144,6 +148,17 @@ cjsh_add_test(NAME function_syntax_tests COMMAND function_syntax_tests)
 cjsh_add_test(NAME loop_syntax_tests COMMAND loop_syntax_tests)
 
 if(Python3_Interpreter_FOUND)
+    if(UNIX)
+        cjsh_add_test(NAME history_concurrency_tests
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/isocline/test_history_concurrency.py"
+                    $<TARGET_FILE:history_concurrency_driver>)
+        cjsh_add_test(NAME batch2_interactive_tests
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_batch2_interactive.py"
+                    $<TARGET_FILE:cjsh>)
+        cjsh_add_test(NAME batch2_startup_tests
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_batch2_startup.py"
+                    $<TARGET_FILE:cjsh> $<TARGET_FILE:startup_policy_injector>)
+    endif()
     if(UNIX)
         cjsh_add_test(
             NAME shell_lifecycle_tests

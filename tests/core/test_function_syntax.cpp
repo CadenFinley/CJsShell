@@ -118,6 +118,10 @@ int main() {
         ++failures;
     }
 
+    // Match the executable's explicit teardown before process-wide registries
+    // are destroyed by static finalization.
+    g_shell.reset();
+
     if (failures != 0) {
         (void)std::fprintf(stderr, "%zu/2 function syntax tests failed\n", failures);
         return 1;

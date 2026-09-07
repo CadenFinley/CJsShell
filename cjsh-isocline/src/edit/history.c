@@ -38,6 +38,13 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#ifndef _WIN32
+#include <fcntl.h>
+#include <sys/file.h>
+#include <unistd.h>
+#else
+#include <windows.h>
+#endif
 
 #include "common.h"
 #include "fuzzy_match.h"
@@ -50,10 +57,13 @@ struct history_s {
     const char* fname;
     alloc_t* mem;
     bool allow_duplicates;
+    bool auto_add;
     bool fuzzy_case_sensitive;
     ssize_t max_entries;
     char* scratch;
     ssize_t scratch_cap;
+    char* pending;  // This session's unfinished readline entry; never persisted.
+    bool persistence_failed;
 };
 
 typedef struct history_list_s {
@@ -246,7 +256,7 @@ ic_private const char* history_entry_get_metadata(const history_entry_t* entry, 
 }
 
 static bool history_is_disabled(const history_t* h) {
-    return (h == NULL || h->max_entries == 0);
+    return (h == NULL || h->max_entries == 0 || h->persistence_failed);
 }
 
 static void history_list_init(history_list_t* list) {
@@ -363,9 +373,10 @@ static void history_list_remove_duplicates(history_t* h, history_list_t* list) {
     }
 }
 
+static void history_persistence_error(history_t* h);
 static bool history_collect_entries(history_t* h, history_list_t* list, bool dedup);
 static bool history_write_all(const history_t* h, const history_list_t* list);
-static bool history_append_entry(const history_t* h, const history_entry_t* entry);
+static bool history_collect_disk_entries(history_t* h, history_list_t* list, bool dedup);
 
 static bool history_list_remove_value(history_t* h, history_list_t* list, const char* value) {
     if (list == NULL || value == NULL)
@@ -555,6 +566,7 @@ ic_private history_t* history_new(alloc_t* mem) {
         return NULL;
     h->mem = mem;
     h->allow_duplicates = false;
+    h->auto_add = true;
     h->fuzzy_case_sensitive = true;
     h->max_entries = IC_DEFAULT_HISTORY;
     h->scratch = NULL;
@@ -570,9 +582,18 @@ ic_private void history_free(history_t* h) {
         h->scratch = NULL;
         h->scratch_cap = 0;
     }
+    mem_free(h->mem, h->pending);
     mem_free(h->mem, h->fname);
     h->fname = NULL;
     mem_free(h->mem, h);
+}
+
+ic_private bool history_enable_auto_add(history_t* h, bool enable) {
+    if (h == NULL)
+        return false;
+    bool previous = h->auto_add;
+    h->auto_add = enable;
+    return previous;
 }
 
 ic_private bool history_enable_duplicates(history_t* h, bool enable) {
@@ -650,20 +671,24 @@ static bool history_update_file(history_t* h, history_list_t* list) {
     return true;
 }
 
-ic_private bool history_update(history_t* h, const char* entry) {
+static bool history_push_with_metadata_unlocked(history_t* h, const char* entry,
+                                                const ic_history_metadata_t* metadata,
+                                                size_t metadata_count);
+
+static bool history_update_unlocked(history_t* h, const char* entry) {
     if (h == NULL || entry == NULL || history_is_disabled(h))
         return false;
 
     history_list_t list;
     history_list_init(&list);
-    if (!history_collect_entries(h, &list, false)) {
+    if (!history_collect_disk_entries(h, &list, false)) {
         history_list_free(h, &list);
         return false;
     }
 
     if (list.count == 0) {
         history_list_free(h, &list);
-        return history_push(h, entry);
+        return history_push_with_metadata_unlocked(h, entry, NULL, 0);
     }
 
     char* normalized = history_entry_dup_trimmed(h->mem, entry);
@@ -687,9 +712,9 @@ ic_private bool history_push(history_t* h, const char* entry) {
     return history_push_with_metadata(h, entry, NULL, 0);
 }
 
-ic_private bool history_push_with_metadata(history_t* h, const char* entry,
-                                           const ic_history_metadata_t* metadata,
-                                           size_t metadata_count) {
+static bool history_push_with_metadata_unlocked(history_t* h, const char* entry,
+                                                const ic_history_metadata_t* metadata,
+                                                size_t metadata_count) {
     if (h == NULL || entry == NULL || history_is_disabled(h))
         return false;
 
@@ -699,7 +724,7 @@ ic_private bool history_push_with_metadata(history_t* h, const char* entry,
 
     history_list_t list;
     history_list_init(&list);
-    if (!history_collect_entries(h, &list, false)) {
+    if (!history_collect_disk_entries(h, &list, false)) {
         history_list_free(h, &list);
         mem_free(h->mem, normalized);
         return false;
@@ -714,9 +739,8 @@ ic_private bool history_push_with_metadata(history_t* h, const char* entry,
         }
     }
 
-    bool removed_existing = false;
     if (!h->allow_duplicates) {
-        removed_existing = history_list_remove_value(h, &list, normalized);
+        (void)history_list_remove_value(h, &list, normalized);
     }
 
     history_entry_t new_entry = {
@@ -747,28 +771,14 @@ ic_private bool history_push_with_metadata(history_t* h, const char* entry,
         return false;
     }
 
-    ssize_t before_prune = list.count;
     history_list_prune_to_max(h, &list);
-    bool pruned = (list.count != before_prune);
-
-    const bool needs_full_rewrite = removed_existing || pruned;
-
-    bool ok = false;
-    if (needs_full_rewrite) {
-        ok = history_update_file(h, &list);
-    } else {
-        history_entry_t* latest = (list.count > 0) ? &list.entries[list.count - 1] : NULL;
-        ok = history_append_entry(h, latest);
-        if (!ok && latest != NULL) {
-            ok = history_update_file(h, &list);
-        }
-    }
+    bool ok = history_update_file(h, &list);
 
     history_list_free(h, &list);
     return ok;
 }
 
-ic_private void history_remove_last(history_t* h) {
+static void history_remove_last_unlocked(history_t* h) {
     if (history_is_disabled(h))
         return;
     history_list_t list;
@@ -777,7 +787,7 @@ ic_private void history_remove_last(history_t* h) {
     h->allow_duplicates = true;
     // Keep earlier duplicates intact while removing the transient current-line entry;
     // collapsing first would discard the accumulated frequency of older commands.
-    const bool collected = history_collect_entries(h, &list, false);
+    const bool collected = history_collect_disk_entries(h, &list, false);
     h->allow_duplicates = previous_allow_duplicates;
     if (!collected) {
         history_list_free(h, &list);
@@ -790,7 +800,7 @@ ic_private void history_remove_last(history_t* h) {
     history_list_free(h, &list);
 }
 
-ic_private void history_clear(history_t* h) {
+static void history_clear_unlocked(history_t* h) {
     if (h == NULL)
         return;
     if (h->scratch != NULL) {
@@ -800,13 +810,9 @@ ic_private void history_clear(history_t* h) {
     }
     if (h->fname == NULL || history_is_disabled(h))
         return;
-    FILE* f = fopen(h->fname, "w");
-    if (f != NULL) {
-#ifndef _WIN32
-        (void)chmod(h->fname, S_IRUSR | S_IWUSR);
-#endif
-        (void)history_close_stream(f);
-    }
+    history_list_t list;
+    history_list_init(&list);
+    (void)history_write_all(h, &list);
 }
 
 ic_private bool history_search(const history_t* h, ssize_t from, const char* search, bool backward,
@@ -1251,8 +1257,17 @@ ic_private void history_load_from(history_t* h, const char* fname, long max_entr
         h->fname = NULL;
     }
 
-    if (fname != NULL)
+    if (fname != NULL) {
+#ifndef _WIN32
+        // Follow an existing data-file symlink before choosing the lock name.
+        // Sessions using aliases must share the target's lock and replacement.
+        char* resolved = realpath(fname, NULL);
+        h->fname = mem_strdup(h->mem, resolved == NULL ? fname : resolved);
+        free(resolved);
+#else
         h->fname = mem_strdup(h->mem, fname);
+#endif
+    }
 
     if (max_entries == 0) {
         h->max_entries = 0;
@@ -1528,7 +1543,7 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
     return history_write_entry(entry->command, f, sbuf);
 }
 
-static bool history_collect_entries(history_t* h, history_list_t* list, bool dedup) {
+static bool history_collect_disk_entries(history_t* h, history_list_t* list, bool dedup) {
     history_list_init(list);
     if (h == NULL)
         return false;
@@ -1537,9 +1552,12 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
     if (h->fname == NULL)
         return true;
 
+    struct stat st;
+    if (stat(h->fname, &st) == 0 && !S_ISREG(st.st_mode))
+        return false;
     FILE* f = fopen(h->fname, "r");
     if (f == NULL)
-        return true;
+        return errno == ENOENT;
 
     stringbuf_t* sbuf = sbuf_new(h->mem);
     if (sbuf == NULL) {
@@ -1675,73 +1693,209 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
     return close_ok;
 }
 
+static bool history_collect_entries(history_t* h, history_list_t* list, bool dedup) {
+    if (!history_collect_disk_entries(h, list, dedup))
+        return false;
+    if (!history_is_disabled(h) && h->pending != NULL) {
+        history_entry_t entry = {0};
+        entry.command = mem_strdup(h->mem, h->pending);
+        if (entry.command == NULL || !history_list_append(h, list, entry))
+            return false;
+    }
+    return true;
+}
+
+static void history_persistence_error(history_t* h) {
+    if (!h->persistence_failed) {
+        fprintf(stderr, "cjsh: history: persistence unavailable; disabling history storage: %s\n",
+                h->fname == NULL ? "(unset)" : h->fname);
+        h->persistence_failed = true;
+    }
+}
+
+// The lock has a stable inode across replacements of the data file. Readers
+// need no lock: opening the data file sees either complete committed snapshot.
+static int history_lock(history_t* h) {
+    if (history_is_disabled(h) || h->fname == NULL)
+        return -1;
+#ifndef _WIN32
+    const size_t len = strlen(h->fname) + 6;
+    char* path = mem_malloc_tp_n(h->mem, char, (ssize_t)len);
+    if (path == NULL)
+        return -1;
+    snprintf(path, len, "%s.lock", h->fname);
+    const int fd = open(path, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600);
+    mem_free(h->mem, path);
+    if (fd >= 0) {
+        struct stat st;
+        if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && st.st_uid == geteuid()) {
+            int result;
+            do {
+                result = flock(fd, LOCK_EX);
+            } while (result != 0 && errno == EINTR);
+            if (result == 0)
+                return fd;
+        }
+        close(fd);
+    }
+    history_persistence_error(h);
+    return -1;
+#else
+    return 0;
+#endif
+}
+
+static void history_unlock(int fd) {
+#ifndef _WIN32
+    if (fd >= 0)
+        close(fd);
+#else
+    ic_unused(fd);
+#endif
+}
+
 static bool history_write_all(const history_t* h, const history_list_t* list) {
     if (h == NULL || h->fname == NULL)
         return false;
-
-    FILE* f = fopen(h->fname, "w");
-    if (f == NULL)
+    const size_t len = strlen(h->fname) + 12;
+    char* temporary = mem_malloc_tp_n(h->mem, char, (ssize_t)len);
+    if (temporary == NULL)
         return false;
+    snprintf(temporary, len, "%s.tmp.XXXXXX", h->fname);
 #ifndef _WIN32
-    (void)chmod(h->fname, S_IRUSR | S_IWUSR);
+    int fd = mkstemp(temporary);
+    FILE* f = fd < 0 ? NULL : fdopen(fd, "w");
+    if (fd >= 0 && f == NULL)
+        close(fd);
+#else
+    FILE* f = NULL;
+    if (_mktemp_s(temporary, len) == 0)
+        f = fopen(temporary, "w");
 #endif
-
+    bool ok = f != NULL;
     stringbuf_t* sbuf = sbuf_new(h->mem);
-    if (sbuf == NULL) {
-        (void)history_close_stream(f);
-        return false;
-    }
-
-    for (ssize_t i = 0; i < list->count; i++) {
-        if (!history_write_record(&list->entries[i], f, sbuf)) {
-            sbuf_free(sbuf);
-            (void)history_close_stream(f);
-            return false;
-        }
-    }
-
-    sbuf_free(sbuf);
-    return history_close_stream(f);
-}
-
-static bool history_append_entry(const history_t* h, const history_entry_t* entry) {
-    if (h == NULL || h->fname == NULL || entry == NULL)
-        return false;
-
-    FILE* f = fopen(h->fname, "a");
-    if (f == NULL)
-        return false;
-#ifndef _WIN32
-    (void)chmod(h->fname, S_IRUSR | S_IWUSR);
-#endif
-
-    stringbuf_t* sbuf = sbuf_new(h->mem);
-    if (sbuf == NULL) {
-        (void)history_close_stream(f);
-        return false;
-    }
-
-    bool ok = history_write_record(entry, f, sbuf);
-
-    sbuf_free(sbuf);
-    if (!history_close_stream(f))
+    if (sbuf == NULL)
         ok = false;
+    for (ssize_t i = 0; ok && i < list->count; i++)
+        ok = history_write_record(&list->entries[i], f, sbuf);
+    sbuf_free(sbuf);
+    if (f != NULL) {
+        if (fflush(f) != 0)
+            ok = false;
+#ifndef _WIN32
+        if (ok && fsync(fileno(f)) != 0)
+            ok = false;
+#endif
+        if (!history_close_stream(f))
+            ok = false;
+    }
+    if (ok) {
+#ifndef _WIN32
+        ok = rename(temporary, h->fname) == 0;
+#else
+        ok = MoveFileExA(temporary, h->fname, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) !=
+             0;
+#endif
+    }
+    if (!ok) {
+        (void)remove(temporary);
+        history_persistence_error((history_t*)h);
+    }
+    mem_free(h->mem, temporary);
     return ok;
 }
 
-ic_private void history_load(history_t* h) {
+ic_private void history_begin_edit(history_t* h) {
+    if (history_is_disabled(h))
+        return;
+    mem_free(h->mem, h->pending);
+    h->pending = mem_strdup(h->mem, "");
+}
+
+ic_private void history_end_edit(history_t* h, const char* entry) {
     if (h == NULL)
         return;
-    if (history_is_disabled(h))
+    mem_free(h->mem, h->pending);
+    h->pending = NULL;
+    if (h->auto_add && entry != NULL && strlen(entry) > 1)
+        (void)history_push(h, entry);
+}
+
+ic_private bool history_update(history_t* h, const char* entry) {
+    if (history_is_disabled(h) || entry == NULL)
+        return false;
+    if (h->pending != NULL) {
+        char* copy = history_entry_dup_trimmed(h->mem, entry);
+        if (copy == NULL)
+            return false;
+        mem_free(h->mem, h->pending);
+        h->pending = copy;
+        return true;
+    }
+    int fd = history_lock(h);
+    if (fd < 0)
+        return false;
+    bool ok = history_update_unlocked(h, entry);
+    if (!ok)
+        history_persistence_error(h);
+    history_unlock(fd);
+    return ok;
+}
+
+ic_private bool history_push_with_metadata(history_t* h, const char* entry,
+                                           const ic_history_metadata_t* metadata,
+                                           size_t metadata_count) {
+    if (entry == NULL)
+        return false;
+    int fd = history_lock(h);
+    if (fd < 0)
+        return false;
+    bool ok = history_push_with_metadata_unlocked(h, entry, metadata, metadata_count);
+    if (!ok)
+        history_persistence_error(h);
+    history_unlock(fd);
+    return ok;
+}
+
+ic_private void history_remove_last(history_t* h) {
+    if (h == NULL)
+        return;
+    if (h->pending != NULL) {
+        mem_free(h->mem, h->pending);
+        h->pending = NULL;
+        return;
+    }
+    int fd = history_lock(h);
+    if (fd < 0)
+        return;
+    history_remove_last_unlocked(h);
+    history_unlock(fd);
+}
+
+ic_private void history_clear(history_t* h) {
+    if (h == NULL)
+        return;
+    mem_free(h->mem, h->pending);
+    h->pending = NULL;
+    int fd = history_lock(h);
+    if (fd < 0)
+        return;
+    history_clear_unlocked(h);
+    history_unlock(fd);
+}
+
+ic_private void history_load(history_t* h) {
+    int fd = history_lock(h);
+    if (fd < 0)
         return;
     history_list_t list;
     history_list_init(&list);
-    if (!history_collect_entries(h, &list, true)) {
-        history_list_free(h, &list);
-        return;
-    }
-    (void)history_write_all(h, &list);
+    if (history_collect_disk_entries(h, &list, true))
+        (void)history_write_all(h, &list);
+    else
+        history_persistence_error(h);
     history_list_free(h, &list);
+    history_unlock(fd);
 }
 
 ic_private void history_save(const history_t* h) {

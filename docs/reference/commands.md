@@ -221,6 +221,10 @@ If replacement fails, cjsh restores its signal state and `SHLVL` and reports the
 
 ## Variables and Environment
 
+A failed replacement terminates a noninteractive POSIX shell (127 for a missing command,
+126 for a non-executable file). Native and interactive shells recover and continue with
+the failure status. Successful replacement does not run exit hooks or logout files.
+
 ### export
 Set or display environment variables.
 
@@ -274,9 +278,11 @@ Adjust shell options or positional parameters.
 set [options] [args...]
 ```
 
-- `set -o huponexit` mirrors bash's hangup behavior toggle; when enabled the shell sends
-  SIGHUP to managed background jobs as it exits. Leave it off (the default) to keep helpers
-  like dev servers alive until you explicitly stop them.
+- `huponexit` is enabled by default for interactive shells (including `-i -c`) and disabled
+  by default for noninteractive shells. When enabled, normal exit sends SIGHUP to managed jobs.
+  Use `set +o huponexit` to keep the previous interactive default, or `disown`/`disown -h`
+  to exempt individual jobs. Add the opt-out to your interactive rc file if you depended on
+  background helpers surviving shell exit. `set -o huponexit` explicitly enables it in scripts.
 - HUP cleanup resumes stopped jobs so they can handle the signal. Jobs that handle or ignore
   HUP may survive; cjsh does not escalate to SIGKILL and waits at most 100 ms for child cleanup.
 - `set -m` enables monitor mode and per-job process groups; `set +m` disables it. Interactive
@@ -492,6 +498,19 @@ disown [-arh] [job_spec|pid...]
 - `-h` leaves selected jobs in the table but excludes them from SIGHUP propagation
 - Job specs include `%N`, `%+`, `%-`, `%prefix`, and `%?substring`; a tracked PID is also accepted
 - Disowned jobs continue running even if `set -o huponexit` is enabled later in the session
+
+### suspend
+Suspend the current interactive shell until its parent resumes it with `fg`.
+
+```bash
+suspend [-f]
+```
+
+Login shells require `-f`. The command requires an owned controlling terminal and is
+unavailable in POSIX mode. It restores external terminal modes before stopping the shell;
+a background continuation waits for foreground ownership before returning to the prompt.
+The parent can use the terminal while the nested shell is stopped. It does not suspend
+or resume unrelated jobs.
 
 ### jobname
 Assign or update a friendly display name for a tracked job. The name shows up in `jobs`, `fg`, `bg`,

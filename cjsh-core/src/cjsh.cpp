@@ -157,6 +157,22 @@ int run_cjsh(int argc, char* argv[]) {
         return print_usage();
     }
 
+    // CJSH does not support retaining set-user-ID or set-group-ID privileges.
+    // Refuse before constructing subsystems or consulting any startup paths.
+    if (getuid() != geteuid() || getgid() != getegid()) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "startup",
+                     "refusing startup with mismatched real and effective IDs",
+                     {}});
+        return 1;
+    }
+
+    if (config::config_directory.empty()) {
+        if (const char* root = getenv("CJSH_CONFIG_HOME"); root && root[0] != '\0') {
+            config::config_directory = root;
+        }
+    }
+
     // determine if the passed arg is a script file and grab following args to be used for the
     // script
     std::string script_file = parse_result.script_file;
@@ -197,6 +213,10 @@ int run_cjsh(int argc, char* argv[]) {
     cjsh_env::setup_environment_variables(argv[0]);
     flags::save_startup_arguments(argc, argv);
     cjsh_env::sync_env_vars_from_system(*g_shell);
+    if (!config::config_directory.empty()) {
+        config::config_directory =
+            cjsh_filesystem::normalize_override_path(config::config_directory).string();
+    }
 
     // Startup files see the same invocation identity and arguments as the body.
     if (!script_file.empty()) {
@@ -211,6 +231,10 @@ int run_cjsh(int argc, char* argv[]) {
     if (config::login_mode && !cjsh_env::exit_requested()) {
         cjsh_filesystem::process_profile_files();
         flags::apply_profile_startup_flags();
+    }
+
+    if (config::posix_mode && config::interactive_mode && !cjsh_env::exit_requested()) {
+        cjsh_filesystem::process_posix_env_file();
     }
 
     if (!config::interactive_mode) {
@@ -237,9 +261,7 @@ int run_cjsh(int argc, char* argv[]) {
 
     // then officially turn the switch to interactive mode and read needed interactive files
     g_shell->set_interactive_mode(true);
-    if (!cjsh_filesystem::initialize_cjsh_directories()) {
-        return 1;
-    }
+    (void)cjsh_filesystem::initialize_cjsh_directories();
 
     // init interactive ui
     prompt::initialize_colors();

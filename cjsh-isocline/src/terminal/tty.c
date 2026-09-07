@@ -774,8 +774,7 @@ ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
         if ((original_termios.c_iflag & (ICRNL | INLCR)) != (ICRNL | INLCR)) {
             decode_swapped_crlf = false;
         }
-        decode_cooked_return = !decode_swapped_crlf &&
-                               (original_termios.c_iflag & ICRNL) != 0;
+        decode_cooked_return = !decode_swapped_crlf && (original_termios.c_iflag & ICRNL) != 0;
         struct termios raw_termios = original_termios;
         if (!decode_swapped_crlf) {
             raw_termios.c_iflag &= (tcflag_t)(~(ICRNL | INLCR));
@@ -1293,16 +1292,18 @@ ic_private void tty_adopt_external_modes(tty_t* tty) {
     struct termios modes;
     if (tcgetattr(tty->fd_in, &modes) != 0)
         return;
-    modes.c_lflag |= ECHO | ICANON | IEXTEN | ISIG;
+    // Canonical external settings are intentional (including -isig, -icrnl,
+    // -opost, and control characters). A program leaving noncanonical modes
+    // behind is treated as an abandoned raw session: restore the last baseline.
+    if ((modes.c_lflag & ICANON) == 0) {
+        modes = tty->orig_ios;
+    }
+    // Echo is always restored for external reads and prompt hooks. The editor
+    // independently owns its input mappings, output processing and key bindings.
+    modes.c_lflag |= ECHO;
 #ifdef FLUSHO
     modes.c_lflag &= ~(tcflag_t)FLUSHO;
 #endif
-    modes.c_iflag = (modes.c_iflag | ICRNL) & ~(tcflag_t)(INLCR | IGNCR);
-    modes.c_oflag |= OPOST | ONLCR;
-    // Raw programs commonly overwrite these; restore the command baseline's
-    // read thresholds while retaining user control characters and other flags.
-    modes.c_cc[VMIN] = tty->orig_ios.c_cc[VMIN];
-    modes.c_cc[VTIME] = tty->orig_ios.c_cc[VTIME];
     tty->orig_ios = modes;
     // Keep the editor's own modes stable. Changes such as erase/intr/tostop
     // belong to the external baseline; the editor has its own key bindings.

@@ -791,6 +791,11 @@ bool ic_enable_beep(bool enable);
 /// Returns the previous setting.
 bool ic_enable_color(bool enable);
 
+/// Automatically record submitted readline input (default: true). Disable when
+/// the host records commands with metadata after execution. Drafts stay private.
+/// Returns the previous setting.
+bool ic_enable_history_auto_add(bool enable);
+
 /// Disable or enable duplicate entries in the history (disabled by default).
 /// Returns the previous setting.
 bool ic_enable_history_duplicates(bool enable);

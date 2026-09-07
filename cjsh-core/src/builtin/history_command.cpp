@@ -41,6 +41,7 @@
 #include "error_out.h"
 #include "history_file_utils.h"
 #include "numeric_utils.h"
+#include "shell_env.h"
 
 int history_command(const std::vector<std::string>& args) {
     auto run = [&]() -> int {
@@ -56,18 +57,14 @@ int history_command(const std::vector<std::string>& args) {
 
         std::string content;
         if (read_result.is_error()) {
-            auto write_result = cjsh_filesystem::write_file_content(
-                cjsh_filesystem::g_cjsh_history_path().string(), "");
-            if (write_result.is_error()) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "history",
-                             "could not create history file at " +
-                                 cjsh_filesystem::g_cjsh_history_path().string() + ": " +
-                                 write_result.error(),
-                             {}});
+            // A reader must never truncate a file that another session may be
+            // committing. Initialization creates storage only when appropriate.
+            if (!config::history_persistence_enabled)
+                return 1;
+            if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_history_path())) {
+                print_error({ErrorType::RUNTIME_ERROR, "history", read_result.error(), {}});
                 return 1;
             }
-            content = "";
         } else {
             content = read_result.value();
         }

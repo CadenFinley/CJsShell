@@ -1012,3 +1012,16 @@ Isocline is designed to be fast and responsive:
 - Run `cjshopt <subcommand> --help` for command-specific help
 - Check logs in debug mode
 - Report issues on the CJsShell GitHub repository
+
+## External terminal settings
+
+After each foreground command, CJSH preserves canonical external settings such as
+`stty -isig`, `stty -icrnl`, `stty -opost`, and changes to interrupt, erase, and EOF
+characters. These settings apply to following external commands. Echo is restored.
+The editor keeps its own key bindings, input mappings and output modes, so changing
+an external control character does not rebind editor keys.
+
+Leaving noncanonical (`-icanon`/raw) mode behind is treated as an abandoned terminal
+session: CJSH restores the previous external baseline. This policy also recovers the
+prompt after a crash or stopped raw-mode application; `fg` restores the job's saved
+modes before continuing it. Intentional persistent noncanonical mode is not supported.

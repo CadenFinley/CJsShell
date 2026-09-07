@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <vector>
 
 class ArithmeticEvaluator {
    public:

@@ -1,4 +1,31 @@
 #!/usr/bin/env python3
+
+# test_shell_lifecycle.py
+#
+# This file is part of cjsh, CJ's Shell
+#
+# MIT License
+#
+# Copyright (c) 2026 Caden Finley
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 """Batch 1 observable startup, shutdown, exec, signal and terminal contracts."""
 from __future__ import annotations
 
@@ -165,7 +192,7 @@ class ShellLifecycleTests(unittest.TestCase):
                                  ("handle", "disown -h")):
             with self.subTest(mode=mode, protection=protection):
                 path = self.home / f"job-{mode}-{protection}"
-                command = ("set -o huponexit; " + self.probe_command(mode, path) + " >/dev/null 2>&1 & "
+                command = (self.probe_command(mode, path) + " >/dev/null 2>&1 & "
                            f"while [ ! -s {shlex.quote(str(path))} ]; do sleep .01; done; sleep .05; "
                            + (protection + "; " if protection else "") + "exit --force")
                 # Survivors can retain inherited descriptors. Wait for the shell
@@ -190,6 +217,24 @@ class ShellLifecycleTests(unittest.TestCase):
                     self.assertNotIn("HUP", text)
                 if mode == "stop":
                     self.assertIn("CONT", text)
+
+    def test_hup_optout_and_noninteractive_default(self) -> None:
+        for interactive, policy, hup in ((True, "set +o huponexit; ", False),
+                                         (False, "", False),
+                                         (False, "set -o huponexit; ", True)):
+            with self.subTest(interactive=interactive, policy=policy):
+                path = self.home / f"optout-{interactive}-{hup}"
+                command = (policy + self.probe_command("handle", path) + " >/dev/null 2>&1 & "
+                           f"while [ ! -s {shlex.quote(str(path))} ]; do sleep .01; done; "
+                           "sleep .05; exit --force")
+                with (self.home / "output").open("w") as output:
+                    result = subprocess.run([self.binary, "--no-config", *(["-i"] if interactive else []),
+                                             "-c", command], env=self.env, stdin=subprocess.DEVNULL,
+                                            stdout=output, stderr=output, timeout=5)
+                pid = self.track_job(path)
+                self.assertEqual(result.returncode, 0)
+                os.kill(pid, 0)
+                self.assertEqual("HUP" in path.read_text(), hup)
 
     def test_signal_traps_return_and_can_exit(self) -> None:
         for signum in (signal.SIGHUP, signal.SIGTERM):

@@ -224,6 +224,7 @@ bool is_first_boot();
 
 void process_profile_files();
 void process_env_files();
+void process_posix_env_file();
 void process_logout_file();
 void process_source_files();
 }  // namespace cjsh_filesystem

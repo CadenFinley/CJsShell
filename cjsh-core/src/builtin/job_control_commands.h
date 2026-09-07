@@ -34,6 +34,7 @@
 int bg_command(const std::vector<std::string>& args);
 int disown_command(const std::vector<std::string>& args);
 int fg_command(const std::vector<std::string>& args);
+int suspend_command(const std::vector<std::string>& args);
 int jobname_command(const std::vector<std::string>& args);
 int jobs_command(const std::vector<std::string>& args);
 int kill_command(const std::vector<std::string>& args);

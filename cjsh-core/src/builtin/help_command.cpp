@@ -125,6 +125,7 @@ std::string get_help() {
         {"wait", "Wait for jobs or processes to finish"},
         {"kill", "Send signals to jobs or processes"},
         {"disown", "Detach jobs so they survive after cjsh exits"},
+        {"suspend", "Suspend this shell; -f permits login shells"},
 
         // System
         {"umask", "Show or set the file creation mask"},

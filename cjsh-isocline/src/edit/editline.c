@@ -124,7 +124,7 @@ typedef struct editor_s {
     bool mouse_left_button_down;              // track click origins for terminals without motion
     ssize_t mouse_left_press_column;
     ssize_t mouse_left_press_row;
-    alloc_t* mem;                             // allocator
+    alloc_t* mem;  // allocator
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
     attrbuf_t* attrs_extra;
@@ -2651,8 +2651,7 @@ static void edit_insert_unicode(ic_env_t* env, editor_t* eb, unicode_t u) {
 // without needing to understand the caller's full grammar.
 static bool edit_line_opens_indented_block(const char* input, ssize_t line_start,
                                            ssize_t line_end) {
-    while (line_end > line_start &&
-           (input[line_end - 1] == ' ' || input[line_end - 1] == '\t')) {
+    while (line_end > line_start && (input[line_end - 1] == ' ' || input[line_end - 1] == '\t')) {
         --line_end;
     }
     if (line_end <= line_start)
@@ -3394,17 +3393,17 @@ static bool edit_mouse_event_is_drag(editor_t* eb, const tty_mouse_event_t* even
         return false;
     }
 
-    const bool moved = (!eb->mouse_left_button_down ||
-                        event->column != eb->mouse_left_press_column ||
-                        event->row != eb->mouse_left_press_row);
+    const bool moved =
+        (!eb->mouse_left_button_down || event->column != eb->mouse_left_press_column ||
+         event->row != eb->mouse_left_press_row);
     if (event->action == TTY_MOUSE_ACTION_LEFT_DRAG) {
         return moved;
     }
 
     // Some terminals/multiplexers only report presses and releases. A release in
     // another cell still identifies a drag, though selection needs a new gesture.
-    const bool dragged = (event->action == TTY_MOUSE_ACTION_LEFT_RELEASE &&
-                          eb->mouse_left_button_down && moved);
+    const bool dragged =
+        (event->action == TTY_MOUSE_ACTION_LEFT_RELEASE && eb->mouse_left_button_down && moved);
     eb->mouse_left_button_down = false;
     return dragged;
 }
@@ -3983,7 +3982,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     }
 
     // always a history entry for the current input
-    (void)history_push(env->history, "");
+    history_begin_edit(env->history);
 
     if (edit_update_status_message(env, &eb)) {
         if (eb.refresh_suppressed) {
@@ -4555,13 +4554,11 @@ edit_loop_entry:
         env->last_readline_disposition = IC_READLINE_DISPOSITION_SUBMIT;
     }
 
-    // update history in memory (file saving handled after execution)
-    if (!idle_timeout_received) {
-        (void)history_update(env->history, sbuf_string(eb.input));
-    }
-    if (idle_timeout_received || res == NULL || sbuf_len(eb.input) <= 1) {
-        ic_history_remove_last();
-    }
+    // Discard the private draft. Hosts can record the submitted command after
+    // execution; standalone isocline callers retain automatic history recording.
+    history_end_edit(env->history, env->last_readline_disposition == IC_READLINE_DISPOSITION_SUBMIT
+                                       ? sbuf_string(eb.input)
+                                       : NULL);
 
     edit_reset_mouse_reporting_session(env, &eb, false);
 

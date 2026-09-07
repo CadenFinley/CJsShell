@@ -216,8 +216,14 @@ sleep 0.1
 
 if kill -0 $shell_pid 2>/dev/null; then
     kill -TERM $shell_pid 2>/dev/null
-    sleep 0.1
-    
+    # Graceful job cleanup can itself take 100 ms; sanitizer teardown adds
+    # overhead. Wait for the observable exit with a bounded deadline.
+    attempts=0
+    while kill -0 "$shell_pid" 2>/dev/null && [ "$attempts" -lt 40 ]; do
+        sleep 0.05
+        attempts=$((attempts + 1))
+    done
+
     if ! kill -0 $shell_pid 2>/dev/null; then
         pass_test "signal handling (TERM)"
     else

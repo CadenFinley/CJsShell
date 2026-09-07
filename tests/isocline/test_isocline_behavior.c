@@ -658,6 +658,8 @@ static bool test_history_dedup_snapshot(void) {
     history_clear(history);
 
     (void)history_enable_duplicates(history, false);
+    EXPECT_TRUE(!history_push(history, NULL),
+                "invalid input should not disable history persistence");
     EXPECT_TRUE(history_push(history, "echo hi"), "initial history push should succeed");
     EXPECT_TRUE(history_push(history, "echo hi"), "duplicate push should rewrite last entry");
 
@@ -3206,25 +3208,25 @@ static bool test_tty_sgr_mouse_event_metadata(void) {
         ssize_t expected_column;
         ssize_t expected_row;
         code_t expected_modifiers;
-    } cases[] = {{seq_left_press, sizeof(seq_left_press), KEY_EVENT_MOUSE_OTHER | KEY_MOD_SHIFT,
-                  TTY_MOUSE_ACTION_LEFT_PRESS, 6, 4, KEY_MOD_SHIFT},
-                 {seq_left_release, sizeof(seq_left_release), KEY_EVENT_MOUSE_OTHER | KEY_MOD_SHIFT,
-                  TTY_MOUSE_ACTION_LEFT_RELEASE, 6, 4, KEY_MOD_SHIFT},
-                 {seq_wheel_up, sizeof(seq_wheel_up), KEY_EVENT_MOUSE_WHEEL_UP,
-                  TTY_MOUSE_ACTION_WHEEL_UP, 7, 5, 0},
-                 {seq_wheel_down, sizeof(seq_wheel_down), KEY_EVENT_MOUSE_WHEEL_DOWN,
-                  TTY_MOUSE_ACTION_WHEEL_DOWN, 75, 5, 0},
-                 {seq_left_drag, sizeof(seq_left_drag) - 1, KEY_EVENT_MOUSE_OTHER,
-                  TTY_MOUSE_ACTION_LEFT_DRAG, 8, 4, 0},
-                 {seq_modified_drag, sizeof(seq_modified_drag) - 1,
-                  KEY_EVENT_MOUSE_OTHER | KEY_MOD_SHIFT | KEY_MOD_CTRL,
-                  TTY_MOUSE_ACTION_LEFT_DRAG, 8, 4, KEY_MOD_SHIFT | KEY_MOD_CTRL},
-                 {seq_right_drag, sizeof(seq_right_drag) - 1, KEY_EVENT_MOUSE_OTHER,
-                  TTY_MOUSE_ACTION_OTHER, 8, 4, 0},
-                 {seq_hover, sizeof(seq_hover) - 1, KEY_EVENT_MOUSE_OTHER,
-                  TTY_MOUSE_ACTION_OTHER, 8, 4, 0},
-                 {seq_legacy_drag, sizeof(seq_legacy_drag), KEY_EVENT_MOUSE_OTHER,
-                  TTY_MOUSE_ACTION_LEFT_DRAG, 8, 4, 0}};
+    } cases[] = {
+        {seq_left_press, sizeof(seq_left_press), KEY_EVENT_MOUSE_OTHER | KEY_MOD_SHIFT,
+         TTY_MOUSE_ACTION_LEFT_PRESS, 6, 4, KEY_MOD_SHIFT},
+        {seq_left_release, sizeof(seq_left_release), KEY_EVENT_MOUSE_OTHER | KEY_MOD_SHIFT,
+         TTY_MOUSE_ACTION_LEFT_RELEASE, 6, 4, KEY_MOD_SHIFT},
+        {seq_wheel_up, sizeof(seq_wheel_up), KEY_EVENT_MOUSE_WHEEL_UP, TTY_MOUSE_ACTION_WHEEL_UP, 7,
+         5, 0},
+        {seq_wheel_down, sizeof(seq_wheel_down), KEY_EVENT_MOUSE_WHEEL_DOWN,
+         TTY_MOUSE_ACTION_WHEEL_DOWN, 75, 5, 0},
+        {seq_left_drag, sizeof(seq_left_drag) - 1, KEY_EVENT_MOUSE_OTHER,
+         TTY_MOUSE_ACTION_LEFT_DRAG, 8, 4, 0},
+        {seq_modified_drag, sizeof(seq_modified_drag) - 1,
+         KEY_EVENT_MOUSE_OTHER | KEY_MOD_SHIFT | KEY_MOD_CTRL, TTY_MOUSE_ACTION_LEFT_DRAG, 8, 4,
+         KEY_MOD_SHIFT | KEY_MOD_CTRL},
+        {seq_right_drag, sizeof(seq_right_drag) - 1, KEY_EVENT_MOUSE_OTHER, TTY_MOUSE_ACTION_OTHER,
+         8, 4, 0},
+        {seq_hover, sizeof(seq_hover) - 1, KEY_EVENT_MOUSE_OTHER, TTY_MOUSE_ACTION_OTHER, 8, 4, 0},
+        {seq_legacy_drag, sizeof(seq_legacy_drag), KEY_EVENT_MOUSE_OTHER,
+         TTY_MOUSE_ACTION_LEFT_DRAG, 8, 4, 0}};
 
     for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); ++i) {
         EXPECT_TRUE(ic_push_raw_input(cases[i].raw, cases[i].raw_len),

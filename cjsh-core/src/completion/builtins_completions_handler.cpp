@@ -268,7 +268,12 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_value_option("--command", {"-c"}, "Execute the specified command string and exit",
                                ValueRequirement::Required, ValueType::Text, "COMMAND",
                                ValueSeparator::Either),
-             make_option("--no-exec", "Read commands without executing"),
+             make_option("-n", "Check syntax without executing commands"),
+             make_option("--no-exec", "Check syntax without executing commands"),
+             make_option("--no-config", "Skip automatic startup and logout configuration"),
+             make_value_option("--config-dir", {}, "Override the native configuration root",
+                               ValueRequirement::Required, ValueType::Directory, "DIR"),
+             make_option("--login-path", "Enable platform PATH setup for native login shells"),
              make_option("--posix", "Enable POSIX mode and reject non-POSIX syntax"),
              make_option("-m", "Disable cjsh enhancements"),
              make_option("--minimal", "Disable cjsh enhancements"),
@@ -478,6 +483,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--clear", "Clear any custom job name")});
         add_doc("fg", "Bring a job to the foreground", {});
         add_doc("bg", "Resume a job in the background", {});
+        add_doc("suspend", "Suspend the current interactive shell",
+                {make_option("-f", "Allow suspending a login shell")});
         add_doc("wait", "Wait for jobs or processes to finish",
                 {make_option("-n", "Wait for the next job to change state"),
                  make_option("-f", "Wait for termination instead of a stop"),

@@ -42,8 +42,8 @@ extern "C" char** environ;
 #endif
 
 #include <algorithm>
-#include <cerrno>
 #include <cctype>
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -72,6 +72,11 @@ bool force_interactive = false;
 bool execute_command = false;
 std::string cmd_to_execute;
 bool no_exec = false;
+bool no_config = false;
+bool login_path = false;
+std::string config_directory;
+bool cache_persistence_enabled = true;
+bool history_persistence_enabled = true;
 bool colors_enabled = true;
 bool source_enabled = true;
 bool completions_enabled = true;
@@ -324,9 +329,15 @@ bool unset_shell_or_local_variable_value(Shell* shell, const std::string& name) 
 }
 
 void setup_path_variables(const struct passwd* pw) {
+    // Platform defaults are an explicit native login policy. Clean invocations
+    // preserve PATH and MANPATH exactly, including empty and absent values.
+    if (!config::login_path || !config::login_mode || config::no_config || config::secure_mode ||
+        config::minimal_mode || config::posix_mode || config::no_exec) {
+        return;
+    }
     // Raw getenv here: PATH bootstrap before shell vars exist.
-    const char* path_env = getenv("PATH");
-    if ((path_env == nullptr) || path_env[0] == '\0') {
+    const char* inherited_path = getenv("PATH");
+    if ((inherited_path == nullptr) || inherited_path[0] == '\0') {
         (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
     }
 
@@ -344,12 +355,15 @@ void setup_path_variables(const struct passwd* pw) {
 #endif
 
 #ifdef __linux__
+    const char* path_env = getenv("PATH");
     if (path_env && path_env[0] != '\0') {
         std::string current_path = path_env;
         std::vector<std::string> additional_paths;
 
-        std::string home_bin = std::string(pw->pw_dir) + "/bin";
-        std::string home_local_bin = std::string(pw->pw_dir) + "/.local/bin";
+        const char* inherited_home = getenv("HOME");
+        const std::string user_home = inherited_home ? inherited_home : pw->pw_dir;
+        std::string home_bin = user_home + "/bin";
+        std::string home_local_bin = user_home + "/.local/bin";
 
         std::vector<std::string> system_paths = {
             "/usr/local/sbin", "/snap/bin",   "/var/lib/snapd/snap/bin", "/opt/bin", "/usr/games",
@@ -357,7 +371,7 @@ void setup_path_variables(const struct passwd* pw) {
 
         for (const auto& path : system_paths) {
             if (cjsh_filesystem::file_exists(path)) {
-                if (current_path.find(path) == std::string::npos) {
+                if ((":" + current_path + ":").find(":" + path + ":") == std::string::npos) {
                     additional_paths.push_back(path);
                 }
             }
@@ -399,8 +413,12 @@ void setup_path_variables(const struct passwd* pw) {
 std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const struct passwd* pw) {
     std::vector<std::pair<std::string, std::string>> env_vars;
 
-    (void)env_vars.emplace_back("USER", std::string(pw->pw_name));
-    (void)env_vars.emplace_back("LOGNAME", std::string(pw->pw_name));
+    // Preserve caller identity labels, even when explicitly empty. Only fill
+    // absent labels from the real user's account database.
+    if (getenv("USER") == nullptr)
+        (void)env_vars.emplace_back("USER", std::string(pw->pw_name));
+    if (getenv("LOGNAME") == nullptr)
+        (void)env_vars.emplace_back("LOGNAME", std::string(pw->pw_name));
 
     std::string home_value;
     // Raw getenv here: HOME bootstrap before shell vars exist.
@@ -431,22 +449,6 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
 
     (void)setenv("PWD", current_path.c_str(), 1);
     (void)env_vars.emplace_back("IFS", std::string(" \t\n"));
-
-    // Raw getenv here: LANG bootstrap before shell vars exist.
-    const char* lang_env = getenv("LANG");
-    if ((lang_env == nullptr) || lang_env[0] == '\0') {
-        (void)env_vars.emplace_back("LANG", std::string("en_US.UTF-8"));
-    }
-
-    // Raw getenv here: PAGER bootstrap before shell vars exist.
-    if (getenv("PAGER") == nullptr) {
-        (void)env_vars.emplace_back("PAGER", std::string("less"));
-    }
-
-    // Raw getenv here: TMPDIR bootstrap before shell vars exist.
-    if (getenv("TMPDIR") == nullptr) {
-        (void)env_vars.emplace_back("TMPDIR", std::string("/tmp"));
-    }
 
     int shlvl = 1;
     // Raw getenv here: SHLVL bootstrap before shell vars exist.

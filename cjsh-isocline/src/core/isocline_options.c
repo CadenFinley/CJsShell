@@ -207,6 +207,13 @@ ic_public bool ic_enable_color(bool enable) {
     return term_enable_color(env->term, enable);
 }
 
+ic_public bool ic_enable_history_auto_add(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return history_enable_auto_add(env->history, enable);
+}
+
 ic_public bool ic_enable_history_duplicates(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

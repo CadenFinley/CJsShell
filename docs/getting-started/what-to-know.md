@@ -180,7 +180,7 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 - **History recording:** Disable persistence with `cjsh --no-history` (also disables history expansion) or add `cjshopt login-startup-arg --no-history` to `~/.cjprofile`. Secure mode also disables history persistence.
 - **History search:** Press `Ctrl+R` or `Ctrl+S` for the fuzzy history search menu (use `Alt+C` inside it to toggle case sensitivity).
 - **History search case sensitivity:** Matching is case-sensitive by default; adjust with `cjshopt history-search-case on|off|status` to set the default for every session.
-- **Persistence:** History entries are appended to `~/.cache/cjsh/history.txt`; duplicate commands are suppressed by default.
+- **Persistence:** History entries are stored in `~/.cache/cjsh/history.txt`; duplicate commands are suppressed by default. Concurrent writers lock a sibling `.lock` file and atomically replace complete snapshots, preserving command metadata and frequency counts. Unsubmitted input stays private to its session. Existing history-file symlinks retain their targets and share the target lock. A killed writer can leave a private `.tmp.*` file; readers ignore it.
 - **Retention:** Adjust limits with `cjshopt set-history-max <number|default|status>` (any non-negative value; default 1000 entries).
 
 ---
@@ -194,7 +194,80 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 - `~/.cjlogout` – Optional cleanup script sourced when a login shell exits.
 
 Set `CJSH_ENV` to override the `~/.cjshenv` search paths. If `CJSH_ENV` is set but empty, cjsh
-falls back to the default search paths.
+falls back to the default search paths. Each native stage uses the home dotfile first,
+then the same filename under `~/.config/cjsh/` if the home file is missing.
+
+`--config-dir DIR` redirects **all four native startup files** to that directory, with
+no fallback to home files. A nonempty `CJSH_CONFIG_HOME` provides the same override when
+the command-line option is absent. Precedence is `--config-dir` > `CJSH_CONFIG_HOME` >
+default locations. `CJSH_ENV` still overrides the environment stage alone, including
+when the root is overridden; a missing nonempty override is skipped without fallback.
+Paths accept a leading `~/`; relative overrides resolve against the invocation directory.
+The root is selected before startup files run. These controls do not relocate history
+or generated completions; `CJSH_HISTORY_FILE` continues to override history separately.
+
+`--no-config` skips all automatic native startup and logout files, POSIX profiles and
+`ENV`, and platform login PATH setup. Explicit `source`/`.` commands still work. UI
+features, hooks defined by commands, and history preferences keep their normal behavior.
+`--no-source` (`-N`) retains its narrower meaning: skip the native interactive rc file.
+`--minimal` (`-m`) retains its feature-reduction scope and still reads native env/profile
+files. `--secure` (`-s`) skips automatic configuration and disables history and smart cd.
+
+For `--posix` and invocation as `sh`, login startup reads `/etc/profile`, then
+`$HOME/.profile`, then (only when interactive) the file named by `ENV`. Non-login
+interactive shells read only `ENV`; ordinary scripts do not read it. Native startup
+files and native root overrides do not participate. `ENV` receives parameter and
+arithmetic expansion as one pathname, without field splitting, globbing, tilde
+expansion, command-string evaluation, or PATH search. A relative pathname is relative
+to the current directory after profiles. Missing files are skipped. This follows the
+[POSIX interactive ENV rule](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html)
+and the traditional [sh login profile sequence](https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html).
+
+CJSH refuses execution with status 1 when real/effective user IDs or group IDs differ,
+before initializing subsystems or consulting environment-derived startup paths. It does
+not offer a flag to retain set-user-ID or set-group-ID privileges. Help and version are
+available without shell initialization.
+
+### Invocation and environment policy
+
+`-n` and `--no-exec` check syntax without executing commands or loading startup files.
+They accept `-c` strings, script files, and standard input. Invalid syntax returns a
+nonzero status; valid syntax returns 0. `-m` remains minimal mode and `-s` remains secure
+mode; they are not monitor mode or stdin selectors. Use `set -m` for monitor mode and
+omit a script/`-c` to read stdin. Options precede the script or command operands; `--`
+ends option parsing. `--help` lists all invocation flags. Invocation errors return 1
+and send diagnostics and usage to stderr; explicit help and version return 0 on stdout.
+
+Environment initialization preserves inherited `PATH` and `MANPATH`, including empty and
+absent values; startup files can still change them. Native
+login shells can explicitly request platform setup with `--login-path`: on macOS this
+runs `/usr/libexec/path_helper -s`; on Linux it prepends existing platform and home bin
+directories missing as whole PATH components, and fills an absent MANPATH with existing
+system man directories. The policy first supplies a standard PATH if PATH is empty or
+absent. It is ignored for non-login, POSIX, minimal, secure, syntax-only, and
+`--no-config` invocations. These startup-only options (`--login-path`, `--config-dir`,
+`--no-config`) cannot be persisted through `cjshopt login-startup-arg`; put explicit
+PATH assignments in your profile or select the switches in your launcher.
+
+Migration: launch native logins with `--login-path` if you relied on CJSH's former
+implicit macOS path helper or automatic Linux PATH/MANPATH additions. For reproducible
+scripts, supply PATH explicitly.
+
+Inherited `USER` and `LOGNAME` are preserved even when empty; missing values are filled
+from the real user's account record. CJSH does not supply or export defaults for
+`LANG`, `PAGER`, or `TMPDIR`. Children keep the caller's locale selection.
+
+### Unavailable persistence
+
+A missing home directory, unwritable cache, or unusable custom history file does not
+prevent command execution or an interactive prompt. CJSH does not create a missing HOME.
+It disables the affected history or completion storage and reports each unavailable
+storage area once. A failed cache also suppresses its first-boot banner. Independent
+usable storage can still work (for example, custom history outside an unavailable home).
+Configuration directories are created only by explicit configuration-writing commands.
+History requires a writable parent directory for its lock and atomic replacement;
+later history write failures disable further writes for the session after one diagnostic.
+
 
 ### Persisting Startup Flags
 `cjshopt login-startup-arg` is only valid while configuration files are being sourced. Call it once per flag inside `~/.cjprofile`:

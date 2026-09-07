@@ -137,6 +137,7 @@ std::optional<ShellOption> parse_shell_option_short(char short_flag) {
 }
 
 Shell::Shell() {
+    shell_options[to_index(ShellOption::Huponexit)] = config::interactive_mode;
     trap_manager_initialize();
 
     // construct core subsystems before wiring them together
@@ -655,6 +656,39 @@ bool Shell::reclaim_terminal() {
 
 bool Shell::is_job_control_enabled() const {
     return job_control_enabled;
+}
+
+bool Shell::suspend() {
+    if (!manages_terminal())
+        return false;
+
+    // Readline may be suspended by a widget; commands must expose ordinary
+    // terminal modes while the parent shell handles the stop notification.
+    const bool editor_active = ic_suspend_readline_terminal();
+    ic_prepare_terminal_for_command();
+    (void)fflush(stdout);
+    (void)fflush(stderr);
+    const bool stopped = kill(getpid(), SIGSTOP) == 0;
+
+    // A background continuation must wait for fg instead of stealing the tty.
+    struct sigaction previous{};
+    struct sigaction action{};
+    action.sa_handler = SIG_DFL;
+    sigemptyset(&action.sa_mask);
+    (void)sigaction(SIGTTIN, &action, &previous);
+    sigset_t mask, old_mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGTTIN);
+    (void)sigprocmask(SIG_UNBLOCK, &mask, &old_mask);
+    while (tcgetpgrp(shell_terminal) >= 0 && tcgetpgrp(shell_terminal) != getpgrp()) {
+        if (kill(getpid(), SIGTTIN) != 0)
+            break;
+    }
+    (void)sigprocmask(SIG_SETMASK, &old_mask, nullptr);
+    (void)sigaction(SIGTTIN, &previous, nullptr);
+    if (editor_active)
+        (void)ic_resume_readline_terminal();
+    return stopped;
 }
 
 bool Shell::set_job_control_enabled(bool enabled) {

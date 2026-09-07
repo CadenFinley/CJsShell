@@ -1684,6 +1684,10 @@ int main(void) {
         }
     }
 
+    // Match the executable's explicit teardown before process-wide registries
+    // are destroyed by static finalization.
+    g_shell.reset();
+
     if (failures > 0) {
         (void)std::fprintf(stderr, "%zu/%zu syntax highlighting tests failed\n", failures,
                            test_count);
