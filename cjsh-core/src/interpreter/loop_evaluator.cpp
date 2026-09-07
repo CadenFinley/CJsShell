@@ -675,7 +675,6 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                       const std::function<int(const std::string&)>& execute_simple_or_pipeline,
                       Parser* shell_parser, const std::function<bool()>& should_abort_execution) {
     // shared while/until evaluator used by interpreter loop dispatch
-    size_t loop_start_idx = idx;
     std::string first = trim(strip_inline_comment(src_lines[idx]));
     if (first != keyword && first.rfind(keyword + " ", 0) != 0)
         return 1;
@@ -824,101 +823,19 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
         }
     }
 
-    auto command_has_redirections = [](const Command& cmd) {
-        return !cmd.input_file.empty() || !cmd.here_doc.empty() || !cmd.here_string.empty() ||
-               !cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty() ||
-               cmd.stderr_to_stdout || cmd.stdout_to_stderr || cmd.both_output ||
-               !cmd.process_substitutions.empty() || !cmd.fd_redirections.empty() ||
-               !cmd.fd_duplications.empty() || !cmd.redirection_order.empty();
-    };
-
-    const bool condition_has_arithmetic_command_form =
-        parser_contains_arithmetic_command_form(cond);
-
-    if (shell_parser && g_shell && g_shell->shell_exec) {
-        Command control_cmd;
-        control_cmd.args.push_back(keyword);
-
-        if (!condition_has_arithmetic_command_form) {
-            try {
-                std::string loop_text;
-                for (size_t line_idx = loop_start_idx;
-                     line_idx <= idx && line_idx < src_lines.size(); ++line_idx) {
-                    loop_text += src_lines[line_idx];
-                    loop_text.push_back('\n');
-                }
-
-                std::vector<Command> loop_cmds =
-                    shell_parser->parse_pipeline_with_preprocessing(loop_text);
-                if (!loop_cmds.empty()) {
-                    control_cmd = loop_cmds[0];
-                }
-            } catch (const std::exception&) {
-                // Best-effort parse; skip redirection merge on failure.
-            }
+    // Only redirections after `done` belong to the loop itself. Parsing the entire
+    // loop here also lifted redirections from its condition/body into this scope.
+    if (!done_redirections.empty() && shell_parser && g_shell && g_shell->shell_exec) {
+        std::vector<Command> redirection_commands;
+        try {
+            redirection_commands =
+                shell_parser->parse_pipeline_with_preprocessing("true " + done_redirections);
+        } catch (const std::exception&) {
+            // Best-effort parse; fall back to normal loop execution.
         }
-
-        auto merge_redirections = [&](const Command& source) {
-            if (control_cmd.input_file.empty() && !source.input_file.empty()) {
-                control_cmd.input_file = source.input_file;
-            }
-            if (control_cmd.here_doc.empty() && !source.here_doc.empty()) {
-                control_cmd.here_doc = source.here_doc;
-            }
-            if (control_cmd.here_string.empty() && !source.here_string.empty()) {
-                control_cmd.here_string = source.here_string;
-            }
-            if (control_cmd.output_file.empty() && !source.output_file.empty()) {
-                control_cmd.output_file = source.output_file;
-                control_cmd.force_overwrite = source.force_overwrite;
-            }
-            if (control_cmd.append_file.empty() && !source.append_file.empty()) {
-                control_cmd.append_file = source.append_file;
-            }
-            if (control_cmd.stderr_file.empty() && !source.stderr_file.empty()) {
-                control_cmd.stderr_file = source.stderr_file;
-                control_cmd.stderr_append = source.stderr_append;
-            }
-            if (!control_cmd.both_output && source.both_output) {
-                control_cmd.both_output = true;
-                control_cmd.both_output_file = source.both_output_file;
-            }
-            if (source.stderr_to_stdout) {
-                control_cmd.stderr_to_stdout = true;
-            }
-            if (source.stdout_to_stderr) {
-                control_cmd.stdout_to_stderr = true;
-            }
-            (void)control_cmd.fd_redirections.insert(control_cmd.fd_redirections.end(),
-                                                     source.fd_redirections.begin(),
-                                                     source.fd_redirections.end());
-            (void)control_cmd.fd_duplications.insert(control_cmd.fd_duplications.end(),
-                                                     source.fd_duplications.begin(),
-                                                     source.fd_duplications.end());
-            (void)control_cmd.redirection_order.insert(control_cmd.redirection_order.end(),
-                                                       source.redirection_order.begin(),
-                                                       source.redirection_order.end());
-            (void)control_cmd.process_substitutions.insert(control_cmd.process_substitutions.end(),
-                                                           source.process_substitutions.begin(),
-                                                           source.process_substitutions.end());
-        };
-
-        if (!done_redirections.empty()) {
-            std::string pseudo_command = "true " + done_redirections;
-            try {
-                auto pseudo_cmds = shell_parser->parse_pipeline_with_preprocessing(pseudo_command);
-                if (!pseudo_cmds.empty()) {
-                    merge_redirections(pseudo_cmds[0]);
-                }
-            } catch (const std::exception&) {
-                // Best-effort parse; ignore redirection extraction on failure.
-            }
-        }
-
-        if (command_has_redirections(control_cmd)) {
-            bool action_invoked = false;
-            int exit_code = g_shell->shell_exec->run_with_command_redirections(
-                control_cmd, run_loop_logic, keyword, false, &action_invoked);
+        if (!redirection_commands.empty()) {
+            const int exit_code = g_shell->shell_exec->run_with_command_redirections(
+                redirection_commands[0], run_loop_logic, keyword, false);
             return execute_loop_trailing_commands(exit_code, trailing_commands,
                                                   execute_simple_or_pipeline, shell_parser,
                                                   should_abort_execution);

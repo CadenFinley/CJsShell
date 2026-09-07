@@ -80,6 +80,45 @@ class TerminalRecoveryTests(unittest.TestCase):
                 self.session.run_command(command.encode())
                 self.assert_prompt_recovered()
 
+    def test_custom_fd_redirections_preserve_foreground_launches(self) -> None:
+        file_list = Path(self.directory.name) / "files"
+        file_list.write_text("sample\n", encoding="utf-8")
+        probe = Path(self.directory.name) / "foreground_probe.py"
+        probe.write_text("""
+import os
+import termios
+fd = os.open('/dev/tty', os.O_RDWR)
+assert os.tcgetpgrp(fd) == os.getpgrp(), 'job launched in the background'
+termios.tcsetattr(fd, termios.TCSANOW, termios.tcgetattr(fd))
+os.close(fd)
+print('foreground-access-ok', flush=True)
+""", encoding="utf-8")
+        probe_command = shlex.join([sys.executable, str(probe)])
+
+        def check_foreground(command: str) -> None:
+            start = self.session.run_command(command.encode())
+            output = normalize_terminal_output(bytes(self.session.output[start:]))
+            self.assertIn(b"\nforeground-access-ok\n", output)
+            self.assertNotIn(b"Stopped", output)
+            self.assert_prompt_recovered()
+
+        check_foreground(probe_command)
+        for fd in (3, 4, 5, 6, 7, 8, 9):
+            with self.subTest(fd=fd):
+                # cjcloc reads its list through fd 3. Exercise the same loop with
+                # low descriptors that can otherwise collide with shell internals.
+                command = (
+                    f'while IFS= read -r file <&{fd}; do '
+                    f'printf "%s\\n" "$file"; {probe_command}; '
+                    f'done {fd}<{shlex.quote(str(file_list))}'
+                )
+                check_foreground(command)
+                check_foreground(probe_command)
+
+    def test_builtin_fd_redirection_does_not_break_next_prompt(self) -> None:
+        self.session.run_command(b"true 3</dev/null")
+        self.assert_prompt_recovered()
+
     def test_monitor_off_recovers_before_precmd(self) -> None:
         probe = Path(self.directory.name) / "probe_terminal.py"
         result = Path(self.directory.name) / "terminal-state.json"

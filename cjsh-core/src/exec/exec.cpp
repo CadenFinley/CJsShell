@@ -47,8 +47,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -2485,8 +2487,40 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 int Exec::run_with_command_redirections(Command cmd, const std::function<int()>& action,
                                         const std::string& command_name, bool persist_fd_changes,
                                         bool* action_invoked) {
-    auto duplicate_fd = [](int fd) {
-        int min_fd = std::max(fd + 1, 10);
+    if (action_invoked) {
+        *action_invoked = false;
+    }
+
+    std::set<int> redirected_fds{STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO};
+    int highest_fd = 9;
+    auto record_fd = [&](int fd, bool redirected) {
+        if (fd >= 0) {
+            highest_fd = std::max(highest_fd, fd);
+            if (redirected) {
+                redirected_fds.insert(fd);
+            }
+        }
+    };
+    for (const auto& redirection : cmd.redirection_order) {
+        record_fd(redirection.fd, true);
+        record_fd(redirection.target_fd, false);
+    }
+    for (const auto& [fd, spec] : cmd.fd_redirections) {
+        record_fd(fd, true);
+    }
+    for (const auto& [fd, source_fd] : cmd.fd_duplications) {
+        record_fd(fd, true);
+        record_fd(source_fd, false);
+    }
+    if (highest_fd == std::numeric_limits<int>::max()) {
+        set_error(ErrorType::RUNTIME_ERROR, command_name, "file descriptor is too large", {});
+        return EX_OSERR;
+    }
+
+    // Backups must not occupy any descriptor named by the command, including duplication
+    // sources: otherwise saving stdout could make an invalid `1>&10` unexpectedly succeed.
+    auto duplicate_fd = [&](int fd) {
+        const int min_fd = highest_fd + 1;
         int dup_fd = -1;
 #ifdef F_DUPFD_CLOEXEC
         dup_fd = fcntl(fd, F_DUPFD_CLOEXEC, min_fd);
@@ -2494,56 +2528,72 @@ int Exec::run_with_command_redirections(Command cmd, const std::function<int()>&
         if (dup_fd == -1) {
             dup_fd = fcntl(fd, F_DUPFD, min_fd);
         }
-        if (dup_fd == -1) {
-            dup_fd = dup(fd);
-        }
         if (dup_fd != -1) {
-            int flags = fcntl(dup_fd, F_GETFD);
-            if (flags != -1) {
-                (void)fcntl(dup_fd, F_SETFD, flags | FD_CLOEXEC);
+            if (fcntl(dup_fd, F_SETFD, FD_CLOEXEC) == -1) {
+                cjsh_filesystem::safe_close(dup_fd);
+                return -1;
             }
         }
         return dup_fd;
     };
 
-    int orig_stdin = duplicate_fd(STDIN_FILENO);
-    int orig_stdout = duplicate_fd(STDOUT_FILENO);
-    int orig_stderr = duplicate_fd(STDERR_FILENO);
+    // A loop or function can launch foreground jobs while its redirections are active.
+    // Keep the owned terminal handle usable even when the command redirects or closes it,
+    // including persistent `exec` redirections.
+    if (owns_shell_terminal && redirected_fds.count(shell_terminal) != 0) {
+        const int terminal_copy = duplicate_fd(shell_terminal);
+        if (terminal_copy == -1) {
+            set_error(ErrorType::RUNTIME_ERROR, command_name,
+                      "failed to preserve the controlling terminal", {});
+            return EX_OSERR;
+        }
+        cjsh_filesystem::safe_close(shell_terminal);
+        shell_terminal = terminal_copy;
+    }
 
-    if (orig_stdin == -1 || orig_stdout == -1 || orig_stderr == -1) {
-        set_error(ErrorType::RUNTIME_ERROR, command_name,
-                  "failed to save original file descriptors", {});
-        if (orig_stdin != -1) {
-            cjsh_filesystem::safe_close(orig_stdin);
+    struct SavedDescriptor {
+        int fd;
+        int backup;
+        int flags;
+    };
+    std::vector<SavedDescriptor> saved_descriptors;
+    auto close_backups = [&]() {
+        for (const auto& saved : saved_descriptors) {
+            cjsh_filesystem::safe_close(saved.backup);
         }
-        if (orig_stdout != -1) {
-            cjsh_filesystem::safe_close(orig_stdout);
+    };
+    for (int fd : redirected_fds) {
+        const int flags = fcntl(fd, F_GETFD);
+        if (flags == -1 && errno == EBADF) {
+            saved_descriptors.push_back({fd, -1, -1});
+            continue;
         }
-        if (orig_stderr != -1) {
-            cjsh_filesystem::safe_close(orig_stderr);
+        const int backup = flags == -1 ? -1 : duplicate_fd(fd);
+        if (backup == -1) {
+            close_backups();
+            set_error(ErrorType::RUNTIME_ERROR, command_name,
+                      "failed to save original file descriptors", {});
+            return EX_OSERR;
         }
-        return EX_OSERR;
+        saved_descriptors.push_back({fd, backup, flags});
     }
 
     ProcessSubstitutionResources proc_resources;
-
     auto restore_descriptors = [&](bool terminate_process_subs) {
         cleanup_process_substitutions(proc_resources, terminate_process_subs);
 
         if (!persist_fd_changes) {
-            (void)cjsh_filesystem::safe_dup2(orig_stdin, STDIN_FILENO);
-            (void)cjsh_filesystem::safe_dup2(orig_stdout, STDOUT_FILENO);
-            (void)cjsh_filesystem::safe_dup2(orig_stderr, STDERR_FILENO);
+            for (const auto& saved : saved_descriptors) {
+                if (saved.backup == -1) {
+                    cjsh_filesystem::safe_close(saved.fd);
+                } else {
+                    (void)cjsh_filesystem::safe_dup2(saved.backup, saved.fd);
+                    (void)fcntl(saved.fd, F_SETFD, saved.flags);
+                }
+            }
         }
-
-        cjsh_filesystem::safe_close(orig_stdin);
-        cjsh_filesystem::safe_close(orig_stdout);
-        cjsh_filesystem::safe_close(orig_stderr);
+        close_backups();
     };
-
-    if (action_invoked) {
-        *action_invoked = false;
-    }
 
     try {
         proc_resources = setup_process_substitutions(cmd);

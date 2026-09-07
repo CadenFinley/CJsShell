@@ -274,6 +274,66 @@ else
     fail_test "variable expansion in redirection (file not created)"
 fi
 
+FD_SCOPE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/cjsh-fd-scope.XXXXXX")
+
+OUT=$("$CJSH_PATH" -c "exec 9>&-; : 9>'$FD_SCOPE_DIR/temporary'; if echo leaked >&9; then echo leaked; else echo closed; fi" 2>/dev/null)
+if [ "$OUT" = "closed" ]; then
+    pass_test "temporary custom descriptor is closed after a builtin"
+else
+    fail_test "temporary custom descriptor leaked (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "exec 9>'$FD_SCOPE_DIR/restored'; : 9>&-; echo restored >&9; exec 9>&-; cat '$FD_SCOPE_DIR/restored'" 2>&1)
+if [ "$OUT" = "restored" ]; then
+    pass_test "temporary close restores an existing custom descriptor"
+else
+    fail_test "custom descriptor was not restored after close (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "exec 9>'$FD_SCOPE_DIR/outer'; f() { echo inner >&9; }; f 9>'$FD_SCOPE_DIR/inner'; echo outer >&9; exec 9>&-; cat '$FD_SCOPE_DIR/inner' '$FD_SCOPE_DIR/outer'" 2>&1)
+if [ "$OUT" = "$(printf 'inner\nouter')" ]; then
+    pass_test "function redirection restores the outer custom descriptor"
+else
+    fail_test "function custom descriptor scope (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "exec 9>'$FD_SCOPE_DIR/rollback'; : 9>&- 8<'$FD_SCOPE_DIR/missing'; echo restored >&9; exec 9>&-; cat '$FD_SCOPE_DIR/rollback'" 2>/dev/null)
+if [ "$OUT" = "restored" ]; then
+    pass_test "failed redirection restores earlier descriptor changes"
+else
+    fail_test "failed redirection left descriptor changes behind (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c 'exec 10>&-; echo redirected 10>&1; echo still-stdout' 2>&1)
+if [ "$OUT" = "$(printf 'redirected\nstill-stdout')" ]; then
+    pass_test "custom descriptor does not overwrite a standard-stream backup"
+else
+    fail_test "custom descriptor collided with a backup (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c 'exec 10>&-; if echo hidden >&10; then echo leaked; else echo closed; fi' 2>/dev/null)
+if [ "$OUT" = "closed" ]; then
+    pass_test "descriptor backups do not become redirection sources"
+else
+    fail_test "closed duplication source matched a backup (got '$OUT')"
+fi
+
+printf 'one\ntwo\n' >"$FD_SCOPE_DIR/list"
+for LOOP_KIND in while until; do
+    LOOP_CONDITION='IFS= read -r item <&9'
+    if [ "$LOOP_KIND" = until ]; then
+        LOOP_CONDITION="! $LOOP_CONDITION"
+    fi
+    OUT=$("$CJSH_PATH" -c "exec 9>&-; $LOOP_KIND $LOOP_CONDITION; do echo \"\$item\"; done 9<'$FD_SCOPE_DIR/list'; if echo leaked >&9; then echo leaked; else echo closed; fi" 2>/dev/null)
+    if [ "$OUT" = "$(printf 'one\ntwo\nclosed')" ]; then
+        pass_test "$LOOP_KIND keeps its descriptor open only for the loop"
+    else
+        fail_test "$LOOP_KIND custom descriptor scope (got '$OUT')"
+    fi
+done
+
+rm -rf "$FD_SCOPE_DIR"
+
 echo ""
 echo "Advanced Redirection Patterns Tests Summary:"
 echo "Passed: $TESTS_PASSED"
