@@ -30,6 +30,14 @@ endif()
 
 find_package(Python3 COMPONENTS Interpreter QUIET)
 
+# Print the individual counts after CTest's suite-level summary, including when
+# invoked directly or through a test preset.
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/runner/CTestCustom.cmake.in"
+    "${CMAKE_BINARY_DIR}/CTestCustom.cmake"
+    @ONLY
+)
+
 # Isolate both stdin and /dev/tty: job-control tests can reopen the controlling
 # terminal even when stdin is redirected. Interactive tests create their own PTYs.
 add_executable(cjsh_test_runner "${CMAKE_CURRENT_SOURCE_DIR}/runner/run_test.c")
@@ -214,6 +222,10 @@ if(Python3_Interpreter_FOUND)
         NAME test_runner_terminal_safety
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/runner/test_terminal_safety.py"
                 $<TARGET_FILE:cjsh_test_runner> $<TARGET_FILE:function_syntax_tests>
+    )
+    cjsh_add_test(
+        NAME ctest_summary_tests
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/runner/test_ctest_summary.py"
     )
     cjsh_add_test(
         NAME terminal_recovery_tests

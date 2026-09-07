@@ -72,6 +72,12 @@ Adjust `4` to control concurrency, or use `1` for a serial run. Timing and
 system-wide process-count tests run alone. Add `-L shell` to select only shell
 files, or `-LE shell` to select only focused suites.
 
+CTest's built-in total counts registered suites and shell files. After it finishes,
+an additional summary shows the individual tests reported by the selected suites,
+with passed, failed, and skipped counts. Scripts that exercise one continuous
+integration scenario count as one test. Suites that stop before reporting results
+are listed separately when their individual counts are unavailable.
+
 The serial shell and integration harness also remains available, with combined
 individual-test counts:
 

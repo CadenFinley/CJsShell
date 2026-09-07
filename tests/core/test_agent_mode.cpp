@@ -397,9 +397,11 @@ int main() {
             ++failed;
         }
     }
+    const size_t test_count = tests.size();
     if (failed != 0) {
+        std::fprintf(stderr, "%zu/%zu agent-mode tests failed\n", failed, test_count);
         return 1;
     }
-    std::printf("All agent-mode tests passed.\n");
+    std::printf("All %zu agent-mode tests passed\n", test_count);
     return 0;
 }
