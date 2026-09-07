@@ -91,6 +91,7 @@ add_executable(isocline_pty_driver "${CMAKE_CURRENT_SOURCE_DIR}/isocline/isoclin
 target_link_libraries(isocline_pty_driver PRIVATE cjsh_isocline Threads::Threads)
 
 if(UNIX)
+    add_executable(lifecycle_probe "${CMAKE_CURRENT_SOURCE_DIR}/core/lifecycle_probe.c")
     add_executable(terminal_contract_driver "${CMAKE_CURRENT_SOURCE_DIR}/isocline/terminal_contract_driver.c")
     target_link_libraries(terminal_contract_driver PRIVATE cjsh_isocline)
     add_library(
@@ -143,6 +144,13 @@ cjsh_add_test(NAME function_syntax_tests COMMAND function_syntax_tests)
 cjsh_add_test(NAME loop_syntax_tests COMMAND loop_syntax_tests)
 
 if(Python3_Interpreter_FOUND)
+    if(UNIX)
+        cjsh_add_test(
+            NAME shell_lifecycle_tests
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_shell_lifecycle.py"
+                    $<TARGET_FILE:cjsh> $<TARGET_FILE:lifecycle_probe>
+        )
+    endif()
     if(UNIX)
         cjsh_add_test(
             NAME isocline_terminal_contract_tests

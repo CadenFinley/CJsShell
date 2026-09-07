@@ -1093,8 +1093,6 @@ bool file_exists(const std::filesystem::path& path) {
 }
 
 bool initialize_cjsh_directories() {
-    (void)cjsh_env::set_shell_variable_value("PWD", safe_current_directory());
-
     if (!path_is_directory(g_user_home_path())) {
         print_error(
             {ErrorType::FATAL_ERROR,

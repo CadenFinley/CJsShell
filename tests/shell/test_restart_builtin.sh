@@ -57,10 +57,13 @@ OUT=$("$CJSH_PATH" -c '
 if [ -z "$CJSH_RESTART_BASIC_ONCE" ]; then
     export CJSH_RESTART_BASIC_ONCE=1
     export CJSH_RESTART_BASIC_SHLVL="$SHLVL"
+    export CJSH_RESTART_BASIC_PID="$$"
     restart
+    echo restart-returned
+    exit 1
 fi
 
-if [ "$SHLVL" -gt "$CJSH_RESTART_BASIC_SHLVL" ]; then
+if [ "$SHLVL" -eq "$CJSH_RESTART_BASIC_SHLVL" ] && [ "$$" = "$CJSH_RESTART_BASIC_PID" ]; then
     echo restarted
 else
     echo not-restarted:"$SHLVL":"$CJSH_RESTART_BASIC_SHLVL"

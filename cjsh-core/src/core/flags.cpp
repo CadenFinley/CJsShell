@@ -276,6 +276,10 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         config::history_expansion_enabled = false;
     }
 
+    if (config::force_interactive) {
+        config::interactive_mode = true;
+    }
+
     return result;
 }
 

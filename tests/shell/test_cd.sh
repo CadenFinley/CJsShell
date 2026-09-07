@@ -74,7 +74,7 @@ EOF
 
   OUTPUT=$(cd "$AUTO_CD_TMP" && PATH="$AUTO_CD_BIN:$PATH" "$CJSH_PATH" -c 'orig="$(pwd)"; autocdtest; pwd')
   LAST_LINE="$(printf "%s" "$OUTPUT" | tail -n 1)"
-  EXPECTED_DIR="$(cd "$AUTO_CD_TMP" && pwd -P)"
+  EXPECTED_DIR="$(cd "$AUTO_CD_TMP" && pwd)"
 
   if printf "%s" "$OUTPUT" | grep -q "ran command" && [ "$LAST_LINE" = "$EXPECTED_DIR" ]; then
     pass_test "auto cd defers to executable when available"

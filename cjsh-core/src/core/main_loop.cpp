@@ -57,6 +57,7 @@
 #include "cjshopt_command.h"
 #include "error_out.h"
 #include "exec.h"
+#include "exit_command.h"
 #include "interpreter.h"
 #include "job_control.h"
 #include "keycodes.h"
@@ -200,7 +201,7 @@ void update_job_management() {
 }
 
 void handle_readline_event(void*) {
-    if (cjsh_env::exit_requested()) {
+    if (cjsh_env::exit_requested() || SignalHandler::has_pending_termination_signal()) {
         (void)ic_push_key_event(IC_KEY_EVENT_STOP);
         return;
     }
@@ -319,7 +320,19 @@ std::optional<std::string> get_next_command() {
             if (input != nullptr) {
                 ic_free(input);
             }
-            cjsh_env::request_exit();
+            (void)g_shell->process_pending_signals();
+            if (readline_result.tty_lost) {
+                cjsh_env::request_exit();
+            }
+            return std::nullopt;
+        }
+
+        if (readline_result.disposition == IC_READLINE_DISPOSITION_EOF) {
+            if (input != nullptr) {
+                ic_free(input);
+            }
+            cjsh_env::increment_command_sequence();
+            (void)exit_command({"exit"});
             return std::nullopt;
         }
 
@@ -343,11 +356,6 @@ std::optional<std::string> get_next_command() {
         // there was actual input, assign it to command to run
         (void)command_to_run.assign(input);
         ic_free(input);
-
-        if (readline_result.disposition == IC_READLINE_DISPOSITION_EOF) {
-            cjsh_env::request_exit();
-            return std::nullopt;
-        }
 
         if (readline_result.disposition == IC_READLINE_DISPOSITION_INTERRUPT) {
             return std::nullopt;
@@ -691,6 +699,7 @@ void main_process_loop() {
 }
 
 void start_interactive_process() {
+    g_shell->begin_interactive_input();
     // activate the line editor
     initialize_isocline();
     cjsh_env::set_startup_active(false);

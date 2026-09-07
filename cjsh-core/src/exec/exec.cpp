@@ -1187,7 +1187,7 @@ Exec::Exec()
       shell_is_interactive(false),
       last_pipeline_statuses(1, 0) {
     bool requested_interactive = config::interactive_mode || config::force_interactive;
-    shell_is_interactive = requested_interactive && (isatty(STDIN_FILENO) != 0);
+    shell_is_interactive = requested_interactive;
 
 #ifdef O_CLOEXEC
     int tty_fd = open("/dev/tty", O_RDWR | O_CLOEXEC);
@@ -1198,7 +1198,6 @@ Exec::Exec()
         shell_terminal = tty_fd;
         owns_shell_terminal = true;
     }
-
 }
 
 Exec::~Exec() {
@@ -2003,11 +2002,25 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
             };
             process_wait_signals();
+            const auto interrupted_exit = [&]() {
+                cleanup_process_substitutions(proc_resources, false);
+                const int code = SignalHandler::termination_signal() != 0
+                                     ? 128 + SignalHandler::termination_signal()
+                                     : 0;
+                set_last_pipeline_statuses({code});
+                return finalize_exit(code);
+            };
+            if (cjsh_env::exit_requested()) {
+                return interrupted_exit();
+            }
             int status = 0;
             const int wait_options = cmd.auto_background_on_stop ? WUNTRACED : 0;
             pid_t wpid = waitpid(pid, &status, wait_options);
             while (wpid == -1 && errno == EINTR) {
                 process_wait_signals();
+                if (cjsh_env::exit_requested()) {
+                    return interrupted_exit();
+                }
                 wpid = waitpid(pid, &status, wait_options);
             }
             remove_job(foreground_job_id);

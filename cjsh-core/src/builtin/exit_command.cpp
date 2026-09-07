@@ -41,6 +41,7 @@
 #include "flags.h"
 #include "numeric_utils.h"
 #include "shell_env.h"
+#include "signal_handler.h"
 
 namespace {
 enum class ExitWarningState : std::uint8_t {
@@ -50,6 +51,7 @@ enum class ExitWarningState : std::uint8_t {
 
 ExitWarningState g_last_exit_warning = ExitWarningState::NONE;
 std::uint64_t g_last_exit_warning_command = 0;
+int g_pending_exit_status = 0;
 
 int get_last_command_status() {
     const std::string last_status = cjsh_env::get_shell_variable_value("?");
@@ -63,46 +65,46 @@ int get_last_command_status() {
 
 int exit_command(const std::vector<std::string>& args) {
     const std::string command_name = args.empty() ? "exit" : args[0];
-    if (builtin_handle_help(args, {"Usage: " + command_name + " [-f|--force] [N]",
-                                   "Exit the shell with status N (default last command).",
-                                   "Use --force to bypass confirmation and skip exit traps."})) {
+    if (builtin_handle_help(args,
+                            {"Usage: " + command_name + " [-f|--force] [N]",
+                             "Exit the shell with status N (default last command).",
+                             "Use --force to bypass confirmation and run normal exit cleanup."})) {
         return 0;
     }
     int exit_code = get_last_command_status();
     bool force_exit = false;
-    int non_flag_args = 0;
-
-    force_exit = std::find(args.begin(), args.end(), "-f") != args.end() ||
-                 std::find(args.begin(), args.end(), "--force") != args.end();
-
-    for (size_t i = 1; i < args.size(); i++) {
-        const std::string& val = args[i];
-        if (val != "-f" && val != "--force") {
-            non_flag_args++;
-            int parsed_status = 0;
-            if (numeric_utils::parse_int_strict(val, parsed_status)) {
-                exit_code = numeric_utils::parse_exit_status_or(val, 0, true);
-                break;
-            } else {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             command_name,
-                             "invalid numeric argument: " + val,
-                             {"Use a number between 0 and 255."}});
-                cjsh_env::request_exit();
-                (void)cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
-                return 0;
-            }
+    std::vector<std::string> operands;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i] == "-f" || args[i] == "--force") {
+            force_exit = true;
+        } else {
+            operands.push_back(args[i]);
         }
     }
-
-    if (non_flag_args > 1) {
+    if (operands.size() > 1) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      command_name,
                      "too many arguments",
                      {"Use at most one exit status argument."}});
-        cjsh_env::request_exit();
-        (void)cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
-        return 0;
+        g_last_exit_warning = ExitWarningState::NONE;
+        return 1;
+    }
+    if (!operands.empty()) {
+        const auto& value = operands.front();
+        const size_t digits = !value.empty() && (value[0] == '+' || value[0] == '-') ? 1 : 0;
+        long status = 0;
+        if (digits == value.size() ||
+            value.find_first_not_of("0123456789", digits) != std::string::npos ||
+            !numeric_utils::parse_long_strict(value, status)) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         command_name,
+                         "invalid numeric argument: " + value,
+                         {"Use a signed integer exit status."}});
+            cjsh_env::request_exit();
+            (void)cjsh_env::set_shell_variable_value("EXIT_CODE", "2");
+            return 2;
+        }
+        exit_code = static_cast<int>(static_cast<unsigned long>(status) & 0xffUL);
     }
 
     const auto& initial_args = flags::startup_args();
@@ -111,10 +113,17 @@ int exit_command(const std::vector<std::string>& args) {
     const bool running_dash_c =
         config::execute_command || !config::cmd_to_execute.empty() || invoked_with_dash_c;
     const bool should_check_confirmation =
-        !force_exit && !running_dash_c &&
+        !force_exit && !running_dash_c && !cjsh_env::startup_active() &&
+        !SignalHandler::shutting_down() && !SignalHandler::executing_trap() &&
         config::exit_confirmation_mode != config::ExitConfirmationMode::Never;
-    bool forced_by_repeated_exit = false;
     const std::uint64_t current_command_sequence = cjsh_env::command_sequence();
+
+    const bool consecutive_exit_attempt =
+        g_last_exit_warning == ExitWarningState::CONFIRMATION_REQUIRED &&
+        current_command_sequence == g_last_exit_warning_command + 1;
+    if (consecutive_exit_attempt && operands.empty()) {
+        exit_code = g_pending_exit_status;
+    }
 
     if (should_check_confirmation) {
         auto& job_manager = JobManager::instance();
@@ -144,19 +153,9 @@ int exit_command(const std::vector<std::string>& args) {
             g_last_exit_warning = ExitWarningState::NONE;
             g_last_exit_warning_command = 0;
         } else {
-            const bool had_previous_warning =
-                g_last_exit_warning == ExitWarningState::CONFIRMATION_REQUIRED;
-            const bool consecutive_exit_attempt =
-                had_previous_warning && g_last_exit_warning_command != 0 &&
-                current_command_sequence == g_last_exit_warning_command + 1;
-
             if (consecutive_exit_attempt) {
                 g_last_exit_warning = ExitWarningState::NONE;
                 g_last_exit_warning_command = 0;
-                if (has_blocking_jobs) {
-                    force_exit = true;
-                    forced_by_repeated_exit = true;
-                }
             } else {
                 std::string warning;
                 if (has_stopped_jobs && has_running_jobs) {
@@ -171,6 +170,7 @@ int exit_command(const std::vector<std::string>& args) {
 
                 g_last_exit_warning = ExitWarningState::CONFIRMATION_REQUIRED;
                 g_last_exit_warning_command = current_command_sequence;
+                g_pending_exit_status = exit_code;
 
                 std::vector<std::string> suggestions;
                 if (has_blocking_jobs) {
@@ -189,17 +189,6 @@ int exit_command(const std::vector<std::string>& args) {
     } else {
         g_last_exit_warning = ExitWarningState::NONE;
         g_last_exit_warning_command = 0;
-    }
-
-    if (force_exit) {
-        cjsh_env::request_force_exit();
-        if (forced_by_repeated_exit) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         ErrorSeverity::WARNING,
-                         "exit",
-                         "Second exit attempt detected. Forcing exit despite active jobs.",
-                         {"Use `exit --force` to skip the warning immediately."}});
-        }
     }
 
     cjsh_env::request_exit();

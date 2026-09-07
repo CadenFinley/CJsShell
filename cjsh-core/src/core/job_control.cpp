@@ -389,6 +389,9 @@ std::optional<int> wait_for_job(const std::shared_ptr<JobControlJob>& job, JobMa
                 if (g_shell) {
                     (void)g_shell->process_pending_signals();
                 }
+                if (cjsh_env::exit_requested()) {
+                    return std::nullopt;
+                }
                 if (auto ready = current_result()) {
                     return ready;
                 }

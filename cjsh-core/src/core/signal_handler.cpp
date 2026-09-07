@@ -42,6 +42,7 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "numeric_utils.h"
+#include "pipeline_status_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "trap_command.h"
@@ -99,7 +100,11 @@ volatile sig_atomic_t SignalHandler::s_sigcont_received = 0;
 
 std::atomic<bool> SignalHandler::s_signal_pending(false);
 pid_t SignalHandler::s_main_pid = 0;
-std::vector<int> SignalHandler::s_observed_signals;
+volatile sig_atomic_t SignalHandler::s_termination_signal = 0;
+volatile sig_atomic_t SignalHandler::s_shutting_down = 0;
+bool SignalHandler::s_executing_trap = false;
+std::unordered_map<int, struct sigaction> SignalHandler::s_inherited_actions;
+volatile sig_atomic_t SignalHandler::s_observed_signals[NSIG] = {};
 std::unordered_map<int, SignalState> SignalHandler::s_signal_states;
 
 const std::vector<SignalInfo>& SignalHandler::signal_table() {
@@ -206,55 +211,98 @@ const std::vector<SignalInfo>& SignalHandler::available_signals() {
     return signal_table();
 }
 
-SignalHandler::SignalHandler()
-
-    : m_old_sigint_handler(),
-      m_old_sigchld_handler(),
-      m_old_sighup_handler(),
-      m_old_sigterm_handler(),
-      m_old_sigquit_handler(),
-      m_old_sigtstp_handler(),
-      m_old_sigttin_handler(),
-      m_old_sigttou_handler(),
-      m_old_sigusr1_handler(),
-      m_old_sigusr2_handler(),
-      m_old_sigalrm_handler(),
-      m_old_sigwinch_handler(),
-      m_old_sigpipe_handler() {
+SignalHandler::SignalHandler() {
     // Children can receive signals before exec resets their handlers. Record
     // the owning shell now, before any fork, so those signals keep child defaults.
     s_main_pid = getpid();
+    s_inherited_actions.clear();
+    s_signal_states.clear();
+    for (auto& observed : s_observed_signals) {
+        observed = 0;
+    }
+    for (const auto& info : signal_table()) {
+        struct sigaction action{};
+        if (sigaction(info.signal, nullptr, &action) == 0) {
+            s_inherited_actions[info.signal] = action;
+        }
+    }
     signal_unblock_all();
     s_instance.store(this);
 }
 
+bool SignalHandler::inherited_ignored(int signum) {
+    auto it = s_inherited_actions.find(signum);
+    return it != s_inherited_actions.end() && it->second.sa_handler == SIG_IGN;
+}
+
+bool SignalHandler::child_ignored(int signum) {
+    auto it = s_signal_states.find(signum);
+    return inherited_ignored(signum) ||
+           (it != s_signal_states.end() && it->second.disposition == SignalDisposition::IGNORE);
+}
+
 void reset_child_signals() {
-    (void)signal(SIGINT, SIG_DFL);
-    (void)signal(SIGQUIT, SIG_DFL);
-    (void)signal(SIGTSTP, SIG_DFL);
-    (void)signal(SIGTTIN, SIG_DFL);
-    (void)signal(SIGTTOU, SIG_DFL);
-    (void)signal(SIGCHLD, SIG_DFL);
-    (void)signal(SIGTERM, SIG_DFL);
-    (void)signal(SIGHUP, SIG_DFL);
-    (void)signal(SIGPIPE, SIG_DFL);
-
-#ifdef SIGUSR1
-    (void)signal(SIGUSR1, SIG_DFL);
-#endif
-#ifdef SIGUSR2
-    (void)signal(SIGUSR2, SIG_DFL);
-#endif
-#ifdef SIGALRM
-    (void)signal(SIGALRM, SIG_DFL);
-#endif
-#ifdef SIGWINCH
-    (void)signal(SIGWINCH, SIG_DFL);
-#endif
-
+    for (const auto& info : SignalHandler::available_signals()) {
+        if (info.can_trap) {
+            (void)signal(info.signal,
+                         SignalHandler::child_ignored(info.signal) ? SIG_IGN : SIG_DFL);
+        }
+    }
     sigset_t set{};
     sigemptyset(&set);
     (void)sigprocmask(SIG_SETMASK, &set, nullptr);
+}
+
+ExecSignalGuard::ExecSignalGuard() {
+    (void)sigprocmask(SIG_SETMASK, nullptr, &mask);
+    for (const auto& info : SignalHandler::available_signals()) {
+        struct sigaction action{};
+        if (info.can_trap && sigaction(info.signal, nullptr, &action) == 0) {
+            actions.emplace_back(info.signal, action);
+        }
+    }
+    reset_child_signals();
+}
+
+ExecSignalGuard::~ExecSignalGuard() {
+    for (const auto& [signum, action] : actions) {
+        (void)sigaction(signum, &action, nullptr);
+    }
+    (void)sigprocmask(SIG_SETMASK, &mask, nullptr);
+}
+
+int SignalHandler::termination_signal() {
+    return s_termination_signal;
+}
+
+void SignalHandler::begin_shutdown() {
+    s_shutting_down = 1;
+}
+
+bool SignalHandler::shutting_down() {
+    return s_shutting_down != 0;
+}
+
+void SignalHandler::finish_shutdown() {
+    // Cleanup is complete. Signals arriving after this point can take their
+    // default action directly, without touching shell objects during teardown.
+    for (int signum : {SIGHUP, SIGTERM}) {
+        if (!child_ignored(signum) && !is_signal_observed(signum)) {
+            (void)signal(signum, SIG_DFL);
+        }
+    }
+    const int signum = s_termination_signal;
+    if (signum == 0) {
+        return;
+    }
+    (void)fflush(nullptr);
+    (void)signal(signum, SIG_DFL);
+    sigset_t mask{};
+    sigemptyset(&mask);
+    sigaddset(&mask, signum);
+    (void)sigprocmask(SIG_UNBLOCK, &mask, nullptr);
+    (void)kill(getpid(), signum);
+    _exit(128 + signum);
 }
 
 bool SignalHandler::has_direct_pending_signal() {
@@ -423,7 +471,7 @@ void SignalHandler::set_signal_disposition(int signum, SignalDisposition disp, c
         return;
     }
 
-    if (signum == SIGKILL || signum == SIGSTOP) {
+    if (signum == SIGKILL || signum == SIGSTOP || inherited_ignored(signum)) {
         return;
     }
 
@@ -488,13 +536,19 @@ void SignalHandler::restore_signal_disposition(int signum, const struct sigactio
         return;
     }
     auto& state = s_signal_states[signum];
-    state.disposition = action.sa_handler == SIG_IGN ? SignalDisposition::IGNORE :
-                        action.sa_handler == SIG_DFL ? SignalDisposition::DEFAULT :
-                                                      SignalDisposition::SYSTEM;
+    state.disposition = action.sa_handler == SIG_IGN   ? SignalDisposition::SYSTEM
+                        : action.sa_handler == SIG_DFL ? SignalDisposition::DEFAULT
+                                                       : SignalDisposition::SYSTEM;
     unobserve_signal(signum);
 }
 
 void SignalHandler::install_signal_handler(int signum, struct sigaction* old_action) {
+    if (inherited_ignored(signum)) {
+        if (old_action) {
+            (void)sigaction(signum, nullptr, old_action);
+        }
+        return;
+    }
     struct sigaction sa{};
     sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
@@ -512,9 +566,18 @@ void SignalHandler::install_signal_handler(int signum, struct sigaction* old_act
 }
 
 void SignalHandler::process_trapped_signal(int signum) {
-    if (trap_manager_has_trap(signum)) {
+    if (trap_manager_has_trap(signum) && !s_executing_trap) {
+        const int saved_status =
+            numeric_utils::parse_exit_status_or(cjsh_env::get_shell_variable_value("?"), 0, false);
+        s_executing_trap = true;
         trap_manager_execute_trap(signum);
+        s_executing_trap = false;
+        pipeline_status_utils::set_last_status_env(saved_status);
     }
+}
+
+bool SignalHandler::executing_trap() {
+    return s_executing_trap;
 }
 
 void SignalHandler::signal_handler(int signum) {
@@ -529,6 +592,12 @@ void SignalHandler::signal_handler(int signum) {
     }
 
     bool is_observed = is_signal_observed(signum);
+    if ((signum == SIGHUP || signum == SIGTERM) && shutting_down()) {
+        if (!is_observed && s_termination_signal == 0) {
+            s_termination_signal = signum;
+        }
+        return;
+    }
     bool should_mark_pending = is_observed;
 
     switch (signum) {
@@ -555,7 +624,6 @@ void SignalHandler::signal_handler(int signum) {
 
         case SIGHUP: {
             s_sighup_received = 1;
-            cjsh_env::request_exit();
             ic_notify_readline();
             should_mark_pending = true;
             break;
@@ -563,8 +631,7 @@ void SignalHandler::signal_handler(int signum) {
 
         case SIGTERM: {
             s_sigterm_received = 1;
-            cjsh_env::request_exit();
-            // Defer termination until managed children can be killed and reaped.
+            // Dispatch traps and cleanup outside the asynchronous handler.
             ic_notify_readline();
             should_mark_pending = true;
             break;
@@ -685,21 +752,21 @@ void SignalHandler::setup_signal_handlers() {
     sa.sa_handler = SIG_IGN;
     sa.sa_flags = 0;
     sa.sa_mask = block_mask;
-    (void)sigaction(SIGPIPE, &sa, &m_old_sigpipe_handler);
+    (void)sigaction(SIGPIPE, &sa, nullptr);
 
-    s_signal_states[SIGPIPE].disposition = SignalDisposition::IGNORE;
+    s_signal_states[SIGPIPE].disposition = SignalDisposition::SYSTEM;
 
-    (void)sigaction(SIGTTOU, &sa, &m_old_sigttou_handler);
-    (void)sigaction(SIGTTIN, &sa, &m_old_sigttin_handler);
+    (void)sigaction(SIGTTOU, &sa, nullptr);
+    (void)sigaction(SIGTTIN, &sa, nullptr);
 
-    install_signal_handler(SIGCHLD, &m_old_sigchld_handler);
-    install_signal_handler(SIGINT, &m_old_sigint_handler);
-    install_signal_handler(SIGHUP, &m_old_sighup_handler);
-    install_signal_handler(SIGTERM, &m_old_sigterm_handler);
+    install_signal_handler(SIGCHLD, nullptr);
+    install_signal_handler(SIGINT, nullptr);
+    install_signal_handler(SIGHUP, nullptr);
+    install_signal_handler(SIGTERM, nullptr);
 
 #ifdef SIGTSTP
     if (!config::interactive_mode) {
-        install_signal_handler(SIGTSTP, &m_old_sigtstp_handler);
+        install_signal_handler(SIGTSTP, nullptr);
         s_signal_states[SIGTSTP].disposition = SignalDisposition::SYSTEM;
     }
 #endif
@@ -721,55 +788,23 @@ void SignalHandler::setup_interactive_handlers() {
     sa.sa_flags = 0;
     sa.sa_mask = block_mask;
 
-    (void)sigaction(SIGQUIT, &sa, &m_old_sigquit_handler);
-    (void)sigaction(SIGTSTP, &sa, &m_old_sigtstp_handler);
+    (void)sigaction(SIGQUIT, &sa, nullptr);
+    (void)sigaction(SIGTSTP, &sa, nullptr);
 
 #ifdef SIGWINCH
 
-    install_signal_handler(SIGWINCH, &m_old_sigwinch_handler);
+    install_signal_handler(SIGWINCH, nullptr);
     s_signal_states[SIGWINCH].disposition = SignalDisposition::SYSTEM;
-#endif
-
-#ifdef SIGUSR1
-
-    (void)sigaction(SIGUSR1, nullptr, &m_old_sigusr1_handler);
-#endif
-
-#ifdef SIGUSR2
-    (void)sigaction(SIGUSR2, nullptr, &m_old_sigusr2_handler);
-#endif
-
-#ifdef SIGALRM
-    (void)sigaction(SIGALRM, nullptr, &m_old_sigalrm_handler);
 #endif
 }
 
 void SignalHandler::restore_original_handlers() {
-    (void)sigaction(SIGINT, &m_old_sigint_handler, nullptr);
-    (void)sigaction(SIGCHLD, &m_old_sigchld_handler, nullptr);
-    (void)sigaction(SIGHUP, &m_old_sighup_handler, nullptr);
-    (void)sigaction(SIGTERM, &m_old_sigterm_handler, nullptr);
-    (void)sigaction(SIGQUIT, &m_old_sigquit_handler, nullptr);
-    (void)sigaction(SIGTSTP, &m_old_sigtstp_handler, nullptr);
-    (void)sigaction(SIGTTIN, &m_old_sigttin_handler, nullptr);
-    (void)sigaction(SIGTTOU, &m_old_sigttou_handler, nullptr);
-    (void)sigaction(SIGPIPE, &m_old_sigpipe_handler, nullptr);
-
-#ifdef SIGUSR1
-    (void)sigaction(SIGUSR1, &m_old_sigusr1_handler, nullptr);
-#endif
-
-#ifdef SIGUSR2
-    (void)sigaction(SIGUSR2, &m_old_sigusr2_handler, nullptr);
-#endif
-
-#ifdef SIGALRM
-    (void)sigaction(SIGALRM, &m_old_sigalrm_handler, nullptr);
-#endif
-
-#ifdef SIGWINCH
-    (void)sigaction(SIGWINCH, &m_old_sigwinch_handler, nullptr);
-#endif
+    if (shutting_down()) {
+        return;
+    }
+    for (const auto& [signum, action] : s_inherited_actions) {
+        (void)sigaction(signum, &action, nullptr);
+    }
 }
 
 SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec,
@@ -838,74 +873,25 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec,
         }
     }
 
+    const auto dispatch_termination = [&](int signum, bool& terminating) {
+        if (is_signal_observed(signum)) {
+            process_trapped_signal(signum);
+            result.trapped_signals.push_back(signum);
+        } else {
+            terminating = true;
+            if (s_termination_signal == 0) {
+                s_termination_signal = signum;
+            }
+            cjsh_env::request_exit();
+        }
+    };
     if (s_sighup_received != 0) {
         s_sighup_received = 0;
-        result.sighup = true;
-        cjsh_env::request_exit();
-
-        auto& job_manager = JobManager::instance();
-        auto jobs_snapshot = job_manager.get_all_jobs();
-
-        for (const auto& job : jobs_snapshot) {
-            const JobState state = job->state.load(std::memory_order_relaxed);
-            if ((state == JobState::RUNNING || state == JobState::STOPPED) && !job->hup_protected) {
-                if (job->process_group && job->pgid > 0) {
-                    (void)killpg(job->pgid, SIGHUP);
-                } else {
-                    for (pid_t pid : job->remaining_pids) {
-                        (void)kill(pid, SIGHUP);
-                    }
-                }
-#ifdef SIGCONT
-                if (state == JobState::STOPPED) {
-                    if (job->process_group && job->pgid > 0) {
-                        (void)killpg(job->pgid, SIGCONT);
-                    } else {
-                        for (pid_t pid : job->remaining_pids) {
-                            (void)kill(pid, SIGCONT);
-                        }
-                    }
-                }
-#endif
-            }
-        }
-
-        if (shell_exec != nullptr) {
-            // A non-monitor job can be a shell wrapper that defers its HUP trap while waiting for
-            // a descendant in the shared caller process group. Finish unprotected direct
-            // children as the shell exits; Exec preserves jobs marked by `disown -h`.
-            shell_exec->terminate_all_child_process(SIGHUP);
-        }
-
-        job_manager.clear_all_jobs();
-
-        if (!is_signal_observed(SIGHUP)) {
-#ifdef __APPLE__
-            std::_Exit(129);
-#else
-            std::quick_exit(129);
-#endif
-        } else {
-            (void)alarm(1);
-        }
+        dispatch_termination(SIGHUP, result.sighup);
     }
-
     if (s_sigterm_received != 0) {
         s_sigterm_received = 0;
-        result.sigterm = true;
-
-        cjsh_env::request_exit();
-
-        if (shell_exec != nullptr) {
-            shell_exec->terminate_all_child_process();
-        }
-
-        if (is_signal_observed(SIGTERM)) {
-            process_trapped_signal(SIGTERM);
-            result.trapped_signals.push_back(SIGTERM);
-        } else {
-            std::_Exit(128 + SIGTERM);
-        }
+        dispatch_termination(SIGTERM, result.sigterm);
     }
 
     if (s_sigquit_received != 0) {
@@ -1020,28 +1006,22 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec,
         result.trapped_signals.push_back(SIGINT);
     }
 
-    if (result.sighup && is_signal_observed(SIGHUP)) {
-        process_trapped_signal(SIGHUP);
-        result.trapped_signals.push_back(SIGHUP);
-    }
-
     return result;
 }
 
 void SignalHandler::observe_signal(int signum) {
-    if (!is_signal_observed(signum)) {
-        s_observed_signals.push_back(signum);
+    if (signum > 0 && signum < NSIG) {
+        s_observed_signals[signum] = 1;
     }
 }
 
 void SignalHandler::unobserve_signal(int signum) {
-    auto it = std::find(s_observed_signals.begin(), s_observed_signals.end(), signum);
-    if (it != s_observed_signals.end()) {
-        (void)s_observed_signals.erase(it);
+    if (signum > 0 && signum < NSIG) {
+        s_observed_signals[signum] = 0;
     }
 }
 
 bool SignalHandler::is_signal_observed(int signum) {
-    return std::find(s_observed_signals.begin(), s_observed_signals.end(), signum) !=
-           s_observed_signals.end();
+    // This lookup also runs in the asynchronous handler: no container traversal.
+    return signum > 0 && signum < NSIG && s_observed_signals[signum] != 0;
 }

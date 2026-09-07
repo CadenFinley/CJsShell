@@ -222,7 +222,8 @@ int fg_command(const std::vector<std::string>& args) {
     }
 
     bool close_terminal = false;
-    const int terminal_fd = open_controlling_terminal(close_terminal);
+    const int terminal_fd =
+        g_shell && g_shell->manages_terminal() ? open_controlling_terminal(close_terminal) : -1;
     bool terminal_control_acquired = false;
     struct termios shell_modes{};
     const bool shell_modes_saved = terminal_fd >= 0 && tcgetattr(terminal_fd, &shell_modes) == 0;

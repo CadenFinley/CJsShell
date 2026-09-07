@@ -134,7 +134,7 @@ class TerminalRecoveryTests(unittest.TestCase):
                 start = len(session.output)
                 os.kill(session.pid, signum)
                 if signum == signal.SIGHUP:
-                    self.assertEqual(session.wait_for_exit(), 128 + signum)
+                    self.assertEqual(session.wait_for_exit(), -signum)
                     self.assertTrue(termios.tcgetattr(session.fd)[3] & termios.ICANON)
                 else:
                     start = session.wait_for(INPUT_ABORTED, start)
@@ -150,7 +150,7 @@ class TerminalRecoveryTests(unittest.TestCase):
 
     def test_external_sighup_exits_with_terminal_still_open(self) -> None:
         os.kill(self.session.pid, signal.SIGHUP)
-        self.assertEqual(self.session.wait_for_exit(), 128 + signal.SIGHUP)
+        self.assertEqual(self.session.wait_for_exit(), -signal.SIGHUP)
         self.assertTrue(termios.tcgetattr(self.session.fd)[3] & termios.ICANON)
 
     def test_external_sigint_runs_trap_before_next_prompt(self) -> None:

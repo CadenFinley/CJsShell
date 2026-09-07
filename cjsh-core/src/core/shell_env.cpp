@@ -30,6 +30,7 @@
 
 #include <pwd.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #if defined(__APPLE__)
@@ -41,6 +42,7 @@ extern "C" char** environ;
 #endif
 
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
@@ -55,10 +57,12 @@ extern "C" char** environ;
 #include "command_line_utils.h"
 #include "error_out.h"
 #include "interpreter.h"
+#include "numeric_utils.h"
 #include "parser_utils.h"
 #include "pipeline_status_utils.h"
 #include "prompt.h"
 #include "shell.h"
+#include "signal_handler.h"
 #include "version_command.h"
 
 namespace config {
@@ -118,7 +122,6 @@ std::unordered_map<std::string, std::string> g_env_vars;
 bool g_exit_flag = false;
 bool g_startup_active = true;
 std::uint64_t g_command_sequence = 0;
-bool g_force_exit_requested = false;
 
 void apply_env_vars_to_parser(Shell* shell) {
     if (shell == nullptr) {
@@ -416,6 +419,15 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
     }
 
     std::string current_path = cjsh_filesystem::safe_current_directory();
+    // Preserve a logical spelling only when it identifies the actual working directory.
+    if (const char* inherited_pwd = getenv("PWD"); inherited_pwd && inherited_pwd[0] == '/') {
+        struct stat logical{};
+        struct stat actual{};
+        if (stat(inherited_pwd, &logical) == 0 && stat(".", &actual) == 0 &&
+            logical.st_dev == actual.st_dev && logical.st_ino == actual.st_ino) {
+            current_path = inherited_pwd;
+        }
+    }
 
     (void)setenv("PWD", current_path.c_str(), 1);
     (void)env_vars.emplace_back("IFS", std::string(" \t\n"));
@@ -597,6 +609,30 @@ void request_exit() {
     g_exit_flag = true;
 }
 
+void clear_exit_request() {
+    g_exit_flag = false;
+}
+
+ReplacementShellLevel::ReplacementShellLevel() {
+    // Only the exec environment changes; shell variables retain their current level.
+    if (const char* value = getenv("SHLVL")) {
+        previous = value;
+        was_set = true;
+        int level = 0;
+        if (numeric_utils::parse_int_strict(previous, level) && level > 0) {
+            (void)setenv("SHLVL", std::to_string(level - 1).c_str(), 1);
+        }
+    }
+}
+
+ReplacementShellLevel::~ReplacementShellLevel() {
+    if (was_set) {
+        (void)setenv("SHLVL", previous.c_str(), 1);
+    } else {
+        (void)unsetenv("SHLVL");
+    }
+}
+
 bool startup_active() {
     return g_startup_active;
 }
@@ -613,19 +649,10 @@ void increment_command_sequence() {
     ++g_command_sequence;
 }
 
-bool force_exit_requested() {
-    return g_force_exit_requested;
-}
-
-void request_force_exit() {
-    g_force_exit_requested = true;
-}
-
 void reset_shell_state() {
     g_exit_flag = false;
     g_startup_active = true;
     g_command_sequence = 0;
-    g_force_exit_requested = false;
 }
 
 }  // namespace cjsh_env
@@ -714,9 +741,23 @@ int handle_non_interactive_mode(const std::string& script_file) {
 
         script_content = read_result.value();
     } else {
-        std::string line;
-        while (std::getline(std::cin, line)) {
-            script_content += line + "\n";
+        char buffer[4096];
+        for (;;) {
+            if (g_shell) {
+                (void)g_shell->process_pending_signals();
+            }
+            if (cjsh_env::exit_requested()) {
+                return read_exit_code_or(128 + SignalHandler::termination_signal());
+            }
+            const ssize_t count = read(STDIN_FILENO, buffer, sizeof(buffer));
+            if (count > 0) {
+                script_content.append(buffer, static_cast<size_t>(count));
+            } else if (count == 0) {
+                break;
+            } else if (errno != EINTR) {
+                print_error_errno({ErrorType::RUNTIME_ERROR, "read", "standard input", {}});
+                return 1;
+            }
         }
     }
 

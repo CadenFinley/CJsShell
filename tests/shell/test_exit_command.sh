@@ -168,10 +168,10 @@ fi
 
 log_test "Exit with invalid argument"
 "$SHELL_TO_TEST" -c "exit abc" 2>/dev/null
-if [ $? -eq 128 ]; then
+if [ $? -eq 2 ]; then
     pass
 else
-    fail "Exit with invalid argument should return 128, got $?"
+    fail "Exit with invalid argument should return 2, got $?"
 fi
 
 log_test "Exit within script content"
@@ -226,10 +226,10 @@ fi
 
 log_test "Multiple exit commands behavior"
 "$SHELL_TO_TEST" -c "exit 11; exit 22" 2>/dev/null
-if [ $? -eq 22 ]; then
+if [ $? -eq 11 ]; then
     pass
 else
-    fail "Last exit should win, expected 22, got $?"
+    fail "The first confirmed exit should stop execution, expected 11, got $?"
 fi
 
 log_test "Exit in conditional context"
@@ -274,7 +274,7 @@ fi
 log_test "Exit blocked when stopped jobs exist"
 stopped_pid_file=$(mktemp /tmp/cjsh_stopped_exit.XXXXXX)
 exit_output=$(PID_FILE="$stopped_pid_file" "$SHELL_TO_TEST" <<'EOF' 2>&1
-sleep 1000 &
+sleep 1000 >/dev/null 2>&1 &
 job=$!
 echo "$job" > "$PID_FILE"
 kill -STOP "$job"
@@ -303,7 +303,7 @@ fi
 log_test "Exit blocked when running jobs exist"
 running_pid_file=$(mktemp /tmp/cjsh_running_exit.XXXXXX)
 running_output=$(PID_FILE="$running_pid_file" "$SHELL_TO_TEST" <<'EOF' 2>&1
-sleep 1000 &
+sleep 1000 >/dev/null 2>&1 &
 job=$!
 echo "$job" > "$PID_FILE"
 exit 21
@@ -339,7 +339,7 @@ log_test "Never mode bypasses the active job guard"
 never_pid_file=$(mktemp /tmp/cjsh_never_exit.XXXXXX)
 never_output_file=$(mktemp /tmp/cjsh_never_exit_output.XXXXXX)
 PID_FILE="$never_pid_file" "$SHELL_TO_TEST" <<'EOF' >"$never_output_file" 2>&1
-sleep 1000 &
+sleep 1000 >/dev/null 2>&1 &
 job=$!
 echo "$job" > "$PID_FILE"
 cjshopt exit-confirmation never
@@ -362,7 +362,7 @@ fi
 log_test "Forced exit bypasses stopped job guard"
 force_pid_file=$(mktemp /tmp/cjsh_force_exit.XXXXXX)
 PID_FILE="$force_pid_file" "$SHELL_TO_TEST" <<'EOF' >/dev/null 2>&1
-sleep 1000 &
+sleep 1000 >/dev/null 2>&1 &
 job=$!
 echo "$job" > "$PID_FILE"
 kill -STOP "$job"
@@ -401,10 +401,10 @@ fi
 
 log_test "Exit with mixed valid/invalid arguments"
 "$SHELL_TO_TEST" -c "exit 50 invalid 60" 2>/dev/null
-if [ $? -eq 50 ]; then
+if [ $? -eq 1 ]; then
     pass
 else
-    fail "Exit should use first valid numeric argument, expected 50, got $?"
+    fail "Exit should reject extra operands, expected 1, got $?"
 fi
 
 log_test "Exit with only flags and no code reuses last status"

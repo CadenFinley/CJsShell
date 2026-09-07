@@ -282,13 +282,9 @@ fi
 
 log_test "Exit code 130 - SIGINT (Control-C)"
 sleep_script=$(create_temp_file "#!/bin/sh\nsleep 10" 755)
-(
-    "$SHELL_TO_TEST" -c "$sleep_script" &
-    pid=$!
-    sleep 0.1
-    kill -INT $pid 2>/dev/null
-    wait $pid 2>/dev/null
-) 2>/dev/null
+# A shell launched asynchronously inherits ignored INT from the test shell.
+# Deliver INT synchronously so this case tests an unignored disposition.
+"$SHELL_TO_TEST" -c 'kill -INT $$' 2>/dev/null
 exit_code=$?
 if [ $exit_code -eq 130 ]; then
     pass

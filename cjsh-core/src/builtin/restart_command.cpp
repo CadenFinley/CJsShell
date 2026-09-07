@@ -38,6 +38,7 @@
 #include "error_out.h"
 #include "flags.h"
 #include "shell_env.h"
+#include "signal_handler.h"
 
 int restart_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
@@ -106,11 +107,17 @@ int restart_command(const std::vector<std::string>& args) {
     }
 
     std::vector<char*> c_args = cjsh_env::build_exec_argv(exec_args);
-    (void)execvp(executable_path.c_str(), c_args.data());
+    int saved_errno;
+    {
+        cjsh_env::ReplacementShellLevel level;
+        ExecSignalGuard signals;
+        (void)execvp(executable_path.c_str(), c_args.data());
+        saved_errno = errno;
+    }
 
     print_error({ErrorType::RUNTIME_ERROR,
                  "restart",
-                 "failed to restart shell: " + std::string(std::strerror(errno)),
+                 "failed to restart shell: " + std::string(std::strerror(saved_errno)),
                  {"Resolved executable: " + executable_path}});
     return 1;
 }

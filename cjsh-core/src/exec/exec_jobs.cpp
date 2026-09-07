@@ -33,17 +33,20 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <csignal>
 #include <cstring>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <unordered_set>
 #include <vector>
 
 #include "job_control.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "signal_handler.h"
 #include "wait_status_utils.h"
 
@@ -142,8 +145,8 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
     const bool main_shell_controls_terminal =
         job->process_group && g_shell && g_shell->is_job_control_enabled() &&
-        shell_is_interactive && (isatty(shell_terminal) != 0) && shell_pgid > 0 &&
-        getpid() == shell_pgid && getpgrp() == shell_pgid;
+        g_shell->manages_terminal() && shell_is_interactive && (isatty(shell_terminal) != 0) &&
+        shell_pgid > 0 && getpid() == shell_pgid && getpgrp() == shell_pgid;
 
     bool terminal_control_acquired = false;
     struct termios shell_modes{};
@@ -295,6 +298,12 @@ void Exec::wait_for_job(int job_id) {
                     (void)g_shell->process_pending_signals(false);
                 } else if (auto* signal_handler = SignalHandler::instance()) {
                     (void)signal_handler->process_pending_signals(this, false);
+                }
+                if (cjsh_env::exit_requested()) {
+                    last_exit_code = SignalHandler::termination_signal() != 0
+                                         ? 128 + SignalHandler::termination_signal()
+                                         : 0;
+                    return;
                 }
                 continue;
             }
@@ -492,128 +501,52 @@ void Exec::terminate_all_child_process(int signal) {
         }
     }
 
-    const auto send_signal_to_job = [](const Job& job, int signal,
-                                       std::vector<pid_t>* signaled_pids = nullptr) -> bool {
-        bool pid_signaled = false;
-
+    const auto send_signal_to_job = [](const Job& job, int signum) {
+        // Signal the group once so handlers are not invoked twice for group leaders.
+        if (job.process_group && job.pgid > 0 && killpg(job.pgid, signum) == 0) {
+            return;
+        }
         for (pid_t pid : job.pids) {
-            if (pid <= 0) {
-                continue;
-            }
-            if (kill(pid, signal) == 0) {
-                pid_signaled = true;
-                if (signaled_pids != nullptr) {
-                    signaled_pids->push_back(pid);
-                }
+            if (pid > 0) {
+                (void)kill(pid, signum);
             }
         }
-
-        if (!job.process_group || job.pgid <= 0) {
-            return pid_signaled;
-        }
-
-        if (killpg(job.pgid, signal) == 0) {
-            return true;
-        }
-
-        const int group_errno = errno;
-        if (group_errno == ESRCH) {
-            return pid_signaled;
-        }
-
-        if ((group_errno == EPERM || group_errno == EACCES) && pid_signaled) {
-            return true;
-        }
-
-        print_error({ErrorType::RUNTIME_ERROR,
-                     ErrorSeverity::WARNING,
-                     "killpg",
-                     "failed to send signal " + std::to_string(signal) + " to pgid " +
-                         std::to_string(job.pgid) + ": " + std::string(strerror(group_errno)),
-                     {}});
-        return pid_signaled;
     };
 
-    bool signaled_any = false;
+    std::vector<pid_t> pending_children;
     for (const auto& entry : job_snapshot) {
         const Job& job = entry.job;
         if (job.completed || (signal == SIGHUP && job.hup_protected)) {
             continue;
         }
-
+        send_signal_to_job(job, signal);
+        pending_children.insert(pending_children.end(), job.pids.begin(), job.pids.end());
 #ifdef SIGCONT
-        if (job.stopped && job.pgid > 0) {
-            (void)send_signal_to_job(job, SIGCONT);
+        // Queue the shutdown signal before resuming a stopped job.
+        if (job.stopped) {
+            send_signal_to_job(job, SIGCONT);
         }
 #endif
-
-        if (send_signal_to_job(job, signal)) {
-            signaled_any = true;
-        }
-
-        if (entry.id > 0 && (job.pgid > 0 || !job.pids.empty())) {
-            std::cerr << "[" << entry.id << "] Terminated\t" << job.command << '\n';
-        }
     }
 
-    std::vector<pid_t> terminated_pids;
-    for (const auto& entry : job_snapshot) {
-        const Job& job = entry.job;
-        if (job.completed || (signal == SIGHUP && job.hup_protected)) {
-            continue;
-        }
-
-        (void)send_signal_to_job(job, SIGKILL, &terminated_pids);
-    }
-
-    // SIGKILL is asynchronous. WNOHANG alone can return before a killed child
-    // exits, leaving it to become an orphan or zombie after the shell exits.
-    // Wait only for children we killed, never for disowned or HUP-protected jobs.
-    for (pid_t pid : terminated_pids) {
-        int child_status = 0;
-        pid_t waited_pid;
-        do {
-            waited_pid = waitpid(pid, &child_status, 0);
-        } while (waited_pid == -1 && errno == EINTR);
-        if (waited_pid > 0) {
-            JobManager::instance().handle_child_status(waited_pid, child_status);
-        }
-    }
-
-    int status = 0;
-    int zombie_count = 0;
-    const int max_terminate_iterations = 100;
-    while (zombie_count < max_terminate_iterations) {
-        pid_t reap_pid = waitpid(-1, &status, WNOHANG);
-        if (reap_pid <= 0) {
+    // Give ordinary children a bounded opportunity to exit and be reaped. Signal
+    // handlers and ignored dispositions are respected even after the grace period.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+    while (!pending_children.empty()) {
+        pending_children.erase(
+            std::remove_if(pending_children.begin(), pending_children.end(),
+                           [](pid_t pid) {
+                               int status = 0;
+                               const pid_t waited = waitpid(pid, &status, WNOHANG);
+                               return waited > 0 || (waited < 0 && errno == ECHILD);
+                           }),
+            pending_children.end());
+        if (pending_children.empty() || std::chrono::steady_clock::now() >= deadline) {
             break;
         }
-        ++zombie_count;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-
-    if (zombie_count >= max_terminate_iterations) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     ErrorSeverity::WARNING,
-                     "terminate_all_child_process",
-                     "hit maximum cleanup iterations",
-                     {}});
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(jobs_mutex);
-        for (auto& pair : jobs) {
-            pair.second.completed = true;
-            pair.second.stopped = false;
-            pair.second.pids.clear();
-            pair.second.status = 0;
-        }
-    }
-
-    if (!signaled_any) {
-        set_error(ErrorType::RUNTIME_ERROR, "", "No child processes to terminate");
-    } else {
-        set_error(ErrorType::RUNTIME_ERROR, "", "All child processes terminated");
-    }
+    abandon_all_child_processes();
 }
 
 void Exec::remove_job_by_pgid(pid_t pgid) {

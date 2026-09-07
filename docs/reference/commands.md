@@ -154,7 +154,12 @@ bye [-f|--force] [n]
 - By default, cjsh asks for a consecutive second exit only when running or stopped jobs exist.
 - Configure that guard with `cjshopt exit-confirmation smart|always|never`; `smart` is the default,
   `always` confirms every exit, and `never` exits immediately.
-- `--force` bypasses confirmation and skips exit traps.
+- Ctrl+D on an empty command line uses the same confirmation policy as `exit`.
+- Without a status, cjsh uses the last foreground command's status. Consecutive exit attempts
+  preserve the status from the first attempt unless you supply a new one.
+- `--force` bypasses confirmation and retains normal shutdown handlers and cleanup.
+- Status operands must be signed integers and are reduced to 0–255. Invalid or oversized
+  integers exit with status 2; extra operands report an error with status 1 and keep the shell running.
 
 ### help
 Display the CJSH command reference.
@@ -180,6 +185,7 @@ restart [-n|--no-flags]
 - By default, reuses the original startup arguments (for example, `--posix` or `--minimal`)
 - `-n` / `--no-flags` restarts as plain `cjsh` (drops original startup flags and launch arguments)
 - Current working directory and exported environment are preserved across the restart
+- Restart preserves `SHLVL`, since it replaces the current shell process.
 
 ## Script Execution
 
@@ -208,6 +214,10 @@ Replace the shell process with another program.
 ```bash
 exec command [args...]
 ```
+
+Replacement preserves the nesting level when the next program is a shell. External programs
+receive ordinary signal dispositions, while inherited and explicitly ignored signals stay ignored.
+If replacement fails, cjsh restores its signal state and `SHLVL` and reports the error.
 
 ## Variables and Environment
 
@@ -267,6 +277,8 @@ set [options] [args...]
 - `set -o huponexit` mirrors bash's hangup behavior toggle; when enabled the shell sends
   SIGHUP to managed background jobs as it exits. Leave it off (the default) to keep helpers
   like dev servers alive until you explicitly stop them.
+- HUP cleanup resumes stopped jobs so they can handle the signal. Jobs that handle or ignore
+  HUP may survive; cjsh does not escalate to SIGKILL and waits at most 100 ms for child cleanup.
 - `set -m` enables monitor mode and per-job process groups; `set +m` disables it. Interactive
   shells start with monitor mode enabled.
 

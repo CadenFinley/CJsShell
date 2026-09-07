@@ -110,10 +110,14 @@ class Shell {
     void restore_terminal_state();
     void setup_job_control();
     bool reclaim_terminal();
+    bool manages_terminal() const;
     bool is_job_control_enabled() const;
     bool set_job_control_enabled(bool enabled);
 
     void set_interactive_mode(bool flag);
+    void begin_interactive_input() {
+        interactive_input_started = true;
+    }
     bool get_interactive_mode() const;
     void set_abbreviations(const std::unordered_map<std::string, std::string>& new_abbreviations);
     std::unordered_map<std::string, std::string>& get_abbreviations();
@@ -151,8 +155,10 @@ class Shell {
 
    private:
     bool interactive_mode = false;
-    int shell_terminal;
-    pid_t shell_pgid;
+    bool interactive_input_started = false;
+    int shell_terminal = -1;
+    bool owns_shell_terminal = false;
+    pid_t shell_pgid = 0;
     struct termios shell_tmodes;
     bool terminal_state_saved = false;
     bool job_control_enabled = false;

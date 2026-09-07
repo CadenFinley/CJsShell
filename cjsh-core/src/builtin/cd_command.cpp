@@ -202,6 +202,10 @@ int change_directory(const std::string& dir, std::string& current_directory,
             return 1;
         }
 
+        if (logical_mode) {
+            dir_path = normalize_logical_directory(dir_path);
+        }
+
         if (!std::filesystem::exists(dir_path)) {
             if (config::smart_cd_enabled && !config::minimal_mode && !config::secure_mode &&
                 !config::posix_mode) {

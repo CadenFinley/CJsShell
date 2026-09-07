@@ -461,22 +461,29 @@ log_test "SIGHUP propagation to child processes"
 test_hup_script="/tmp/hup_test_$$.sh"
 cat > "$test_hup_script" << 'EOF'
 #!/bin/sh
-trap 'echo "child_hup" > /tmp/hup_caught_$$; exit' HUP
+trap 'echo "child_hup" > "$1"; exit' HUP
+echo ready > "$2"
 sleep 2
 EOF
 chmod +x "$test_hup_script"
 
-"$SHELL_TO_TEST" -c "$test_hup_script & echo \$! > /tmp/child_pid_$$; sleep 1" &
+"$SHELL_TO_TEST" -c "$test_hup_script /tmp/hup_caught_$$ /tmp/hup_ready_$$ & echo \$! > /tmp/child_pid_$$; sleep 1" &
 shell_pid=$!
-sleep 0.2
+ready_attempt=0
+while [ ! -f "/tmp/hup_ready_$$" ] && [ "$ready_attempt" -lt 100 ]; do
+    sleep 0.02
+    ready_attempt=$((ready_attempt + 1))
+done
 
 if [ -f "/tmp/child_pid_$$" ]; then
     child_pid=$(cat "/tmp/child_pid_$$")
     kill -HUP $shell_pid 2>/dev/null
 
     hup_ok=0
-    for _ in 1 2 3 4 5; do
-        if [ -f "/tmp/hup_caught_$$" ] || ! kill -0 $child_pid 2>/dev/null; then
+    # /bin/sh may defer its trap until sleep returns. Require the handler's
+    # marker, rather than treating a killed child as proof of graceful delivery.
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+        if [ -f "/tmp/hup_caught_$$" ]; then
             hup_ok=1
             break
         fi
@@ -492,7 +499,8 @@ if [ -f "/tmp/child_pid_$$" ]; then
 else
     fail "Could not track child process for HUP test"
 fi
-rm -f "$test_hup_script" "/tmp/child_pid_$$" "/tmp/hup_caught_$$"
+wait "$shell_pid" 2>/dev/null || :
+rm -f "$test_hup_script" "/tmp/child_pid_$$" "/tmp/hup_caught_$$" "/tmp/hup_ready_$$"
 
 log_test "SIGCONT resumes stopped process"
 if command -v ps >/dev/null 2>&1; then

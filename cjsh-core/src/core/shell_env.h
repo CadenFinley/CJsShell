@@ -104,15 +104,13 @@ void mirror_unset_from_process_env(const std::string& name);
 
 bool exit_requested();
 void request_exit();
+void clear_exit_request();
 
 bool startup_active();
 void set_startup_active(bool value);
 
 std::uint64_t command_sequence();
 void increment_command_sequence();
-
-bool force_exit_requested();
-void request_force_exit();
 
 void reset_shell_state();
 
@@ -123,6 +121,18 @@ size_t collect_env_assignments(const std::vector<std::string>& args,
 void apply_env_assignments(const std::vector<std::pair<std::string, std::string>>& env_assignments);
 std::vector<std::string> parse_shell_command(const std::string& command);
 std::vector<char*> build_exec_argv(const std::vector<std::string>& args);
+
+class ReplacementShellLevel {
+   public:
+    ReplacementShellLevel();
+    ~ReplacementShellLevel();
+    ReplacementShellLevel(const ReplacementShellLevel&) = delete;
+    ReplacementShellLevel& operator=(const ReplacementShellLevel&) = delete;
+
+   private:
+    std::string previous;
+    bool was_set = false;
+};
 
 }  // namespace cjsh_env
 

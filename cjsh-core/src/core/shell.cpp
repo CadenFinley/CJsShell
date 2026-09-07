@@ -27,6 +27,7 @@
 */
 
 #include "shell.h"
+#include <fcntl.h>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -136,9 +137,6 @@ std::optional<ShellOption> parse_shell_option_short(char short_flag) {
 }
 
 Shell::Shell() {
-    // capture the terminal settings cjsh inherited so we can restore them on exit
-    save_terminal_state();
-
     trap_manager_initialize();
 
     // construct core subsystems before wiring them together
@@ -175,8 +173,10 @@ Shell::Shell() {
 Shell::~Shell() {
     // on shell destruction, handle any remaining child processes
     if (shell_exec) {
-        if (get_shell_option(ShellOption::Huponexit)) {
-            shell_exec->terminate_all_child_process(SIGHUP);
+        const int terminating_signal = SignalHandler::termination_signal();
+        if (terminating_signal != 0 || get_shell_option(ShellOption::Huponexit)) {
+            shell_exec->terminate_all_child_process(terminating_signal == SIGTERM ? SIGTERM
+                                                                                  : SIGHUP);
         } else {
             shell_exec->abandon_all_child_processes();
         }
@@ -188,9 +188,12 @@ Shell::~Shell() {
     // restore terminal state on exit to how we found it
     // again, if we restore it to a broken state, then we probably inherited a broken state
     restore_terminal_state();
+    if (owns_shell_terminal) {
+        (void)close(shell_terminal);
+    }
 
     // output a final exit line only in interactive modes
-    if (interactive_mode && !cjsh_env::startup_active()) {
+    if (interactive_input_started && !cjsh_env::startup_active()) {
         if (config::login_mode) {
             std::cout << "cjsh logout";
         } else {
@@ -481,17 +484,17 @@ void Shell::setup_interactive_handlers() {
 }
 
 void Shell::save_terminal_state() {
-    if (isatty(STDIN_FILENO) != 0) {
-        if (tcgetattr(STDIN_FILENO, &shell_tmodes) == 0) {
+    if (interactive_job_control_available) {
+        if (tcgetattr(shell_terminal, &shell_tmodes) == 0) {
             terminal_state_saved = true;
         }
     }
 }
 
 void Shell::restore_terminal_state() {
-    if (terminal_state_saved) {
-        if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) != 0) {
-            (void)tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);
+    if (terminal_state_saved && reclaim_terminal()) {
+        if (tcsetattr(shell_terminal, TCSANOW, &shell_tmodes) != 0) {
+            (void)tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes);
         }
         terminal_state_saved = false;
     }
@@ -508,16 +511,19 @@ void Shell::setup_job_control() {
         interactive_job_control_available = false;
         return;
     }
-    if (isatty(STDIN_FILENO) == 0) {
-        // `-i` still enables monitor-mode process groups when stdin is redirected. There is no
-        // controlling terminal to transfer, but fg/bg and the job table remain useful.
+    int tty_fd = open("/dev/tty", O_RDWR | O_CLOEXEC);
+    if (tty_fd >= 0) {
+        shell_terminal = tty_fd;
+        owns_shell_terminal = true;
+    }
+    if (isatty(shell_terminal) == 0) {
+        // Forced interactive execution without a controlling terminal still has job groups.
         job_control_enabled = true;
         shell_options[to_index(ShellOption::Monitor)] = true;
         interactive_job_control_available = false;
         return;
     }
 
-    shell_terminal = STDIN_FILENO;
     shell_pgid = getpgrp();
 
     // If cjsh was started in the background, wait until the parent shell foregrounds this
@@ -602,14 +608,19 @@ void Shell::setup_job_control() {
     interactive_job_control_available = true;
     job_control_enabled = true;
     shell_options[to_index(ShellOption::Monitor)] = true;
+    save_terminal_state();
+}
+
+bool Shell::manages_terminal() const {
+    return interactive_job_control_available && shell_pgid > 0 && getpid() == shell_pgid &&
+           getpgrp() == shell_pgid;
 }
 
 bool Shell::reclaim_terminal() {
     // Only the interactive shell that completed the startup foreground handshake may
     // reclaim this terminal. Forked subshells must not take it from their parent.
     // This remains necessary when the user disables monitor mode with `set +m`.
-    if (!interactive_job_control_available || shell_pgid <= 0 || getpid() != shell_pgid ||
-        getpgrp() != shell_pgid) {
+    if (!manages_terminal()) {
         return false;
     }
 
@@ -651,7 +662,7 @@ bool Shell::set_job_control_enabled(bool enabled) {
     // creation even though there is no terminal to hand off. An interactive shell with a TTY
     // may only enable it after the startup foreground handshake succeeded.
     const bool requested_interactive = config::interactive_mode || config::force_interactive;
-    if (enabled && requested_interactive && isatty(STDIN_FILENO) != 0 &&
+    if (enabled && requested_interactive && isatty(shell_terminal) != 0 &&
         !interactive_job_control_available) {
         return false;
     }

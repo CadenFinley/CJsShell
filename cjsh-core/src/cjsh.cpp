@@ -40,9 +40,12 @@
 #include "flags.h"
 #include "interpreter.h"
 #include "main_loop.h"
+#include "numeric_utils.h"
+#include "pipeline_status_utils.h"
 #include "prompt.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "signal_handler.h"
 #include "trap_command.h"
 #include "usage.h"
 #include "version_command.h"
@@ -83,15 +86,22 @@ void cleanup_resources() {
         return;
     }
 
-    // if the shell is being force exited then we skip the traps and just reset the shell to clean
-    // up resources as best as possible
-    if (cjsh_env::force_exit_requested()) {
-        g_shell.reset();
-        return;
+    // Resolve a signal that arrived as execution returned, then keep all cleanup
+    // paths in this one dispatcher. Further terminating signals cannot reenter it.
+    {
+        SignalMask transition({SIGHUP, SIGTERM});
+        (void)g_shell->process_pending_signals();
+        SignalHandler::begin_shutdown();
     }
-
-    // A terminating signal can arrive just as execution returns to main.
-    (void)g_shell->process_pending_signals();
+    const int status = SignalHandler::termination_signal() != 0
+                           ? 128 + SignalHandler::termination_signal()
+                           : numeric_utils::parse_exit_status_or(
+                                 cjsh_env::get_shell_variable_value("?"), 0, false);
+    const auto prepare_handler = [&]() {
+        cjsh_env::clear_exit_request();
+        pipeline_status_utils::set_last_status_env(status);
+    };
+    prepare_handler();
 
     // otherwise we do a full shutdown with traps and everything
     trap_manager_set_shell(g_shell.get());
@@ -104,8 +114,10 @@ void cleanup_resources() {
     }
 
     // execute exit trap and process logout file in and only if in login mode
+    prepare_handler();
     trap_manager_execute_exit_trap();
     if (config::login_mode) {
+        prepare_handler();
         cjsh_filesystem::process_logout_file();
     }
 
@@ -114,6 +126,8 @@ void cleanup_resources() {
     // order when there are multiple so resetting this manually before cjsh exits the main()
     // function scope allows specific ordering of reset and release
     g_shell.reset();
+    trap_manager_set_shell(nullptr);
+    SignalHandler::finish_shutdown();
 }
 
 int run_cjsh(int argc, char* argv[]) {
@@ -169,6 +183,10 @@ int run_cjsh(int argc, char* argv[]) {
     // explicitly apply no exec here in case it was in flags so that it applies to shell right after
     // initialization
     g_shell->apply_no_exec(config::no_exec);
+    g_shell->set_interactive_mode(config::interactive_mode);
+    if (config::interactive_mode) {
+        g_shell->setup_interactive_handlers();
+    }
 
     // set args for the script file before saving the startup args for cjsh
     if (!script_args.empty()) {
@@ -180,46 +198,28 @@ int run_cjsh(int argc, char* argv[]) {
     flags::save_startup_arguments(argc, argv);
     cjsh_env::sync_env_vars_from_system(*g_shell);
 
+    // Startup files see the same invocation identity and arguments as the body.
+    if (!script_file.empty()) {
+        (void)setenv("0", script_file.c_str(), 1);
+        (void)cjsh_env::set_shell_variable_value("0", script_file);
+    }
+
     // source environment file before other startup scripts
     cjsh_filesystem::process_env_files();
 
     // start login mode items
-    if (config::login_mode) {
+    if (config::login_mode && !cjsh_env::exit_requested()) {
         cjsh_filesystem::process_profile_files();
         flags::apply_profile_startup_flags();
     }
 
-    // if there is a command to execute and the passed script file is not empty then we set $0 to
-    // the name of the script file and sync the envvars to the shell so that $0 is properly set for
-    // the command to execute
-    if (config::execute_command && !script_file.empty()) {
-        (void)setenv("0", script_file.c_str(), 1);
-        std::unordered_map<std::string, std::string>& env_map = cjsh_env::env_vars();
-        env_map["0"] = script_file;
-        cjsh_env::sync_parser_env_vars(g_shell.get());
-    }
-
-    // Execute non-interactive commands passed with -c immediately. Forced-interactive commands
-    // continue through interactive setup first so that they source .cjshrc before execution.
-    if (config::execute_command && !config::force_interactive) {
+    if (!config::interactive_mode) {
         cjsh_env::set_startup_active(false);
-        const int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
-        return read_exit_code_or(code);
-    }
-
-    // at this point everything else with the startup args has been handled so now we handle the
-    // passed script
-    if (!config::interactive_mode && !config::force_interactive) {
-        cjsh_env::set_startup_active(false);
-        return handle_non_interactive_mode(script_file);
-    }
-
-    // handle the case where stdin is not a terminal so we check to see if stdin is piped and if
-    // there is not a command to execute and then we execute the piped or passed script file
-    const bool stdin_is_piped = (isatty(STDIN_FILENO) == 0);
-    if (config::force_interactive && stdin_is_piped && !config::execute_command) {
-        cjsh_env::set_startup_active(false);
-        return handle_non_interactive_mode(script_file);
+        if (cjsh_env::exit_requested()) {
+            return read_exit_code_or(0);
+        }
+        return config::execute_command ? read_exit_code_or(g_shell->execute(config::cmd_to_execute))
+                                       : handle_non_interactive_mode(script_file);
     }
 
     // at this point cjsh has to be in an interactive state as all non-interactive possibilites and
@@ -241,31 +241,23 @@ int run_cjsh(int argc, char* argv[]) {
         return 1;
     }
 
-    // init interactive signals
-    g_shell->setup_interactive_handlers();
-
     // init interactive ui
     prompt::initialize_colors();
     (void)cjsh_env::update_terminal_dimensions();
 
-    // use .cjshrc
-    cjsh_filesystem::process_source_files();
+    if (!cjsh_env::exit_requested()) {
+        cjsh_filesystem::process_source_files();
+    }
 
-    // A forced-interactive command sources .cjshrc, but still exits after running the command
-    // instead of entering the interactive input loop.
-    if (config::execute_command) {
-        int code = 0;
-        if (!cjsh_env::exit_requested()) {
-            cjsh_env::set_startup_active(false);
-            code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
-            if (g_shell) {
-                // -i affects startup and command semantics, but -c does not enter an input loop
-                // and therefore should not print the interactive-loop exit banner during
-                // destruction.
-                g_shell->set_interactive_mode(false);
-            }
+    // Interactive startup is independent of the input source. A supplied command or
+    // script still finishes after its body, including when stdin is a terminal.
+    if (config::execute_command || !script_file.empty() || isatty(STDIN_FILENO) == 0) {
+        cjsh_env::set_startup_active(false);
+        if (cjsh_env::exit_requested()) {
+            return read_exit_code_or(0);
         }
-        return read_exit_code_or(code);
+        return config::execute_command ? read_exit_code_or(g_shell->execute(config::cmd_to_execute))
+                                       : handle_non_interactive_mode(script_file);
     }
 
     // start interactive cjsh process
@@ -286,6 +278,7 @@ int main(int argc, char* argv[]) {
 
     // a normal exit path was taken so we can do a final cleanup routed through main instead of
     // atexit() or exit()
+    pipeline_status_utils::set_last_status_env(exit_code);
     cleanup_resources();
-    return exit_code;
+    return read_exit_code_or(exit_code);
 }

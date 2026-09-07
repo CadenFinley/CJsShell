@@ -96,6 +96,13 @@ class SignalHandler {
     static bool has_pending_signals();
     static bool has_pending_termination_signal();
     static bool take_pending_sigint();
+    static bool inherited_ignored(int signum);
+    static bool child_ignored(int signum);
+    static int termination_signal();
+    static void begin_shutdown();
+    static bool shutting_down();
+    static bool executing_trap();
+    static void finish_shutdown();
     static SignalHandler* instance();
     static const std::vector<SignalInfo>& available_signals();
 
@@ -118,7 +125,9 @@ class SignalHandler {
     static bool is_signal_observed(int signum);
 
     static void signal_handler(int signum);
-    static bool interrupt_pending() { return s_sigint_received != 0; }
+    static bool interrupt_pending() {
+        return s_sigint_received != 0;
+    }
 
    private:
     static std::atomic<SignalHandler*> s_instance;
@@ -143,23 +152,13 @@ class SignalHandler {
     static bool has_direct_pending_signal();
     static const std::vector<SignalInfo>& signal_table();
     static pid_t s_main_pid;
+    static volatile sig_atomic_t s_termination_signal;
+    static volatile sig_atomic_t s_shutting_down;
+    static bool s_executing_trap;
+    static std::unordered_map<int, struct sigaction> s_inherited_actions;
 
     static std::unordered_map<int, SignalState> s_signal_states;
-    static std::vector<int> s_observed_signals;
-
-    struct sigaction m_old_sigint_handler;
-    struct sigaction m_old_sigchld_handler;
-    struct sigaction m_old_sighup_handler;
-    struct sigaction m_old_sigterm_handler;
-    struct sigaction m_old_sigquit_handler;
-    struct sigaction m_old_sigtstp_handler;
-    struct sigaction m_old_sigttin_handler;
-    struct sigaction m_old_sigttou_handler;
-    struct sigaction m_old_sigusr1_handler;
-    struct sigaction m_old_sigusr2_handler;
-    struct sigaction m_old_sigalrm_handler;
-    struct sigaction m_old_sigwinch_handler;
-    struct sigaction m_old_sigpipe_handler;
+    static volatile sig_atomic_t s_observed_signals[NSIG];
 
     void restore_original_handlers();
     static void install_signal_handler(int signum, struct sigaction* old_action);
@@ -167,3 +166,16 @@ class SignalHandler {
 };
 
 void reset_child_signals();
+
+// Restore the running shell's handlers and mask if exec returns with an error.
+class ExecSignalGuard {
+   public:
+    ExecSignalGuard();
+    ~ExecSignalGuard();
+    ExecSignalGuard(const ExecSignalGuard&) = delete;
+    ExecSignalGuard& operator=(const ExecSignalGuard&) = delete;
+
+   private:
+    std::vector<std::pair<int, struct sigaction>> actions;
+    sigset_t mask{};
+};

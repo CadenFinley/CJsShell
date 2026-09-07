@@ -157,6 +157,9 @@ function command_not_found_handler() {
 ### `cjshexit`
 Executed during shell shutdown before `trap ... EXIT` handlers.
 This handler is ignored when cjsh starts with `--minimal`, `--secure`, or `--posix`.
+Confirmed exits, `exit --force`, and untrapped HUP or TERM all use this ordering:
+`cjshexit`, the `EXIT` trap, then login-shell logout configuration. Each runs once.
+HUP and TERM traps that return normally leave the shell running; a trap may explicitly call `exit`.
 
 ```bash
 function cjshexit() {

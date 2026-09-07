@@ -64,6 +64,7 @@
 #include "interpreter_utils.h"
 #include "job_control.h"
 #include "loop_evaluator.h"
+#include "numeric_utils.h"
 #include "parameter_expansion_evaluator.h"
 #include "parser.h"
 #include "parser_utils.h"
@@ -94,12 +95,16 @@ thread_local bool g_parameter_expansion_fatal_error = false;
 constexpr std::string_view kSignalExitExceptionPrefix = "__CJSH_SIGNAL_EXIT__:";
 
 std::optional<int> collect_pending_signal_exit_code() {
-    if (!g_shell || !SignalHandler::has_pending_signals()) {
+    if (!g_shell) {
         return std::nullopt;
     }
 
     SignalProcessingResult pending = g_shell->process_pending_signals();
     int exit_code = shell_script_interpreter::detail::pending_signal_exit_code(pending);
+    if (cjsh_env::exit_requested()) {
+        return numeric_utils::parse_exit_status_or(cjsh_env::get_shell_variable_value("EXIT_CODE"),
+                                                   exit_code < 0 ? 0 : exit_code, false);
+    }
     if (exit_code < 0) {
         return std::nullopt;
     }
