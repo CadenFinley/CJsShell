@@ -65,7 +65,8 @@ def find_cjsh_binaries(build_dir: Path) -> List[Path]:
         for entry in sorted(build_dir.iterdir()):
             if not entry.is_file():
                 continue
-            if not entry.name.startswith("cjsh"):
+            # Test helpers such as cjsh_test_runner are not shell binaries.
+            if entry.name != "cjsh":
                 continue
             if not os.access(entry, os.X_OK):
                 continue
