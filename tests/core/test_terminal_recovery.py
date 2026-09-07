@@ -205,10 +205,9 @@ with open(sys.argv[1], 'w') as output:
                 self.assertEqual(json.loads(target.read_text()), [True, True, 7, 8])
                 start = len(self.session.output)
                 self.session.write(b"visible-echo-probe")
-                self.session.pump(0.1)
-                self.assertIn(b"visible-echo-probe", normalize_terminal_output(bytes(self.session.output[start:])))
+                # Per-character redraws can outlast a fixed delay on busy CI runners.
+                self.session.wait_for(b"visible-echo-probe", start)
                 self.session.write(b"\x15")
-                self.session.pump(0.1)
                 self.session.run_command(b"stty echo intr '^C' erase '^?' -tostop")
 
     def test_custom_fd_redirections_preserve_foreground_launches(self) -> None:
