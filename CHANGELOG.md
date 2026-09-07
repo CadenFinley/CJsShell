@@ -1,6 +1,38 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.10`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.11`.
+
+## 1.4.11 - 2026-09-07
+
+Range: `v1.4.10..v1.4.11` (10 commits, 86 files changed)
+
+### Added
+
+- Added `suspend [-f]` for interactive shells, restoring external terminal modes while the shell is stopped and waiting for foreground ownership when it resumes. Login shells require `-f`; POSIX shells do not support the command.
+- Added native startup controls: `--config-dir DIR` and `CJSH_CONFIG_HOME` select the root for native startup files, while `--no-config` skips automatic native, POSIX, and platform-login startup processing. Added explicit `--login-path` platform setup for native login shells.
+- Added safe startup policy for POSIX `ENV`, including expansion without field splitting or command evaluation, and reject execution when real and effective user or group IDs differ.
+- Added durable concurrent history storage: writers share a lock, atomically commit complete snapshots, preserve metadata and frequency counts, and leave in-progress editor input private to its own session.
+
+### Changed
+
+- Updated interactive startup sequencing so handlers are installed before startup files, `-i -c` sources interactive configuration before running its command, and scripts or standard input supplied to an interactive invocation finish without entering the prompt loop.
+- Updated exit, signal, and shutdown handling so `cjshexit`, `EXIT` traps, and login logout configuration run once in order for normal exits and untrapped HUP or TERM. Interactive shells now enable `huponexit` by default and resume stopped jobs before sending them SIGHUP.
+- Updated history search to retain the live draft separately from committed entries and improved fuzzy matching for history queries.
+- Preserved external canonical terminal settings after foreground commands while keeping editor bindings independent; stopped foreground jobs retain their own terminal modes for `fg`.
+
+### Fixed
+
+- Restored terminal input that arrives during terminal-query handling, correctly route editor output to the controlling terminal, and preserve signal dispositions across editor use, replacement, restart, and trap changes.
+- Fixed `exit` status parsing and confirmation behavior, including Ctrl+D, repeated exits, `--force`, signed status operands, and invalid or extra operands.
+- Fixed failed `exec` behavior in noninteractive POSIX shells, preserving shell nesting levels and returning the required 126 or 127 status.
+- Fixed logical `cd` normalization, shell invocation identity during startup, unavailable persistence behavior, and completion/history interactions.
+- Restored portable Linux CI builds and made startup and terminal-recovery tests resilient to system profile output and busy runners.
+
+### Internal and Tests
+
+- Added regression coverage for startup policy, lifecycle and shutdown ordering, terminal contracts and recovery, concurrent history writers, interactive menu interruption, loop syntax, and CTest result summaries.
+- Added CMake presets licensing metadata and release-oriented test configuration.
+- Finalized 1.4.11 as a stable release by retaining the default disabled pre-release build marker.
 
 ## 1.4.10 - 2026-09-06
 
