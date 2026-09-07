@@ -33,6 +33,8 @@ class TerminalContractTests(unittest.TestCase):
     def test_rejected_replies_preserve_every_byte(self) -> None:
         for data in (b"ordinary", b"\x00", b"\x1b", b"\x1b[", b"\x1b[12;",
                      b"\x1b[1;2A", b"\x1b[0;1R", b"\x1b[1;0R",
+                     f"\x1b[{sys.maxsize + 1};1R".encode(),
+                     f"\x1b[1;{sys.maxsize + 1}R".encode(),
                      b"\x1b[99999999999999999999999999999;1R",
                      b"\x1b[200~pasted\x1b[201~",
                      b"\x1b]0;title\x07", b"\x1b[" + b"1" * 260):
@@ -46,13 +48,15 @@ class TerminalContractTests(unittest.TestCase):
                 self.assertIn(data.hex().encode() + b"\nREPLAY_DONE", output)
 
     def test_matching_reply_consumes_only_the_reply(self) -> None:
-        session = self.start("query", "4")
-        session.wait_for(b"\x1b[6n")
-        session.write(b"\x1b[12;34Rtail")
-        self.assertEqual(session.wait_for_exit(), 0)
-        output = normalize_terminal_output(bytes(session.output))
-        self.assertIn(b"QUERY:1:12:34\n", output)
-        self.assertIn(b"7461696c\nREPLAY_DONE", output)
+        for row, column in ((12, 34), (sys.maxsize, sys.maxsize)):
+            with self.subTest(row=row, column=column):
+                session = self.start("query", "4")
+                session.wait_for(b"\x1b[6n")
+                session.write(f"\x1b[{row};{column}Rtail".encode())
+                self.assertEqual(session.wait_for_exit(), 0)
+                output = normalize_terminal_output(bytes(session.output))
+                self.assertIn(f"QUERY:1:{row}:{column}\n".encode(), output)
+                self.assertIn(b"7461696c\nREPLAY_DONE", output)
 
     def test_osc_requires_a_complete_matching_reply(self) -> None:
         payload = b"\x1b]4;0;rgb:ff/ff/ff"

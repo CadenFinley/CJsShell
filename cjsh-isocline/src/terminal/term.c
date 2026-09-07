@@ -1095,11 +1095,13 @@ static bool cursor_response_matches(const char* response, void* arg) {
     if (collen == 0 || column[collen] != 'R' || column[collen + 1] != 0)
         return false;
     // Validate bounds before committing the input bytes to this reply.
+    // Use the same signed-size limit as to_ssize_t; SSIZE_MAX is not ISO C11.
+    const ssize_t max_value = (ssize_t)(SIZE_MAX / 2);
     for (const char* p = response; *p != 'R';) {
         ssize_t value = 0;
         while (*p >= '0' && *p <= '9') {
             const int digit = *p++ - '0';
-            if (value > (SSIZE_MAX - digit) / 10)
+            if (value > (max_value - digit) / 10)
                 return false;
             value = 10 * value + digit;
         }

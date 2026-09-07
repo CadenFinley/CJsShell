@@ -70,7 +70,9 @@ int main(int argc, char** argv) {
     tty_t* tty = tty_new(&memory, STDIN_FILENO);
     if (tty == NULL)
         return 3;
-    tty_set_esc_delay(tty, 100, 100);
+    // Allow the Python PTY peer to be scheduled between query and response on
+    // busy CI runners. Incomplete escape sequences still time out promptly.
+    tty_set_esc_delay(tty, 1000, 100);
     if (strcmp(scenario, "query") == 0 || strcmp(scenario, "osc") == 0) {
         term_t* term = term_new(&memory, tty, true, true, STDOUT_FILENO);
         if (term == NULL)

@@ -98,14 +98,18 @@ class TerminalRecoveryTests(unittest.TestCase):
 
     def test_external_sigint_discards_partial_command_and_recovers(self) -> None:
         marker = Path(self.directory.name) / "must-not-run"
-        self.session.write(("touch " + shlex.quote(str(marker))).encode())
-        self.session.pump(0.1)
+        start = len(self.session.output)
+        command = ("touch " + shlex.quote(str(marker))).encode()
+        # Wait until the whole unsubmitted command reaches the editor before
+        # interrupting it; queued typing can otherwise arrive after SIGINT.
+        self.session.write(b"\x1b[200~" + command + b"\x1b[201~")
+        self.session.wait_for(marker.name.encode(), start)
         start = len(self.session.output)
         os.kill(self.session.pid, signal.SIGINT)
         self.session.wait_for_prompt(start)
-        self.session.pump(0.1)
+        start = len(self.session.output)
         self.session.write(b"\r")
-        self.session.pump(0.1)
+        self.session.wait_for_prompt(start)
         self.assertFalse(marker.exists())
         self.assert_prompt_recovered()
 
