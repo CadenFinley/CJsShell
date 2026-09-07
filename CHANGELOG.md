@@ -4,7 +4,7 @@ This changelog documents tagged releases from `v1.1.2` through `v1.4.11`.
 
 ## 1.4.11 - 2026-09-07
 
-Range: `v1.4.10..v1.4.11` (10 commits, 86 files changed)
+Range: `v1.4.10..v1.4.11` (11 commits, 88 files changed)
 
 ### Added
 
@@ -22,6 +22,7 @@ Range: `v1.4.10..v1.4.11` (10 commits, 86 files changed)
 
 ### Fixed
 
+- Fixed interactive job-control terminal selection to prefer stdin and stdout before `/dev/tty`, preventing PTY-based startup benchmarks from taking the caller's terminal and suspending the benchmark job while retaining support for redirected stdio.
 - Restored terminal input that arrives during terminal-query handling, correctly route editor output to the controlling terminal, and preserve signal dispositions across editor use, replacement, restart, and trap changes.
 - Fixed `exit` status parsing and confirmation behavior, including Ctrl+D, repeated exits, `--force`, signed status operands, and invalid or extra operands.
 - Fixed failed `exec` behavior in noninteractive POSIX shells, preserving shell nesting levels and returning the required 126 or 127 status.
@@ -30,6 +31,8 @@ Range: `v1.4.10..v1.4.11` (10 commits, 86 files changed)
 
 ### Internal and Tests
 
+- Added permanent terminal-selection regressions for repeated startup benchmarks, redirected PTYs, read-only stdin, and fully redirected stdio.
+- Replaced fixed-delay partial-pipeline assertions with process-state synchronization and child release handshakes, including deliberately delayed startup and exit coverage to prevent intermittent macOS Intel release CI failures.
 - Added regression coverage for startup policy, lifecycle and shutdown ordering, terminal contracts and recovery, concurrent history writers, interactive menu interruption, loop syntax, and CTest result summaries.
 - Added CMake presets licensing metadata and release-oriented test configuration.
 - Finalized 1.4.11 as a stable release by retaining the default disabled pre-release build marker.

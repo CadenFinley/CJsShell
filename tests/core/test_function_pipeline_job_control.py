@@ -30,8 +30,10 @@ from __future__ import annotations
 
 import errno
 import os
+from pathlib import Path
 import pty
 import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -241,6 +243,7 @@ def run_controlling_terminal_case(
     command: str,
     extra_env: dict[str, str] | None = None,
     enable_tostop: bool = False,
+    timeout_cleanup: Callable[[], None] | None = None,
 ) -> JobControlResult:
     pid, master_fd = pty.fork()
     if pid == 0:
@@ -297,6 +300,8 @@ def run_controlling_terminal_case(
 
         if wait_status is None:
             timed_out = True
+            if timeout_cleanup is not None:
+                timeout_cleanup()
             os.kill(pid, signal.SIGKILL)
             _, wait_status = os.waitpid(pid, 0)
 
@@ -320,6 +325,86 @@ def run_controlling_terminal_case(
     )
     cleaned = sanitize_output(output.decode(errors="replace"))
     return JobControlResult(return_code, cleaned, timed_out)
+
+
+def run_partial_pipeline_case(
+    binary: str, startup_delay: float = 0, exit_delay: float = 0
+) -> JobControlResult:
+    with tempfile.TemporaryDirectory(prefix="cjsh-partial-pipeline-") as directory:
+        left_pid = Path(directory) / "left.pid"
+        right_pid = Path(directory) / "right.pid"
+        release = shlex.quote(str(Path(directory) / "release"))
+        snapshot = shlex.quote(str(Path(directory) / "stopped"))
+        left = shlex.join([
+            "sh", "-c",
+            f'sleep {startup_delay}; echo $$ > "$1"; kill -STOP $$; exit 0',
+            "left", str(left_pid),
+        ])
+        right = shlex.join([
+            "sh", "-c",
+            'echo $$ > "$1"; while [ ! -f "$2" ]; do sleep 0.01; done; '
+            f"sleep {exit_delay}; exit 9",
+            "right", str(right_pid), str(Path(directory) / "release"),
+        ])
+        # Hold the right member alive until the partial-state checks finish.
+        # Observe the left member's actual stop, then wait for the shell to reap
+        # the right member's exit instead of assuming either happened after a sleep.
+        command = (
+            f"{left} | {right} & p=$!; "
+            f"while [ ! -s {shlex.quote(str(left_pid))} ] || "
+            f"[ ! -s {shlex.quote(str(right_pid))} ]; do sleep 0.01; done; "
+            f"left_pid=$(cat {shlex.quote(str(left_pid))}); "
+            "while :; do state=$(ps -o stat= -p \"$left_pid\") || exit 1; "
+            "case \"$state\" in *T*) break ;; esac; sleep 0.01; done; "
+            "printf 'partial-running-begin\\n'; jobs -r %1; "
+            "printf 'partial-running-end\\n'; "
+            "printf 'partial-stopped-begin\\n'; jobs -s %1; "
+            "printf 'partial-stopped-end\\n'; "
+            f"touch {release}; "
+            f"while :; do jobs -s %1 > {snapshot}; "
+            f"[ -s {snapshot} ] && break; sleep 0.01; done; "
+            f"printf 'all-stopped-begin\\n'; cat {snapshot}; "
+            "printf 'all-stopped-end\\n'; kill -CONT %1; "
+            "wait $p; printf 'partial-pipeline-status=%s\\n' \"$?\"; exit 0"
+        )
+        def cleanup_members() -> None:
+            for pid_file in (left_pid, right_pid):
+                if pid_file.exists():
+                    pid_text = pid_file.read_text().strip()
+                    if pid_text.isdecimal() and int(pid_text) > 0:
+                        try:
+                            os.kill(int(pid_text), signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+
+        completed = False
+        try:
+            result = run_controlling_terminal_case(
+                binary, command, timeout_cleanup=cleanup_members
+            )
+            completed = not result.timed_out and result.return_code == 0
+            return result
+        finally:
+            if not completed:
+                cleanup_members()
+
+
+def require_partial_pipeline_state(result: JobControlResult) -> None:
+    require(
+        not result.timed_out
+        and result.return_code == 0
+        and "Running" in text_between(
+            result.output, "partial-running-begin", "partial-running-end"
+        )
+        and "Stopped" not in text_between(
+            result.output, "partial-stopped-begin", "partial-stopped-end"
+        )
+        and "Stopped" in text_between(
+            result.output, "all-stopped-begin", "all-stopped-end"
+        )
+        and "partial-pipeline-status=9" in result.output,
+        "partial pipeline state aggregation failed:\n" + result.output,
+    )
 
 
 def run_control_character_case(binary: str) -> ControlCharacterResult:
@@ -832,17 +917,9 @@ def main(argv: list[str]) -> int:
             "sh -c 'sleep 0.2' | sh -c 'exit 7' & p=$!; "
             "sleep 0.05; jobs -r; wait $p; printf 'pipeline_status=%s\\n' \"$?\"",
         )
-        partial_pipeline_result = run_controlling_terminal_case(
-            argv[0],
-            "sh -c 'kill -STOP $$; sleep 30' | "
-            "sh -c 'sleep 0.35; exit 9' & p=$!; sleep 0.08; "
-            "printf 'partial-running-begin\\n'; jobs -r %1; "
-            "printf 'partial-running-end\\n'; "
-            "printf 'partial-stopped-begin\\n'; jobs -s %1; "
-            "printf 'partial-stopped-end\\n'; sleep 0.4; "
-            "printf 'all-stopped-begin\\n'; jobs -s %1; "
-            "printf 'all-stopped-end\\n'; kill -CONT %1; kill -TERM %1; "
-            "wait $p; printf 'partial-pipeline-status=%s\\n' \"$?\"; exit 0",
+        partial_pipeline_result = run_partial_pipeline_case(argv[0])
+        delayed_partial_pipeline_result = run_partial_pipeline_case(
+            argv[0], startup_delay=0.6, exit_delay=0.6,
         )
         control_character_result = run_control_character_case(argv[0])
         background_startup_result = run_background_shell_startup_case(argv[0])
@@ -1010,29 +1087,11 @@ def main(argv: list[str]) -> int:
         ),
         (
             "partially stopped pipeline remains running until all live members stop",
-            lambda: require(
-                not partial_pipeline_result.timed_out
-                and partial_pipeline_result.return_code == 0
-                and "Running" in text_between(
-                    partial_pipeline_result.output,
-                    "partial-running-begin",
-                    "partial-running-end",
-                )
-                and "Stopped"
-                not in text_between(
-                    partial_pipeline_result.output,
-                    "partial-stopped-begin",
-                    "partial-stopped-end",
-                )
-                and "Stopped" in text_between(
-                    partial_pipeline_result.output,
-                    "all-stopped-begin",
-                    "all-stopped-end",
-                )
-                and "partial-pipeline-status=9" in partial_pipeline_result.output,
-                "partial pipeline state aggregation failed:\n"
-                f"{partial_pipeline_result.output}",
-            ),
+            lambda: require_partial_pipeline_state(partial_pipeline_result),
+        ),
+        (
+            "partial pipeline state checks tolerate delayed child startup and exit",
+            lambda: require_partial_pipeline_state(delayed_partial_pipeline_result),
         ),
         (
             "terminal control characters drive stop background foreground interrupt",

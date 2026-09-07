@@ -119,7 +119,8 @@ def run_in_terminal(command: list[str], timeout: float = 10.0) -> tuple[int, str
         for group in groups:
             try:
                 os.killpg(group, signal.SIGKILL)
-            except ProcessLookupError:
+            except (ProcessLookupError, PermissionError):
+                # Cleanup must not mask the original terminal-safety failure.
                 pass
         os.close(fd)
         if status is None:

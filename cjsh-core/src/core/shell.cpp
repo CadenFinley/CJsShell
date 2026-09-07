@@ -512,7 +512,25 @@ void Shell::setup_job_control() {
         interactive_job_control_available = false;
         return;
     }
-    int tty_fd = open("/dev/tty", O_RDWR | O_CLOEXEC);
+    // Stdio may point at a different PTY from /dev/tty (for example in a startup
+    // benchmark). Prefer that terminal, keeping a private fd across redirections.
+    int tty_fd = -1;
+    for (const int fd : {STDIN_FILENO, STDOUT_FILENO}) {
+        if (isatty(fd) == 0) {
+            continue;
+        }
+        tty_fd = fcntl(fd, F_DUPFD, STDERR_FILENO + 1);
+        if (tty_fd >= 0) {
+            if (fcntl(tty_fd, F_SETFD, FD_CLOEXEC) == 0) {
+                break;
+            }
+            (void)close(tty_fd);
+            tty_fd = -1;
+        }
+    }
+    if (tty_fd < 0) {
+        tty_fd = open("/dev/tty", O_RDWR | O_NOCTTY | O_CLOEXEC);
+    }
     if (tty_fd >= 0) {
         shell_terminal = tty_fd;
         owns_shell_terminal = true;

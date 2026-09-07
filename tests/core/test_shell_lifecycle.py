@@ -445,10 +445,13 @@ class ShellLifecycleTests(unittest.TestCase):
     def test_redirected_stdin_foreground_and_noninteractive_stty(self) -> None:
         session = self.session()
         path = self.home / "foreground"
-        inner = "exec " + shlex.join([self.binary, "--no-source", "-i", "-c", self.probe_command("foreground", path)]) + " </dev/null"
-        session.run_command(("sh -c " + shlex.quote(inner)).encode())
-        self.assertEqual(path.read_text().strip(), "1")
-        self.assertEqual(os.tcgetpgrp(session.fd), session.pid)
+        for redirections in ("</dev/null", "</dev/null >/dev/null 2>&1"):
+            with self.subTest(redirections=redirections):
+                path.unlink(missing_ok=True)
+                inner = "exec " + shlex.join([self.binary, "--no-source", "-i", "-c", self.probe_command("foreground", path)]) + " " + redirections
+                session.run_command(("sh -c " + shlex.quote(inner)).encode())
+                self.assertEqual(path.read_text().strip(), "1")
+                self.assertEqual(os.tcgetpgrp(session.fd), session.pid)
         # The supervisor observes the nested shell's terminal change before the
         # interactive parent/editor gets its opportunity to recover the terminal.
         path = self.home / "modes"

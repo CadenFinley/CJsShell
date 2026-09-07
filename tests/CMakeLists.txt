@@ -161,6 +161,11 @@ if(Python3_Interpreter_FOUND)
     endif()
     if(UNIX)
         cjsh_add_test(
+            NAME terminal_selection_tests
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_terminal_selection.py"
+                    $<TARGET_FILE:cjsh>
+        )
+        cjsh_add_test(
             NAME shell_lifecycle_tests
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_shell_lifecycle.py"
                     $<TARGET_FILE:cjsh> $<TARGET_FILE:lifecycle_probe>
