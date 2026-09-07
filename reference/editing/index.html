@@ -1865,8 +1865,9 @@ usual context-aware completion sources.</p>
 - Press <code>Esc</code> to cancel
 - In expanded menus, use the mouse wheel to scroll and click entries to select/accept
   (<code>cjshopt completion-click-accept off</code> keeps click selection but requires Enter/Right/End to accept)
-- In expanded menus, selected multiline completion entries expand inline so the full candidate text
-  is visible while you navigate.
+- Completion entries stay on one row. With completion preview enabled, the selected command appears
+  at the prompt; oversized previews end with <code>...</code> to keep the prompt and menu controls visible.
+  Accepting a completion inserts its full text.
 - Use <code>cjshopt menu-highlighting single</code>, <code>all</code>, or <code>reverse</code> to render completion and
   history menu items through the same syntax highlighter used by the edit buffer.</p>
 <h3 id="hints-and-inline-help">Hints and Inline Help</h3>
