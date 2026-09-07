@@ -28,6 +28,10 @@
   SOFTWARE.
 */
 
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+
 #include "history.h"
 
 #include <ctype.h>

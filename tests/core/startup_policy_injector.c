@@ -27,6 +27,10 @@
 */
 
 // Isolated startup-policy coverage without changing credentials or /etc/profile.
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>

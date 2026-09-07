@@ -208,12 +208,23 @@ else
 fi
 
 
-log_test "Locale settings"
-result=$("$SHELL_TO_TEST" --login -c "echo \$LANG" 2>/dev/null)
-if [ -n "$result" ]; then
+log_test "Locale inheritance"
+result=$(LANG=C "$SHELL_TO_TEST" --login --no-source -c 'echo "$LANG"' 2>/dev/null)
+if [ "$result" = "C" ]; then
     pass
 else
-    fail "LANG variable not set by shell"
+    fail "LANG variable not inherited by shell"
+fi
+
+log_test "Unset locale remains unset"
+result=$(
+    unset LANG
+    "$SHELL_TO_TEST" --login --no-source -c 'echo "${LANG-unset}"' 2>/dev/null
+)
+if [ "$result" = "unset" ]; then
+    pass
+else
+    fail "Shell supplied an unrequested LANG value"
 fi
 
 log_test "Exit status preservation"

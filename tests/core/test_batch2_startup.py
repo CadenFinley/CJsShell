@@ -39,6 +39,9 @@ import unittest
 from test_idle_hook_interactive import IdleHookSession
 
 
+SKIP_PRELOAD_INJECTION = os.environ.get("CJSH_TEST_SKIP_PRELOAD_INJECTION") == "1"
+
+
 class StartupTests(unittest.TestCase):
     binary: str
     injector: str
@@ -154,6 +157,8 @@ class StartupTests(unittest.TestCase):
             for login in (False, True):
                 for interactive in (False, True):
                     with self.subTest(binary=binary, login=login, interactive=interactive):
+                        if login and SKIP_PRELOAD_INJECTION:
+                            self.skipTest("system-profile injection requires a dynamic binary")
                         args = [binary, "--posix", "--no-sh-warning", "--no-history"]
                         args += (["-l"] if login else []) + (["-i"] if interactive else [])
                         args += ["-c", 'echo body >> "$HOME/trace"']
@@ -279,6 +284,7 @@ class StartupTests(unittest.TestCase):
         self.assertIn("generated_completions", r.stderr)
         self.assertTrue((self.home / ".cache/cjsh/history.txt").is_file())
 
+    @unittest.skipIf(SKIP_PRELOAD_INJECTION, "credential injection requires a dynamic binary")
     def test_privileged_startup_refused_before_files(self):
         self.trace_files(self.home)
         self.env["DYLD_INSERT_LIBRARIES" if sys.platform == "darwin" else "LD_PRELOAD"] = self.injector

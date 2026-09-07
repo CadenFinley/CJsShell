@@ -95,7 +95,9 @@ if [ -z "$BLOCK_DEV" ] && command -v lsblk >/dev/null 2>&1; then
     BLOCK_DEV="$(lsblk -ndo PATH,TYPE 2>/dev/null | awk '$2 == "disk" {print $1; exit}')"
 fi
 
-if [ -z "$BLOCK_DEV" ]; then
+if [ ! -b "$BLOCK_DEV" ]; then
+    # lsblk can list host devices without corresponding nodes in a container.
+    BLOCK_DEV=""
     for candidate in /dev/*; do
         if [ -b "$candidate" ]; then
             BLOCK_DEV="$candidate"
