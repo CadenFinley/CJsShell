@@ -26,14 +26,13 @@
   SOFTWARE.
 */
 
-#include <getopt.h>
 #include <unistd.h>
 
 #include <chrono>
 #include <cstdlib>
 #include <memory>
+#include <string>
 #include <string_view>
-#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "completion_history.h"
@@ -54,6 +53,7 @@
 std::unique_ptr<Shell> g_shell = nullptr;
 
 namespace {
+
 bool invoked_via_sh(const char* arg0) {
     // check is cjsh is symlinked to sh and return true or false
     if (arg0 == nullptr) {
@@ -72,18 +72,15 @@ bool invoked_via_sh(const char* arg0) {
     return shell_name == "sh";
 }
 
-bool cleanup_already_invoked = false;
-
 void cleanup_resources() {
-    // primary exit function that gets called on all exit paths
+    // Both main and atexit use this dispatcher; shutdown must only run once.
+    static bool cleanup_already_invoked = false;
     if (cleanup_already_invoked) {
         return;
     }
     cleanup_already_invoked = true;
 
-    // reset everything
     if (!g_shell) {
-        // if the shell was never created then nothing else was so just leave
         return;
     }
 
@@ -94,27 +91,27 @@ void cleanup_resources() {
         (void)g_shell->process_pending_signals();
         SignalHandler::begin_shutdown();
     }
-    const int status = SignalHandler::termination_signal() != 0
-                           ? 128 + SignalHandler::termination_signal()
+    const int termination_signal = SignalHandler::termination_signal();
+    const int status = termination_signal != 0
+                           ? 128 + termination_signal
                            : numeric_utils::parse_exit_status_or(
                                  cjsh_env::get_shell_variable_value("?"), 0, false);
-    const auto prepare_handler = [&]() {
+    // Each exit handler starts with the original status and a cleared exit request.
+    const auto prepare_handler = [status]() {
         cjsh_env::clear_exit_request();
         pipeline_status_utils::set_last_status_env(status);
     };
     prepare_handler();
 
-    // otherwise we do a full shutdown with traps and everything
     trap_manager_set_shell(g_shell.get());
 
-    // execute the cjshexit function if defined and if enabled
     if (ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
         interpreter != nullptr && !config::minimal_mode && !config::secure_mode &&
         !config::posix_mode && interpreter->has_function("cjshexit")) {
         (void)interpreter->invoke_function({"cjshexit"});
     }
 
-    // execute exit trap and process logout file in and only if in login mode
+    // Run the EXIT trap for every shell, then the logout file for login shells.
     prepare_handler();
     trap_manager_execute_exit_trap();
     if (config::login_mode) {
@@ -122,35 +119,142 @@ void cleanup_resources() {
         cjsh_filesystem::process_logout_file();
     }
 
-    // this might be the most important part of cjsh shutdown. this is a manual reset of the main
-    // shell object. this is so important as std::unique_ptr doesnt always get reset in the same
-    // order when there are multiple so resetting this manually before cjsh exits the main()
-    // function scope allows specific ordering of reset and release
+    // Destroy the shell before static teardown so its dependencies are still available.
     g_shell.reset();
     trap_manager_set_shell(nullptr);
     SignalHandler::finish_shutdown();
 }
 
-int run_cjsh(int argc, char* argv[]) {
-    // set start time
-    startup_begin_time() = std::chrono::steady_clock::now();
+void initialize_shell(int argc, char* argv[], const flags::ParseResult& parse_result) {
+    if (config::config_directory.empty()) {
+        if (const char* root = std::getenv("CJSH_CONFIG_HOME"); root && root[0] != '\0') {
+            config::config_directory = root;
+        }
+    }
 
-    // reset shell state to begin startup
+    // Register before construction to cover exit() calls during initialization.
+    if (std::atexit(cleanup_resources) != 0) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "",
+                     "failed to set exit handler",
+                     {"resource cleanup may not occur properly"}});
+    }
+
+    g_shell = std::make_unique<Shell>();
+    g_shell->apply_no_exec(config::no_exec);
+    g_shell->set_interactive_mode(config::interactive_mode);
+    if (config::interactive_mode) {
+        g_shell->setup_interactive_handlers();
+    }
+
+    if (!parse_result.script_args.empty()) {
+        flags::set_positional_parameters(parse_result.script_args);
+    }
+
+    cjsh_env::setup_environment_variables(argv[0]);
+    flags::save_startup_arguments(argc, argv);
+    cjsh_env::sync_env_vars_from_system(*g_shell);
+    if (!config::config_directory.empty()) {
+        config::config_directory =
+            cjsh_filesystem::normalize_override_path(config::config_directory).string();
+    }
+
+    // Startup files see the same invocation identity and arguments as the body.
+    if (!parse_result.script_file.empty()) {
+        (void)setenv("0", parse_result.script_file.c_str(), 1);
+        (void)cjsh_env::set_shell_variable_value("0", parse_result.script_file);
+    }
+
+    // Keep inherited descriptors usable by builtins while preventing accidental inheritance
+    // by external commands in interactive login sessions. Match Bash's 3-19 range, after
+    // account lookup and before startup files can explicitly open descriptors for children.
+    if (config::login_mode && config::interactive_mode) {
+        for (int fd = STDERR_FILENO + 1; fd < 20; ++fd) {
+            (void)cjsh_filesystem::set_close_on_exec(fd);
+        }
+    }
+}
+
+void process_startup_files() {
+    // Environment files precede login profiles and the interactive POSIX ENV file.
+    cjsh_filesystem::process_env_files();
+
+    if (config::login_mode && !cjsh_env::exit_requested()) {
+        cjsh_filesystem::process_profile_files();
+        flags::apply_profile_startup_flags();
+    }
+
+    if (config::posix_mode && config::interactive_mode && !cjsh_env::exit_requested()) {
+        cjsh_filesystem::process_posix_env_file();
+    }
+}
+
+int run_command_or_script(const std::string& script_file, bool startup_interrupted = false) {
+    cjsh_env::set_startup_active(false);
+    if (cjsh_env::exit_requested()) {
+        return read_exit_code_or(0);
+    }
+    if (startup_interrupted) {
+        return 128 + SIGINT;
+    }
+
+    completion_history::apply_pending_history_limit();
+    if (config::execute_command) {
+        return read_exit_code_or(g_shell->execute(config::cmd_to_execute));
+    }
+    return handle_non_interactive_mode(script_file);
+}
+
+int run_interactive_session(const std::string& script_file, bool launched_as_sh) {
+    if (launched_as_sh && !config::suppress_sh_warning) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     ErrorSeverity::WARNING,
+                     "sh",
+                     "cjsh was invoked as sh, but it is not 100% POSIX compliant",
+                     {"Pass --no-sh-warning to hide this warning"}});
+    }
+
+    g_shell->set_interactive_mode(true);
+    (void)cjsh_filesystem::initialize_cjsh_directories();
+
+    prompt::initialize_colors();
+    (void)cjsh_env::update_terminal_dimensions();
+
+    if (!cjsh_env::exit_requested()) {
+        cjsh_filesystem::process_source_files();
+        cjsh_filesystem::initialize_history_storage();
+    }
+    cjsh_filesystem::finalize_history_path();
+
+    // Interactive startup is independent of the input source. A supplied command or
+    // script still finishes after its body, including when stdin is a terminal.
+    if (config::execute_command || !script_file.empty() || isatty(STDIN_FILENO) == 0) {
+        (void)g_shell->process_pending_signals();
+        return run_command_or_script(script_file, SignalHandler::startup_interrupted());
+    }
+
+    if (!cjsh_env::exit_requested() && (config::interactive_mode || config::force_interactive)) {
+        start_interactive_process();
+    }
+
+    return read_exit_code_or(0);
+}
+
+int run_cjsh(int argc, char* argv[]) {
+    startup_begin_time() = std::chrono::steady_clock::now();
     cjsh_env::reset_shell_state();
 
-    // parse passed flags
-    flags::ParseResult parse_result = flags::parse_arguments(argc, argv);
+    const flags::ParseResult parse_result = flags::parse_arguments(argc, argv);
     if (parse_result.should_exit) {
         return parse_result.exit_code;
     }
 
-    // auto-enable posix mode if invoked as sh, equivalent to --posix
+    // Invoking cjsh as sh is equivalent to --posix.
     const bool launched_as_sh = invoked_via_sh((argc > 0) ? argv[0] : nullptr);
     if (launched_as_sh) {
         flags::apply_posix_mode_settings();
     }
 
-    // handle simple flags for version and help
     if (config::show_version) {
         return version_command({});
     }
@@ -168,158 +272,26 @@ int run_cjsh(int argc, char* argv[]) {
         return 1;
     }
 
-    if (config::config_directory.empty()) {
-        if (const char* root = getenv("CJSH_CONFIG_HOME"); root && root[0] != '\0') {
-            config::config_directory = root;
-        }
-    }
+    initialize_shell(argc, argv, parse_result);
+    process_startup_files();
 
-    // determine if the passed arg is a script file and grab following args to be used for the
-    // script
-    std::string script_file = parse_result.script_file;
-    std::vector<std::string> script_args = parse_result.script_args;
-
-    // register cleanup handler
-    if (std::atexit(cleanup_resources) != 0) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "",
-                     "failed to set exit handler",
-                     {"resource cleanup may not occur properly"}});
-        // this is not a fatal error so we continue running cjsh as operating system should clean up
-        // resources on exit there just might be some shell errors on exit because of the use of
-        // std::unique_ptr
-    }
-
-    // create the shell object
-    g_shell = std::make_unique<Shell>();
-    if (!g_shell) {
-        print_error({ErrorType::FATAL_ERROR, "", "failed to properly initialize shell", {}});
-        return 1;
-    }
-
-    // explicitly apply no exec here in case it was in flags so that it applies to shell right after
-    // initialization
-    g_shell->apply_no_exec(config::no_exec);
-    g_shell->set_interactive_mode(config::interactive_mode);
     if (config::interactive_mode) {
-        g_shell->setup_interactive_handlers();
+        return run_interactive_session(parse_result.script_file, launched_as_sh);
     }
 
-    // set args for the script file before saving the startup args for cjsh
-    if (!script_args.empty()) {
-        flags::set_positional_parameters(script_args);
-    }
-
-    // set all envvars for cjsh
-    cjsh_env::setup_environment_variables(argv[0]);
-    flags::save_startup_arguments(argc, argv);
-    cjsh_env::sync_env_vars_from_system(*g_shell);
-    if (!config::config_directory.empty()) {
-        config::config_directory =
-            cjsh_filesystem::normalize_override_path(config::config_directory).string();
-    }
-
-    // Startup files see the same invocation identity and arguments as the body.
-    if (!script_file.empty()) {
-        (void)setenv("0", script_file.c_str(), 1);
-        (void)cjsh_env::set_shell_variable_value("0", script_file);
-    }
-
-    // Keep inherited descriptors usable by builtins while preventing accidental inheritance
-    // by external commands in interactive login sessions. Match Bash's 3-19 range, after
-    // account lookup and before startup files can explicitly open descriptors for children.
-    if (config::login_mode && config::interactive_mode) {
-        for (int fd = STDERR_FILENO + 1; fd < 20; ++fd) {
-            (void)cjsh_filesystem::set_close_on_exec(fd);
-        }
-    }
-
-    // source environment file before other startup scripts
-    cjsh_filesystem::process_env_files();
-
-    // start login mode items
-    if (config::login_mode && !cjsh_env::exit_requested()) {
-        cjsh_filesystem::process_profile_files();
-        flags::apply_profile_startup_flags();
-    }
-
-    if (config::posix_mode && config::interactive_mode && !cjsh_env::exit_requested()) {
-        cjsh_filesystem::process_posix_env_file();
-    }
-
-    if (!config::interactive_mode) {
-        cjsh_filesystem::finalize_history_path();
-        cjsh_env::set_startup_active(false);
-        if (cjsh_env::exit_requested()) {
-            return read_exit_code_or(0);
-        }
-        completion_history::apply_pending_history_limit();
-        return config::execute_command ? read_exit_code_or(g_shell->execute(config::cmd_to_execute))
-                                       : handle_non_interactive_mode(script_file);
-    }
-
-    // at this point cjsh has to be in an interactive state as all non-interactive possibilites and
-    // early exits have been properly handled
-    if (launched_as_sh && (config::interactive_mode || config::force_interactive) &&
-        !config::suppress_sh_warning) {
-        // is cjsh is symlinked to sh then we throw a warning saying cjsh is not 100% posix
-        // compliant interactively
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     ErrorSeverity::WARNING,
-                     "sh",
-                     "cjsh was invoked as sh, but it is not 100% POSIX compliant",
-                     {"Pass --no-sh-warning to hide this warning"}});
-    }
-
-    // then officially turn the switch to interactive mode and read needed interactive files
-    g_shell->set_interactive_mode(true);
-    (void)cjsh_filesystem::initialize_cjsh_directories();
-
-    // init interactive ui
-    prompt::initialize_colors();
-    (void)cjsh_env::update_terminal_dimensions();
-
-    if (!cjsh_env::exit_requested()) {
-        cjsh_filesystem::process_source_files();
-        cjsh_filesystem::initialize_history_storage();
-    }
     cjsh_filesystem::finalize_history_path();
-
-    // Interactive startup is independent of the input source. A supplied command or
-    // script still finishes after its body, including when stdin is a terminal.
-    if (config::execute_command || !script_file.empty() || isatty(STDIN_FILENO) == 0) {
-        (void)g_shell->process_pending_signals();
-        const bool startup_interrupted = SignalHandler::startup_interrupted();
-        cjsh_env::set_startup_active(false);
-        if (cjsh_env::exit_requested()) {
-            return read_exit_code_or(0);
-        }
-        if (startup_interrupted) {
-            return 128 + SIGINT;
-        }
-        completion_history::apply_pending_history_limit();
-        return config::execute_command ? read_exit_code_or(g_shell->execute(config::cmd_to_execute))
-                                       : handle_non_interactive_mode(script_file);
-    }
-
-    // start interactive cjsh process
-    if (!cjsh_env::exit_requested() && (config::interactive_mode || config::force_interactive)) {
-        start_interactive_process();
-    }
-
-    // grab exit code from envvar which was set by the last command that executed and exit cjsh
-    return read_exit_code_or(0);
+    return run_command_or_script(parse_result.script_file);
 }
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
     // main entry
     // we split off the main cjsh runner to allow atexit() to properly scope cleanup if cjsh has to
     // exit through a non normal path
-    int exit_code = run_cjsh(argc, argv);
+    const int exit_code = run_cjsh(argc, argv);
 
-    // a normal exit path was taken so we can do a final cleanup routed through main instead of
-    // atexit() or exit()
+    // Normal returns share cleanup with exit(), after publishing the command status.
     pipeline_status_utils::set_last_status_env(exit_code);
     cleanup_resources();
     return read_exit_code_or(exit_code);

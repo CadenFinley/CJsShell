@@ -55,7 +55,6 @@ const std::vector<Descriptor>& descriptors() {
         {"--no-sh-warning", "Suppress the sh invocation warning"},
         {"--minimal", "Disable cjsh extras"},
         {"--secure", "Enable secure mode"},
-        {"--startup-test", "Enable startup test mode"},
     };
     return kDescriptors;
 }

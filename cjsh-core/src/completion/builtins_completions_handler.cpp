@@ -302,9 +302,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_option("-U", "Display startup time"),
              make_option("--show-startup-time", "Display startup time"),
              make_option("-s", "Secure mode: disable cjshenv/profile/rc/logout files"),
-             make_option("--secure", "Secure mode: disable cjshenv/profile/rc/logout files"),
-             make_option("-X", "Enable startup test mode"),
-             make_option("--startup-test", "Enable startup test mode (internal)")});
+             make_option("--secure", "Secure mode: disable cjshenv/profile/rc/logout files")});
 
         add_doc("break", "Exit the innermost enclosing loop", {});
         add_doc("continue", "Advance to the next loop iteration", {});

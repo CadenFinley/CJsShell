@@ -154,14 +154,13 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"no-prompt-vars", no_argument, nullptr, kOptNoPromptVars},
         {"no-history", no_argument, nullptr, kOptNoHistory},
         {"no-agent", no_argument, nullptr, kOptNoAgent},
-        {"startup-test", no_argument, nullptr, 'X'},
         {"minimal", no_argument, nullptr, 'm'},
         {"secure", no_argument, nullptr, 's'},
         {"no-history-expansion", no_argument, nullptr, 'H'},
         {"no-sh-warning", no_argument, nullptr, 'W'},
         {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:nvhCLUNOSXmsHW";
+    const char* short_options = "+lic:nvhCLUNOSmsHW";
 
     int option_index = 0;
     int c;
@@ -252,9 +251,6 @@ ParseResult parse_arguments(int argc, char* argv[]) {
             case kOptNoAgent:
                 agent_mode::disable_for_startup();
                 break;
-            case 'X':
-                config::startup_test = true;
-                break;
             case 'm':
                 apply_minimal_mode();
                 break;
@@ -335,8 +331,6 @@ void apply_profile_startup_flags() {
             config::error_suggestions_enabled = false;
         } else if (flag == "--no-prompt-vars") {
             config::prompt_vars_enabled = false;
-        } else if (flag == "--startup-test") {
-            config::startup_test = true;
         } else if (flag == "--interactive") {
             config::force_interactive = true;
         } else if (flag == "--minimal") {

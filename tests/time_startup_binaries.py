@@ -26,7 +26,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Time cjsh binaries using the --startup-test flag."""
+"""Time cjsh binaries using their interactive startup banner."""
 
 from __future__ import annotations
 
@@ -34,15 +34,17 @@ import argparse
 import errno
 import os
 import re
+import select
 import statistics
 import subprocess
 import sys
+import time
 import shutil
 from pathlib import Path
 from typing import Iterable, List, Sequence, Set
 
 DEFAULT_RUNS = 25
-STARTUP_ARGS: Sequence[str] = ["--startup-test", "--show-startup-time", "--no-titleline","--no-source"]
+STARTUP_ARGS: Sequence[str] = ["--show-startup-time", "--no-titleline", "--no-source", "--no-history"]
 
 
 def repo_root() -> Path:
@@ -97,9 +99,14 @@ def run_startup_test(binary: Path) -> float:
 
     output = bytearray()
     pending = b""
+    exit_sent = False
+    deadline = time.monotonic() + 10
 
     try:
         while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not select.select([master_fd], [], [], remaining)[0]:
+                raise subprocess.TimeoutExpired(process.args, 10, bytes(output))
             try:
                 chunk = os.read(master_fd, 1024)
             except OSError as exc:
@@ -116,7 +123,15 @@ def run_startup_test(binary: Path) -> float:
                 os.write(master_fd, b"\x1b[1;1R")
 
             pending = combined[-3:]
+
+            # Wait for the prompt-end marker so Enter reaches the ready editor.
+            if not exit_sent and b"\x1b]133;B" in output:
+                os.write(master_fd, b"exit\r")
+                exit_sent = True
+        process.wait(timeout=5)
     finally:
+        if process.poll() is None:
+            process.kill()
         process.wait()
         os.close(master_fd)
 
@@ -185,7 +200,7 @@ def format_row(values: Iterable[str]) -> str:
 
 
 def main(argv: List[str]) -> int:
-    parser = argparse.ArgumentParser(description="Time cjsh binaries using the --startup-test flag.")
+    parser = argparse.ArgumentParser(description="Time cjsh binaries using their interactive startup banner.")
     parser.add_argument("--runs", type=int, default=DEFAULT_RUNS, help="Number of measured runs per binary (default: %(default)s)")
     parser.add_argument("--warmup", type=int, default=5, help="Number of warmup runs per binary (default: %(default)s)")
     args = parser.parse_args(argv)
@@ -214,6 +229,9 @@ def main(argv: List[str]) -> int:
             durations = time_binary(binary, args.runs, args.warmup)
         except subprocess.CalledProcessError as exc:
             print(f"Failed to run {binary.name}: {exc}", file=sys.stderr)
+            continue
+        except subprocess.TimeoutExpired as exc:
+            print(f"Timed out running {binary.name}: {exc}", file=sys.stderr)
             continue
         except ValueError as exc:
             print(f"Failed to parse output from {binary.name}: {exc}", file=sys.stderr)

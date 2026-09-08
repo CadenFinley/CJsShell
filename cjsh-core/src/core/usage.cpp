@@ -79,11 +79,10 @@ std::string get_usage() {
         << "  -U, --show-startup-time    Display shell startup time\n"
 
         << "\n"
-        << "Security and Testing:\n"
+        << "Security Options:\n"
         << "  -s, --secure               Secure mode: skip ~/.cjshenv, ~/.cjprofile, ~/.cjshrc,\n"
         << "                             and ~/.cjlogout entirely; disable history persistence\n"
         << "                             and smart cd; ignore special handlers\n"
-        << "  -X, --startup-test         Enable startup test mode (internal)\n"
         << "\n"
         << "Persisting flags:\n"
         << "  Add 'cjshopt login-startup-arg <flag>' inside ~/.cjprofile to\n"

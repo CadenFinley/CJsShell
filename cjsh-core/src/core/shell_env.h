@@ -64,7 +64,6 @@ extern bool extglob_enabled;
 extern bool syntax_highlighting_enabled;
 extern bool show_version;
 extern bool show_help;
-extern bool startup_test;
 extern bool minimal_mode;
 extern bool show_startup_time;
 extern bool secure_mode;

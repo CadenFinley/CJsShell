@@ -894,7 +894,6 @@ Supported flags:
 | `--minimal` | Disable colors, completions and completion learning, syntax highlighting, smart cd, rc sourcing, title line, history expansion, the status line, multiline line numbers, startup time banner, error suggestions, prompt vars, and special lifecycle handlers |
 | `--secure` | Skip environment/profile/rc/logout sourcing, disable history persistence and smart cd, and ignore special lifecycle handlers |
 | `--posix` | Enable POSIX mode, reject non-POSIX syntax and non-POSIX builtins, and ignore special lifecycle handlers |
-| `--startup-test` | Enable startup test mode |
 
 Add one line per flag in `~/.cjprofile` to persist the desired behavior:
 

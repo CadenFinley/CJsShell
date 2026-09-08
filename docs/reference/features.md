@@ -176,7 +176,6 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-W, --no-sh-warning` – suppress the reminder shown when cjsh is invoked via `sh`
 - `-s, --secure` – skip `~/.cjshenv`, `~/.cjprofile`, `~/.cjshrc`, and `~/.cjlogout`, disable
   history persistence and smart cd, and ignore special lifecycle handlers
-- `-X, --startup-test` – diagnostic mode used by the bundled tests
 
 Flags affecting feature toggles take effect early in startup and can also be injected via
 `cjshopt login-startup-arg` in configuration files.

@@ -776,7 +776,5 @@ void start_interactive_process() {
     }
 
     // go into read input loop
-    if (!config::startup_test) {
-        main_process_loop();
-    }
+    main_process_loop();
 }

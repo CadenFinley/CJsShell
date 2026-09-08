@@ -88,7 +88,6 @@ bool extglob_enabled = false;
 bool syntax_highlighting_enabled = true;
 bool show_version = false;
 bool show_help = false;
-bool startup_test = false;
 bool minimal_mode = false;
 bool show_startup_time = false;
 bool secure_mode = false;
