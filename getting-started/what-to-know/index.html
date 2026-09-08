@@ -883,6 +883,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#inherited-file-descriptors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inherited File Descriptors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#startup-files" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1645,6 +1656,14 @@ Smart <code>cd</code> adds fuzzy directory matching for quick navigation between
 </ul>
 <hr>
 <h2 id="configuration-compatibility">Configuration &amp; Compatibility</h2>
+<h3 id="inherited-file-descriptors">Inherited File Descriptors</h3>
+<p>Interactive login shells mark inherited file descriptors 3 through 19 close-on-exec
+before reading startup files, matching Bash's compatibility range. Builtins can still
+use these descriptors, but external programs do not inherit them automatically.
+Explicit redirections, including descriptors opened in startup files with <code>exec</code>, can
+pass descriptors to external programs. Standard input/output/error and descriptors
+20 and above retain their inherited flags. Noninteractive shells and interactive
+shells without login mode also retain inherited descriptor flags.</p>
 <h3 id="startup-files">Startup Files</h3>
 <ul>
 <li><code>~/.cjshenv</code> – Sourced for every shell start (before login/interactive setup).</li>
@@ -1652,6 +1671,12 @@ Smart <code>cd</code> adds fuzzy directory matching for quick navigation between
 <li><code>~/.cjshrc</code> – Interactive configuration (aliases, prompt definitions, hooks, etc.).</li>
 <li><code>~/.cjlogout</code> – Optional cleanup script sourced when a login shell exits.</li>
 </ul>
+<p>During interactive startup, Ctrl-C interrupts the active startup command and skips
+the remaining startup files. cjsh finishes initializing the prompt with status 130;
+settings already applied by startup files remain in effect. An interrupted interactive
+<code>-c</code> or script invocation exits with status 130 before running its body. Ctrl-D keeps
+its normal end-of-input behavior and does not cancel startup. Programs or traps that
+explicitly ignore SIGINT retain that behavior.</p>
 <p>Set <code>CJSH_ENV</code> to override the <code>~/.cjshenv</code> search paths. If <code>CJSH_ENV</code> is set but empty, cjsh
 falls back to the default search paths. Each native stage uses the home dotfile first,
 then the same filename under <code>~/.config/cjsh/</code> if the home file is missing.</p>
