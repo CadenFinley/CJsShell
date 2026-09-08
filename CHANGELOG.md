@@ -1,6 +1,24 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.11`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.12`.
+
+## 1.4.12 - 2026-09-07
+
+Range: `v1.4.11..v1.4.12` (4 commits, 7 files changed)
+
+### Changed
+
+- Reworked completion-menu rendering so each candidate stays on one menu row, previewed multiline replacements stay at the prompt, and oversized previews are shortened with `...` while keeping menu controls visible.
+- Updated completion-menu documentation to describe single-row entry rendering and shortened preview behavior.
+
+### Fixed
+
+- Limited startup-benchmark binary discovery to the `cjsh` shell executable so helper test binaries such as `cjsh_test_runner` are excluded.
+
+### Internal and Tests
+
+- Added PTY regression coverage for tall and wrapped multiline completion previews, prompt-prefix layouts, resize handling, and acceptance and cancellation behavior while preview shortening is active.
+- Finalized 1.4.12 as a stable release by clearing the default pre-release build marker.
 
 ## 1.4.11 - 2026-09-07
 
