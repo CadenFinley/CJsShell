@@ -1715,14 +1715,23 @@
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Limit visible multiline input rows (default: 15)</span>
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>cjshopt<span class="w"> </span>multiline-max-lines<span class="w"> </span>&lt;count<span class="p">|</span>status&gt;
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1"># Configure the multiline cursor margin (default: 3)</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>cjshopt<span class="w"> </span>multiline-bottom-lines<span class="w"> </span>&lt;count<span class="p">|</span>status&gt;
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1"># Limit visible menu content rows (default: 50)</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>cjshopt<span class="w"> </span>menu-max-lines<span class="w"> </span>&lt;count<span class="p">|</span>status&gt;
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="c1"># Configure the input and menu scroll margin (default: 3)</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>cjshopt<span class="w"> </span>multiline-bottom-lines<span class="w"> </span>&lt;count<span class="p">|</span>status&gt;
 </span></code></pre></div><p></p>
 <p>When a command exceeds the viewport limit, the visible rows scroll with the cursor while the full
 command remains available for editing and submission. Completion menus and other helper rows are
 laid out separately below the input viewport. The symmetric cursor margin keeps the viewport fixed
 while the cursor moves within it, uses only rows that exist in the command, and never pads the
 display with blank lines.</p>
+<p>Completion, history, command palette, and custom menus default to at most 50 content rows, including
+expanded item previews, and shrink to fit the terminal. Headers and help text use separate rows.
+Use <code>cjshopt menu-max-lines</code> to change the limit. The isocline API also exposes it through
+<code>ic_set_menu_max_line_count()</code> and
+<code>ic_get_menu_max_line_count()</code>. Menus use the same <code>multiline-bottom-lines</code> scroll margin (3 by
+default) around the selected item.</p>
 <p><strong>Multiline Detection:</strong>
 CJ's Shell automatically enters multiline mode when:
 - A line ends with a backslash (<code>\</code>)
