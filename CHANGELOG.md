@@ -1,6 +1,29 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.13`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.15`.
+
+## 1.4.15 - 2026-09-08
+
+Range: `v1.4.13..v1.4.15` (2 commits, 23 files changed)
+
+### Added
+
+- Added `cjshopt menu-max-lines <count|status>` to limit content rows in completion, history, command palette, and custom menus. The default is 50 rows, including expanded item previews; headers and help text use separate rows. Positive counts above 256 are clamped to 256.
+- Exposed menu height configuration through the isocline API with `ic_set_menu_max_line_count()` and `ic_get_menu_max_line_count()`.
+
+### Changed
+
+- Applied the shared `multiline-bottom-lines` scroll margin, defaulting to 3 rows, around selected menu items. Menus respect the configured content limit and shrink to fit the terminal.
+- Updated builtin help, completions, and editing documentation for menu height and shared scroll-margin settings.
+
+### Fixed
+
+- Corrected menu paging so the selected item stays within the new page's scroll margins and subsequent rendering preserves the requested page, including Page Up in expanded completions.
+
+### Internal and Tests
+
+- Added regression coverage for menu height defaults and bounds, command validation, quiet startup configuration, terminal fitting, scroll margins, paging, and expanded preview rows across menu types.
+- Finalized 1.4.15 as a stable release by clearing the default pre-release build marker.
 
 ## 1.4.13 - 2026-09-08
 
