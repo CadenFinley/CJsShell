@@ -4,7 +4,7 @@ This changelog documents tagged releases from `v1.1.2` through `v1.4.15`.
 
 ## 1.4.15 - 2026-09-08
 
-Range: `v1.4.13..v1.4.15` (2 commits, 23 files changed)
+Range: `v1.4.13..v1.4.15` (3 commits, 23 files changed)
 
 ### Added
 
@@ -23,6 +23,7 @@ Range: `v1.4.13..v1.4.15` (2 commits, 23 files changed)
 ### Internal and Tests
 
 - Added regression coverage for menu height defaults and bounds, command validation, quiet startup configuration, terminal fitting, scroll margins, paging, and expanded preview rows across menu types.
+- Made menu viewport PTY tests drain redraw output as soon as it arrives, preventing macOS CI timeouts during long navigation sequences.
 - Finalized 1.4.15 as a stable release by clearing the default pre-release build marker.
 
 ## 1.4.13 - 2026-09-08

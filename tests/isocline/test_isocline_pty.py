@@ -30,6 +30,7 @@ import os
 import platform
 import pty
 import re
+import select
 import signal
 import struct
 import sys
@@ -785,7 +786,9 @@ def run_resize_case(
                     )
                 return match.group(1).replace("\r", "")
 
-            time.sleep(poll_interval_s)
+            # Drain redraws as soon as they arrive so the PTY output buffer does
+            # not throttle long menu navigation sequences on macOS.
+            select.select([fd], [], [], poll_interval_s)
     finally:
         try:
             os.close(fd)
