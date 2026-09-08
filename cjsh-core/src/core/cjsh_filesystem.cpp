@@ -1061,13 +1061,24 @@ bool is_auto_cd_directory_token(const std::string& value, const std::string& cwd
     return is_directory_path(candidate);
 }
 
-Result<std::string> read_file_content(const std::string& path) {
-    auto open_result = safe_open(path, O_RDONLY);
+Result<std::string> read_file_content(const std::string& path, bool require_regular_file) {
+    const int flags = O_RDONLY | (require_regular_file ? O_NONBLOCK | O_NOCTTY | O_CLOEXEC : 0);
+    auto open_result = safe_open(path, flags);
     if (open_result.is_error()) {
         return Result<std::string>::error(open_result.error());
     }
 
     ScopedFd fd(open_result.value());
+    if (require_regular_file) {
+        struct stat status{};
+        if (fstat(fd.get(), &status) != 0) {
+            return Result<std::string>::error("Failed to inspect file '" + path +
+                                              "': " + describe_errno(errno));
+        }
+        if (!S_ISREG(status.st_mode)) {
+            return Result<std::string>::error("Not a regular file: '" + path + "'");
+        }
+    }
     std::string content;
     char buffer[4096];
 
@@ -1286,28 +1297,40 @@ bool write_configuration_file(const std::filesystem::path& target_path,
     return true;
 }
 
-bool startup_file_is_usable(const std::filesystem::path& candidate, bool require_regular_file) {
-    return require_regular_file ? path_is_regular_file(candidate) : file_exists(candidate);
-}
-
-bool execute_startup_file_if_present(const std::filesystem::path& path, bool require_regular_file,
-                                     bool optional_mode) {
+bool execute_startup_file_if_present(const std::filesystem::path& path, bool optional_mode) {
     if (SignalHandler::startup_interrupted()) {
         return false;
     }
-    if (!startup_file_is_usable(path, require_regular_file)) {
+    if (!path_is_regular_file(path)) {
         return false;
     }
 
-    (void)g_shell->execute_script_file(path, optional_mode);
+    // Validate and read the same descriptor. A FIFO swapped in after the path
+    // check must not block startup, and regular-file symlinks remain supported.
+    auto content = read_file_content(path.string(), true);
+    if (content.is_error()) {
+        if (!optional_mode) {
+            print_error({ErrorType::RUNTIME_ERROR, "source", content.error(), {}});
+        }
+        return false;
+    }
+    if (SignalHandler::startup_interrupted()) {
+        return false;
+    }
+    std::error_code ec;
+    auto source_path = std::filesystem::absolute(path, ec);
+    if (ec) {
+        source_path = path;
+    }
+    (void)g_shell->execute_script_content(content.value(), source_path.lexically_normal().string());
     return true;
 }
 
 bool process_startup_file_with_fallback(const std::filesystem::path& primary,
                                         const std::filesystem::path& alternate,
-                                        bool require_regular_file, bool optional_mode) {
-    return execute_startup_file_if_present(primary, require_regular_file, optional_mode) ||
-           execute_startup_file_if_present(alternate, require_regular_file, optional_mode);
+                                        bool optional_mode) {
+    return execute_startup_file_if_present(primary, optional_mode) ||
+           execute_startup_file_if_present(alternate, optional_mode);
 }
 
 bool create_default_startup_file(const std::filesystem::path& target_path,
@@ -1363,13 +1386,13 @@ void process_profile_files() {
     }
 
     if (config::posix_mode) {
-        (void)execute_startup_file_if_present("/etc/profile", true, true);
+        (void)execute_startup_file_if_present("/etc/profile", true);
         if (!cjsh_env::exit_requested())
-            (void)execute_startup_file_if_present(g_user_home_path() / ".profile", true, true);
+            (void)execute_startup_file_if_present(g_user_home_path() / ".profile", true);
         return;
     }
     (void)process_startup_file_with_fallback(g_cjsh_profile_path(), g_cjsh_profile_alt_path(),
-                                             false, true);
+                                             true);
 }
 
 void process_env_files() {
@@ -1382,14 +1405,12 @@ void process_env_files() {
         if (!env_override.empty()) {
             std::filesystem::path override_path = normalize_override_path(env_override);
 
-            if (path_is_regular_file(override_path)) {
-                (void)g_shell->execute_script_file(override_path, true);
-            }
+            (void)execute_startup_file_if_present(override_path, true);
             return;
         }
     }
 
-    (void)process_startup_file_with_fallback(g_cjsh_env_path(), g_cjsh_env_alt_path(), true, true);
+    (void)process_startup_file_with_fallback(g_cjsh_env_path(), g_cjsh_env_alt_path(), true);
 }
 
 void process_posix_env_file() {
@@ -1403,7 +1424,7 @@ void process_posix_env_file() {
     // expansion, PATH search, or evaluating ENV as a command string.
     g_shell->get_parser()->expand_env_vars(path);
     if (!path.empty() && !cjsh_env::exit_requested())
-        (void)execute_startup_file_if_present(path, true, true);
+        (void)execute_startup_file_if_present(path, true);
 }
 
 void process_logout_file() {
@@ -1411,8 +1432,7 @@ void process_logout_file() {
         return;
     }
 
-    (void)process_startup_file_with_fallback(g_cjsh_logout_path(), g_cjsh_logout_alt_path(), false,
-                                             true);
+    (void)process_startup_file_with_fallback(g_cjsh_logout_path(), g_cjsh_logout_alt_path(), true);
 }
 
 void process_source_files() {
@@ -1420,8 +1440,7 @@ void process_source_files() {
         return;
     }
 
-    (void)process_startup_file_with_fallback(g_cjsh_source_path(), g_cjsh_source_alt_path(), false,
-                                             false);
+    (void)process_startup_file_with_fallback(g_cjsh_source_path(), g_cjsh_source_alt_path(), false);
 }
 
 }  // namespace cjsh_filesystem

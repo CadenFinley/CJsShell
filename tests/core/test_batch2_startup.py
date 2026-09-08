@@ -258,6 +258,72 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(self.read_trace(), ["body"])
         self.assertFalse((self.home / "missing-root").exists())
 
+    def run_guarded_startup(self, home):
+        try:
+            return subprocess.run(
+                [self.binary, "-il", "--no-system-paths", "--no-titleline", "--no-history",
+                 "-c", 'echo body >> "$HOME/trace"'],
+                env=dict(self.env, HOME=str(home)), text=True, capture_output=True,
+                timeout=3, start_new_session=True)
+        except subprocess.TimeoutExpired:
+            raise self.failureException(
+                "automatic startup/logout file blocked shell execution for over 3 seconds") from None
+
+    def check_special_startup_files(self, kind):
+        stages = ((".cjshenv", "env"), (".cjprofile", "profile"),
+                  (".cjshrc", "rc"), (".cjlogout", "logout"))
+        for filename, stage in stages:
+            with self.subTest(file=filename, kind=kind):
+                home = self.home / stage
+                self.trace_files(home)
+                self.trace_files(home / ".config/cjsh", "alt-")
+                path = home / filename
+                path.unlink()
+                if kind == "swap":
+                    path.write_text('echo unexpected >> "$HOME/trace"\n')
+                    self.env["CJSH_TEST_STARTUP_SWAP_PATH"] = str(path)
+                elif kind == "directory":
+                    path.mkdir()
+                elif kind == "fifo":
+                    os.mkfifo(path)
+                else:
+                    target = home / "startup-fifo"
+                    os.mkfifo(target)
+                    path.symlink_to(target.name)
+
+                result = self.run_guarded_startup(home)
+                if kind == "swap":
+                    self.assertTrue(path.is_fifo(), "startup-file replacement was not injected")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                expected = ["env", "profile", "rc", "body", "logout"]
+                expected[expected.index(stage)] = "alt-" + stage
+                self.assertEqual((home / "trace").read_text().splitlines(), expected)
+
+    def test_native_startup_skips_fifos(self):
+        self.check_special_startup_files("fifo")
+
+    def test_native_startup_skips_symlinks_to_fifos(self):
+        self.check_special_startup_files("symlink")
+
+    def test_native_startup_skips_directories(self):
+        self.check_special_startup_files("directory")
+
+    @unittest.skipIf(SKIP_PRELOAD_INJECTION, "file replacement injection requires a dynamic binary")
+    def test_native_startup_rejects_file_replaced_with_fifo_during_open(self):
+        self.env["DYLD_INSERT_LIBRARIES" if sys.platform == "darwin" else "LD_PRELOAD"] = self.injector
+        self.check_special_startup_files("swap")
+
+    def test_native_startup_follows_regular_file_symlinks(self):
+        targets = self.home / "targets"
+        self.trace_files(targets)
+        self.trace_files(self.home / ".config/cjsh", "alt-")
+        for path in targets.iterdir():
+            (self.home / path.name).symlink_to(path.relative_to(self.home))
+        result = self.run_guarded_startup(self.home)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.read_trace(), ["env", "profile", "rc", "body", "logout"])
+
     def test_posix_startup_and_env_expansion(self):
         self.trace_files(self.home, "native-")
         (self.home / ".profile").write_text('echo profile >> "$HOME/trace"\n')

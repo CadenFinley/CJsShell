@@ -431,13 +431,20 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
 
     std::stringstream buffer;
     buffer << file.rdbuf();
-    auto parsed_lines = shell_script_interpreter->parse_into_lines(buffer.str());
+    return execute_script_content(buffer.str(), display_path);
+}
+
+int Shell::execute_script_content(const std::string& content, const std::string& source_path) {
+    if (!shell_script_interpreter) {
+        print_error({ErrorType::FATAL_ERROR, "", "shell not initialized properly", {}});
+    }
+    auto parsed_lines = shell_script_interpreter->parse_into_lines(content);
     if (parsed_lines.empty()) {
         return 0;
     }
 
     const std::string previous_error_source = shell_script_interpreter->get_error_source();
-    shell_script_interpreter->set_error_source(display_path);
+    shell_script_interpreter->set_error_source(source_path);
     shell_script_interpreter->push_source_scope();
     int exit_code = shell_script_interpreter->execute_block(parsed_lines);
     shell_script_interpreter->pop_source_scope();
@@ -552,6 +559,8 @@ void Shell::setup_job_control() {
     // shell must claim the terminal itself: stopping here can deadlock with a launcher that only
     // waits for its login shell to exit.
     (void)signal(SIGTTIN, SIG_DFL);
+    constexpr unsigned kMaxForegroundAttempts = 16;
+    unsigned foreground_attempts = 0;
     for (;;) {
         const pid_t foreground_pgid = tcgetpgrp(shell_terminal);
         if (foreground_pgid < 0) {
@@ -565,6 +574,19 @@ void Shell::setup_job_control() {
         }
         if (flags::is_login_shell_invocation()) {
             break;
+        }
+        // Orphaned process groups discard SIGTTIN. Bound repeated attempts,
+        // without imposing a timeout on a shell stopped normally until `fg`.
+        if (foreground_attempts++ == kMaxForegroundAttempts) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::WARNING,
+                         "startup",
+                         "unable to acquire foreground terminal after repeated attempts",
+                         {"Job control will remain disabled."}});
+            job_control_enabled = false;
+            shell_options[to_index(ShellOption::Monitor)] = false;
+            interactive_job_control_available = false;
+            return;
         }
         if (kill(-shell_pgid, SIGTTIN) < 0 && errno != EINTR) {
             job_control_enabled = false;

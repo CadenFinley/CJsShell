@@ -33,9 +33,11 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -45,10 +47,30 @@ static uid_t injected_geteuid(void) {
 static gid_t injected_getegid(void) {
     return getgid() + (getenv("CJSH_TEST_GID_MISMATCH") != NULL ? 1 : 0);
 }
-static FILE* injected_fopen(const char* path, const char* mode) {
+static const char* prepare_open_path(const char* path) {
     const char* profile = getenv("CJSH_TEST_SYSTEM_PROFILE");
     if (profile != NULL && strcmp(path, "/etc/profile") == 0)
         path = profile;
+    static int swapped = 0;
+    const char* swap_path = getenv("CJSH_TEST_STARTUP_SWAP_PATH");
+    if (!swapped && swap_path != NULL && strcmp(path, swap_path) == 0) {
+        swapped = 1;
+        if (unlink(path) != 0 || mkfifo(path, 0600) != 0)
+            _exit(125);
+    }
+    return path;
+}
+static int open_with_arguments(const char* path, int flags, va_list args) {
+    mode_t mode = 0;
+    if ((flags & O_CREAT) != 0
+#ifdef O_TMPFILE
+        || (flags & O_TMPFILE) == O_TMPFILE
+#endif
+    )
+        mode = (mode_t)va_arg(args, int);
+    return openat(AT_FDCWD, prepare_open_path(path), flags, mode);
+}
+static FILE* injected_fopen(const char* path, const char* mode) {
     int flags = mode[0] == 'r' ? O_RDONLY : O_WRONLY | O_CREAT;
     if (mode[0] == 'w')
         flags |= O_TRUNC;
@@ -60,7 +82,7 @@ static FILE* injected_fopen(const char* path, const char* mode) {
         flags |= O_EXCL;
     if (strchr(mode, 'e') != NULL)
         flags |= O_CLOEXEC;
-    int fd = open(path, flags, 0666);
+    int fd = openat(AT_FDCWD, prepare_open_path(path), flags, 0666);
     if (fd < 0)
         return NULL;
     FILE* stream = fdopen(fd, mode);
@@ -72,6 +94,13 @@ static FILE* injected_fopen(const char* path, const char* mode) {
     return stream;
 }
 #if defined(__APPLE__)
+static int injected_open(const char* path, int flags, ...) {
+    va_list args;
+    va_start(args, flags);
+    int fd = open_with_arguments(path, flags, args);
+    va_end(args);
+    return fd;
+}
 #define INTERPOSE(replacement, replacee)                                      \
     __attribute__((used)) static struct {                                     \
         const void* a;                                                        \
@@ -81,7 +110,22 @@ static FILE* injected_fopen(const char* path, const char* mode) {
 INTERPOSE(injected_geteuid, geteuid)
 INTERPOSE(injected_getegid, getegid)
 INTERPOSE(injected_fopen, fopen)
+INTERPOSE(injected_open, open)
 #else
+int open(const char* path, int flags, ...) {
+    va_list args;
+    va_start(args, flags);
+    int fd = open_with_arguments(path, flags, args);
+    va_end(args);
+    return fd;
+}
+int open64(const char* path, int flags, ...) {
+    va_list args;
+    va_start(args, flags);
+    int fd = open_with_arguments(path, flags, args);
+    va_end(args);
+    return fd;
+}
 uid_t geteuid(void) {
     return injected_geteuid();
 }

@@ -135,7 +135,7 @@ Result<void> duplicate_pipe_read_end_to_fd(int (&pipe_fds)[2], int target_fd);
 void close_pipe(int pipe_fds[2]);
 
 Result<void> write_file_content(const std::string& path, const std::string& content);
-Result<std::string> read_file_content(const std::string& path);
+Result<std::string> read_file_content(const std::string& path, bool require_regular_file = false);
 Result<void> write_all(int fd, std::string_view data);
 bool error_indicates_broken_pipe(std::string_view message);
 

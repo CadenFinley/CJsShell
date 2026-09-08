@@ -143,19 +143,19 @@ std::optional<ApprootTargetPath> resolve_approot_target(const std::string& targe
     if (target == "profile" || target == "cjprofile") {
         return make_file_target(
             resolve_startup_target_file_path(cjsh_filesystem::g_cjsh_profile_path(),
-                                             cjsh_filesystem::g_cjsh_profile_alt_path(), false));
+                                             cjsh_filesystem::g_cjsh_profile_alt_path(), true));
     }
 
     if (target == "rc" || target == "cjshrc") {
         return make_file_target(
             resolve_startup_target_file_path(cjsh_filesystem::g_cjsh_source_path(),
-                                             cjsh_filesystem::g_cjsh_source_alt_path(), false));
+                                             cjsh_filesystem::g_cjsh_source_alt_path(), true));
     }
 
     if (target == "logout" || target == "cjlogout") {
         return make_file_target(
             resolve_startup_target_file_path(cjsh_filesystem::g_cjsh_logout_path(),
-                                             cjsh_filesystem::g_cjsh_logout_alt_path(), false));
+                                             cjsh_filesystem::g_cjsh_logout_alt_path(), true));
     }
 
     if (target == "home") {

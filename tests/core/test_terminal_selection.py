@@ -26,13 +26,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""A redirected PTY must not give cjsh ownership of its caller's terminal."""
+"""Terminal selection and foreground ownership during interactive startup."""
 
 from __future__ import annotations
 
 import errno
+import fcntl
 import os
 from pathlib import Path
+import select
+import signal
 import subprocess
 import sys
 import tempfile
@@ -114,6 +117,57 @@ def run_redirected_command(binary: str, scenario: str) -> None:
                 os.close(fd)
 
 
+def run_orphan_probe(binary: str, directory: str) -> None:
+    assert os.getsid(0) == os.getpid() == os.getpgrp(), "probe needs its own session"
+    fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+    signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+    signal.signal(signal.SIGTTIN, signal.SIG_DFL)
+    foreground = None
+    shell = None
+    try:
+        foreground = subprocess.Popen(
+            [sys.executable, "-c",
+             "import os,sys; os.setpgid(0, 0); print('ready', flush=True); sys.stdin.read()"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        assert select.select([foreground.stdout], [], [], 3)[0], "foreground helper did not start"
+        assert foreground.stdout.readline() == b"ready\n", "foreground helper failed"
+        assert os.getpgid(foreground.pid) == foreground.pid
+        os.tcsetpgrp(0, foreground.pid)
+        assert os.tcgetpgrp(0) == foreground.pid != os.getpgrp()
+
+        # The probe and cjsh share the session leader's group. Every member's
+        # parent is in this group or outside the session, so SIGTTIN cannot stop
+        # the orphaned group. Keep its foreground sibling alive throughout.
+        shell = subprocess.Popen(
+            [binary, "--no-config", "--minimal", "--no-history", "-i", "-c",
+             "printf 'startup-body\\n'"],
+            env=dict(os.environ, HOME=directory, TERM="xterm-256color"),
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = shell.communicate(timeout=3)
+        except subprocess.TimeoutExpired:
+            raise AssertionError(
+                "orphaned background cjsh did not finish startup within 3 seconds") from None
+
+        assert foreground.poll() is None, "foreground helper exited during startup"
+        assert os.tcgetpgrp(0) == foreground.pid, "background cjsh stole the foreground terminal"
+        assert shell.returncode in (0, 1), (shell.returncode, stdout, stderr)
+        if shell.returncode == 0:
+            assert stdout == b"startup-body\n", (stdout, stderr)
+        else:
+            assert stdout == b"" and stderr, "startup refusal must report an error before execution"
+        print("orphaned-startup-ok", flush=True)
+    finally:
+        for process in (shell, foreground):
+            if process is not None:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate()
+        os.tcsetpgrp(0, os.getpgrp())
+
+
 class TerminalSelectionTests(unittest.TestCase):
     binary: str
 
@@ -138,9 +192,46 @@ class TerminalSelectionTests(unittest.TestCase):
     def test_interactive_command_accepts_readonly_stdin_pty(self) -> None:
         self.check_selection("readonly-stdin")
 
+    def test_orphaned_background_startup_does_not_spin_or_steal_terminal(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cjsh-orphan-startup-") as directory:
+            master, slave = os.openpty()
+            process = None
+            try:
+                process = subprocess.Popen(
+                    [sys.executable, str(Path(__file__).resolve()), "--orphan-probe",
+                     self.binary, directory],
+                    stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True, start_new_session=True,
+                )
+                stdout, stderr = process.communicate(timeout=10)
+                self.assertEqual(process.returncode, 0, stdout + stderr)
+                self.assertIn("orphaned-startup-ok", stdout)
+            finally:
+                if process is not None:
+                    if process.poll() is None:
+                        # The probe normally reaps both helpers itself. Also handle
+                        # a wedged probe without leaving its private session alive.
+                        groups = {process.pid}
+                        try:
+                            foreground = os.tcgetpgrp(master)
+                            if foreground > 0 and os.getsid(foreground) == process.pid:
+                                groups.add(foreground)
+                        except OSError:
+                            pass
+                        for group in groups:
+                            try:
+                                os.killpg(group, signal.SIGKILL)
+                            except ProcessLookupError:
+                                pass
+                    process.communicate()
+                os.close(slave)
+                os.close(master)
+
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--probe":
+    if len(sys.argv) > 1 and sys.argv[1] == "--orphan-probe":
+        run_orphan_probe(*sys.argv[2:])
+    elif len(sys.argv) > 1 and sys.argv[1] == "--probe":
         run_probe(*sys.argv[2:])
     else:
         TerminalSelectionTests.binary = str(Path(sys.argv.pop(1)).resolve())

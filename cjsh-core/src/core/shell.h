@@ -102,6 +102,7 @@ class Shell {
                         bool auto_background_on_stop = false,
                         bool auto_background_on_stop_silent = false);
     int execute_script_file(const std::filesystem::path& path, bool optional = false);
+    int execute_script_content(const std::string& content, const std::string& source_path);
 
     SignalProcessingResult process_pending_signals(bool reap_children = true);
     void setup_signal_handlers();

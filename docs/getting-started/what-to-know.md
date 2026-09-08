@@ -212,7 +212,14 @@ explicitly ignore SIGINT retain that behavior.
 
 Set `CJSH_ENV` to override the `~/.cjshenv` search paths. If `CJSH_ENV` is set but empty, cjsh
 falls back to the default search paths. Each native stage uses the home dotfile first,
-then the same filename under `~/.config/cjsh/` if the home file is missing.
+then the same filename under `~/.config/cjsh/` if the home file is missing or unusable.
+Automatic startup and logout files must be readable regular files; symlinks to regular
+files are supported. Directories, FIFOs, and other special files are skipped.
+
+Background interactive shells normally stop until their parent places them in the
+foreground. If repeated stop attempts cannot establish foreground ownership (for
+example, in an orphaned process group), cjsh warns and continues with terminal job
+control disabled, leaving the foreground process group unchanged.
 
 `--config-dir DIR` redirects **all four native startup files** to that directory, with
 no fallback to home files. A nonempty `CJSH_CONFIG_HOME` provides the same override when
