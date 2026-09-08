@@ -281,8 +281,6 @@ int run_cjsh(int argc, char* argv[]) {
 
     if (!cjsh_env::exit_requested()) {
         cjsh_filesystem::process_source_files();
-    }
-    if (!cjsh_env::exit_requested()) {
         cjsh_filesystem::initialize_history_storage();
     }
     cjsh_filesystem::finalize_history_path();
