@@ -421,6 +421,24 @@ static bool test_multiline_bottom_line_count_defaults_and_clamps(void) {
     return true;
 }
 
+static bool test_menu_max_line_count_defaults_and_clamps(void) {
+    EXPECT_TRUE(ensure_env() != NULL, "menu configuration requires an environment");
+    EXPECT_TRUE(ic_get_menu_max_line_count() == 50, "menus should default to 50 content rows");
+    EXPECT_TRUE(ic_set_menu_max_line_count(0) == 50,
+                "menu maximum setter should return the previous limit");
+    EXPECT_TRUE(ic_get_menu_max_line_count() == 1, "menu maximum should clamp zero to one row");
+    EXPECT_TRUE(ic_set_menu_max_line_count((size_t)-1) == 1,
+                "menu maximum setter should accept large unsigned values");
+    EXPECT_TRUE(ic_get_menu_max_line_count() == 256, "menu maximum should clamp to 256 rows");
+    EXPECT_TRUE(ic_set_menu_max_line_count(75) == 256 && ic_get_menu_max_line_count() == 75,
+                "menu maximum should allow limits above the default");
+    EXPECT_TRUE(
+        ic_get_multiline_max_line_count() == 15 && ic_get_multiline_bottom_line_count() == 3,
+        "menu maximum should not change multiline height or the scroll margin");
+    (void)ic_set_menu_max_line_count(50);
+    return true;
+}
+
 static bool test_multiline_viewport_layout(void) {
     editline_viewport_t viewport = editline_viewport_for(20, 0, 19, 24, 15, 3, 0);
     EXPECT_TRUE(viewport.input_first_row == 5 && viewport.input_row_count == 15,
@@ -4289,6 +4307,7 @@ static const test_case_t kTests[] = {
      test_multiline_max_line_count_defaults_and_clamps},
     {"multiline_bottom_line_count_defaults_and_clamps",
      test_multiline_bottom_line_count_defaults_and_clamps},
+    {"menu_max_line_count_defaults_and_clamps", test_menu_max_line_count_defaults_and_clamps},
     {"multiline_viewport_layout", test_multiline_viewport_layout},
     {"multiline_viewport_bottom_content_rows", test_multiline_viewport_bottom_content_rows},
     {"multiline_viewport_symmetric_scroll_margin", test_multiline_viewport_symmetric_scroll_margin},

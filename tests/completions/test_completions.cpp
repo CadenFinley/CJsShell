@@ -1881,6 +1881,16 @@ static bool test_builtin_docs(void) {
         has_entry(multiline_max_lines_doc, "status", builtin_completions::EntryKind::Subcommand),
         test_name, "multiline-max-lines should include status subcommand");
 
+    EXPECT_TRUE(
+        has_entry(cjshopt_doc, "menu-max-lines", builtin_completions::EntryKind::Subcommand),
+        test_name, "cjshopt should include menu-max-lines subcommand");
+    const auto* menu_max_lines_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-menu-max-lines");
+    EXPECT_TRUE(menu_max_lines_doc != nullptr, test_name,
+                "cjshopt-menu-max-lines doc should exist");
+    EXPECT_TRUE(has_entry(menu_max_lines_doc, "status", builtin_completions::EntryKind::Subcommand),
+                test_name, "menu-max-lines should include status subcommand");
+
     const auto* exit_confirmation_doc =
         builtin_completions::lookup_builtin_command_doc("cjshopt-exit-confirmation");
     EXPECT_TRUE(exit_confirmation_doc != nullptr, test_name,

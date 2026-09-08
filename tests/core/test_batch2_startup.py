@@ -87,6 +87,46 @@ class StartupTests(unittest.TestCase):
         self.assertIn("--no-system-paths", help_text)
         self.assertNotIn("--login-path", help_text)
 
+    def test_viewport_limit_commands(self):
+        for command, label, default in (("menu-max-lines", "Menu content", 50),
+                                        ("multiline-max-lines", "Multiline input", 15)):
+            result = self.run_shell("-c", f"cjshopt {command} status")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, f"{label} currently shows up to {default} lines.\n")
+            for requested, applied in ((1, 1), (8, 8), (75, 75), (300, 256)):
+                with self.subTest(command=command, requested=requested):
+                    result = self.run_shell("-c", f"cjshopt {command} {requested}; "
+                                            f"cjshopt {command} --status")
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stderr, "")
+                    unit = "line" if applied == 1 else "lines"
+                    self.assertEqual(result.stdout.splitlines()[-1],
+                                     f"{label} currently shows up to {applied} {unit}.")
+            for value in ("", "0", "-1", "+2", "1.5", "invalid", "8 extra",
+                          "999999999999999999999999999"):
+                with self.subTest(command=command, invalid=value):
+                    result = self.run_shell("-c", f"cjshopt {command} {value}")
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(command, result.stderr)
+
+        result = self.run_shell("-c", "cjshopt menu-max-lines 8; "
+                                "cjshopt multiline-max-lines status")
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(result.stdout.splitlines()[-1],
+                         "Multiline input currently shows up to 15 lines.")
+        result = self.run_shell("-c", "cjshopt menu-max-lines --help")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("menu-max-lines <count|status>", result.stdout)
+        self.assertIn("menu-max-lines", self.run_shell("-c", "cjshopt --help").stdout)
+
+    def test_menu_limit_from_rc_is_quiet(self):
+        (self.home / ".cjshrc").write_text(
+            "cjshopt menu-max-lines 8\ncjshopt menu-max-lines status\n")
+        result = self.run_shell("-i", "--no-titleline", "--no-history", "-c",
+                                "cjshopt menu-max-lines status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "Menu content currently shows up to 8 lines.\n")
+
     def test_noexec_sources(self):
         self.trace_files(self.home)
         marker = self.home / "executed"

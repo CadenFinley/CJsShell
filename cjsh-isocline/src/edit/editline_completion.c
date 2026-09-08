@@ -290,15 +290,6 @@ static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb, bool a
     }
 }
 
-static ssize_t edit_completion_available_rows_for_input(ic_env_t* env, editor_t* eb,
-                                                        ssize_t input_rows) {
-    ssize_t available_rows = edit_available_terminal_rows(env, eb) - input_rows;
-    if (available_rows < 3) {
-        available_rows = 3;
-    }
-    return available_rows;
-}
-
 static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, ssize_t selected,
                                                    ssize_t reserved_rows, ssize_t* preview_len) {
     *preview_len = -1;
@@ -407,16 +398,13 @@ static ssize_t edit_completion_collapsed_item_limit(ic_env_t* env, editor_t* eb,
         return 0;
     }
 
-    const ssize_t available_rows = edit_completion_available_rows_for_input(env, eb, input_rows);
     ssize_t item_limit = count;
     if (item_limit > IC_COLLAPSED_COMPLETION_MAX_ITEMS) {
         item_limit = IC_COLLAPSED_COMPLETION_MAX_ITEMS;
     }
 
-    ssize_t rows_for_items = available_rows - reserved_rows;
-    if (rows_for_items < 1) {
-        rows_for_items = 1;
-    }
+    const ssize_t rows_for_items =
+        edit_menu_available_lines(env, eb, input_rows + reserved_rows, 1);
     if (item_limit > rows_for_items) {
         item_limit = rows_for_items;
     }
@@ -678,42 +666,15 @@ again:
     ssize_t rows_visible = total_rows;
     ssize_t max_scroll_offset = 0;
     if (expanded_mode) {
-        ssize_t available_rows =
-            edit_completion_available_rows_for_input(env, eb, rendered_input_rows);
-        ssize_t rows_for_items = available_rows - header_rows - footer_rows;
-        if (rows_for_items < 1) {
-            rows_for_items = 1;
-        }
-
-        rows_visible = (rows_for_items < total_rows ? rows_for_items : total_rows);
-        if (rows_visible < 1) {
-            rows_visible = 1;
-        }
-        max_scroll_offset = (total_rows > rows_visible ? total_rows - rows_visible : 0);
+        const ssize_t rows_for_items =
+            edit_menu_available_lines(env, eb, rendered_input_rows + header_rows + footer_rows, 1);
+        const edit_menu_window_t window =
+            edit_menu_window_for(env, total_rows, rows_for_items, selected, scroll_offset);
+        rows_visible = window.display_count;
+        max_scroll_offset = window.max_scroll;
+        scroll_offset = window.scroll_offset;
     } else {
         scroll_offset = 0;
-    }
-
-    if (scroll_offset > max_scroll_offset) {
-        scroll_offset = max_scroll_offset;
-    }
-    if (scroll_offset < 0) {
-        scroll_offset = 0;
-    }
-
-    if (expanded_mode && selected >= 0) {
-        ssize_t selected_row = selected % total_rows;
-        if (selected_row < scroll_offset) {
-            scroll_offset = selected_row;
-        } else if (selected_row >= scroll_offset + rows_visible) {
-            scroll_offset = selected_row - rows_visible + 1;
-        }
-        if (scroll_offset < 0) {
-            scroll_offset = 0;
-        }
-        if (scroll_offset > max_scroll_offset) {
-            scroll_offset = max_scroll_offset;
-        }
     }
 
     const ssize_t row_start = scroll_offset;
@@ -977,19 +938,7 @@ read_key:
         goto again;
     } else if (c == KEY_PAGEUP && expanded_mode) {
         c = 0;
-        if (last_rows_visible > 0 && scroll_offset > 0) {
-            ssize_t prev_offset = scroll_offset;
-            if (scroll_offset > last_rows_visible) {
-                scroll_offset -= last_rows_visible;
-            } else {
-                scroll_offset = 0;
-            }
-            if (scroll_offset == prev_offset) {
-                term_beep(env->term);
-            }
-        } else {
-            term_beep(env->term);
-        }
+        (void)edit_menu_page_up(env, count_displayed, last_rows_visible, &scroll_offset, &selected);
         goto again;
     } else {
         if (edit_key_is_mouse_toggle_binding(env, c)) {

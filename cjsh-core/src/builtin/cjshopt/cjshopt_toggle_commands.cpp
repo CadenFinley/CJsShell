@@ -935,16 +935,13 @@ int multiline_start_lines_command(const std::vector<std::string>& args) {
     return 0;
 }
 
-int multiline_max_lines_command(const std::vector<std::string>& args) {
-    static const std::vector<std::string> usage_lines = {
-        "Usage: multiline-max-lines <count|status>",
-        "Examples:", "  multiline-max-lines 15       Show up to 15 multiline input rows",
-        "  multiline-max-lines 5        Use a compact five-row viewport",
-        "  multiline-max-lines status   Show the current setting"};
-
+namespace {
+int max_lines_command(const std::vector<std::string>& args, const std::string& command,
+                      const std::string& label, size_t (*get_line_count)(),
+                      size_t (*set_line_count)(size_t),
+                      const std::vector<std::string>& usage_lines) {
     if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline-max-lines", "Missing line count",
-                     usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, command, "Missing line count", usage_lines});
         return 1;
     }
 
@@ -953,8 +950,8 @@ int multiline_max_lines_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline-max-lines",
-                     "Too many arguments provided", usage_lines});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, command, "Too many arguments provided", usage_lines});
         return 1;
     }
 
@@ -963,8 +960,8 @@ int multiline_max_lines_command(const std::vector<std::string>& args) {
 
     if (parse_status_query(normalized) == StatusQuery::Status) {
         if (!cjsh_env::startup_active()) {
-            const size_t current = ic_get_multiline_max_line_count();
-            std::cout << "Multiline input currently shows up to " << current << " line"
+            const size_t current = get_line_count();
+            std::cout << label << " currently shows up to " << current << " line"
                       << (current == 1 ? "" : "s") << ".\n";
         }
         return 0;
@@ -972,7 +969,7 @@ int multiline_max_lines_command(const std::vector<std::string>& args) {
 
     if (option.empty() || !std::all_of(option.begin(), option.end(),
                                        [](unsigned char c) { return std::isdigit(c) != 0; })) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline-max-lines",
+        print_error({ErrorType::INVALID_ARGUMENT, command,
                      "Invalid line count '" + option + "' (expected a positive integer)",
                      usage_lines});
         return 1;
@@ -982,33 +979,57 @@ int multiline_max_lines_command(const std::vector<std::string>& args) {
     try {
         requested = static_cast<size_t>(std::stoul(option));
     } catch (...) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline-max-lines",
+        print_error({ErrorType::INVALID_ARGUMENT, command,
                      "Invalid line count '" + option + "' (expected a positive integer)",
                      usage_lines});
         return 1;
     }
 
     if (requested == 0) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline-max-lines",
-                     "Line count must be at least 1", usage_lines});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, command, "Line count must be at least 1", usage_lines});
         return 1;
     }
 
-    (void)ic_set_multiline_max_line_count(requested);
-    const size_t applied = ic_get_multiline_max_line_count();
+    (void)set_line_count(requested);
+    const size_t applied = get_line_count();
 
     if (!cjsh_env::startup_active()) {
         if (applied != requested) {
             std::cout << "Line count exceeds the supported maximum; using " << applied
                       << " instead.\n";
         }
-        std::cout << "Multiline input will now show up to " << applied << " line"
+        std::cout << label << " will now show up to " << applied << " line"
                   << (applied == 1 ? "" : "s") << ".\n";
-        std::cout << "Add `cjshopt multiline-max-lines " << applied
+        std::cout << "Add `cjshopt " << command << " " << applied
                   << "` to your ~/.cjshrc to persist this change.\n";
     }
 
     return 0;
+}
+}  // namespace
+
+int multiline_max_lines_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: multiline-max-lines <count|status>",
+        "Examples:", "  multiline-max-lines 15       Show up to 15 multiline input rows",
+        "  multiline-max-lines 5        Use a compact five-row viewport",
+        "  multiline-max-lines status   Show the current setting"};
+    return max_lines_command(args, "multiline-max-lines", "Multiline input",
+                             ic_get_multiline_max_line_count, ic_set_multiline_max_line_count,
+                             usage_lines);
+}
+
+int menu_max_lines_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: menu-max-lines <count|status>",
+        "Limit content rows in completion, history, command palette, and custom menus.",
+        "Examples:",
+        "  menu-max-lines 50       Restore the default menu height",
+        "  menu-max-lines 8        Show up to eight menu content rows",
+        "  menu-max-lines status   Show the current setting"};
+    return max_lines_command(args, "menu-max-lines", "Menu content", ic_get_menu_max_line_count,
+                             ic_set_menu_max_line_count, usage_lines);
 }
 
 int multiline_bottom_lines_command(const std::vector<std::string>& args) {

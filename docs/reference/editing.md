@@ -75,7 +75,10 @@ cjshopt multiline-start-lines <count|status>
 # Limit visible multiline input rows (default: 15)
 cjshopt multiline-max-lines <count|status>
 
-# Configure the multiline cursor margin (default: 3)
+# Limit visible menu content rows (default: 50)
+cjshopt menu-max-lines <count|status>
+
+# Configure the input and menu scroll margin (default: 3)
 cjshopt multiline-bottom-lines <count|status>
 ```
 
@@ -84,6 +87,13 @@ command remains available for editing and submission. Completion menus and other
 laid out separately below the input viewport. The symmetric cursor margin keeps the viewport fixed
 while the cursor moves within it, uses only rows that exist in the command, and never pads the
 display with blank lines.
+
+Completion, history, command palette, and custom menus default to at most 50 content rows, including
+expanded item previews, and shrink to fit the terminal. Headers and help text use separate rows.
+Use `cjshopt menu-max-lines` to change the limit. The isocline API also exposes it through
+`ic_set_menu_max_line_count()` and
+`ic_get_menu_max_line_count()`. Menus use the same `multiline-bottom-lines` scroll margin (3 by
+default) around the selected item.
 
 **Multiline Detection:**
 CJ's Shell automatically enters multiline mode when:

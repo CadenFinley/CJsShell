@@ -867,6 +867,64 @@ def assert_completion_preview_fits(
         raise AssertionError(f"completion preview exceeds the {rows}x{cols} terminal: {render!r}")
 
 
+def assert_menu_viewports(binary: str) -> None:
+    menus = {
+        "completion": (b"entry\t", "Showing ", 9),
+        "history": (b"\x12entry", "120 matches found", 9),
+        "palette": (ALT_P + b"zzviewport", "120 actions found", 8),
+        "custom": (F3, "Items (", 8),
+    }
+
+    def check(kind, keys, first, count, selected, suffix="", rows=80):
+        opening, marker, _ = menus[kind]
+        scenario = "menu_viewport_" + kind + suffix
+        output = observe_resize_case(
+            binary,
+            scenario,
+            [("send", opening + keys), ("wait", marker), ("idle", 0.1)],
+            initial_rows=rows,
+            initial_cols=160,
+        )
+        render = normalize_terminal_output(output).rsplit(marker, 1)[-1]
+        entries = [int(value) for value in re.findall(r"^[ →>]+entry(\d{3})", render, re.M)]
+        selection = re.search(r"^[→>] entry(\d{3})", render, re.M)
+        if entries != list(range(first, first + count)) or (
+            selection is None or int(selection.group(1)) != selected
+        ):
+            raise AssertionError(
+                f"{scenario} expected entries {first}-{first + count - 1}, selected {selected}: "
+                f"{render!r}"
+            )
+        return render
+
+    for kind, (_, _, short_count) in menus.items():
+        check(kind, b"", 0, 50, 0)
+        check(kind, b"", 0, 8, 0, suffix="_limit")
+        check(kind, b"", 0, 75, 0, suffix="_large", rows=100)
+        check(kind, DOWN * 4, 4, 1, 4, suffix="_single")
+        check(kind, DOWN * 47, 51 - short_count, short_count, 47, rows=12)
+
+        # Scrolling starts at the three-row margin and stays fixed until the opposite margin.
+        check(kind, DOWN * 46, 0, 50, 46)
+        check(kind, DOWN * 47, 1, 50, 47)
+        check(kind, DOWN * 47 + UP * 43, 1, 50, 4)
+        check(kind, DOWN * 47 + UP * 44, 0, 50, 3)
+        check(kind, DOWN * 119, 70, 50, 119)
+
+        # Paging must retain the requested page after applying the scroll margin.
+        page_down = b"\x1b[1;2B"
+        check(kind, page_down, 50, 50, 53)
+        check(kind, page_down * 2, 70, 50, 73)
+        check(kind, page_down + SHIFT_UP, 0, 50, 3)
+
+    check("completion", PAGEDOWN + PAGEUP, 0, 50, 3)
+    check("custom", DOWN * 49, 0, 50, 49, suffix="_no_margin")
+    check("custom", DOWN * 50, 1, 50, 50, suffix="_no_margin")
+    preview = check("custom", b"", 0, 48, 0, suffix="_preview")
+    if "preview second line" not in preview or "preview third line" not in preview:
+        raise AssertionError(f"menu content limit should include the expanded preview: {preview!r}")
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f"usage: {sys.argv[0]} <isocline_pty_driver>", file=sys.stderr)
@@ -876,6 +934,8 @@ def main() -> int:
     if not os.path.exists(binary):
         print(f"driver binary not found: {binary}", file=sys.stderr)
         return 2
+
+    assert_menu_viewports(binary)
 
     for scenario, keys, expected in [
         ("notification_edit", LEFT + b"\x1b[17~X\r", "aXb"),

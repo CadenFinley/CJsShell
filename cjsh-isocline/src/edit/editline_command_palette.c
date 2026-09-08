@@ -430,7 +430,7 @@ again:;
         ssize_t term_width = term_get_width(env->term);
         ssize_t available_lines = edit_menu_available_lines(env, eb, 4, 3);
         edit_menu_window_t window =
-            edit_menu_window_for(match_count, available_lines, selected_idx, scroll_offset);
+            edit_menu_window_for(env, match_count, available_lines, selected_idx, scroll_offset);
         ssize_t display_count = window.display_count;
         scroll_offset = window.scroll_offset;
 

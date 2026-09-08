@@ -134,6 +134,38 @@ static bool pty_custom_menu_runoff_handler(ic_keycode_t key, void* arg) {
     return true;
 }
 
+static bool pty_menu_viewport_handler(ic_keycode_t key, void* arg) {
+    if (key != IC_KEY_F3) {
+        return false;
+    }
+
+    char labels[120][16];
+    ic_menu_item_t items[120] = {0};
+    for (size_t i = 0; i < 120; ++i) {
+        (void)snprintf(labels[i], sizeof(labels[i]), "entry%03zu", i);
+        items[i].label = labels[i];
+    }
+    if (arg != NULL) {
+        items[0].description = "preview first line\npreview second line\npreview third line";
+    }
+    size_t selected = 0;
+    if (ic_show_menu("custom actions: ", items, 120, &selected)) {
+        (void)ic_set_buffer(labels[selected]);
+    }
+    return true;
+}
+
+static void pty_menu_viewport_completer(ic_completion_env_t* cenv, const char* prefix) {
+    for (int i = 0; i < 120; ++i) {
+        char entry[16];
+        (void)snprintf(entry, sizeof(entry), "entry%03d", i);
+        const char* words[] = {entry, NULL};
+        if (!ic_add_completions(cenv, prefix, words)) {
+            break;
+        }
+    }
+}
+
 static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* prefix) {
     if (g_notify_from_completion) {
         g_notify_from_completion = false;
@@ -693,6 +725,47 @@ static int run_case(const char* scenario) {
         (void)ic_enable_hint(true);
         (void)ic_set_hint_delay(0);
         ic_set_default_completer(pty_completion_dispatcher, NULL);
+    } else if (strncmp(scenario, "menu_viewport_", 14) == 0) {
+        if (strstr(scenario, "_limit") != NULL) {
+            (void)ic_set_menu_max_line_count(8);
+        } else if (strstr(scenario, "_large") != NULL) {
+            (void)ic_set_menu_max_line_count(75);
+        } else if (strstr(scenario, "_single") != NULL) {
+            (void)ic_set_menu_max_line_count(1);
+        }
+        if (strstr(scenario, "_completion") != NULL) {
+            ic_set_default_completer(pty_menu_viewport_completer, NULL);
+            (void)ic_enable_completion_menu_start_expanded(true);
+        } else if (strstr(scenario, "_history") != NULL) {
+            ic_history_clear();
+            for (int i = 119; i >= 0; --i) {
+                char entry[16];
+                (void)snprintf(entry, sizeof(entry), "entry%03d", i);
+                ic_history_add(entry);
+            }
+        } else if (strstr(scenario, "_palette") != NULL) {
+            char labels[120][16];
+            ic_command_palette_entry_t entries[120] = {0};
+            for (size_t i = 0; i < 120; ++i) {
+                (void)snprintf(labels[i], sizeof(labels[i]), "entry%03zu", i);
+                entries[i].id = labels[i];
+                entries[i].name = labels[i];
+                entries[i].keywords = "zzviewport";
+            }
+            if (!ic_set_command_palette_entries(entries, 120)) {
+                return 6;
+            }
+        } else if (strncmp(scenario, "menu_viewport_custom", 20) == 0) {
+            if (!ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_RUNOFF)) {
+                return 6;
+            }
+            const bool preview = (strcmp(scenario, "menu_viewport_custom_preview") == 0);
+            ic_set_unhandled_key_handler(pty_menu_viewport_handler,
+                                         preview ? &g_completion_mode : NULL);
+            if (strcmp(scenario, "menu_viewport_custom_no_margin") == 0) {
+                (void)ic_set_multiline_bottom_line_count(0);
+            }
+        }
     } else if (strcmp(scenario, "completion_many_menu") == 0 ||
                strcmp(scenario, "completion_many_menu_preview") == 0 ||
                strcmp(scenario, "completion_many_menu_off") == 0 ||

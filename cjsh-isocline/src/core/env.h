@@ -152,7 +152,8 @@ struct ic_env_s {
     uint8_t terminal_region_state;                     // current OSC 133 lifecycle state
     size_t multiline_start_line_count;   // prefill multiline prompts with this many lines
     size_t multiline_max_line_count;     // maximum visible input rows in multiline mode
-    size_t multiline_bottom_line_count;  // content-row margin kept around the cursor
+    size_t multiline_bottom_line_count;  // content-row margin around the cursor or menu selection
+    size_t menu_max_line_count;          // maximum visible menu content rows
     long hint_delay;                     // delay before displaying a hint in milliseconds
     long idle_timeout;                   // inactivity timeout in milliseconds (0 disables)
 

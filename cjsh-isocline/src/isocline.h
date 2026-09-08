@@ -900,15 +900,24 @@ size_t ic_set_multiline_max_line_count(size_t line_count);
 /// Get the current maximum number of visible input rows for multiline editing.
 size_t ic_get_multiline_max_line_count(void);
 
-/// Configure the multiline viewport's symmetric cursor margin. The editor retains up to this many
-/// existing input rows below the cursor when moving down and above it when moving up. The default
-/// is 3. Blank rows are never inserted to satisfy the margin. A value of 0 disables the margin,
-/// and values above 256 are clamped to 256.
+/// Configure the symmetric scroll margin for multiline input and menus. The editor retains up to
+/// this many existing rows below the cursor or selection when moving down and above it when moving
+/// up. The default is 3. Blank rows are never inserted to satisfy the margin. A value of 0 disables
+/// the margin, and values above 256 are clamped to 256.
 /// Returns the previous configured line count.
 size_t ic_set_multiline_bottom_line_count(size_t line_count);
 
-/// Get the preferred number of content rows retained around the multiline cursor.
+/// Get the preferred number of content rows retained around the cursor or menu selection.
 size_t ic_get_multiline_bottom_line_count(void);
+
+/// Configure the maximum visible content rows in completion, history, command palette, and custom
+/// menus, including expanded item previews. The default is 50. Headers and help text use separate
+/// rows, and menus shrink to fit the terminal. Values are clamped to the range 1 through 256.
+/// Returns the previous configured line count.
+size_t ic_set_menu_max_line_count(size_t line_count);
+
+/// Get the current maximum number of visible menu content rows.
+size_t ic_get_menu_max_line_count(void);
 
 /// Enable or disable line numbers in multiline input mode. (enabled by default)
 /// When enabled, each line will be prefixed with a line number (e.g., "2| ", "3| ", etc.).

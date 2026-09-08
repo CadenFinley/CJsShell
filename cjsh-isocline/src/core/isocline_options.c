@@ -482,6 +482,26 @@ ic_public size_t ic_get_multiline_bottom_line_count(void) {
     return env->multiline_bottom_line_count;
 }
 
+ic_public size_t ic_set_menu_max_line_count(size_t line_count) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return 50;
+
+    const size_t prev = env->menu_max_line_count;
+    if (line_count < 1) {
+        line_count = 1;
+    } else if (line_count > 256) {
+        line_count = 256;
+    }
+    env->menu_max_line_count = line_count;
+    return prev;
+}
+
+ic_public size_t ic_get_menu_max_line_count(void) {
+    ic_env_t* env = ic_get_env();
+    return (env == NULL ? 50 : env->menu_max_line_count);
+}
+
 ic_public bool ic_enable_line_numbers(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

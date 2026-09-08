@@ -62,6 +62,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     CurrentLineNumberHighlight,
     MultilineStartLines,
     MultilineMaxLines,
+    MenuMaxLines,
     MultilineBottomLines,
     HintDelay,
     IdleTimeout,
@@ -128,6 +129,7 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
          {CjshoptSubcommand::MultilineStartLines, "multiline-start-lines",
           multiline_start_lines_command},
          {CjshoptSubcommand::MultilineMaxLines, "multiline-max-lines", multiline_max_lines_command},
+         {CjshoptSubcommand::MenuMaxLines, "menu-max-lines", menu_max_lines_command},
          {CjshoptSubcommand::MultilineBottomLines, "multiline-bottom-lines",
           multiline_bottom_lines_command},
          {CjshoptSubcommand::HintDelay, "hint-delay", hint_delay_command},
@@ -214,7 +216,9 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "height (default: 1)",
         std::string("  multiline-max-lines <count|status> Limit visible multiline input rows ") +
             "(default: 15)",
-        std::string("  multiline-bottom-lines <count|status> Set the multiline cursor margin ") +
+        "  menu-max-lines <count|status>    Limit visible menu content rows (default: 50)",
+        std::string(
+            "  multiline-bottom-lines <count|status> Set the input and menu scroll margin ") +
             "(default: 3)",
         "  hint-delay <milliseconds|status> Set or show the hint display delay",
         "  idle-timeout <seconds|off|status> Configure inactivity hooks (default: off)",

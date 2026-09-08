@@ -694,6 +694,9 @@ static ssize_t edit_menu_available_lines(ic_env_t* env, editor_t* eb, ssize_t re
     if (available_lines < min_lines) {
         available_lines = min_lines;
     }
+    if (available_lines > (ssize_t)env->menu_max_line_count) {
+        available_lines = (ssize_t)env->menu_max_line_count;
+    }
     return available_lines;
 }
 
@@ -719,41 +722,32 @@ static ssize_t edit_menu_rendered_rows(ic_env_t* env, editor_t* eb, const char* 
     return (rows > 0 ? rows : 1);
 }
 
-static edit_menu_window_t edit_menu_window_for(ssize_t item_count, ssize_t requested_rows,
-                                               ssize_t selected_idx, ssize_t scroll_offset) {
-    edit_menu_window_t window = {0};
+static edit_menu_window_t edit_menu_window_for(ic_env_t* env, ssize_t item_count,
+                                               ssize_t requested_rows, ssize_t selected_idx,
+                                               ssize_t scroll_offset) {
     if (requested_rows < 1) {
         requested_rows = 1;
     }
 
-    window.display_count = (item_count > requested_rows ? requested_rows : item_count);
-    if (window.display_count < 1) {
-        window.display_count = 1;
-    }
-
-    window.max_scroll =
-        (item_count > window.display_count ? (item_count - window.display_count) : 0);
-    window.scroll_offset = scroll_offset;
-    if (window.scroll_offset > window.max_scroll) {
-        window.scroll_offset = window.max_scroll;
-    }
-    if (window.scroll_offset < 0) {
-        window.scroll_offset = 0;
-    }
-
-    if (selected_idx < window.scroll_offset) {
-        window.scroll_offset = selected_idx;
-    } else if (selected_idx >= window.scroll_offset + window.display_count) {
-        window.scroll_offset = selected_idx - window.display_count + 1;
-    }
-
-    if (window.scroll_offset < 0) {
-        window.scroll_offset = 0;
-    }
-    if (window.scroll_offset > window.max_scroll) {
-        window.scroll_offset = window.max_scroll;
-    }
+    const editline_viewport_t viewport =
+        editline_viewport_for(item_count, 0, selected_idx, requested_rows, env->menu_max_line_count,
+                              env->multiline_bottom_line_count, scroll_offset);
+    edit_menu_window_t window = {
+        .display_count = viewport.input_row_count,
+        .max_scroll =
+            (item_count > viewport.input_row_count ? item_count - viewport.input_row_count : 0),
+        .scroll_offset = viewport.input_first_row,
+    };
     return window;
+}
+
+static ssize_t edit_menu_page_selection(ic_env_t* env, ssize_t page, ssize_t scroll_offset) {
+    const ssize_t max_margin = (page - 1) / 2;
+    const ssize_t margin = (env->multiline_bottom_line_count < (size_t)max_margin
+                                ? (ssize_t)env->multiline_bottom_line_count
+                                : max_margin);
+    // Keep the selection inside the new page's margins so the next render preserves the page.
+    return scroll_offset + margin;
 }
 
 static bool edit_menu_page_down(ic_env_t* env, ssize_t item_count, ssize_t page, ssize_t max_scroll,
@@ -771,7 +765,7 @@ static bool edit_menu_page_down(ic_env_t* env, ssize_t item_count, ssize_t page,
     if (*scroll_offset > max_scroll) {
         *scroll_offset = max_scroll;
     }
-    *selected_idx = *scroll_offset;
+    *selected_idx = edit_menu_page_selection(env, page, *scroll_offset);
     if (*selected_idx >= item_count) {
         *selected_idx = item_count - 1;
     }
@@ -797,7 +791,7 @@ static bool edit_menu_page_up(ic_env_t* env, ssize_t item_count, ssize_t page,
     } else {
         *scroll_offset = 0;
     }
-    *selected_idx = *scroll_offset;
+    *selected_idx = edit_menu_page_selection(env, page, *scroll_offset);
     if (*selected_idx >= item_count) {
         *selected_idx = item_count - 1;
     }

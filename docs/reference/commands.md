@@ -782,7 +782,8 @@ Available subcommands:
 - `current-line-number-highlight` - Toggle highlighting of the current line number
 - `multiline-start-lines` - Configure how many prompt lines are preallocated in multiline mode
 - `multiline-max-lines` - Limit how many multiline input rows are visible at once
-- `multiline-bottom-lines` - Configure the multiline cursor scroll margin
+- `menu-max-lines` - Limit visible content rows in all isocline menus
+- `multiline-bottom-lines` - Configure the input and menu scroll margin
 - `hint-delay` - Set hint display delay in milliseconds
 - `idle-timeout` - Run idle hooks after a period without terminal input
 - `completion-preview` - Configure completion preview
@@ -1152,12 +1153,29 @@ cjshopt multiline-max-lines status # Show the current limit
 Values are clamped to the supported range of 1 through 256. Add the command to `~/.cjshrc` to
 persist the setting across sessions.
 
+#### menu-max-lines
+
+Limit visible content rows in completion, history, command palette, and custom menus. The default
+is 50 rows, including expanded item previews. Headers and help text use separate rows, and menus
+shrink to fit the terminal.
+
+```bash
+cjshopt menu-max-lines 8       # Show up to eight menu content rows
+cjshopt menu-max-lines 50      # Restore the default
+cjshopt menu-max-lines status  # Show the current limit
+```
+
+The count must be a positive integer; values above 256 are clamped to 256. Add the command to
+`~/.cjshrc` to persist the setting. Use `cjshopt multiline-bottom-lines` to adjust the shared
+scroll margin, which defaults to 3 rows.
+
 #### multiline-bottom-lines
 
 Configure a symmetric cursor margin within the multiline viewport. The editor keeps up to this many
 existing input rows visible below the cursor when moving down and above it when moving up. The
 viewport stays fixed while the cursor is within those margins. It does not add blank rows when the
-command has less remaining content. The default is 3.
+command has less remaining content. The default is 3. This setting also controls the scroll margin
+around the selected item in completion, history, command palette, and custom menus.
 
 ```bash
 cjshopt multiline-bottom-lines <count|status>

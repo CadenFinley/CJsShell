@@ -1329,7 +1329,7 @@ again:;
         }
 
         edit_menu_window_t window =
-            edit_menu_window_for(match_count, rows_for_items, selected_idx, scroll_offset);
+            edit_menu_window_for(env, match_count, rows_for_items, selected_idx, scroll_offset);
         ssize_t display_count = window.display_count;
         scroll_offset = window.scroll_offset;
 
