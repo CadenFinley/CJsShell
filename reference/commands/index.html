@@ -3659,7 +3659,10 @@ restores menu clicking.</p>
 </span><span id="__span-138-3"><a id="__codelineno-138-3" name="__codelineno-138-3" href="#__codelineno-138-3"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>default<span class="w">  </span><span class="c1"># Go back to the default limit</span>
 </span><span id="__span-138-4"><a id="__codelineno-138-4" name="__codelineno-138-4" href="#__codelineno-138-4"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>status<span class="w">   </span><span class="c1"># Show the current limit</span>
 </span></code></pre></div>
-<p>Commands added to <code>~/.cjshrc</code> are applied automatically at startup.</p>
+<p>In startup files, limit changes are deferred until startup configuration finishes,
+so history is loaded once using the final limit and history path. Commands and
+scripts that do not start the editor apply any pending limit before their body runs.
+Changes made during a running session take effect immediately.</p>
 <h4 id="set-completion-max">set-completion-max</h4>
 <p>Limit how many completion entries are generated and displayed inside the menu each time you
 press <code>Tab</code>.</p>
