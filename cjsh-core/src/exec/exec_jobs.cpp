@@ -317,6 +317,9 @@ void Exec::wait_for_job(int job_id) {
         }
 
         auto pid_it = std::find(remaining_pids.begin(), remaining_pids.end(), pid);
+        if (pid_it != remaining_pids.end() && WIFSIGNALED(status) && WTERMSIG(status) == SIGINT) {
+            SignalHandler::note_startup_interrupt();
+        }
         if (pid_it != remaining_pids.end() && (WIFEXITED(status) || WIFSIGNALED(status))) {
             (void)remaining_pids.erase(pid_it);
             stopped_pids.erase(pid);

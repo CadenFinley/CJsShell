@@ -49,6 +49,7 @@
 #include "parser.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "signal_handler.h"
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -1291,6 +1292,9 @@ bool startup_file_is_usable(const std::filesystem::path& candidate, bool require
 
 bool execute_startup_file_if_present(const std::filesystem::path& path, bool require_regular_file,
                                      bool optional_mode) {
+    if (SignalHandler::startup_interrupted()) {
+        return false;
+    }
     if (!startup_file_is_usable(path, require_regular_file)) {
         return false;
     }
@@ -1321,7 +1325,8 @@ bool create_default_startup_file(const std::filesystem::path& target_path,
 }
 
 bool startup_files_disabled() {
-    return config::secure_mode || config::no_config || config::no_exec;
+    return config::secure_mode || config::no_config || config::no_exec ||
+           SignalHandler::startup_interrupted();
 }
 }  // namespace
 

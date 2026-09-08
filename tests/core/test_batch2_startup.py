@@ -58,6 +58,79 @@ class StartupTests(unittest.TestCase):
         return subprocess.run([self.binary, *args], input=input, env=self.env,
                               text=True, capture_output=True, timeout=8)
 
+    def run_with_inherited_fds(self, command, *args, argv0=None):
+        # Install exact descriptor numbers in a separate process so the test runner's
+        # descriptors cannot be overwritten. All four refer to the same writable file.
+        launcher = (
+            "import os, sys\n"
+            "source = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT | os.O_TRUNC, 0o600)\n"
+            "for fd in (3, 9, 19, 20):\n"
+            "    os.dup2(source, fd)\n"
+            "    os.set_inheritable(fd, True)\n"
+            "if source not in (3, 9, 19, 20):\n"
+            "    os.close(source)\n"
+            "os.execv(sys.argv[2], sys.argv[3:])\n"
+        )
+        argv = [argv0 or self.binary, "--no-titleline", "--no-history", "--no-agent",
+                *args, "-c", command]
+        return subprocess.run(
+            [sys.executable, "-c", launcher, str(self.home / "inherited-fds"),
+             self.binary, *argv], input="", env=self.env, text=True,
+            capture_output=True, timeout=8, start_new_session=True)
+
+    def fd_probe_command(self):
+        probe = (
+            "import os\n"
+            "opened = []\n"
+            "for fd in (0, 1, 2, 3, 9, 19, 20):\n"
+            "    try:\n"
+            "        os.fstat(fd)\n"
+            "        opened.append(str(fd))\n"
+            "    except OSError:\n"
+            "        pass\n"
+            "print(' '.join(opened))\n"
+        )
+        return shlex.join([sys.executable, "-c", probe])
+
+    def test_inherited_fds_only_cloexec_for_interactive_login(self):
+        for args, argv0, sanitized in (([], None, False), (["-l"], None, False),
+                                      (["-i"], None, False), (["-il"], None, True),
+                                      (["--login", "--interactive"], None, True),
+                                      ([], "-cjsh", False), (["-i"], "-cjsh", True)):
+            for prefix in ("", "exec "):
+                with self.subTest(args=args, argv0=argv0, prefix=prefix):
+                    command = "echo builtin >&9; " + prefix + self.fd_probe_command()
+                    result = self.run_with_inherited_fds(
+                        command, "--no-config", *args, argv0=argv0)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stderr, "")
+                    self.assertEqual(result.stdout, "0 1 2 20\n" if sanitized
+                                     else "0 1 2 3 9 19 20\n")
+                    self.assertEqual((self.home / "inherited-fds").read_text(), "builtin\n")
+
+    def test_inherited_fds_sanitized_before_startup_files(self):
+        probe = self.fd_probe_command()
+        (self.home / ".cjshenv").write_text("echo env >&9; " + probe + "\n")
+        (self.home / ".cjprofile").write_text(
+            'exec 9>"$HOME/profile-fd"; ' + probe + "\n")
+        (self.home / ".cjshrc").write_text(probe + "\n")
+        result = self.run_with_inherited_fds(probe + "; echo body >&9", "-il")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(result.stdout, "0 1 2 20\n" + "0 1 2 9 20\n" * 3)
+        self.assertEqual((self.home / "inherited-fds").read_text(), "env\n")
+        self.assertEqual((self.home / "profile-fd").read_text(), "body\n")
+
+    def test_inherited_cloexec_fds_explicit_redirections(self):
+        probe = self.fd_probe_command()
+        command = (f"{probe} 9>&20; {probe}; "
+                   f'exec 9>"$HOME/reopened-fd"; {probe}; echo reopened >&9')
+        result = self.run_with_inherited_fds(command, "--no-config", "-il")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(result.stdout, "0 1 2 9 20\n0 1 2 20\n0 1 2 9 20\n")
+        self.assertEqual((self.home / "reopened-fd").read_text(), "reopened\n")
+
     def trace_files(self, root, prefix=""):
         root.mkdir(parents=True, exist_ok=True)
         for name, stage in ((".cjshenv", "env"), (".cjprofile", "profile"),

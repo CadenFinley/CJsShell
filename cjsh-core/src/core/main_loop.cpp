@@ -698,6 +698,10 @@ void start_interactive_process() {
     g_shell->begin_interactive_input();
     // activate the line editor
     initialize_isocline();
+    (void)g_shell->process_pending_signals();
+    if (SignalHandler::startup_interrupted()) {
+        pipeline_status_utils::set_last_status_env(128 + SIGINT);
+    }
     cjsh_env::set_startup_active(false);
     bool first_boot = cjsh_filesystem::is_first_boot();
 

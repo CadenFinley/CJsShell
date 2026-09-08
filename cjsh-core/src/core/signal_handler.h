@@ -96,6 +96,8 @@ class SignalHandler {
     static bool has_pending_signals();
     static bool has_pending_termination_signal();
     static bool take_pending_sigint();
+    static void note_startup_interrupt();
+    static bool startup_interrupted();
     static bool inherited_ignored(int signum);
     static bool child_ignored(int signum);
     static int termination_signal();
@@ -133,6 +135,7 @@ class SignalHandler {
     static std::atomic<SignalHandler*> s_instance;
 
     static volatile sig_atomic_t s_sigint_received;
+    static volatile sig_atomic_t s_startup_interrupt_received;
     static volatile sig_atomic_t s_sigchld_received;
     static volatile sig_atomic_t s_sighup_received;
     static volatile sig_atomic_t s_sigterm_received;

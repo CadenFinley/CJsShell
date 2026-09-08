@@ -127,7 +127,7 @@ inline char** cjsh_environ() {
 
 std::unordered_map<std::string, std::string> g_env_vars;
 bool g_exit_flag = false;
-bool g_startup_active = true;
+volatile sig_atomic_t g_startup_active = 1;
 std::uint64_t g_command_sequence = 0;
 
 void apply_env_vars_to_parser(Shell* shell) {

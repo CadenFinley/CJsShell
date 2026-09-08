@@ -83,6 +83,7 @@ SignalHandler* SignalHandler::instance() {
 }
 
 volatile sig_atomic_t SignalHandler::s_sigint_received = 0;
+volatile sig_atomic_t SignalHandler::s_startup_interrupt_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigchld_received = 0;
 volatile sig_atomic_t SignalHandler::s_sighup_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigterm_received = 0;
@@ -215,6 +216,7 @@ SignalHandler::SignalHandler() {
     // Children can receive signals before exec resets their handlers. Record
     // the owning shell now, before any fork, so those signals keep child defaults.
     s_main_pid = getpid();
+    s_startup_interrupt_received = 0;
     s_inherited_actions.clear();
     s_signal_states.clear();
     for (auto& observed : s_observed_signals) {
@@ -580,6 +582,19 @@ bool SignalHandler::executing_trap() {
     return s_executing_trap;
 }
 
+void SignalHandler::note_startup_interrupt() {
+    // Keep cancellation after a waiter or builtin consumes the pending SIGINT.
+    // Foreground children have their own process group, so their wait status can
+    // be the only evidence of Ctrl-C available to the shell.
+    if (config::interactive_mode && cjsh_env::startup_active() && !is_forked_child()) {
+        s_startup_interrupt_received = 1;
+    }
+}
+
+bool SignalHandler::startup_interrupted() {
+    return s_startup_interrupt_received != 0 && cjsh_env::startup_active() && !is_forked_child();
+}
+
 void SignalHandler::signal_handler(int signum) {
     if (is_forked_child()) {
         struct sigaction sa{};
@@ -603,6 +618,7 @@ void SignalHandler::signal_handler(int signum) {
     switch (signum) {
         case SIGINT: {
             s_sigint_received = 1;
+            note_startup_interrupt();
             ic_notify_readline();
 
             if (!is_observed) {

@@ -187,11 +187,28 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 
 ## Configuration & Compatibility
 
+### Inherited File Descriptors
+
+Interactive login shells mark inherited file descriptors 3 through 19 close-on-exec
+before reading startup files, matching Bash's compatibility range. Builtins can still
+use these descriptors, but external programs do not inherit them automatically.
+Explicit redirections, including descriptors opened in startup files with `exec`, can
+pass descriptors to external programs. Standard input/output/error and descriptors
+20 and above retain their inherited flags. Noninteractive shells and interactive
+shells without login mode also retain inherited descriptor flags.
+
 ### Startup Files
 - `~/.cjshenv` – Sourced for every shell start (before login/interactive setup).
 - `~/.cjprofile` – Executed for login shells before interactive setup.
 - `~/.cjshrc` – Interactive configuration (aliases, prompt definitions, hooks, etc.).
 - `~/.cjlogout` – Optional cleanup script sourced when a login shell exits.
+
+During interactive startup, Ctrl-C interrupts the active startup command and skips
+the remaining startup files. cjsh finishes initializing the prompt with status 130;
+settings already applied by startup files remain in effect. An interrupted interactive
+`-c` or script invocation exits with status 130 before running its body. Ctrl-D keeps
+its normal end-of-input behavior and does not cancel startup. Programs or traps that
+explicitly ignore SIGINT retain that behavior.
 
 Set `CJSH_ENV` to override the `~/.cjshenv` search paths. If `CJSH_ENV` is set but empty, cjsh
 falls back to the default search paths. Each native stage uses the home dotfile first,

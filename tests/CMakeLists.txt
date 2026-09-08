@@ -162,6 +162,9 @@ if(Python3_Interpreter_FOUND)
         cjsh_add_test(NAME batch2_startup_tests
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_batch2_startup.py"
                     $<TARGET_FILE:cjsh> $<TARGET_FILE:startup_policy_injector>)
+        cjsh_add_test(NAME startup_interrupt_tests
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_startup_interrupt.py"
+                    $<TARGET_FILE:cjsh>)
     endif()
     if(UNIX)
         cjsh_add_test(

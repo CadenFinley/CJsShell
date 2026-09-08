@@ -224,6 +224,15 @@ int run_cjsh(int argc, char* argv[]) {
         (void)cjsh_env::set_shell_variable_value("0", script_file);
     }
 
+    // Keep inherited descriptors usable by builtins while preventing accidental inheritance
+    // by external commands in interactive login sessions. Match Bash's 3-19 range, after
+    // account lookup and before startup files can explicitly open descriptors for children.
+    if (config::login_mode && config::interactive_mode) {
+        for (int fd = STDERR_FILENO + 1; fd < 20; ++fd) {
+            (void)cjsh_filesystem::set_close_on_exec(fd);
+        }
+    }
+
     // source environment file before other startup scripts
     cjsh_filesystem::process_env_files();
 
@@ -274,9 +283,14 @@ int run_cjsh(int argc, char* argv[]) {
     // Interactive startup is independent of the input source. A supplied command or
     // script still finishes after its body, including when stdin is a terminal.
     if (config::execute_command || !script_file.empty() || isatty(STDIN_FILENO) == 0) {
+        (void)g_shell->process_pending_signals();
+        const bool startup_interrupted = SignalHandler::startup_interrupted();
         cjsh_env::set_startup_active(false);
         if (cjsh_env::exit_requested()) {
             return read_exit_code_or(0);
+        }
+        if (startup_interrupted) {
+            return 128 + SIGINT;
         }
         return config::execute_command ? read_exit_code_or(g_shell->execute(config::cmd_to_execute))
                                        : handle_non_interactive_mode(script_file);

@@ -737,6 +737,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     execute_simple_or_pipeline_impl = [&](const std::string& cmd_text,
                                           bool allow_semicolon_split) -> int {
         last_result_errexit_exempt = false;
+        if (SignalHandler::startup_interrupted() && !SignalHandler::executing_trap()) {
+            return set_last_status(128 + SIGINT);
+        }
         // single-command executor used by if conditions and by branch body commands
         std::string text = process_line_for_validation(cmd_text);
         if (text.empty())

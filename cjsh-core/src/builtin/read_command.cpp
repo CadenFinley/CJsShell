@@ -171,6 +171,11 @@ bool parse_read_options(const std::vector<std::string>& args, size_t& start_inde
     return true;
 }
 
+bool read_interrupted() {
+    return SignalHandler::has_pending_termination_signal() ||
+           (SignalHandler::startup_interrupted() && !SignalHandler::executing_trap());
+}
+
 bool wait_for_input(const std::optional<std::chrono::steady_clock::time_point>& deadline,
                     int input_fd) {
     if (!deadline.has_value()) {
@@ -196,7 +201,7 @@ bool wait_for_input(const std::optional<std::chrono::steady_clock::time_point>& 
     int poll_result = 0;
     do {
         poll_result = poll(&pfd, 1, timeout_ms);
-    } while (poll_result < 0 && errno == EINTR && !SignalHandler::has_pending_termination_signal());
+    } while (poll_result < 0 && errno == EINTR && !read_interrupted());
 
     return poll_result > 0;
 }
@@ -212,7 +217,7 @@ ReadInputStatus collect_input(const ReadOptions& options, std::string& input) {
     bool timed_out = false;
     bool reached_eof = false;
     auto read_char = [&](char& out) -> bool {
-        if (SignalHandler::has_pending_termination_signal()) {
+        if (read_interrupted()) {
             return false;
         }
         if (!wait_for_input(deadline, options.input_fd)) {
@@ -222,7 +227,7 @@ ReadInputStatus collect_input(const ReadOptions& options, std::string& input) {
         ssize_t count = 0;
         do {
             count = read(options.input_fd, &out, 1);
-        } while (count < 0 && errno == EINTR && !SignalHandler::has_pending_termination_signal());
+        } while (count < 0 && errno == EINTR && !read_interrupted());
         reached_eof = count == 0;
         return count == 1;
     };
@@ -469,6 +474,9 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
 
     std::string input;
     const ReadInputStatus read_status = collect_input(options, input);
+    if (SignalHandler::startup_interrupted() && !SignalHandler::executing_trap()) {
+        return 128 + SIGINT;
+    }
     if (read_status != ReadInputStatus::Success) {
         return 1;
     }

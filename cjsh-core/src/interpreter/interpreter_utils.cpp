@@ -220,7 +220,8 @@ int pending_signal_exit_code(const SignalProcessingResult& result) {
     }
 #endif
 #ifdef SIGINT
-    if (result.sigint) {
+    if (result.sigint ||
+        (SignalHandler::startup_interrupted() && !SignalHandler::executing_trap())) {
         return 128 + SIGINT;
     }
 #endif

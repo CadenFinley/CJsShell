@@ -2839,6 +2839,11 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
     if (pid == 0) {
         cjsh_filesystem::safe_close(pipefd[0]);
         (void)setpgid(0, 0);
+        if (g_shell) {
+            // Captured commands must keep descendants in this private group so
+            // cancellation reaches them even in an interactive parent shell.
+            (void)g_shell->set_job_control_enabled(false);
+        }
 
         auto dup_result = cjsh_filesystem::safe_dup2(pipefd[1], STDOUT_FILENO);
         if (dup_result.is_error()) {
@@ -2870,7 +2875,10 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
     cjsh_filesystem::safe_close(pipefd[1]);
 
     int status = 0;
-    if (!progress_callback) {
+    const bool startup_cancellable = config::interactive_mode && cjsh_env::startup_active() &&
+                                     !SignalHandler::is_forked_child() &&
+                                     !SignalHandler::executing_trap();
+    if (!progress_callback && !startup_cancellable) {
         char buffer[4096];
         ssize_t bytes_read;
         while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
@@ -2882,7 +2890,9 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
         }
     } else {
         const int interval_ms =
-            static_cast<int>(std::max(1U, std::min(progress_interval_ms, 60000U)));
+            progress_callback
+                ? static_cast<int>(std::max(1U, std::min(progress_interval_ms, 60000U)))
+                : 20;
         auto last_progress = std::chrono::steady_clock::now();
         bool pipe_open = true;
         bool child_reaped = false;
@@ -2890,9 +2900,11 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
         bool cancellation_requested = false;
 
         while (pipe_open || !child_reaped) {
-            if (!child_reaped && cancellation_callback && cancellation_callback()) {
+            if ((!child_reaped && cancellation_callback && cancellation_callback()) ||
+                (!cancellation_requested && startup_cancellable &&
+                 SignalHandler::startup_interrupted())) {
                 cancellation_requested = true;
-                if (kill(-pid, SIGINT) < 0) {
+                if (kill(-pid, SIGINT) < 0 && !child_reaped) {
                     (void)kill(pid, SIGINT);
                 }
             }
@@ -2938,7 +2950,7 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
             if (!child_reaped &&
                 std::chrono::duration_cast<std::chrono::milliseconds>(now - last_progress)
                         .count() >= interval_ms) {
-                if (!cancellation_requested) {
+                if (!cancellation_requested && progress_callback) {
                     progress_callback();
                 }
                 last_progress = now;
