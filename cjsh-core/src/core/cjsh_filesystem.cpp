@@ -235,17 +235,39 @@ const std::filesystem::path& g_cjsh_logout_alt_path() {
     return path;
 }
 
+namespace {
+struct HistoryPathState {
+    std::filesystem::path path;
+    std::optional<std::string> override_value;
+    bool finalized = false;
+};
+
+HistoryPathState& history_path_state() {
+    static HistoryPathState state;
+    return state;
+}
+}  // namespace
+
 const std::filesystem::path& g_cjsh_history_path() {
-    static const std::filesystem::path path = [] {
+    auto& state = history_path_state();
+    if (!state.override_value || !state.finalized) {
         std::string custom_history = cjsh_env::get_shell_variable_value("CJSH_HISTORY_FILE");
-
-        if (!custom_history.empty()) {
-            return normalize_override_path(custom_history);
+        if (!state.override_value || *state.override_value != custom_history) {
+            state.path = custom_history.empty() ? g_cjsh_cache_path() / "history.txt"
+                                                : normalize_override_path(custom_history);
+            state.override_value = std::move(custom_history);
         }
+    }
+    return state.path;
+}
 
-        return g_cjsh_cache_path() / "history.txt";
-    }();
-    return path;
+void finalize_history_path() {
+    auto& state = history_path_state();
+    // Refresh an early startup lookup, but leave scripts that never used history lazy.
+    if (state.override_value) {
+        (void)g_cjsh_history_path();
+    }
+    state.finalized = true;
 }
 
 const std::filesystem::path& g_cjsh_first_boot_path() {
@@ -1112,54 +1134,70 @@ bool file_exists(const std::filesystem::path& path) {
     return path_exists(path);
 }
 
+namespace {
+void warn_persistence_unavailable(const std::filesystem::path& path) {
+    print_error({ErrorType::RUNTIME_ERROR,
+                 ErrorSeverity::WARNING,
+                 path.string(),
+                 "persistence unavailable; continuing without this storage",
+                 {}});
+}
+
+bool prepare_persistence_directory(const std::filesystem::path& path) {
+    std::error_code ec;
+    (void)std::filesystem::create_directories(path, ec);
+    return !ec && access(path.c_str(), W_OK | X_OK) == 0;
+}
+}  // namespace
+
 bool initialize_cjsh_directories() {
     static bool initialized = false;
     if (initialized)
         return true;
     initialized = true;
 
-    auto warn = [](const std::filesystem::path& path) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     ErrorSeverity::WARNING,
-                     path.string(),
-                     "persistence unavailable; continuing without this storage",
-                     {}});
-    };
-    auto prepare_directory = [](const std::filesystem::path& path) {
-        std::error_code ec;
-        (void)std::filesystem::create_directories(path, ec);
-        return !ec && access(path.c_str(), W_OK | X_OK) == 0;
-    };
-
     // Never create a missing HOME as a side effect of starting a shell.
     const bool home_exists = path_is_directory(g_user_home_path());
-    const bool cache_ok = home_exists && prepare_directory(g_cjsh_cache_path());
+    const bool cache_ok = home_exists && prepare_persistence_directory(g_cjsh_cache_path());
     config::cache_persistence_enabled = cache_ok;
     if (!cache_ok)
-        warn(g_cjsh_cache_path());
+        warn_persistence_unavailable(g_cjsh_cache_path());
 
     if (config::completion_learning_enabled &&
-        (!cache_ok || !prepare_directory(g_cjsh_generated_completions_path()))) {
+        (!cache_ok || !prepare_persistence_directory(g_cjsh_generated_completions_path()))) {
         config::completion_learning_enabled = false;
         if (cache_ok)
-            warn(g_cjsh_generated_completions_path());
-    }
-
-    if (config::history_enabled) {
-        const auto& path = g_cjsh_history_path();
-        const bool custom = !cjsh_env::get_shell_variable_value("CJSH_HISTORY_FILE").empty();
-        const bool directory_ok = (custom || cache_ok) && prepare_directory(path.parent_path());
-        int fd = directory_ok ? open(path.c_str(),
-                                     O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC | O_NONBLOCK, 0600)
-                              : -1;
-        struct stat history_stat{};
-        config::history_persistence_enabled =
-            fd >= 0 && fstat(fd, &history_stat) == 0 && S_ISREG(history_stat.st_mode);
-        close_fd_if_valid(fd);
-        if (!config::history_persistence_enabled && (custom || cache_ok))
-            warn(path);
+            warn_persistence_unavailable(g_cjsh_generated_completions_path());
     }
     return true;
+}
+
+void initialize_history_storage() {
+    if (!config::history_enabled) {
+        return;
+    }
+    (void)initialize_cjsh_directories();
+    const auto& path = g_cjsh_history_path();
+    static std::optional<std::filesystem::path> prepared_path;
+    if (prepared_path && *prepared_path == path) {
+        return;
+    }
+    prepared_path = path;
+
+    // An early history command may have prepared a different path before .cjshrc.
+    const bool custom = !history_path_state().override_value->empty();
+    const bool cache_ok = config::cache_persistence_enabled;
+    const bool directory_ok =
+        (custom || cache_ok) && prepare_persistence_directory(path.parent_path());
+    int fd = directory_ok
+                 ? open(path.c_str(), O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC | O_NONBLOCK, 0600)
+                 : -1;
+    struct stat history_stat{};
+    config::history_persistence_enabled =
+        fd >= 0 && fstat(fd, &history_stat) == 0 && S_ISREG(history_stat.st_mode);
+    close_fd_if_valid(fd);
+    if (!config::history_persistence_enabled && (custom || cache_ok))
+        warn_persistence_unavailable(path);
 }
 
 std::string find_executable_in_path(const std::string& name) {

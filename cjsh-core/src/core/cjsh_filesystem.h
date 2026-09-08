@@ -191,6 +191,7 @@ const std::filesystem::path& g_cjsh_source_alt_path();
 const std::filesystem::path& g_cjsh_logout_alt_path();
 
 const std::filesystem::path& g_cjsh_history_path();
+void finalize_history_path();
 
 const std::filesystem::path& g_cjsh_first_boot_path();
 
@@ -199,6 +200,7 @@ const std::filesystem::path& g_cjsh_generated_completions_path();
 std::vector<std::string> get_executables_in_path();
 bool file_exists(const std::filesystem::path& path);
 bool initialize_cjsh_directories();
+void initialize_history_storage();
 std::string find_executable_in_path(const std::string& name);
 std::string resolve_executable_for_execution(const std::string& name);
 std::string resolve_cjsh_executable_path(const std::vector<std::string>& startup_args = {});

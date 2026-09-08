@@ -247,6 +247,7 @@ int run_cjsh(int argc, char* argv[]) {
     }
 
     if (!config::interactive_mode) {
+        cjsh_filesystem::finalize_history_path();
         cjsh_env::set_startup_active(false);
         if (cjsh_env::exit_requested()) {
             return read_exit_code_or(0);
@@ -279,6 +280,10 @@ int run_cjsh(int argc, char* argv[]) {
     if (!cjsh_env::exit_requested()) {
         cjsh_filesystem::process_source_files();
     }
+    if (!cjsh_env::exit_requested()) {
+        cjsh_filesystem::initialize_history_storage();
+    }
+    cjsh_filesystem::finalize_history_path();
 
     // Interactive startup is independent of the input source. A supplied command or
     // script still finishes after its body, including when stdin is a terminal.

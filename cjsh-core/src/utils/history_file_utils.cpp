@@ -51,7 +51,7 @@ std::vector<std::string> parse_history_entries(const std::string& history_conten
 }
 
 std::vector<std::string> read_history_entries(const std::string& history_path) {
-    auto read_result = cjsh_filesystem::read_file_content(history_path);
+    auto read_result = cjsh_filesystem::read_file_content(history_path, true);
     if (read_result.is_error()) {
         return {};
     }

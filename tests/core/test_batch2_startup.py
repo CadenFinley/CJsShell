@@ -35,6 +35,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from test_idle_hook_interactive import IdleHookSession
 
@@ -457,6 +458,164 @@ class StartupTests(unittest.TestCase):
     def test_system_paths_flag_is_invocation_only(self):
         r = self.run_shell("-c", "cjshopt login-startup-arg --no-system-paths")
         self.assertNotEqual(r.returncode, 0)
+
+    def test_history_path_from_rc_overrides_earlier_configuration(self):
+        old = self.home / "earlier-history"
+        old.write_text("echo earlier-history\n")
+        selected = self.home / "selected history"
+        selected.write_text("echo selected-history\n")
+        (self.home / ".cjshrc").write_text('CJSH_HISTORY_FILE="$HOME/selected history"\n')
+        for origin in ("default", "environment", ".cjshenv", ".cjprofile"):
+            with self.subTest(origin=origin):
+                self.env.pop("CJSH_HISTORY_FILE", None)
+                for name in (".cjshenv", ".cjprofile"):
+                    (self.home / name).unlink(missing_ok=True)
+                if origin == "environment":
+                    self.env["CJSH_HISTORY_FILE"] = str(old)
+                elif origin != "default":
+                    (self.home / origin).write_text('CJSH_HISTORY_FILE="$HOME/earlier-history"\n')
+                result = self.run_shell("-il", "--no-titleline", "-c", "history; fc -ln")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stderr, "")
+                self.assertEqual([line.strip() for line in result.stdout.splitlines()],
+                                 ["0  echo selected-history", "echo selected-history"])
+                self.assertEqual(old.read_text(), "echo earlier-history\n")
+                self.assertFalse((self.home / ".cache/cjsh/history.txt").exists())
+
+    def test_history_storage_created_after_rc(self):
+        (self.home / ".cjshrc").write_text('CJSH_HISTORY_FILE="~/history directory/new-history"\n')
+        result = self.run_shell("-i", "--no-titleline", "-c", ":")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertTrue((self.home / "history directory/new-history").is_file())
+        self.assertFalse((self.home / ".cache/cjsh/history.txt").exists())
+
+    def test_startup_history_commands_follow_later_assignments(self):
+        (self.home / "early-history").write_text("echo early-selection\n")
+        (self.home / "late-history").write_text("echo late-selection\n")
+        for command in ("history", "fc -ln"):
+            with self.subTest(command=command):
+                (self.home / ".cjshenv").write_text(
+                    'CJSH_HISTORY_FILE="$HOME/early-history"\n'
+                    f'{command} > "$HOME/early-output"\n')
+                (self.home / ".cjshrc").write_text(
+                    'CJSH_HISTORY_FILE="$HOME/late-history"\n'
+                    f'{command} > "$HOME/late-output"\n')
+                result = self.run_shell("-i", "--no-titleline", "-c", command)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stderr, "")
+                self.assertIn("echo early-selection", (self.home / "early-output").read_text())
+                self.assertIn("echo late-selection", (self.home / "late-output").read_text())
+                self.assertIn("echo late-selection", result.stdout)
+                self.assertNotIn("echo early-selection", result.stdout)
+
+    def test_history_storage_recovers_after_startup_path_change(self):
+        fifo = self.home / "history-fifo"
+        os.mkfifo(fifo)
+        for path in (self.home, fifo):
+            with self.subTest(path=path):
+                self.env["CJSH_HISTORY_FILE"] = str(path)
+                (self.home / ".cjshenv").write_text("history\n")
+                (self.home / ".cjshrc").write_text('CJSH_HISTORY_FILE="$HOME/recovered/history"\n')
+                result = self.run_shell("-i", "--no-titleline", "-c", "history; echo usable")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "usable\n")
+                self.assertEqual(result.stderr.count("persistence unavailable"), 1, result.stderr)
+                self.assertTrue((self.home / "recovered/history").is_file())
+
+    def test_invalid_history_path_from_rc_does_not_use_earlier_storage(self):
+        earlier = self.home / "earlier-history"
+        self.env["CJSH_HISTORY_FILE"] = str(earlier)
+        for kind in ("directory", "fifo"):
+            with self.subTest(kind=kind):
+                target = self.home / kind
+                if kind == "directory":
+                    target.mkdir()
+                else:
+                    os.mkfifo(target)
+                (self.home / ".cjshrc").write_text(f'CJSH_HISTORY_FILE="$HOME/{kind}"\n')
+                result = self.run_shell("-i", "--no-titleline", "-c",
+                                        "history; fc -ln; echo usable")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "usable\n")
+                self.assertEqual(result.stderr.count("persistence unavailable"), 1, result.stderr)
+                self.assertFalse(earlier.exists())
+
+    def test_history_path_is_fixed_after_interactive_startup(self):
+        (self.home / "selected-history").write_text("echo selected-history\n")
+        (self.home / "other-history").write_text("echo other-history\n")
+        (self.home / ".cjshrc").write_text('CJSH_HISTORY_FILE="$HOME/selected-history"\n')
+        result = self.run_shell("-i", "--no-titleline", "-c",
+                                'CJSH_HISTORY_FILE="$HOME/other-history"; history')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("echo selected-history", result.stdout)
+        self.assertNotIn("echo other-history", result.stdout)
+
+    def test_unsetting_history_override_during_startup_restores_default(self):
+        earlier = self.home / "earlier-history"
+        earlier.write_text("echo earlier-history\n")
+        default = self.home / ".cache/cjsh/history.txt"
+        default.parent.mkdir(parents=True)
+        default.write_text("echo default-history\n")
+        self.env["CJSH_HISTORY_FILE"] = str(earlier)
+        (self.home / ".cjshenv").write_text('history > "$HOME/early-output"\n')
+        (self.home / ".cjshrc").write_text("unset CJSH_HISTORY_FILE\n")
+        result = self.run_shell("-i", "--no-titleline", "-c", "history")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("echo earlier-history", (self.home / "early-output").read_text())
+        self.assertIn("echo default-history", result.stdout)
+        self.assertNotIn("echo earlier-history", result.stdout)
+
+    def test_noninteractive_history_remains_lazy_and_refreshes_startup_selection(self):
+        result = self.run_shell("-c", ":")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.home / ".cache/cjsh").exists())
+        (self.home / "script-history").write_text("echo script-history\n")
+        result = self.run_shell("-c", 'CJSH_HISTORY_FILE="$HOME/script-history"; history')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("echo script-history", result.stdout)
+
+        (self.home / "early-history").write_text("echo early-history\n")
+        (self.home / ".cjshenv").write_text(
+            'CJSH_HISTORY_FILE="$HOME/early-history"\n'
+            'history > "$HOME/early-output"\n'
+            'CJSH_HISTORY_FILE="$HOME/script-history"\n')
+        result = self.run_shell("-c", "history")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("echo script-history", result.stdout)
+        self.assertNotIn("echo early-history", result.stdout)
+
+    def test_editor_and_builtins_use_final_startup_history_path(self):
+        earlier = self.home / "earlier-history"
+        earlier_content = 'echo earlier-selection > "$HOME/recalled"\n'
+        earlier.write_text(earlier_content)
+        selected = self.home / "selected-history"
+        selected.write_text('echo selected-selection > "$HOME/recalled"\n')
+        self.env["CJSH_HISTORY_FILE"] = str(earlier)
+        (self.home / ".cjshrc").write_text(
+            'cjshopt set-history-max 50\n'
+            'CJSH_HISTORY_FILE="$HOME/selected-history"\n')
+        with mock.patch.dict(os.environ, self.env, clear=True):
+            session = IdleHookSession(self.binary, str(self.home), argv=[
+                self.binary, "--no-titleline", "--no-prompt-vars", "--no-agent",
+                "--no-completions", "--no-syntax-highlighting"])
+        self.addCleanup(session.close)
+        session.wait_for_prompt(0)
+        start = len(session.output)
+        session.write(b"\x1b[A\r")
+        session.wait_for_prompt(start, command_completed=True)
+        self.assertEqual((self.home / "recalled").read_text(), "selected-selection\n")
+        session.run_command(b"echo saved-to-selected-history")
+        session.run_command(b'history > "$HOME/history-output"')
+        session.run_command(b'fc -ln > "$HOME/fc-output"')
+        session.write(b"exit\r")
+        self.assertEqual(session.wait_for_exit(), 0)
+        for path in (selected, self.home / "history-output", self.home / "fc-output"):
+            content = path.read_text()
+            self.assertIn("saved-to-selected-history", content)
+            self.assertNotIn("earlier-selection", content)
+        self.assertEqual([line for line in earlier.read_text().splitlines()
+                          if not line.startswith("#")], earlier_content.splitlines())
 
     def test_unavailable_persistence(self):
         missing = self.home / "missing"

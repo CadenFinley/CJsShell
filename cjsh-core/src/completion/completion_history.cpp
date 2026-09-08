@@ -46,6 +46,7 @@ long g_history_max_entries_value = kHistoryDefaultEntries;
 
 bool enforce_history_limit(std::string* error_message) {
     (void)error_message;
+    cjsh_filesystem::initialize_history_storage();
     if (!config::history_enabled || !config::history_persistence_enabled) {
         ic_set_history(nullptr, 0);
         return true;

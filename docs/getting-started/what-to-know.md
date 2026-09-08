@@ -230,6 +230,13 @@ Paths accept a leading `~/`; relative overrides resolve against the invocation d
 The root is selected before startup files run. These controls do not relocate history
 or generated completions; `CJSH_HISTORY_FILE` continues to override history separately.
 
+Set `CJSH_HISTORY_FILE` in `~/.cjshrc` to select a custom history file for the session.
+It overrides a value inherited from the environment or set in earlier startup files;
+unsetting it restores the default `~/.cache/cjsh/history.txt`. History storage is normally
+prepared after `.cjshrc`. Explicit history commands during startup use the setting at
+that point, and a later assignment can still change the selection. Once interactive
+startup finishes, the selected path stays fixed for the editor and history commands.
+
 `--no-config` skips all automatic native startup and logout files, POSIX profiles and
 `ENV`, and system PATH setup. Explicit `source`/`.` commands still work. UI
 features, hooks defined by commands, and history preferences keep their normal behavior.
@@ -311,6 +318,10 @@ later history write failures disable further writes for the session after one di
 cjshopt login-startup-arg --no-colors
 cjshopt login-startup-arg --show-startup-time
 ```
+
+Collected flags are applied after `.cjprofile` finishes and affect subsequent startup
+stages. They do not undo environment setup or commands already executed. Supply options
+on the command line when they must govern the entire startup, such as `--secure`.
 
 Supported flags: `--login`, `--interactive`, `--posix`, `--no-exec`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-completion-learning`, `--no-smart-cd`, `--no-script-extension-interpreter`, `--no-syntax-highlighting`, `--no-error-suggestions`, `--no-agent`, `--no-prompt-vars`, `--no-history`, `--no-history-expansion`, `--no-sh-warning`, `--minimal`, `--secure`, and `--startup-test`.
 

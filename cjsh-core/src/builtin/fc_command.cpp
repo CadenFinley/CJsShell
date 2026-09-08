@@ -89,7 +89,7 @@ const std::vector<std::string>& fc_help_lines() {
 }
 
 std::vector<std::string> read_history_entries() {
-    (void)cjsh_filesystem::initialize_cjsh_directories();
+    cjsh_filesystem::initialize_history_storage();
     return history_file_utils::read_history_entries(
         cjsh_filesystem::g_cjsh_history_path().string());
 }
