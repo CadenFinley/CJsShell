@@ -151,6 +151,8 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-i, --interactive` – force interactive behavior even if stdin is not a tty
 - `-c, --command <string>` – execute a single command and exit (disables history expansion)
 - `--no-exec` – read commands but do not execute them
+- `--no-system-paths` – skip automatic PATH setup from `/etc/paths` and `/etc/paths.d`
+  (invocation only; cannot be saved with `cjshopt login-startup-arg`)
 - `--posix` – enable POSIX mode and reject non-POSIX syntax and non-POSIX builtins
 - `-m, --minimal` – disable colors, completions and completion learning, syntax
   highlighting, rc sourcing, smart cd, the title line, history expansion, the status line,

@@ -273,7 +273,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_option("--no-config", "Skip automatic startup and logout configuration"),
              make_value_option("--config-dir", {}, "Override the native configuration root",
                                ValueRequirement::Required, ValueType::Directory, "DIR"),
-             make_option("--login-path", "Enable platform PATH setup for native login shells"),
+             make_option("--no-system-paths", "Skip PATH setup from /etc/paths and /etc/paths.d"),
              make_option("--posix", "Enable POSIX mode and reject non-POSIX syntax"),
              make_option("-m", "Disable cjsh enhancements"),
              make_option("--minimal", "Disable cjsh enhancements"),

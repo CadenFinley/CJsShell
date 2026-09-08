@@ -47,6 +47,7 @@ extern "C" char** environ;
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -63,6 +64,7 @@ extern "C" char** environ;
 #include "prompt.h"
 #include "shell.h"
 #include "signal_handler.h"
+#include "string_utils.h"
 #include "version_command.h"
 
 namespace config {
@@ -73,7 +75,7 @@ bool execute_command = false;
 std::string cmd_to_execute;
 bool no_exec = false;
 bool no_config = false;
-bool login_path = false;
+bool no_system_paths = false;
 std::string config_directory;
 bool cache_persistence_enabled = true;
 bool history_persistence_enabled = true;
@@ -140,6 +142,8 @@ void apply_env_vars_to_parser(Shell* shell) {
 }  // namespace
 
 void setup_environment_variables(const char* argv0) {
+    setup_path_variables();
+
     std::string shell_value = "cjsh";
     std::string existing_shell_value;
     // Raw getenv here: bootstrap from process env before shell vars exist.
@@ -204,8 +208,6 @@ void setup_environment_variables(const char* argv0) {
     struct passwd* pw = getpwuid(uid);
 
     if (pw != nullptr) {
-        setup_path_variables(pw);
-
         auto env_vars = setup_user_system_vars(pw);
 
         for (const auto& [name, value] : env_vars) {
@@ -328,86 +330,75 @@ bool unset_shell_or_local_variable_value(Shell* shell, const std::string& name) 
     return unset_shell_variable_value(name);
 }
 
-void setup_path_variables(const struct passwd* pw) {
-    // Platform defaults are an explicit native login policy. Clean invocations
-    // preserve PATH and MANPATH exactly, including empty and absent values.
-    if (!config::login_path || !config::login_mode || config::no_config || config::secure_mode ||
+void setup_path_variables(const std::string& paths_file, const std::string& paths_directory) {
+    // Read system paths before native startup files, which may override PATH.
+    // Clean invocations preserve PATH exactly, including empty and absent values.
+    if (config::no_system_paths || config::no_config || config::secure_mode ||
         config::minimal_mode || config::posix_mode || config::no_exec) {
         return;
     }
+
+    // Preserve toolchain precedence and all PATH components in non-login shells.
     // Raw getenv here: PATH bootstrap before shell vars exist.
     const char* inherited_path = getenv("PATH");
-    if ((inherited_path == nullptr) || inherited_path[0] == '\0') {
-        (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
+    if (!config::login_mode && inherited_path != nullptr && inherited_path[0] != '\0') {
+        return;
     }
 
-#ifdef __APPLE__
-    // Raw getenv here: HOME bootstrap before shell vars exist.
-    if (pw != nullptr && pw->pw_dir != nullptr && getenv("HOME") == nullptr) {
-        (void)setenv("HOME", pw->pw_dir, 1);
-    }
+    std::vector<std::string> paths;
+    auto append_paths = [&](const std::string& value) {
+        size_t start = 0;
+        while (start < value.size()) {
+            const size_t end = value.find(':', start);
+            const std::string entry = value.substr(start, end - start);
+            if (!entry.empty() && std::find(paths.begin(), paths.end(), entry) == paths.end()) {
+                paths.push_back(entry);
+            }
+            if (end == std::string::npos) {
+                break;
+            }
+            start = end + 1;
+        }
+    };
+    auto read_paths_file = [&](const std::filesystem::path& file) {
+        std::error_code ec;
+        if (!std::filesystem::is_regular_file(file, ec)) {
+            return;
+        }
+        std::ifstream stream(file);
+        std::string line;
+        while (std::getline(stream, line)) {
+            line = string_utils::trim_ascii_whitespace_copy(line);
+            if (!line.empty() && line.front() != '#') {
+                append_paths(line);
+            }
+        }
+    };
 
-    if (config::login_mode && cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
-        if (g_shell) {
-            (void)g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
+    read_paths_file(paths_file);
+    std::vector<std::filesystem::path> path_files;
+    std::error_code ec;
+    std::filesystem::directory_iterator it(
+        paths_directory, std::filesystem::directory_options::skip_permission_denied, ec);
+    for (; !ec && it != std::filesystem::directory_iterator(); it.increment(ec)) {
+        if (it->path().filename().string().front() != '.') {
+            path_files.push_back(it->path());
         }
     }
-#endif
-
-#ifdef __linux__
-    const char* path_env = getenv("PATH");
-    if (path_env && path_env[0] != '\0') {
-        std::string current_path = path_env;
-        std::vector<std::string> additional_paths;
-
-        const char* inherited_home = getenv("HOME");
-        const std::string user_home = inherited_home ? inherited_home : pw->pw_dir;
-        std::string home_bin = user_home + "/bin";
-        std::string home_local_bin = user_home + "/.local/bin";
-
-        std::vector<std::string> system_paths = {
-            "/usr/local/sbin", "/snap/bin",   "/var/lib/snapd/snap/bin", "/opt/bin", "/usr/games",
-            home_bin,          home_local_bin};
-
-        for (const auto& path : system_paths) {
-            if (cjsh_filesystem::file_exists(path)) {
-                if ((":" + current_path + ":").find(":" + path + ":") == std::string::npos) {
-                    additional_paths.push_back(path);
-                }
-            }
-        }
-
-        if (!additional_paths.empty()) {
-            std::string new_path;
-            for (const auto& path : additional_paths) {
-                if (!new_path.empty())
-                    new_path += ":";
-                new_path += path;
-            }
-            new_path += ":" + current_path;
-            setenv("PATH", new_path.c_str(), 1);
-        }
-
-        // Raw getenv here: MANPATH bootstrap before shell vars exist.
-        if (getenv("MANPATH") == nullptr) {
-            std::vector<std::string> manpaths = {"/usr/local/man", "/usr/local/share/man",
-                                                 "/usr/share/man", "/usr/man"};
-
-            std::string manpath_str;
-            for (const auto& path : manpaths) {
-                if (cjsh_filesystem::file_exists(path)) {
-                    if (!manpath_str.empty())
-                        manpath_str += ":";
-                    manpath_str += path;
-                }
-            }
-
-            if (!manpath_str.empty()) {
-                setenv("MANPATH", manpath_str.c_str(), 1);
-            }
-        }
+    std::sort(path_files.begin(), path_files.end());
+    for (const auto& file : path_files) {
+        read_paths_file(file);
     }
-#endif
+
+    // File entries are literal data; no shell expansion or external path_helper
+    // process is needed.
+    if (inherited_path != nullptr) {
+        append_paths(inherited_path);
+    }
+    if (paths.empty()) {
+        append_paths("/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
+    }
+    (void)setenv("PATH", string_utils::join_strings(paths, ":").c_str(), 1);
 }
 
 std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const struct passwd* pw) {

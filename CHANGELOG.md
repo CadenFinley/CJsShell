@@ -1,6 +1,24 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.12`.
+This changelog documents tagged releases from `v1.1.2` through `v1.4.13`.
+
+## 1.4.13 - 2026-09-08
+
+Range: `v1.4.12..v1.4.13` (1 commit, 12 files changed)
+
+### Changed
+
+- Replaced `--login-path` with `--no-system-paths`. Native login shells now read `/etc/paths`, then non-hidden files in `/etc/paths.d` in filename order, before merging inherited entries without duplicates. Non-login shells initialize PATH only when it is missing or empty.
+- Read system path files directly without invoking `path_helper`. Removed the former Linux-specific PATH/MANPATH additions and preserve inherited MANPATH. Updated invocation help, completions, and startup documentation.
+
+### Fixed
+
+- Restored a working PATH when starting cjsh from a terminal without an inherited PATH, using standard defaults when the system path files supply no entries.
+- Preserve a nonempty inherited PATH exactly in non-login shells, including ordering, duplicates, and empty components, so nested shells retain virtual-environment and custom-toolchain precedence.
+
+### Internal and Tests
+
+- Added isolated coverage for path-file ordering, literal entries, deduplication, skipped inputs, fallback paths, and startup bypass modes, plus startup and nested-toolchain regressions.
 
 ## 1.4.12 - 2026-09-07
 

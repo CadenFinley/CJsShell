@@ -72,7 +72,7 @@ class StartupTests(unittest.TestCase):
 
     def test_invocation_streams(self):
         for args in (("--unknown-batch2",), ("-Z",), ("-c",), ("--command",),
-                     ("--config-dir",), ("--config-dir=",)):
+                     ("--config-dir",), ("--config-dir=",), ("--login-path",)):
             with self.subTest(args=args):
                 r = self.run_shell(*args)
                 self.assertEqual(r.returncode, 1)
@@ -83,6 +83,9 @@ class StartupTests(unittest.TestCase):
             self.assertEqual(r.returncode, 0)
             self.assertTrue(r.stdout)
             self.assertEqual(r.stderr, "")
+        help_text = self.run_shell("--help").stdout
+        self.assertIn("--no-system-paths", help_text)
+        self.assertNotIn("--login-path", help_text)
 
     def test_noexec_sources(self):
         self.trace_files(self.home)
@@ -196,47 +199,85 @@ class StartupTests(unittest.TestCase):
                     self.env.pop(name, None)
                 else:
                     self.env[name] = value
-            for args in ([], ["-l"], ["-l", "--no-config"], ["-l", "--login-path", "--no-config"],
-                         ["-l", "--login-path", "--secure"], ["-l", "--login-path", "-m"]):
+            for args in (["--no-system-paths"], ["-l", "--no-system-paths"],
+                         ["--no-config"], ["-l", "--no-config"],
+                         ["-l", "--secure"], ["-l", "-m"], ["--posix"]):
                 with self.subTest(value=value, args=args):
                     child = self.child_environment(*args)
                     for name in names:
                         expected = pwd.getpwuid(os.getuid()).pw_name if value is None and name in ("USER", "LOGNAME") else value
                         self.assertEqual(child.get(name), expected, name)
-        child = self.child_environment("-l", "--login-path")
-        self.assertTrue(child.get("PATH"))
         # An internal exec search fallback must not export a synthesized PATH.
         r = self.run_shell("--no-config", "-c", "env")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertFalse(any(line.startswith("PATH=") for line in r.stdout.splitlines()))
-        for value in ("/batch2/supplied", "", None):
-            if value is None:
-                self.env.pop("PATH", None)
-            else:
-                self.env["PATH"] = value
-            child = self.child_environment("-l", "--login-path")
-            self.assertTrue(child.get("PATH"))
-            if value:
-                self.assertIn(value, child["PATH"].split(":"))
-            self.assertEqual(self.child_environment("-l", "--login-path", "--no-config").get("PATH"), value)
-            if sys.platform == "darwin":
-                reference_env = dict(self.env)
-                reference_env["PATH"] = value or "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                reference = subprocess.run(["/bin/sh", "-c", 'eval "$(/usr/libexec/path_helper -s)"; /usr/bin/env'],
-                                           env=reference_env, text=True, capture_output=True, timeout=5)
-                expected = dict(line.split("=", 1) for line in reference.stdout.splitlines() if "=" in line)
-                self.assertEqual(child.get("PATH"), expected.get("PATH"))
-                self.assertEqual(child.get("MANPATH"), expected.get("MANPATH"))
-        if sys.platform.startswith("linux"):
-            for relative in ("bin", ".local/bin"):
-                (self.home / relative).mkdir(parents=True)
-            self.env["PATH"] = str(self.home / "bin") + ":/batch2/supplied"
-            self.env["MANPATH"] = ""
-            child = self.child_environment("-l", "--login-path")
-            parts = child["PATH"].split(":")
-            self.assertEqual(parts.count(str(self.home / "bin")), 1)
-            self.assertEqual(parts.count(str(self.home / ".local/bin")), 1)
-            self.assertEqual(child["MANPATH"], "")
+
+    def test_default_system_paths(self):
+        for value in ("/batch2/supplied:/batch2/supplied/bin:/batch2/supplied", "", None):
+            for manpath in ("/batch2/man", "", None):
+                for name, entry in (("PATH", value), ("MANPATH", manpath)):
+                    if entry is None:
+                        self.env.pop(name, None)
+                    else:
+                        self.env[name] = entry
+                for args in ([], ["-l"], ["-i", "--no-titleline", "--no-history"],
+                             ["-il", "--no-titleline", "--no-history"]):
+                    with self.subTest(value=value, manpath=manpath, args=args):
+                        child = self.child_environment(*args)
+                        self.assertTrue(child.get("PATH"))
+                        parts = child["PATH"].split(":")
+                        if value and "-l" not in args and "-il" not in args:
+                            self.assertEqual(child["PATH"], value)
+                        else:
+                            self.assertEqual(len(parts), len(set(parts)))
+                        if value:
+                            self.assertIn("/batch2/supplied", parts)
+                            self.assertIn("/batch2/supplied/bin", parts)
+                        else:
+                            # This was the terminal-startup regression: commands must
+                            # be found and children must receive the initialized PATH.
+                            r = self.run_shell(*args, "-c", "env")
+                            self.assertEqual(r.returncode, 0, r.stderr)
+                            self.assertIn("PATH=" + child["PATH"], r.stdout.splitlines())
+                        self.assertEqual(child.get("MANPATH"), manpath)
+
+    def test_nonlogin_preserves_path_components(self):
+        for value in (":/custom/bin::/usr/bin:/custom/bin:", ":", "::", " "):
+            self.env["PATH"] = value
+            for args in ([], ["-i", "--no-titleline", "--no-history"]):
+                with self.subTest(value=value, args=args):
+                    self.assertEqual(self.child_environment(*args)["PATH"], value)
+
+    def test_nested_shell_preserves_toolchain_precedence(self):
+        toolchain = self.home / "toolchain/bin"
+        toolchain.mkdir(parents=True)
+        executable = toolchain / "ls"
+        executable.write_text("#!/bin/sh\nprintf 'toolchain-ls\\n'\n")
+        executable.chmod(0o755)
+        self.env["PATH"] = "/usr/bin:/bin"
+        inherited = f"{toolchain}:/usr/bin:/bin::{toolchain}:"
+        command = 'printf "%s\\n" "$PATH" "$(command -v ls)" "$(ls)"'
+        for args in ([], ["-i", "--no-titleline", "--no-history"]):
+            with self.subTest(args=args):
+                nested = shlex.join([self.binary, *args, "-c", command])
+                r = self.run_shell("-c", f"PATH={shlex.quote(inherited)}; {nested}")
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(r.stdout.splitlines(), [inherited, str(executable), "toolchain-ls"])
+
+    def test_system_paths_precede_native_configuration(self):
+        (self.home / ".cjshenv").write_text('PATH="/batch2/env:$PATH"\n')
+        (self.home / ".cjprofile").write_text('PATH="/batch2/profile:$PATH"\n')
+        self.env.pop("PATH", None)
+        child = self.child_environment("-l")
+        self.assertTrue(child["PATH"].startswith("/batch2/profile:/batch2/env:"))
+        self.assertIn("/usr/bin", child["PATH"].split(":"))
+        self.env["PATH"] = "/batch2/inherited"
+        child = self.child_environment("-l", "--no-system-paths")
+        self.assertEqual(child["PATH"], "/batch2/profile:/batch2/env:/batch2/inherited")
+
+    def test_system_paths_flag_is_invocation_only(self):
+        r = self.run_shell("-c", "cjshopt login-startup-arg --no-system-paths")
+        self.assertNotEqual(r.returncode, 0)
 
     def test_unavailable_persistence(self):
         missing = self.home / "missing"

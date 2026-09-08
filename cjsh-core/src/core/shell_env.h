@@ -51,7 +51,7 @@ extern bool execute_command;
 extern std::string cmd_to_execute;
 extern bool no_exec;
 extern bool no_config;
-extern bool login_path;
+extern bool no_system_paths;
 extern std::string config_directory;
 extern bool cache_persistence_enabled;
 extern bool history_persistence_enabled;
@@ -86,7 +86,8 @@ extern ExitConfirmationMode exit_confirmation_mode;
 namespace cjsh_env {
 
 void setup_environment_variables(const char* argv0 = nullptr);
-void setup_path_variables(const struct passwd* pw);
+void setup_path_variables(const std::string& paths_file = "/etc/paths",
+                          const std::string& paths_directory = "/etc/paths.d");
 std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const struct passwd* pw);
 
 std::string get_shell_variable_value(const std::string& name);

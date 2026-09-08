@@ -207,7 +207,7 @@ The root is selected before startup files run. These controls do not relocate hi
 or generated completions; `CJSH_HISTORY_FILE` continues to override history separately.
 
 `--no-config` skips all automatic native startup and logout files, POSIX profiles and
-`ENV`, and platform login PATH setup. Explicit `source`/`.` commands still work. UI
+`ENV`, and system PATH setup. Explicit `source`/`.` commands still work. UI
 features, hooks defined by commands, and history preferences keep their normal behavior.
 `--no-source` (`-N`) retains its narrower meaning: skip the native interactive rc file.
 `--minimal` (`-m`) retains its feature-reduction scope and still reads native env/profile
@@ -238,20 +238,30 @@ omit a script/`-c` to read stdin. Options precede the script or command operands
 ends option parsing. `--help` lists all invocation flags. Invocation errors return 1
 and send diagnostics and usage to stderr; explicit help and version return 0 on stdout.
 
-Environment initialization preserves inherited `PATH` and `MANPATH`, including empty and
-absent values; startup files can still change them. Native
-login shells can explicitly request platform setup with `--login-path`: on macOS this
-runs `/usr/libexec/path_helper -s`; on Linux it prepends existing platform and home bin
-directories missing as whole PATH components, and fills an absent MANPATH with existing
-system man directories. The policy first supplies a standard PATH if PATH is empty or
-absent. It is ignored for non-login, POSIX, minimal, secure, syntax-only, and
-`--no-config` invocations. These startup-only options (`--login-path`, `--config-dir`,
-`--no-config`) cannot be persisted through `cjshopt login-startup-arg`; put explicit
-PATH assignments in your profile or select the switches in your launcher.
+Native login shells initialize `PATH` automatically before startup files run. Non-login
+shells do this only when PATH is missing or empty; a nonempty inherited PATH is preserved
+exactly, including its order, duplicates, and empty components. This preserves virtual
+environments and custom toolchains when launching nested shells.
 
-Migration: launch native logins with `--login-path` if you relied on CJSH's former
-implicit macOS path helper or automatic Linux PATH/MANPATH additions. For reproducible
-scripts, supply PATH explicitly.
+When initialization is needed, CJSH reads `/etc/paths`, then non-hidden files in
+`/etc/paths.d` in filename order, then merges inherited PATH entries. The first occurrence
+of each nonempty entry wins. Files contain one path per line (colon-separated entries also work);
+blank lines, surrounding whitespace, and comment lines beginning with `#` are ignored.
+Paths are literal: spaces inside paths are preserved, and variables and commands are not
+expanded. Missing or unreadable files and non-file entries are skipped.
+
+If neither the files nor the inherited PATH supply any entries, CJSH uses
+`/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`. This also provides a working default on
+systems without `/etc/paths` or `/etc/paths.d`. Startup files can then override PATH.
+`MANPATH` is preserved, including empty and absent values.
+
+Pass `--no-system-paths` to disable this setup and preserve the inherited PATH exactly,
+including an empty or absent value. POSIX, minimal, secure, syntax-only, and `--no-config`
+invocations also skip it. These startup-only options (`--no-system-paths`, `--config-dir`,
+`--no-config`) cannot be persisted through `cjshopt login-startup-arg`; select them in your
+launcher. The former `--login-path` flag has been removed. Remove it from existing launch
+commands to use the default setup. For reproducible scripts, supply PATH explicitly and
+use `--no-system-paths` or `--no-config`.
 
 Inherited `USER` and `LOGNAME` are preserved even when empty; missing values are filled
 from the real user's account record. CJSH does not supply or export defaults for

@@ -68,7 +68,7 @@ constexpr int kOptNoHistory = 263;
 constexpr int kOptNoAgent = 264;
 constexpr int kOptNoConfig = 265;
 constexpr int kOptConfigDir = 266;
-constexpr int kOptLoginPath = 267;
+constexpr int kOptNoSystemPaths = 267;
 std::vector<std::string> positional_parameters;
 bool login_shell_invocation = false;
 
@@ -137,7 +137,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"no-exec", no_argument, nullptr, kOptNoExec},
         {"no-config", no_argument, nullptr, kOptNoConfig},
         {"config-dir", required_argument, nullptr, kOptConfigDir},
-        {"login-path", no_argument, nullptr, kOptLoginPath},
+        {"no-system-paths", no_argument, nullptr, kOptNoSystemPaths},
         {"posix", no_argument, nullptr, kOptPosix},
         {"version", no_argument, nullptr, 'v'},
         {"help", no_argument, nullptr, 'h'},
@@ -198,8 +198,8 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 }
                 config::config_directory = optarg;
                 break;
-            case kOptLoginPath:
-                config::login_path = true;
+            case kOptNoSystemPaths:
+                config::no_system_paths = true;
                 break;
             case kOptPosix:
                 apply_posix_mode_settings();
