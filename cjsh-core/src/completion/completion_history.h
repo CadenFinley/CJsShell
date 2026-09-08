@@ -37,5 +37,6 @@ long get_history_max_entries();
 long get_history_default_history_limit();
 long get_history_min_history_limit();
 bool enforce_history_limit(std::string* error_message = nullptr);
+void apply_pending_history_limit();
 
 }  // namespace completion_history

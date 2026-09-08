@@ -1627,7 +1627,10 @@ cjshopt set-history-max default  # Go back to the default limit
 cjshopt set-history-max status   # Show the current limit
 ```
 
-Commands added to `~/.cjshrc` are applied automatically at startup.
+In startup files, limit changes are deferred until startup configuration finishes,
+so history is loaded once using the final limit and history path. Commands and
+scripts that do not start the editor apply any pending limit before their body runs.
+Changes made during a running session take effect immediately.
 
 #### set-completion-max
 

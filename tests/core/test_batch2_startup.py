@@ -614,8 +614,102 @@ class StartupTests(unittest.TestCase):
             content = path.read_text()
             self.assertIn("saved-to-selected-history", content)
             self.assertNotIn("earlier-selection", content)
-        self.assertEqual([line for line in earlier.read_text().splitlines()
-                          if not line.startswith("#")], earlier_content.splitlines())
+        self.assertEqual(earlier.read_text(), earlier_content)
+
+    def test_startup_history_limits_wait_for_editor_initialization(self):
+        history = self.home / "selected-history"
+        commands = [f'echo retained-{number} > "$HOME/recalled"' for number in range(4)]
+        original = "\n".join(commands) + "\n"
+        history.write_text(original)
+        self.env["CJSH_HISTORY_FILE"] = str(history)
+        for name, limits in ((".cjshenv", (1,)), (".cjprofile", (0, "default", 2)),
+                             (".cjshrc", (1, 3))):
+            (self.home / name).write_text(
+                "".join(f"cjshopt set-history-max {limit}\n" for limit in limits) +
+                f'cat "$CJSH_HISTORY_FILE" > "$HOME/{name}-snapshot"\n')
+        with mock.patch.dict(os.environ, self.env, clear=True):
+            session = IdleHookSession(self.binary, str(self.home), argv=[
+                self.binary, "--login", "--no-titleline", "--no-prompt-vars", "--no-agent",
+                "--no-completions", "--no-syntax-highlighting"])
+        self.addCleanup(session.close)
+        session.wait_for_prompt(0)
+        for name in (".cjshenv", ".cjprofile", ".cjshrc"):
+            self.assertEqual((self.home / f"{name}-snapshot").read_text(), original)
+        self.assertEqual([line for line in history.read_text().splitlines()
+                          if not line.startswith("#")], commands[-3:])
+        start = len(session.output)
+        session.write(b"\x1b[A\r")
+        session.wait_for_prompt(start, command_completed=True)
+        self.assertEqual((self.home / "recalled").read_text(), "retained-3\n")
+        start = session.run_command(b"cjshopt set-history-max status")
+        self.assertIn(b"History file retains up to 3 entries.", session.output[start:])
+        session.write(b"exit\r")
+        self.assertEqual(session.wait_for_exit(), 0)
+
+    def test_startup_history_limits_apply_without_an_editor(self):
+        earlier = self.home / "earlier-history"
+        selected = self.home / "selected-history"
+        original = "echo first\necho second\necho third\n"
+        script = self.home / "script.cjsh"
+        script.write_text("history\n")
+        for args, startup_file in ((("-c", "history"), ".cjshenv"),
+                                   ((str(script),), ".cjshenv"),
+                                   (("-il", "-c", "history"), ".cjshrc"),
+                                   (("-il", str(script)), ".cjshrc"),
+                                   (("-il",), ".cjshrc")):
+            for limit in (0, 2):
+                with self.subTest(args=args, limit=limit):
+                    earlier.write_text(original)
+                    selected.write_text(original)
+                    self.env["CJSH_HISTORY_FILE"] = str(earlier)
+                    for name in (".cjshenv", ".cjshrc"):
+                        (self.home / name).unlink(missing_ok=True)
+                    (self.home / startup_file).write_text(
+                        f'cjshopt set-history-max {limit}\n'
+                        'CJSH_HISTORY_FILE="$HOME/selected-history"\n')
+                    result = self.run_shell(*args, input="history\n")
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stderr, "")
+                    self.assertEqual(earlier.read_text(), original)
+                    expected = [] if limit == 0 else ["echo second", "echo third"]
+                    self.assertEqual([line for line in selected.read_text().splitlines()
+                                      if not line.startswith("#")], expected)
+                    self.assertEqual([line.strip() for line in result.stdout.splitlines()],
+                                     [f"{index}  {command}" for index, command in enumerate(expected)])
+
+    def test_runtime_history_limit_changes_apply_immediately(self):
+        history = self.home / "selected-history"
+        self.env["CJSH_HISTORY_FILE"] = str(history)
+        runtime_config = self.home / "runtime.cjsh"
+        runtime_config.write_text("cjshopt set-history-max 2\n")
+        for args in ((), ("-i",)):
+            with self.subTest(args=args):
+                history.write_text("echo first\necho second\necho third\n")
+                result = self.run_shell(*args, "-c",
+                                        'source "$HOME/runtime.cjsh"; history; '
+                                        'cjshopt set-history-max 0; history')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stderr, "")
+                self.assertEqual([line.strip() for line in result.stdout.splitlines()], [
+                    "History file will retain up to 2 entries.",
+                    "0  echo second", "1  echo third", "History persistence disabled."])
+                self.assertEqual(history.read_text(), "")
+
+    def test_startup_history_limit_respects_final_persistence_flags(self):
+        history = self.home / "selected-history"
+        self.env["CJSH_HISTORY_FILE"] = str(history)
+        original = "echo preserved-history\n"
+        for flag in ("--no-history", "--secure"):
+            with self.subTest(flag=flag):
+                history.write_text(original)
+                (self.home / ".cjprofile").write_text(
+                    'cjshopt set-history-max 0\n'
+                    f'cjshopt login-startup-arg {flag}\n')
+                result = self.run_shell("-il", "-c", "echo usable")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(result.stdout, "usable\n")
+                self.assertEqual(history.read_text(), original)
 
     def test_unavailable_persistence(self):
         missing = self.home / "missing"

@@ -41,11 +41,13 @@ constexpr long kHistoryMinEntries = 0;
 constexpr long kHistoryDefaultEntries = 1000;
 
 long g_history_max_entries_value = kHistoryDefaultEntries;
+bool g_history_limit_pending = false;
 
 }  // namespace
 
 bool enforce_history_limit(std::string* error_message) {
     (void)error_message;
+    g_history_limit_pending = false;
     cjsh_filesystem::initialize_history_storage();
     if (!config::history_enabled || !config::history_persistence_enabled) {
         ic_set_history(nullptr, 0);
@@ -80,6 +82,13 @@ bool set_history_max_entries(long max_entries, std::string* error_message) {
     long previous_limit = g_history_max_entries_value;
     g_history_max_entries_value = resolved;
 
+    // Startup files may still change the limit, history path, or persistence flags.
+    // Let editor initialization load the final configuration once.
+    if (cjsh_env::startup_active()) {
+        g_history_limit_pending = true;
+        return true;
+    }
+
     if (!enforce_history_limit(error_message)) {
         g_history_max_entries_value = previous_limit;
         (void)enforce_history_limit(nullptr);
@@ -87,6 +96,12 @@ bool set_history_max_entries(long max_entries, std::string* error_message) {
     }
 
     return true;
+}
+
+void apply_pending_history_limit() {
+    if (g_history_limit_pending) {
+        (void)enforce_history_limit(nullptr);
+    }
 }
 
 long get_history_max_entries() {

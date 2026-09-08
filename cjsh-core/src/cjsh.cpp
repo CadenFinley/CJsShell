@@ -36,6 +36,7 @@
 #include <vector>
 
 #include "cjsh_filesystem.h"
+#include "completion_history.h"
 #include "error_out.h"
 #include "flags.h"
 #include "interpreter.h"
@@ -252,6 +253,7 @@ int run_cjsh(int argc, char* argv[]) {
         if (cjsh_env::exit_requested()) {
             return read_exit_code_or(0);
         }
+        completion_history::apply_pending_history_limit();
         return config::execute_command ? read_exit_code_or(g_shell->execute(config::cmd_to_execute))
                                        : handle_non_interactive_mode(script_file);
     }
@@ -297,6 +299,7 @@ int run_cjsh(int argc, char* argv[]) {
         if (startup_interrupted) {
             return 128 + SIGINT;
         }
+        completion_history::apply_pending_history_limit();
         return config::execute_command ? read_exit_code_or(g_shell->execute(config::cmd_to_execute))
                                        : handle_non_interactive_mode(script_file);
     }
