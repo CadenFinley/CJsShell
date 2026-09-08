@@ -1307,6 +1307,8 @@ falls back to the default search paths.</p>
 <li><code>-i, --interactive</code> – force interactive behavior even if stdin is not a tty</li>
 <li><code>-c, --command &lt;string&gt;</code> – execute a single command and exit (disables history expansion)</li>
 <li><code>--no-exec</code> – read commands but do not execute them</li>
+<li><code>--no-system-paths</code> – skip automatic PATH setup from <code>/etc/paths</code> and <code>/etc/paths.d</code>
+  (invocation only; cannot be saved with <code>cjshopt login-startup-arg</code>)</li>
 <li><code>--posix</code> – enable POSIX mode and reject non-POSIX syntax and non-POSIX builtins</li>
 <li><code>-m, --minimal</code> – disable colors, completions and completion learning, syntax
   highlighting, rc sourcing, smart cd, the title line, history expansion, the status line,

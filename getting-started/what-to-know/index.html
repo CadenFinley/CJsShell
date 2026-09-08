@@ -1664,7 +1664,7 @@ Paths accept a leading <code>~/</code>; relative overrides resolve against the i
 The root is selected before startup files run. These controls do not relocate history
 or generated completions; <code>CJSH_HISTORY_FILE</code> continues to override history separately.</p>
 <p><code>--no-config</code> skips all automatic native startup and logout files, POSIX profiles and
-<code>ENV</code>, and platform login PATH setup. Explicit <code>source</code>/<code>.</code> commands still work. UI
+<code>ENV</code>, and system PATH setup. Explicit <code>source</code>/<code>.</code> commands still work. UI
 features, hooks defined by commands, and history preferences keep their normal behavior.
 <code>--no-source</code> (<code>-N</code>) retains its narrower meaning: skip the native interactive rc file.
 <code>--minimal</code> (<code>-m</code>) retains its feature-reduction scope and still reads native env/profile
@@ -1690,19 +1690,27 @@ mode; they are not monitor mode or stdin selectors. Use <code>set -m</code> for 
 omit a script/<code>-c</code> to read stdin. Options precede the script or command operands; <code>--</code>
 ends option parsing. <code>--help</code> lists all invocation flags. Invocation errors return 1
 and send diagnostics and usage to stderr; explicit help and version return 0 on stdout.</p>
-<p>Environment initialization preserves inherited <code>PATH</code> and <code>MANPATH</code>, including empty and
-absent values; startup files can still change them. Native
-login shells can explicitly request platform setup with <code>--login-path</code>: on macOS this
-runs <code>/usr/libexec/path_helper -s</code>; on Linux it prepends existing platform and home bin
-directories missing as whole PATH components, and fills an absent MANPATH with existing
-system man directories. The policy first supplies a standard PATH if PATH is empty or
-absent. It is ignored for non-login, POSIX, minimal, secure, syntax-only, and
-<code>--no-config</code> invocations. These startup-only options (<code>--login-path</code>, <code>--config-dir</code>,
-<code>--no-config</code>) cannot be persisted through <code>cjshopt login-startup-arg</code>; put explicit
-PATH assignments in your profile or select the switches in your launcher.</p>
-<p>Migration: launch native logins with <code>--login-path</code> if you relied on CJSH's former
-implicit macOS path helper or automatic Linux PATH/MANPATH additions. For reproducible
-scripts, supply PATH explicitly.</p>
+<p>Native login shells initialize <code>PATH</code> automatically before startup files run. Non-login
+shells do this only when PATH is missing or empty; a nonempty inherited PATH is preserved
+exactly, including its order, duplicates, and empty components. This preserves virtual
+environments and custom toolchains when launching nested shells.</p>
+<p>When initialization is needed, CJSH reads <code>/etc/paths</code>, then non-hidden files in
+<code>/etc/paths.d</code> in filename order, then merges inherited PATH entries. The first occurrence
+of each nonempty entry wins. Files contain one path per line (colon-separated entries also work);
+blank lines, surrounding whitespace, and comment lines beginning with <code>#</code> are ignored.
+Paths are literal: spaces inside paths are preserved, and variables and commands are not
+expanded. Missing or unreadable files and non-file entries are skipped.</p>
+<p>If neither the files nor the inherited PATH supply any entries, CJSH uses
+<code>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</code>. This also provides a working default on
+systems without <code>/etc/paths</code> or <code>/etc/paths.d</code>. Startup files can then override PATH.
+<code>MANPATH</code> is preserved, including empty and absent values.</p>
+<p>Pass <code>--no-system-paths</code> to disable this setup and preserve the inherited PATH exactly,
+including an empty or absent value. POSIX, minimal, secure, syntax-only, and <code>--no-config</code>
+invocations also skip it. These startup-only options (<code>--no-system-paths</code>, <code>--config-dir</code>,
+<code>--no-config</code>) cannot be persisted through <code>cjshopt login-startup-arg</code>; select them in your
+launcher. The former <code>--login-path</code> flag has been removed. Remove it from existing launch
+commands to use the default setup. For reproducible scripts, supply PATH explicitly and
+use <code>--no-system-paths</code> or <code>--no-config</code>.</p>
 <p>Inherited <code>USER</code> and <code>LOGNAME</code> are preserved even when empty; missing values are filled
 from the real user's account record. CJSH does not supply or export defaults for
 <code>LANG</code>, <code>PAGER</code>, or <code>TMPDIR</code>. Children keep the caller's locale selection.</p>
