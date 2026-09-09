@@ -43,7 +43,7 @@ import shutil
 from pathlib import Path
 from typing import Iterable, List, Sequence, Set
 
-DEFAULT_RUNS = 25
+DEFAULT_RUNS = 100
 STARTUP_ARGS: Sequence[str] = ["--show-startup-time", "--no-titleline", "--no-source", "--no-history"]
 
 
