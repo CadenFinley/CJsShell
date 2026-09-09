@@ -56,8 +56,11 @@ struct CommaWhitespace : std::ctype<char> {
     static const mask* classification() {
         static const auto masks = [] {
             std::array<mask, table_size> result{};
+            const auto& classic = std::use_facet<std::ctype<char>>(std::locale::classic());
+            // classic_table() can be null on musl; query the facet instead.
             for (size_t i = 0; i < result.size(); ++i) {
-                result[i] = classic_table()[i];
+                const char character = static_cast<char>(i);
+                classic.is(&character, &character + 1, &result[i]);
             }
             result[','] |= space;
             result[' '] &= ~space;
