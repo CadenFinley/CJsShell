@@ -59,8 +59,9 @@ int history_command(const std::vector<std::string>& args) {
         if (read_result.is_error()) {
             // A reader must never truncate a file that another session may be
             // committing. Initialization creates storage only when appropriate.
-            if (!config::history_persistence_enabled)
+            if (!config::history_persistence_enabled) {
                 return 1;
+            }
             if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_history_path())) {
                 print_error({ErrorType::RUNTIME_ERROR, "history", read_result.error(), {}});
                 return 1;

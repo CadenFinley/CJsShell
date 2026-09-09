@@ -116,26 +116,30 @@ static bool term_get_cursor_pos(term_t* term, ssize_t* row, ssize_t* col);
 //-------------------------------------------------------------
 
 ic_private void term_left(term_t* term, ssize_t n) {
-    if (n <= 0)
+    if (n <= 0) {
         return;
+    }
     term_writef(term, IC_CSI "%zdD", n);
 }
 
 ic_private void term_right(term_t* term, ssize_t n) {
-    if (n <= 0)
+    if (n <= 0) {
         return;
+    }
     term_writef(term, IC_CSI "%zdC", n);
 }
 
 ic_private void term_up(term_t* term, ssize_t n) {
-    if (n <= 0)
+    if (n <= 0) {
         return;
+    }
     term_writef(term, IC_CSI "%zdA", n);
 }
 
 ic_private void term_down(term_t* term, ssize_t n) {
-    if (n <= 0)
+    if (n <= 0) {
         return;
+    }
     term_writef(term, IC_CSI "%zdB", n);
 }
 
@@ -148,8 +152,9 @@ ic_private void term_clear_to_end_of_line(term_t* term) {
 }
 
 ic_private void term_delete_lines(term_t* term, ssize_t n) {
-    if (n <= 0)
+    if (n <= 0) {
         return;
+    }
     term_writef(term, IC_CSI "%zdM", n);
 }
 
@@ -166,36 +171,44 @@ ic_private ssize_t term_get_height(term_t* term) {
 }
 
 ic_private bool term_is_cursor_at_line_start(term_t* term) {
-    if (term == NULL)
+    if (term == NULL) {
         return true;
+    }
     if (term->cursor_state_tracked) {
         return term->cursor_at_line_start;
     }
-    if (!term_is_interactive(term))
+    if (!term_is_interactive(term)) {
         return true;
-    if (tty_input_pending(term->tty))
+    }
+    if (tty_input_pending(term->tty)) {
         return true;
+    }
     ssize_t row = 0;
     ssize_t col = 0;
-    if (!term_get_cursor_pos(term, &row, &col))
+    if (!term_get_cursor_pos(term, &row, &col)) {
         return false;
+    }
     return (col <= 1);
 }
 
 ic_private bool term_line_has_visible_content(term_t* term) {
-    if (term == NULL)
+    if (term == NULL) {
         return false;
+    }
     if (term->line_state_tracked) {
         return term->line_has_visible;
     }
-    if (!term_is_interactive(term))
+    if (!term_is_interactive(term)) {
         return false;
-    if (tty_input_pending(term->tty))
+    }
+    if (tty_input_pending(term->tty)) {
         return false;
+    }
     ssize_t row = 0;
     ssize_t col = 0;
-    if (!term_get_cursor_pos(term, &row, &col))
+    if (!term_get_cursor_pos(term, &row, &col)) {
         return false;
+    }
     return (col > 1);
 }
 
@@ -213,14 +226,16 @@ ic_private bool term_query_cursor_pos(term_t* term, ssize_t* row, ssize_t* col) 
 }
 
 ic_private void term_set_track_output(term_t* term, bool enable) {
-    if (term == NULL)
+    if (term == NULL) {
         return;
+    }
     term->track_output = enable;
 }
 
 ic_private void term_reset_line_state(term_t* term) {
-    if (term == NULL)
+    if (term == NULL) {
         return;
+    }
     term->line_state_tracked = false;
     term->line_has_visible = false;
     term->cursor_state_tracked = false;
@@ -228,8 +243,9 @@ ic_private void term_reset_line_state(term_t* term) {
 }
 
 ic_private void term_mark_line_visible(term_t* term, bool visible) {
-    if (term == NULL)
+    if (term == NULL) {
         return;
+    }
     term->line_state_tracked = true;
     term->line_has_visible = visible;
     term->cursor_state_tracked = true;
@@ -273,8 +289,9 @@ ic_private attr_t term_get_attr(const term_t* term) {
 }
 
 ic_private void term_set_attr(term_t* term, attr_t attr) {
-    if (term->nocolor)
+    if (term->nocolor) {
         return;
+    }
     if (attr.x.color != term->attr.x.color && attr.x.color != IC_COLOR_NONE) {
         term_color(term, attr.x.color);
         term->attr.x.color = attr.x.color;
@@ -388,8 +405,9 @@ ic_private void term_write_formatted_n(term_t* term, const char* s, const attr_t
 //-------------------------------------------------------------
 
 ic_private void term_beep(term_t* term) {
-    if (term->silent)
+    if (term->silent) {
         return;
+    }
     if (fputc('\a', stderr) == EOF) {
         debug_msg("term: failed to emit bell\n");
         clearerr(stderr);
@@ -407,8 +425,9 @@ ic_private void term_write_repeat(term_t* term, const char* s, ssize_t count) {
 }
 
 ic_private void term_write(term_t* term, const char* s) {
-    if (s == NULL || s[0] == 0)
+    if (s == NULL || s[0] == 0) {
         return;
+    }
     ssize_t n = ic_strlen(s);
     term_write_n(term, s, n);
 }
@@ -417,8 +436,9 @@ ic_private void term_write(term_t* term, const char* s) {
 // Semantic escape sequences do not describe output written directly by an embedding shell or
 // child process, so treating them as tracked output can hide real partial-line content.
 ic_private void term_write_untracked(term_t* term, const char* s) {
-    if (term == NULL)
+    if (term == NULL) {
         return;
+    }
     const bool track_output = term->track_output;
     term->track_output = false;
     term_write(term, s);
@@ -427,8 +447,9 @@ ic_private void term_write_untracked(term_t* term, const char* s) {
 
 // Primitive terminal write; all writes go through here
 ic_private void term_write_n(term_t* term, const char* s, ssize_t n) {
-    if (s == NULL || n <= 0)
+    if (s == NULL || n <= 0) {
         return;
+    }
     // write to buffer to reduce flicker and to process escape sequences (this
     // may flush too)
     term_append_buf(term, s, n);
@@ -473,12 +494,12 @@ static void term_init_raw(term_t* term);
 
 ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent, int fd_out) {
     term_t* term = mem_zalloc_tp(mem, term_t);
-    if (term == NULL)
+    if (term == NULL) {
         return NULL;
+    }
 
     term->fd_out = (fd_out < 0 ? STDOUT_FILENO : fd_out);
-    if (fd_out < 0 && tty != NULL && isatty(term->fd_out) == 0 &&
-        isatty(STDERR_FILENO) != 0) {
+    if (fd_out < 0 && tty != NULL && isatty(term->fd_out) == 0 && isatty(STDERR_FILENO) != 0) {
         term->fd_out = STDERR_FILENO;
     }
     term->nocolor = nocolor || (isatty(term->fd_out) == 0);
@@ -571,8 +592,9 @@ ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent,
 }
 
 ic_private bool term_is_interactive(const term_t* term) {
-    if (term == NULL || isatty(term->fd_out) == 0)
+    if (term == NULL || isatty(term->fd_out) == 0) {
         return false;
+    }
     // check dimensions (0 is used for debuggers)
     // if (term->width <= 0) return false;
 
@@ -599,8 +621,9 @@ ic_private bool term_enable_color(term_t* term, bool enable) {
 }
 
 ic_private void term_free(term_t* term) {
-    if (term == NULL)
+    if (term == NULL) {
         return;
+    }
     alloc_t* mem = term->mem;
     term_flush(term);
     term_end_raw(term, true);
@@ -619,8 +642,9 @@ ic_private void term_free(term_t* term) {
 static void term_append_esc(term_t* term, const char* const s, ssize_t len) {
     if (s[1] == '[' && s[len - 1] == 'm') {
         // it is a CSI SGR sequence: ESC[ ... m
-        if (term->nocolor)
+        if (term->nocolor) {
             return;  // ignore escape sequences if nocolor is set
+        }
         term->attr = attr_update_with(term->attr, attr_from_esc_sgr(s, len));
     }
     // and write out the escape sequence as-is
@@ -651,8 +675,9 @@ static void term_append_buf(term_t* term, const char* s, ssize_t len) {
             }
             pos += ascii;
         }
-        if (next <= 0)
+        if (next <= 0) {
             break;
+        }
 
         const uint8_t c = (uint8_t)s[pos];
         // handle utf-8 sequences: append raw bytes for correct display
@@ -750,8 +775,9 @@ static bool term_get_cursor_pos(term_t* term, ssize_t* row, ssize_t* col) {
     *row = 0;
     *col = 0;
     CONSOLE_SCREEN_BUFFER_INFO info;
-    if (!GetConsoleScreenBufferInfo(term->hcon, &info))
+    if (!GetConsoleScreenBufferInfo(term->hcon, &info)) {
         return false;
+    }
     *row = (ssize_t)info.dwCursorPosition.Y + 1;
     *col = (ssize_t)info.dwCursorPosition.X + 1;
     return true;
@@ -759,16 +785,21 @@ static bool term_get_cursor_pos(term_t* term, ssize_t* row, ssize_t* col) {
 
 static void term_move_cursor_to(term_t* term, ssize_t row, ssize_t col) {
     CONSOLE_SCREEN_BUFFER_INFO info;
-    if (!GetConsoleScreenBufferInfo(term->hcon, &info))
+    if (!GetConsoleScreenBufferInfo(term->hcon, &info)) {
         return;
-    if (col > info.dwSize.X)
+    }
+    if (col > info.dwSize.X) {
         col = info.dwSize.X;
-    if (row > info.dwSize.Y)
+    }
+    if (row > info.dwSize.Y) {
         row = info.dwSize.Y;
-    if (col <= 0)
+    }
+    if (col <= 0) {
         col = 1;
-    if (row <= 0)
+    }
+    if (row <= 0) {
         row = 1;
+    }
     COORD coord;
     coord.X = (SHORT)col - 1;
     coord.Y = (SHORT)row - 1;
@@ -778,21 +809,24 @@ static void term_move_cursor_to(term_t* term, ssize_t row, ssize_t col) {
 static void term_cursor_save(term_t* term) {
     memset(&term->hcon_save_cursor, 0, sizeof(term->hcon_save_cursor));
     CONSOLE_SCREEN_BUFFER_INFO info;
-    if (!GetConsoleScreenBufferInfo(term->hcon, &info))
+    if (!GetConsoleScreenBufferInfo(term->hcon, &info)) {
         return;
+    }
     term->hcon_save_cursor = info.dwCursorPosition;
 }
 
 static void term_cursor_restore(term_t* term) {
-    if (term->hcon_save_cursor.X == 0)
+    if (term->hcon_save_cursor.X == 0) {
         return;
+    }
     SetConsoleCursorPosition(term->hcon, term->hcon_save_cursor);
 }
 
 static void term_move_cursor(term_t* term, ssize_t drow, ssize_t dcol, ssize_t n) {
     CONSOLE_SCREEN_BUFFER_INFO info;
-    if (!GetConsoleScreenBufferInfo(term->hcon, &info))
+    if (!GetConsoleScreenBufferInfo(term->hcon, &info)) {
         return;
+    }
     COORD cur = info.dwCursorPosition;
     ssize_t col = (ssize_t)cur.X + 1 + n * dcol;
     ssize_t row = (ssize_t)cur.Y + 1 + n * drow;
@@ -801,16 +835,18 @@ static void term_move_cursor(term_t* term, ssize_t drow, ssize_t dcol, ssize_t n
 
 static void term_cursor_visible(term_t* term, bool visible) {
     CONSOLE_CURSOR_INFO info;
-    if (!GetConsoleCursorInfo(term->hcon, &info))
+    if (!GetConsoleCursorInfo(term->hcon, &info)) {
         return;
+    }
     info.bVisible = visible;
     SetConsoleCursorInfo(term->hcon, &info);
 }
 
 static void term_erase_line(term_t* term, ssize_t mode) {
     CONSOLE_SCREEN_BUFFER_INFO info;
-    if (!GetConsoleScreenBufferInfo(term->hcon, &info))
+    if (!GetConsoleScreenBufferInfo(term->hcon, &info)) {
         return;
+    }
     DWORD written;
     COORD start;
     ssize_t length;
@@ -835,8 +871,9 @@ static void term_erase_line(term_t* term, ssize_t mode) {
 
 static void term_clear_screen(term_t* term, ssize_t mode) {
     CONSOLE_SCREEN_BUFFER_INFO info;
-    if (!GetConsoleScreenBufferInfo(term->hcon, &info))
+    if (!GetConsoleScreenBufferInfo(term->hcon, &info)) {
         return;
+    }
     COORD start;
     start.X = 0;
     start.Y = 0;
@@ -873,8 +910,9 @@ static WORD attr_color[8] = {
 static void term_set_win_attr(term_t* term, attr_t ta) {
     WORD def_attr = term->hcon_default_attr;
     CONSOLE_SCREEN_BUFFER_INFO info;
-    if (!GetConsoleScreenBufferInfo(term->hcon, &info))
+    if (!GetConsoleScreenBufferInfo(term->hcon, &info)) {
         return;
+    }
     WORD cur_attr = info.wAttributes;
     WORD attr = cur_attr;
     if (ta.x.color != IC_COLOR_NONE) {
@@ -910,16 +948,18 @@ static void term_set_win_attr(term_t* term, attr_t ta) {
 }
 
 static ssize_t esc_param(const char* s, ssize_t def) {
-    if (*s == '?')
+    if (*s == '?') {
         s++;
+    }
     ssize_t n = def;
     ic_atoz(s, &n);
     return n;
 }
 
 static void esc_param2(const char* s, ssize_t* p1, ssize_t* p2, ssize_t def) {
-    if (*s == '?')
+    if (*s == '?') {
         s++;
+    }
     *p1 = def;
     *p2 = def;
     ic_atoz2(s, p1, p2);
@@ -1026,8 +1066,9 @@ static bool term_write_direct(term_t* term, const char* s, ssize_t len) {
                 term_write_console(term, s + pos, nonctrl);
                 pos += nonctrl;
             }
-            if (next <= 0)
+            if (next <= 0) {
                 break;
+            }
 
             if ((uint8_t)s[pos] >= 0x80) {
                 // utf8 is already processed
@@ -1060,23 +1101,27 @@ static bool term_write_direct(term_t* term, const char* s, ssize_t len) {
 // send escape query that may return a response on the tty
 static bool term_esc_query_raw(term_t* term, const char* query, char* buf, ssize_t buflen,
                                tty_response_fun_t* matches, void* arg) {
-    if (!term_is_interactive(term) || term->tty == NULL ||
-        tty_input_pending(term->tty) || buf == NULL || buflen <= 0 || query[0] == 0)
+    if (!term_is_interactive(term) || term->tty == NULL || tty_input_pending(term->tty) ||
+        buf == NULL || buflen <= 0 || query[0] == 0) {
         return false;
+    }
     bool osc = (query[1] == ']');
-    if (!term_write_direct(term, query, ic_strlen(query)))
+    if (!term_write_direct(term, query, ic_strlen(query))) {
         return false;
+    }
     debug_msg("term: read tty query response to: ESC %s\n", query + 1);
     return tty_read_esc_response(term->tty, query[1], osc, buf, buflen, matches, arg);
 }
 
 static bool term_esc_query(term_t* term, const char* query, char* buf, ssize_t buflen,
                            tty_response_fun_t* matches, void* arg) {
-    if (!term_is_interactive(term) || term->tty == NULL)
+    if (!term_is_interactive(term) || term->tty == NULL) {
         return false;
+    }
     const bool was_raw = tty_is_raw_enabled(term->tty);
-    if (!was_raw && !tty_start_raw(term->tty))
+    if (!was_raw && !tty_start_raw(term->tty)) {
         return false;
+    }
     bool ok = term_esc_query_raw(term, query, buf, buflen, matches, arg);
     if (!was_raw) {
         tty_end_raw(term->tty);
@@ -1088,12 +1133,14 @@ static bool term_esc_query(term_t* term, const char* query, char* buf, ssize_t b
 static bool cursor_response_matches(const char* response, void* arg) {
     ic_unused(arg);
     const size_t rowlen = strspn(response, "0123456789");
-    if (rowlen == 0 || response[rowlen] != ';')
+    if (rowlen == 0 || response[rowlen] != ';') {
         return false;
+    }
     const char* column = response + rowlen + 1;
     const size_t collen = strspn(column, "0123456789");
-    if (collen == 0 || column[collen] != 'R' || column[collen + 1] != 0)
+    if (collen == 0 || column[collen] != 'R' || column[collen + 1] != 0) {
         return false;
+    }
     // Validate bounds before committing the input bytes to this reply.
     // Use the same signed-size limit as to_ssize_t; SSIZE_MAX is not ISO C11.
     const ssize_t max_value = (ssize_t)(SIZE_MAX / 2);
@@ -1101,14 +1148,17 @@ static bool cursor_response_matches(const char* response, void* arg) {
         ssize_t value = 0;
         while (*p >= '0' && *p <= '9') {
             const int digit = *p++ - '0';
-            if (value > (max_value - digit) / 10)
+            if (value > (max_value - digit) / 10) {
                 return false;
+            }
             value = 10 * value + digit;
         }
-        if (value == 0)
+        if (value == 0) {
             return false;
-        if (*p == ';')
+        }
+        if (*p == ';') {
             p++;
+        }
     }
     return true;
 }
@@ -1116,14 +1166,16 @@ static bool cursor_response_matches(const char* response, void* arg) {
 static bool term_get_cursor_pos(term_t* term, ssize_t* row, ssize_t* col) {
     // send escape query
     char buf[128];
-    if (!term_esc_query(term, "\x1B[6n", buf, 128, cursor_response_matches, NULL))
+    if (!term_esc_query(term, "\x1B[6n", buf, 128, cursor_response_matches, NULL)) {
         return false;
+    }
     char* end = strchr(buf, 'R');
     if (end != NULL) {
         *end = '\0';
     }
-    if (!ic_atoz2(buf, row, col))
+    if (!ic_atoz2(buf, row, col)) {
         return false;
+    }
     return true;
 }
 
@@ -1132,8 +1184,9 @@ static void term_set_cursor_pos(term_t* term, ssize_t row, ssize_t col) {
 }
 
 ic_private bool term_update_dim(term_t* term) {
-    if (!term_is_interactive(term))
+    if (!term_is_interactive(term)) {
         return false;
+    }
     ssize_t cols = 0;
     ssize_t rows = 0;
     struct winsize ws;
@@ -1205,8 +1258,9 @@ ic_private void term_start_raw(term_t* term) {
 }
 
 ic_private void term_end_raw(term_t* term, bool force) {
-    if (term->raw_enabled <= 0)
+    if (term->raw_enabled <= 0) {
         return;
+    }
     if (!force) {
         term->raw_enabled--;
     } else {
@@ -1217,17 +1271,20 @@ ic_private void term_end_raw(term_t* term, bool force) {
 static bool color_response_matches(const char* buf, void* arg) {
     const char* prefix = (const char*)arg;
     const size_t prefix_len = strlen(prefix);
-    if (strncmp(buf, prefix, prefix_len) != 0)
+    if (strncmp(buf, prefix, prefix_len) != 0) {
         return false;
+    }
     const char* rgb = buf + prefix_len;
     for (int i = 0; i < 3; ++i) {
         const size_t digits = strspn(rgb, "0123456789abcdefABCDEF");
-        if (digits == 0 || digits > 4)
+        if (digits == 0 || digits > 4) {
             return false;
+        }
         rgb += digits;
         if (i < 2) {
-            if (*rgb++ != '/')
+            if (*rgb++ != '/') {
                 return false;
+            }
         }
     }
     return *rgb == 0;
@@ -1239,8 +1296,9 @@ static bool term_esc_query_color_raw(term_t* term, ssize_t color_idx, uint32_t* 
     char buf[128];
     snprintf(query, sizeof(query), "\x1B]4;%zd;?\x1B\\", color_idx);
     snprintf(prefix, sizeof(prefix), "4;%zd;rgb:", color_idx);
-    if (!term_esc_query_raw(term, query, buf, sizeof(buf), color_response_matches, prefix))
+    if (!term_esc_query_raw(term, query, buf, sizeof(buf), color_response_matches, prefix)) {
         return false;
+    }
     const char* rgb = buf + strlen(prefix);
 
     unsigned long components[3] = {0};
@@ -1249,12 +1307,14 @@ static bool term_esc_query_color_raw(term_t* term, ssize_t color_idx, uint32_t* 
         errno = 0;
         char* endptr = NULL;
         unsigned long value = strtoul(cursor, &endptr, 16);
-        if (cursor == endptr || errno == ERANGE || value > 0xFFFFFFUL)
+        if (cursor == endptr || errno == ERANGE || value > 0xFFFFFFUL) {
             return false;
+        }
         components[idx] = value;
         if (idx < 2) {
-            if (*endptr != '/')
+            if (*endptr != '/') {
                 return false;
+            }
             cursor = endptr + 1;
         } else {
             cursor = endptr;
@@ -1276,8 +1336,9 @@ static bool term_esc_query_color_raw(term_t* term, ssize_t color_idx, uint32_t* 
 
 // update ansi 16 color palette for better color approximation
 static void term_update_ansi16(term_t* term) {
-    if (!term_is_interactive(term) || term->tty == NULL)
+    if (!term_is_interactive(term) || term->tty == NULL) {
         return;
+    }
     debug_msg("update ansi colors\n");
 #if defined(GIO_CMAP)
     // try ioctl first (on Linux)
@@ -1303,8 +1364,9 @@ static void term_update_ansi16(term_t* term) {
     if (tty_start_raw(term->tty)) {
         for (ssize_t i = 0; i < 16; i++) {
             uint32_t color;
-            if (!term_esc_query_color_raw(term, i, &color))
+            if (!term_esc_query_color_raw(term, i, &color)) {
                 break;
+            }
             debug_msg("term ansi color %d: 0x%06x\n", i, color);
             ansi256[i] = color;
         }
@@ -1322,8 +1384,9 @@ static void term_init_raw(term_t* term) {
 #else
 
 ic_private void term_start_raw(term_t* term) {
-    if (term->raw_enabled++ > 0)
+    if (term->raw_enabled++ > 0) {
         return;
+    }
     CONSOLE_SCREEN_BUFFER_INFO info;
     if (GetConsoleScreenBufferInfo(term->hcon, &info)) {
         term->hcon_orig_attr = info.wAttributes;
@@ -1358,8 +1421,9 @@ ic_private void term_start_raw(term_t* term) {
 }
 
 ic_private void term_end_raw(term_t* term, bool force) {
-    if (term->raw_enabled <= 0)
+    if (term->raw_enabled <= 0) {
         return;
+    }
     if (!force && term->raw_enabled > 1) {
         term->raw_enabled--;
     } else {

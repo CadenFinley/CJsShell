@@ -106,6 +106,7 @@ that harness, append `--test test_alias` (using the filename without `.sh`).
 - C sources must remain compatible with ISO C11.
 - C++ sources must remain compatible with ISO C++17.
 - Format touched C and C++ files with `clang-format` using the repository's `.clang-format` file.
+- Use braces around `if`, `else`, `for`, `do`, and `while` bodies, including single statements. The formatter inserts missing braces automatically, except inside macro definitions or around preprocessor directives.
 - Follow the existing naming, file layout, and style conventions in the area you are modifying.
 - Keep changes as small as practical. Small, well-scoped patches are easier to review and safer to merge.
 

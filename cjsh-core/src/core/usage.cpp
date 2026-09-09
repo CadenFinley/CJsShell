@@ -98,8 +98,9 @@ int print_usage(bool print_version, bool print_hook, bool print_footer) {
     if (print_version) {
         (void)version_command({});
     }
-    if (print_hook)
+    if (print_hook) {
         std::cout << "POSIX shell scripting meets modern shell features\n";
+    }
     std::cout << get_usage();
     if (print_footer) {
         std::cout << "For more information:\n"

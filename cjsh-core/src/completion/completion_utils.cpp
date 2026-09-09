@@ -41,8 +41,9 @@
 namespace completion_utils {
 
 std::string quote_path_if_needed(const std::string& path) {
-    if (path.empty())
+    if (path.empty()) {
         return path;
+    }
 
     bool needs_quoting = false;
     for (char c : path) {
@@ -54,8 +55,9 @@ std::string quote_path_if_needed(const std::string& path) {
         }
     }
 
-    if (!needs_quoting)
+    if (!needs_quoting) {
         return path;
+    }
 
     std::string result = "\"";
     for (char c : path) {
@@ -70,8 +72,9 @@ std::string quote_path_if_needed(const std::string& path) {
 }
 
 std::string unquote_path(const std::string& path) {
-    if (path.empty())
+    if (path.empty()) {
         return path;
+    }
 
     std::string result;
     utils::QuoteState quote_state;
@@ -168,16 +171,19 @@ std::string sanitize_job_command_summary(const std::string& command) {
             }
             continue;
         }
-        if (std::isprint(uch) == 0)
+        if (std::isprint(uch) == 0) {
             continue;
+        }
         summary.push_back(ch);
         last_was_space = false;
-        if (summary.size() >= 80)
+        if (summary.size() >= 80) {
             break;
+        }
     }
 
-    while (!summary.empty() && summary.back() == ' ')
+    while (!summary.empty() && summary.back() == ' ') {
         summary.pop_back();
+    }
 
     return summary;
 }

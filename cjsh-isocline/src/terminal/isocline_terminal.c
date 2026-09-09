@@ -134,25 +134,29 @@ ic_public void ic_mark_command_finished(int exit_status) {
 
 ic_public void ic_term_init(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
-    if (env->term == NULL)
+    }
+    if (env->term == NULL) {
         return;
+    }
     term_start_raw(env->term);
 }
 
 ic_public bool ic_push_key_event(ic_keycode_t key) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->tty == NULL)
+    if (env == NULL || env->tty == NULL) {
         return false;
+    }
     tty_code_pushback(env->tty, key);
     return true;
 }
 
 ic_public void ic_set_readline_event_callback(ic_readline_event_fun_t* callback, void* arg) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     env->readline_event_callback = callback;
     env->readline_event_arg = arg;
 }
@@ -168,8 +172,9 @@ ic_public bool ic_queue_notification(const char* text) {
     }
     if (env->notifications == NULL) {
         env->notifications = sbuf_new(env->mem);
-        if (env->notifications == NULL)
+        if (env->notifications == NULL) {
             return false;
+        }
     }
     const ssize_t previous_len = sbuf_len(env->notifications);
     if (sbuf_append(env->notifications, text) < 0 ||
@@ -181,11 +186,13 @@ ic_public bool ic_queue_notification(const char* text) {
 }
 
 ic_public bool ic_push_key_sequence(const ic_keycode_t* keys, size_t count) {
-    if (keys == NULL || count == 0)
+    if (keys == NULL || count == 0) {
         return true;
+    }
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->tty == NULL)
+    if (env == NULL || env->tty == NULL) {
         return false;
+    }
     for (size_t i = count; i > 0; --i) {
         tty_code_pushback(env->tty, keys[i - 1]);
     }
@@ -193,13 +200,16 @@ ic_public bool ic_push_key_sequence(const ic_keycode_t* keys, size_t count) {
 }
 
 ic_public bool ic_push_raw_input(const uint8_t* data, size_t length) {
-    if (length == 0)
+    if (length == 0) {
         return true;
+    }
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->tty == NULL)
+    if (env == NULL || env->tty == NULL) {
         return false;
-    if (data == NULL)
+    }
+    if (data == NULL) {
         return false;
+    }
     for (size_t i = length; i > 0; --i) {
         tty_cpush_char(env->tty, data[i - 1]);
     }
@@ -208,37 +218,45 @@ ic_public bool ic_push_raw_input(const uint8_t* data, size_t length) {
 
 ic_public void ic_term_done(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
-    if (env->term == NULL)
+    }
+    if (env->term == NULL) {
         return;
+    }
     term_end_raw(env->term, false);
 }
 
 ic_public void ic_term_flush(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
-    if (env->term == NULL)
+    }
+    if (env->term == NULL) {
         return;
+    }
     term_flush(env->term);
 }
 
 ic_public void ic_term_write(const char* s) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
-    if (env->term == NULL)
+    }
+    if (env->term == NULL) {
         return;
+    }
     term_write(env->term, s);
 }
 
 ic_public void ic_term_writeln(const char* s) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
-    if (env->term == NULL)
+    }
+    if (env->term == NULL) {
         return;
+    }
     term_writeln(env->term, s);
 }
 
@@ -251,77 +269,90 @@ ic_public void ic_term_writef(const char* fmt, ...) {
 
 ic_public void ic_term_vwritef(const char* fmt, va_list args) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
-    if (env->term == NULL)
+    }
+    if (env->term == NULL) {
         return;
+    }
     term_vwritef(env->term, fmt, args);
 }
 
 ic_public void ic_term_reset(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
-    if (env->term == NULL)
+    }
+    if (env->term == NULL) {
         return;
+    }
     term_attr_reset(env->term);
 }
 
 ic_public void ic_term_style(const char* style) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
-    if (env->term == NULL || env->bbcode == NULL)
+    }
+    if (env->term == NULL || env->bbcode == NULL) {
         return;
+    }
     term_set_attr(env->term, bbcode_style(env->bbcode, style));
 }
 
 ic_public int ic_term_get_color_bits(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return 4;
+    }
     return term_get_color_bits(env->term);
 }
 
 ic_public void ic_term_mark_line_visible(bool visible) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return;
+    }
     term_mark_line_visible(env->term, visible);
 }
 
 ic_public void ic_term_bold(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return;
+    }
     term_bold(env->term, enable);
 }
 
 ic_public void ic_term_underline(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return;
+    }
     term_underline(env->term, enable);
 }
 
 ic_public void ic_term_italic(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return;
+    }
     term_italic(env->term, enable);
 }
 
 ic_public void ic_term_reverse(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return;
+    }
     term_reverse(env->term, enable);
 }
 
 ic_public void ic_term_color_ansi(bool foreground, int ansi_color) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return;
+    }
     ic_color_t color = color_from_ansi256(ansi_color);
     if (foreground) {
         term_color(env->term, color);
@@ -332,8 +363,9 @@ ic_public void ic_term_color_ansi(bool foreground, int ansi_color) {
 
 ic_public void ic_term_color_rgb(bool foreground, uint32_t hcolor) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return;
+    }
     ic_color_t color = ic_rgb(hcolor);
     if (foreground) {
         term_color(env->term, color);
@@ -344,16 +376,18 @@ ic_public void ic_term_color_rgb(bool foreground, uint32_t hcolor) {
 
 ic_public void ic_term_underline_color_ansi(int ansi_color) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return;
+    }
     ic_color_t color = color_from_ansi256(ansi_color);
     term_underline_color(env->term, color);
 }
 
 ic_public void ic_term_underline_color_rgb(uint32_t hcolor) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return;
+    }
     ic_color_t color = ic_rgb(hcolor);
     term_underline_color(env->term, color);
 }

@@ -67,8 +67,9 @@ struct TestContext {
         return args[pos];
     }
     void advance() {
-        if (pos < args.size())
+        if (pos < args.size()) {
             pos++;
+        }
     }
     size_t remaining() const {
         return args.size() - pos;
@@ -122,8 +123,9 @@ bool evaluate_unary(TestContext& ctx) {
     } else if (op == "-G") {
         return stat(arg.c_str(), &st) == 0 && st.st_gid == getegid();
     } else if (op == "-N") {
-        if (stat(arg.c_str(), &st) != 0)
+        if (stat(arg.c_str(), &st) != 0) {
             return false;
+        }
 #ifdef __APPLE__
         return st.st_mtime > st.st_atime ||
                (st.st_mtime == st.st_atime && st.st_mtimespec.tv_nsec > st.st_atimespec.tv_nsec);

@@ -1598,15 +1598,17 @@ static bool test_rich_completion_runtime(void) {
 
     EXPECT_TRUE(register_command_doc("richspec-test", doc), test_name,
                 "runtime command spec should register");
-    EXPECT_TRUE(register_dynamic_completion_provider(
-                    "completion-test-branches",
-                    [](const DynamicCompletionRequest& request) {
-                        if (request.command_path.size() != 2 || request.command_path[1] != "remote")
-                            return std::vector<DynamicCompletionCandidate>{};
-                        return std::vector<DynamicCompletionCandidate>{{"main", "default branch"},
-                                                                       {"feature", "topic branch"}};
-                    }),
-                test_name, "dynamic provider should register");
+    EXPECT_TRUE(
+        register_dynamic_completion_provider(
+            "completion-test-branches",
+            [](const DynamicCompletionRequest& request) {
+                if (request.command_path.size() != 2 || request.command_path[1] != "remote") {
+                    return std::vector<DynamicCompletionCandidate>{};
+                }
+                return std::vector<DynamicCompletionCandidate>{{"main", "default branch"},
+                                                               {"feature", "topic branch"}};
+            }),
+        test_name, "dynamic provider should register");
 
     (void)run_completion_generation("richspec-test --out", &cjsh_default_completer, 256);
     bool has_option = generated_completions_include_replacement("--output ");
@@ -1703,8 +1705,9 @@ static bool test_command_context_completion_runtime(void) {
         (void)run_completion_generation(input, &cjsh_default_completer, 256);
         bool found = generated_completions_include_replacement(replacement);
         clear_generated_completions();
-        if (!found)
+        if (!found) {
             log_failure(test_name, message);
+        }
         return found;
     };
 

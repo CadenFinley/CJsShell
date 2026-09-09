@@ -81,8 +81,9 @@ struct TerminalDimensions {
 bool stdout_supports_ansi_progress() {
 #ifndef _WIN32
     const char* term = std::getenv("TERM");
-    if (term != nullptr && std::string(term) == "dumb")
+    if (term != nullptr && std::string(term) == "dumb") {
         return false;
+    }
 
     return isatty(STDOUT_FILENO) != 0;
 #else
@@ -93,8 +94,9 @@ bool stdout_supports_ansi_progress() {
 bool query_stdout_terminal_dimensions(TerminalDimensions& dimensions) {
 #ifndef _WIN32
     struct winsize size{};
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) != 0 || size.ws_col == 0)
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) != 0 || size.ws_col == 0) {
         return false;
+    }
 
     dimensions.columns = static_cast<int>(size.ws_col);
     return true;
@@ -105,12 +107,15 @@ bool query_stdout_terminal_dimensions(TerminalDimensions& dimensions) {
 }
 
 std::string truncate_progress_text(const std::string& text, std::size_t width) {
-    if (text.size() <= width)
+    if (text.size() <= width) {
         return text;
-    if (width == 0)
+    }
+    if (width == 0) {
         return {};
-    if (width <= 3)
+    }
+    if (width <= 3) {
         return text.substr(0, width);
+    }
 
     return text.substr(0, width - 3) + "...";
 }
@@ -124,8 +129,9 @@ std::string format_target_result_line(const std::string& target_name, bool gener
         line << "  [WARN] " << target_name << " (no manual entry or unable to generate)";
     }
 
-    if (!is_root_target)
+    if (!is_root_target) {
         line << " (subcommand cache)";
+    }
 
     return line.str();
 }
@@ -158,24 +164,28 @@ class GenerateCompletionsProgressDisplay {
     }
 
     void add_targets(std::size_t count) {
-        if (!enabled_ || count == 0)
+        if (!enabled_ || count == 0) {
             return;
+        }
 
         std::lock_guard<std::mutex> lock(mutex_);
-        if (finished_)
+        if (finished_) {
             return;
+        }
 
         total_ += count;
         render_locked();
     }
 
     void report_result(const std::string& target_name, bool generated, bool is_root_target) {
-        if (!enabled_)
+        if (!enabled_) {
             return;
+        }
 
         std::lock_guard<std::mutex> lock(mutex_);
-        if (finished_)
+        if (finished_) {
             return;
+        }
 
         std::cout << '\r' << kAnsiClearLine
                   << format_target_result_line(target_name, generated, is_root_target) << '\n';
@@ -183,23 +193,28 @@ class GenerateCompletionsProgressDisplay {
         last_target_ = target_name;
         last_target_is_root_ = is_root_target;
 
-        if (completed_ < total_)
+        if (completed_ < total_) {
             ++completed_;
-        if (!generated)
+        }
+        if (!generated) {
             ++missing_;
-        if (!is_root_target)
+        }
+        if (!is_root_target) {
             ++subcommand_count_;
+        }
 
         render_locked();
     }
 
     void finish() {
-        if (!enabled_)
+        if (!enabled_) {
             return;
+        }
 
         std::lock_guard<std::mutex> lock(mutex_);
-        if (finished_)
+        if (finished_) {
             return;
+        }
 
         refresh_dimensions_locked();
         std::cout << '\r' << kAnsiClearLine << std::flush;
@@ -216,15 +231,18 @@ class GenerateCompletionsProgressDisplay {
     }
 
     std::string build_bar_locked(std::size_t width) const {
-        if (width == 0)
+        if (width == 0) {
             return {};
+        }
 
         const std::size_t completed = std::min(completed_, total_);
         std::size_t filled = total_ == 0 ? width : (completed * width) / total_;
-        if (completed > 0 && filled == 0)
+        if (completed > 0 && filled == 0) {
             filled = 1;
-        if (completed >= total_)
+        }
+        if (completed >= total_) {
             filled = width;
+        }
 
         std::string bar(filled, '#');
         (void)bar.append(width - filled, '-');
@@ -239,13 +257,16 @@ class GenerateCompletionsProgressDisplay {
 
         std::ostringstream status;
         status << completed << "/" << total_ << " " << percent << "%";
-        if (missing_ > 0)
+        if (missing_ > 0) {
             status << " " << missing_ << " missing";
-        if (subcommand_count_ > 0)
+        }
+        if (subcommand_count_ > 0) {
             status << " " << subcommand_count_ << " sub";
+        }
 
-        if (width < 50)
+        if (width < 50) {
             return truncate_progress_text(std::string(kCommandName) + " " + status.str(), width);
+        }
 
         std::size_t bar_width = 12;
         if (width >= 100) {
@@ -276,8 +297,9 @@ class GenerateCompletionsProgressDisplay {
 
     void render_locked() {
         refresh_dimensions_locked();
-        if (columns_ < kMinimumProgressColumns)
+        if (columns_ < kMinimumProgressColumns) {
             return;
+        }
 
         const std::string line = build_progress_line_locked();
         std::cout << '\r' << kAnsiClearLine << line << std::flush;
@@ -318,8 +340,9 @@ void print_missing_jobs_argument(const std::string& option_name) {
 
 bool parse_job_count(const std::string& value, std::size_t& parsed_jobs) {
     long raw = 0;
-    if (!numeric_utils::parse_long_strict(value, raw) || raw <= 0)
+    if (!numeric_utils::parse_long_strict(value, raw) || raw <= 0) {
         return false;
+    }
 
     if (static_cast<unsigned long long>(raw) >
         static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max())) {
@@ -412,14 +435,17 @@ std::size_t resolve_job_count(std::size_t requested_jobs, std::size_t target_cou
                                           : static_cast<std::size_t>(hardware_threads);
     }
 
-    if (job_count == 0)
+    if (job_count == 0) {
         job_count = 1;
+    }
 
-    if (target_count > 0)
+    if (target_count > 0) {
         job_count = std::min(job_count, target_count);
+    }
 
-    if (job_count == 0)
+    if (job_count == 0) {
         job_count = 1;
+    }
 
     return job_count;
 }
@@ -431,8 +457,9 @@ void print_target_result_line(const std::string& target_name, bool generated, bo
 void report_target_result(bool quiet, std::mutex* output_mutex, const std::string& target_name,
                           bool generated, bool is_root_target,
                           GenerateCompletionsProgressDisplay* progress_display) {
-    if (quiet)
+    if (quiet) {
         return;
+    }
 
     if (progress_display != nullptr && progress_display->enabled()) {
         progress_display->report_result(target_name, generated, is_root_target);
@@ -488,8 +515,9 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
 
         GenerateCompletionsOptions options;
         const int parse_status = parse_generate_completions_options(args, options);
-        if (parse_status != 0)
+        if (parse_status != 0) {
             return parse_status;
+        }
 
         if (!cjsh_filesystem::initialize_cjsh_directories()) {
             print_error({ErrorType::RUNTIME_ERROR,

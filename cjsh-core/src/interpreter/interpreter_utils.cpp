@@ -176,10 +176,12 @@ std::vector<std::string> split_ampersand(const std::string& s) {
                     cur += c;
                 } else {
                     std::string seg = trim(cur);
-                    if (!seg.empty() && seg.back() != '&')
+                    if (!seg.empty() && seg.back() != '&') {
                         seg += " &";
-                    if (!seg.empty())
+                    }
+                    if (!seg.empty()) {
                         parts.push_back(seg);
+                    }
                     cur.clear();
                 }
             } else {
@@ -190,8 +192,9 @@ std::vector<std::string> split_ampersand(const std::string& s) {
         }
     }
     std::string tail = trim(cur);
-    if (!tail.empty())
+    if (!tail.empty()) {
         parts.push_back(tail);
+    }
     return parts;
 }
 

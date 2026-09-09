@@ -160,8 +160,9 @@ bool find_matching_command_substitution_end_for_validation(const std::string& te
 }
 
 std::string sanitize_command_substitutions_for_validation(const std::string& input) {
-    if (input.empty())
+    if (input.empty()) {
         return input;
+    }
 
     const std::string& placeholder = kSubstitutionPlaceholder;
     const std::string& literal_start = kSubstLiteralStart;
@@ -400,11 +401,13 @@ bool is_done_token(const std::string& token) {
 std::string get_last_non_comment_token(const std::vector<std::string>& tokens) {
     std::string last;
     for (const auto& token : tokens) {
-        if (is_comment_token(token))
+        if (is_comment_token(token)) {
             break;
+        }
 
-        if (!token.empty())
+        if (!token.empty()) {
             last = token;
+        }
     }
 
     return last;
@@ -447,11 +450,13 @@ bool should_process_char(QuoteState& state, char c, bool ignore_single_quotes,
 bool extract_trimmed_line(const std::string& line, std::string& trimmed_line,
                           size_t& first_non_space) {
     first_non_space = line.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos)
+    if (first_non_space == std::string::npos) {
         return false;
+    }
 
-    if (line[first_non_space] == '#')
+    if (line[first_non_space] == '#') {
         return false;
+    }
 
     trimmed_line = sanitize_command_substitutions_for_validation(line.substr(first_non_space));
     return true;
@@ -726,15 +731,18 @@ WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
         (after_kw == "do" || after_kw.find("do ") == 0 || after_kw.find("do\t") == 0);
 
     size_t semi = after_kw.find(';');
-    if (semi != std::string::npos)
+    if (semi != std::string::npos) {
         after_kw = after_kw.substr(0, semi);
+    }
 
     size_t do_pos = after_kw.rfind(" do");
-    if (do_pos != std::string::npos && do_pos == after_kw.size() - 3)
+    if (do_pos != std::string::npos && do_pos == after_kw.size() - 3) {
         after_kw = after_kw.substr(0, do_pos);
+    }
     do_pos = after_kw.rfind("\tdo");
-    if (do_pos != std::string::npos && do_pos == after_kw.size() - 3)
+    if (do_pos != std::string::npos && do_pos == after_kw.size() - 3) {
         after_kw = after_kw.substr(0, do_pos);
+    }
 
     std::string cond = string_utils::trim_right_ascii_whitespace_copy(after_kw);
 
@@ -801,8 +809,9 @@ CaseCheckResult analyze_case_syntax(const std::vector<std::string>& tokens) {
 }
 
 bool is_allowed_array_index_char(char c) {
-    if ((std::isalnum(static_cast<unsigned char>(c)) != 0) || c == '_')
+    if ((std::isalnum(static_cast<unsigned char>(c)) != 0) || c == '_') {
         return true;
+    }
     switch (c) {
         case '+':
         case '-':

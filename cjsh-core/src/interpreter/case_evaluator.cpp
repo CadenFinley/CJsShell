@@ -47,21 +47,24 @@ std::pair<std::string, size_t> collect_case_body(const std::vector<std::string>&
     for (size_t i = start_index; i < src_lines.size(); ++i) {
         std::string raw = strip_inline_comment(src_lines[i]);
         std::string trimmed_line = trim(raw);
-        if (trimmed_line.empty())
+        if (trimmed_line.empty()) {
             continue;
+        }
         size_t esac_pos = trimmed_line.find("esac");
         if (esac_pos != std::string::npos) {
             std::string before_esac = trim(trimmed_line.substr(0, esac_pos));
             if (!before_esac.empty()) {
-                if (appended)
+                if (appended) {
                     body_stream << '\n';
+                }
                 body_stream << before_esac;
             }
             end_index = i;
             return {body_stream.str(), end_index};
         }
-        if (appended)
+        if (appended) {
             body_stream << '\n';
+        }
         body_stream << trimmed_line;
         appended = true;
     }
@@ -117,16 +120,18 @@ std::vector<std::string> split_case_sections(const std::string& input, bool trim
             (void)section.assign(input, start, sep_pos - start + terminator_length);
             start = sep_pos + terminator_length;
         }
-        if (trim_sections)
+        if (trim_sections) {
             section = trim(section);
+        }
         sections.push_back(std::move(section));
     }
     return sections;
 }
 
 std::string normalize_case_pattern(std::string pattern, Parser* parser) {
-    if (parser != nullptr)
+    if (parser != nullptr) {
         parser->expand_env_vars(pattern);
+    }
     return pattern;
 }
 
@@ -181,8 +186,9 @@ bool parse_case_section(const std::string& section, CaseSectionData& out, Parser
             break;
         }
     }
-    if (paren_pos == std::string::npos)
+    if (paren_pos == std::string::npos) {
         return false;
+    }
     out.raw_pattern = trim(section.substr(0, paren_pos));
     if (!out.raw_pattern.empty() && out.raw_pattern.front() == '(') {
         (void)out.raw_pattern.erase(0, 1);
@@ -214,8 +220,9 @@ bool execute_case_sections(
     filtered_sections.reserve(sections.size());
     for (const auto& raw_section : sections) {
         std::string trimmed_section = trim(raw_section);
-        if (!trimmed_section.empty())
+        if (!trimmed_section.empty()) {
             filtered_sections.push_back(trimmed_section);
+        }
     }
 
     bool matched_any = false;
@@ -223,12 +230,14 @@ bool execute_case_sections(
 
     for (const auto& section : filtered_sections) {
         CaseSectionData data;
-        if (!parse_case_section(section, data, parser))
+        if (!parse_case_section(section, data, parser)) {
             continue;
+        }
 
         bool pattern_matches = execute_unconditionally || pattern_matcher(case_value, data.pattern);
-        if (!pattern_matches)
+        if (!pattern_matches) {
             continue;
+        }
 
         matched_any = true;
 
@@ -237,8 +246,9 @@ bool execute_case_sections(
                 auto semicolon_commands = parser->parse_semicolon_commands(data.command, true);
                 for (const auto& subcmd : semicolon_commands) {
                     matched_exit_code = executor(subcmd);
-                    if (matched_exit_code != 0)
+                    if (matched_exit_code != 0) {
                         break;
+                    }
                 }
             } else {
                 matched_exit_code = executor(data.command);
@@ -263,8 +273,9 @@ bool execute_case_sections(
 
 std::string sanitize_case_patterns(const std::string& patterns) {
     size_t esac_pos = patterns.rfind("esac");
-    if (esac_pos != std::string::npos)
+    if (esac_pos != std::string::npos) {
         return patterns.substr(0, esac_pos);
+    }
     return patterns;
 }
 
@@ -286,10 +297,12 @@ std::optional<int> handle_inline_case(
     const std::function<bool(const std::string&, const std::string&)>& pattern_matcher,
     const std::function<std::pair<std::string, std::vector<std::string>>(const std::string&)>&
         command_substitution_expander) {
-    if (text != "case" && text.rfind("case ", 0) != 0)
+    if (text != "case" && text.rfind("case ", 0) != 0) {
         return std::nullopt;
-    if (text.find(" in ") == std::string::npos || text.find("esac") == std::string::npos)
+    }
+    if (text.find(" in ") == std::string::npos || text.find("esac") == std::string::npos) {
         return std::nullopt;
+    }
 
     size_t in_pos = text.find(" in ");
     std::string case_part = text.substr(0, in_pos);

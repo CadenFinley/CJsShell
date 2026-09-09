@@ -32,8 +32,9 @@
 #include "isocline.h"
 
 int main(int argc, char** argv) {
-    if (argc != 6)
+    if (argc != 6) {
         return 2;
+    }
     ic_set_history(argv[1], strtol(argv[2], NULL, 10));
     for (int i = 0; i < atoi(argv[4]); ++i) {
         char command[128];

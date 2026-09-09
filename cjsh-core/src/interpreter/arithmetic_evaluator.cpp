@@ -347,10 +347,12 @@ long long ArithmeticEvaluator::evaluate(const std::string& expr) {
 }
 
 long long ArithmeticEvaluator::fast_pow(long long base, long long exp) {
-    if (exp < 0)
+    if (exp < 0) {
         return 0;
-    if (exp == 0)
+    }
+    if (exp == 0) {
         return 1;
+    }
 
     long long result = 1;
     long long current_base = base;
@@ -368,99 +370,130 @@ long long ArithmeticEvaluator::fast_pow(long long base, long long exp) {
 
 ArithmeticEvaluator::OperatorType ArithmeticEvaluator::string_to_operator_type(
     const std::string& op) {
-    if (op.empty())
+    if (op.empty()) {
         return OperatorType::UNKNOWN;
+    }
 
     switch (op[0]) {
         case '+':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::ADD;
-            if (op == "+=")
+            }
+            if (op == "+=") {
                 return OperatorType::ADD_ASSIGN;
+            }
             break;
         case '-':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::SUB;
-            if (op == "-=")
+            }
+            if (op == "-=") {
                 return OperatorType::SUB_ASSIGN;
+            }
             break;
         case '*':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::MUL;
-            if (op == "*=")
+            }
+            if (op == "*=") {
                 return OperatorType::MUL_ASSIGN;
-            if (op == "**")
+            }
+            if (op == "**") {
                 return OperatorType::POW;
+            }
             break;
         case '/':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::DIV;
-            if (op == "/=")
+            }
+            if (op == "/=") {
                 return OperatorType::DIV_ASSIGN;
+            }
             break;
         case '%':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::MOD;
-            if (op == "%=")
+            }
+            if (op == "%=") {
                 return OperatorType::MOD_ASSIGN;
+            }
             break;
         case '=':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::ASSIGN;
-            if (op == "==")
+            }
+            if (op == "==") {
                 return OperatorType::EQ;
+            }
             break;
         case '!':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::NOT;
-            if (op == "!=")
+            }
+            if (op == "!=") {
                 return OperatorType::NE;
+            }
             break;
         case '<':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::LT;
-            if (op == "<=")
+            }
+            if (op == "<=") {
                 return OperatorType::LE;
-            if (op == "<<")
+            }
+            if (op == "<<") {
                 return OperatorType::LSHIFT;
+            }
             break;
         case '>':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::GT;
-            if (op == ">=")
+            }
+            if (op == ">=") {
                 return OperatorType::GE;
-            if (op == ">>")
+            }
+            if (op == ">>") {
                 return OperatorType::RSHIFT;
+            }
             break;
         case '&':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::BITAND;
-            if (op == "&&")
+            }
+            if (op == "&&") {
                 return OperatorType::AND;
+            }
             break;
         case '|':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::BITOR;
-            if (op == "||")
+            }
+            if (op == "||") {
                 return OperatorType::OR;
+            }
             break;
         case '^':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::BITXOR;
+            }
             break;
         case '~':
-            if (op.size() == 1)
+            if (op.size() == 1) {
                 return OperatorType::BITNOT;
+            }
             break;
         case 'u':
-            if (op == "unary+")
+            if (op == "unary+") {
                 return OperatorType::UNARY_PLUS;
-            if (op == "unary-")
+            }
+            if (op == "unary-") {
                 return OperatorType::UNARY_MINUS;
+            }
             break;
         case '?':
-            if (op == "?:")
+            if (op == "?:") {
                 return OperatorType::TERNARY;
+            }
             break;
     }
 
@@ -511,8 +544,9 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std:
             (expr[i] == '-' && expect_number && i + 1 < expr.size() &&
              (std::isdigit(static_cast<unsigned char>(expr[i + 1])) != 0 || expr[i + 1] == '0'))) {
             size_t j = i;
-            if (expr[j] == '-')
+            if (expr[j] == '-') {
                 ++j;
+            }
 
             if (j < expr.size() && expr[j] == '0' && j + 1 < expr.size() &&
                 (expr[j + 1] == 'x' || expr[j + 1] == 'X')) {
@@ -938,16 +972,20 @@ long long ArithmeticEvaluator::apply_binary_operator(long long a, long long b,
         case OperatorType::MUL:
             return wrap_mul(a, b);
         case OperatorType::DIV:
-            if (b == 0)
+            if (b == 0) {
                 throw std::runtime_error("Division by zero");
-            if (b == -1 && a == std::numeric_limits<long long>::min())
+            }
+            if (b == -1 && a == std::numeric_limits<long long>::min()) {
                 return a;
+            }
             return a / b;
         case OperatorType::MOD:
-            if (b == 0)
+            if (b == 0) {
                 throw std::runtime_error("Division by zero");
-            if (b == -1 && a == std::numeric_limits<long long>::min())
+            }
+            if (b == -1 && a == std::numeric_limits<long long>::min()) {
                 return 0;
+            }
             return a % b;
         case OperatorType::EQ:
             return (a == b) ? 1 : 0;
@@ -972,14 +1010,16 @@ long long ArithmeticEvaluator::apply_binary_operator(long long a, long long b,
         case OperatorType::BITXOR:
             return wrap_bitxor(a, b);
         case OperatorType::LSHIFT: {
-            if (!valid_shift_amount(b))
+            if (!valid_shift_amount(b)) {
                 return 0;
+            }
             std::uint64_t shifted = to_uint64(a) << static_cast<unsigned>(b);
             return from_uint64(shifted);
         }
         case OperatorType::RSHIFT: {
-            if (!valid_shift_amount(b))
+            if (!valid_shift_amount(b)) {
                 return a < 0 ? -1 : 0;
+            }
             return a >> static_cast<unsigned>(b);
         }
         case OperatorType::POW:

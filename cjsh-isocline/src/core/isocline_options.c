@@ -41,8 +41,9 @@
 
 static ic_abbreviation_entry_t* ic_env_find_abbreviation(ic_env_t* env, const char* trigger,
                                                          ssize_t trigger_len, ssize_t* out_index) {
-    if (env == NULL || trigger == NULL || trigger_len <= 0)
+    if (env == NULL || trigger == NULL || trigger_len <= 0) {
         return NULL;
+    }
     for (ssize_t i = 0; i < env->abbreviation_count; ++i) {
         ic_abbreviation_entry_t* entry = &env->abbreviations[i];
         if (entry->trigger_len == trigger_len &&
@@ -57,16 +58,18 @@ static ic_abbreviation_entry_t* ic_env_find_abbreviation(ic_env_t* env, const ch
 }
 
 static bool ic_env_ensure_abbreviation_capacity(ic_env_t* env, ssize_t needed) {
-    if (env->abbreviation_capacity >= needed)
+    if (env->abbreviation_capacity >= needed) {
         return true;
+    }
     ssize_t new_capacity = (env->abbreviation_capacity == 0 ? 4 : env->abbreviation_capacity * 2);
     while (new_capacity < needed) {
         new_capacity *= 2;
     }
     ic_abbreviation_entry_t* resized =
         mem_realloc_tp(env->mem, ic_abbreviation_entry_t, env->abbreviations, new_capacity);
-    if (resized == NULL)
+    if (resized == NULL) {
         return false;
+    }
     env->abbreviations = resized;
     env->abbreviation_capacity = new_capacity;
     return true;
@@ -93,8 +96,9 @@ static void ic_env_clear_command_palette_entries(ic_env_t* env) {
 }
 
 static bool ic_history_search_sort_key_valid(const char* key) {
-    if (key == NULL || key[0] == '\0')
+    if (key == NULL || key[0] == '\0') {
         return false;
+    }
     for (const char* p = key; *p != '\0'; ++p) {
         unsigned char c = (unsigned char)*p;
         if (isspace(c) || c == '=') {
@@ -106,22 +110,25 @@ static bool ic_history_search_sort_key_valid(const char* key) {
 
 ic_public const char* ic_get_prompt_marker(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return NULL;
+    }
     return env->prompt_marker;
 }
 
 ic_public const char* ic_get_continuation_prompt_marker(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return NULL;
+    }
     return env->cprompt_marker;
 }
 
 ic_public void ic_set_prompt_eol_mark(const char* eol_mark) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     mem_free(env->mem, env->prompt_eol_mark);
     env->prompt_eol_mark = NULL;
     if (eol_mark != NULL) {
@@ -131,50 +138,57 @@ ic_public void ic_set_prompt_eol_mark(const char* eol_mark) {
 
 ic_public const char* ic_get_prompt_eol_mark(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return NULL;
+    }
     return env->prompt_eol_mark;
 }
 
 ic_public void ic_set_prompt_marker(const char* prompt_marker, const char* cprompt_marker) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     ic_env_apply_prompt_markers(env, prompt_marker, cprompt_marker);
 }
 
 ic_public void ic_set_history_search_prompt(const char* prompt_text) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     ic_env_apply_history_search_prompt(env, prompt_text);
 }
 
 ic_public const char* ic_get_history_search_prompt(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return NULL;
+    }
     return ic_env_get_history_search_prompt(env);
 }
 
 ic_public void ic_set_command_palette_prompt(const char* prompt_text) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     ic_env_apply_command_palette_prompt(env, prompt_text);
 }
 
 ic_public const char* ic_get_command_palette_prompt(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return NULL;
+    }
     return ic_env_get_command_palette_prompt(env);
 }
 
 ic_public bool ic_enable_multiline(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->singleline_only;
     env->singleline_only = !enable;
     return !prev;
@@ -182,8 +196,9 @@ ic_public bool ic_enable_multiline(bool enable) {
 
 ic_public bool ic_enable_multiline_continuation_retention(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->retain_multiline_continuation;
     env->retain_multiline_continuation = enable;
     return prev;
@@ -191,54 +206,63 @@ ic_public bool ic_enable_multiline_continuation_retention(bool enable) {
 
 ic_public bool ic_enable_beep(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
-    if (env->term == NULL)
+    }
+    if (env->term == NULL) {
         return false;
+    }
     return term_enable_beep(env->term, enable);
 }
 
 ic_public bool ic_enable_color(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
-    if (env->term == NULL)
+    }
+    if (env->term == NULL) {
         return false;
+    }
     return term_enable_color(env->term, enable);
 }
 
 ic_public bool ic_enable_history_auto_add(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     return history_enable_auto_add(env->history, enable);
 }
 
 ic_public bool ic_enable_history_duplicates(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     return history_enable_duplicates(env->history, enable);
 }
 
 ic_public bool ic_enable_history_fuzzy_case_sensitive(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return true;
+    }
     return history_set_fuzzy_case_sensitive(env->history, enable);
 }
 
 ic_public bool ic_history_fuzzy_search_is_case_sensitive(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return true;
+    }
     return history_is_fuzzy_case_sensitive(env->history);
 }
 
 ic_public bool ic_set_history_search_sort(ic_history_search_sort_t sort, const char* metadata_key) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     bool needs_metadata_key = false;
     switch (sort) {
@@ -296,15 +320,17 @@ ic_public ic_history_search_sort_t ic_get_history_search_sort(const char** metad
 
 ic_public void ic_set_history(const char* fname, long max_entries) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     history_load_from(env->history, fname, max_entries);
 }
 
 ic_public void ic_history_remove_last(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     history_remove_last(env->history);
 }
 
@@ -312,8 +338,9 @@ ic_public void ic_history_add_with_metadata(const char* entry,
                                             const ic_history_metadata_t* metadata,
                                             size_t metadata_count) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     (void)history_push_with_metadata(env->history, entry, metadata, metadata_count);
 }
 
@@ -323,15 +350,17 @@ ic_public void ic_history_add(const char* entry) {
 
 ic_public void ic_history_clear(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     history_clear(env->history);
 }
 
 ic_public bool ic_enable_auto_tab(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->complete_autotab;
     env->complete_autotab = enable;
     return prev;
@@ -339,8 +368,9 @@ ic_public bool ic_enable_auto_tab(bool enable) {
 
 ic_public bool ic_enable_completion_preview(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->complete_nopreview;
     env->complete_nopreview = !enable;
     return !prev;
@@ -348,8 +378,9 @@ ic_public bool ic_enable_completion_preview(bool enable) {
 
 ic_public bool ic_enable_completion_menu_start_expanded(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->complete_menu_start_expanded;
     env->complete_menu_start_expanded = enable;
     return prev;
@@ -357,8 +388,9 @@ ic_public bool ic_enable_completion_menu_start_expanded(bool enable) {
 
 ic_public bool ic_enable_completion_click_accept(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     bool prev = env->completion_click_accept_enabled;
     env->completion_click_accept_enabled = enable;
@@ -367,15 +399,17 @@ ic_public bool ic_enable_completion_click_accept(bool enable) {
 
 ic_public bool ic_completion_click_accept_is_enabled(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     return env->completion_click_accept_enabled;
 }
 
 ic_public ic_menu_highlight_mode_t ic_set_menu_highlight_mode(ic_menu_highlight_mode_t mode) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return IC_MENU_HIGHLIGHT_NONE;
+    }
 
     ic_menu_highlight_mode_t prev = env->menu_highlight_mode;
     switch (mode) {
@@ -394,15 +428,17 @@ ic_public ic_menu_highlight_mode_t ic_set_menu_highlight_mode(ic_menu_highlight_
 
 ic_public ic_menu_highlight_mode_t ic_get_menu_highlight_mode(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return IC_MENU_HIGHLIGHT_NONE;
+    }
     return env->menu_highlight_mode;
 }
 
 ic_public bool ic_enable_multiline_indent(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->no_multiline_indent;
     env->no_multiline_indent = !enable;
     return !prev;
@@ -410,8 +446,9 @@ ic_public bool ic_enable_multiline_indent(bool enable) {
 
 ic_public size_t ic_set_multiline_start_line_count(size_t line_count) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return 1;
+    }
 
     size_t prev = env->multiline_start_line_count;
     if (line_count < 1) {
@@ -429,15 +466,17 @@ ic_public size_t ic_set_multiline_start_line_count(size_t line_count) {
 
 ic_public size_t ic_get_multiline_start_line_count(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return 1;
+    }
     return env->multiline_start_line_count;
 }
 
 ic_public size_t ic_set_multiline_max_line_count(size_t line_count) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return 15;
+    }
 
     size_t prev = env->multiline_max_line_count;
     if (line_count < 1) {
@@ -455,15 +494,17 @@ ic_public size_t ic_set_multiline_max_line_count(size_t line_count) {
 
 ic_public size_t ic_get_multiline_max_line_count(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return 15;
+    }
     return env->multiline_max_line_count;
 }
 
 ic_public size_t ic_set_multiline_bottom_line_count(size_t line_count) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return 3;
+    }
 
     size_t prev = env->multiline_bottom_line_count;
     const size_t max_lines = 256;
@@ -477,15 +518,17 @@ ic_public size_t ic_set_multiline_bottom_line_count(size_t line_count) {
 
 ic_public size_t ic_get_multiline_bottom_line_count(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return 3;
+    }
     return env->multiline_bottom_line_count;
 }
 
 ic_public size_t ic_set_menu_max_line_count(size_t line_count) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return 50;
+    }
 
     const size_t prev = env->menu_max_line_count;
     if (line_count < 1) {
@@ -504,8 +547,9 @@ ic_public size_t ic_get_menu_max_line_count(void) {
 
 ic_public bool ic_enable_line_numbers(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->show_line_numbers;
     env->show_line_numbers = enable;
     if (!enable) {
@@ -516,8 +560,9 @@ ic_public bool ic_enable_line_numbers(bool enable) {
 
 ic_public bool ic_enable_relative_line_numbers(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->relative_line_numbers;
     env->relative_line_numbers = enable;
     if (enable) {
@@ -528,22 +573,25 @@ ic_public bool ic_enable_relative_line_numbers(bool enable) {
 
 ic_public bool ic_line_numbers_are_enabled(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     return env->show_line_numbers;
 }
 
 ic_public bool ic_line_numbers_are_relative(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     return env->relative_line_numbers;
 }
 
 ic_public bool ic_enable_line_numbers_with_continuation_prompt(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->allow_line_numbers_with_continuation_prompt;
     env->allow_line_numbers_with_continuation_prompt = enable;
     return prev;
@@ -551,15 +599,17 @@ ic_public bool ic_enable_line_numbers_with_continuation_prompt(bool enable) {
 
 ic_public bool ic_line_numbers_with_continuation_prompt_are_enabled(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     return env->allow_line_numbers_with_continuation_prompt;
 }
 
 ic_public bool ic_enable_line_number_prompt_replacement(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->replace_prompt_line_with_line_number;
     env->replace_prompt_line_with_line_number = enable;
     return prev;
@@ -567,15 +617,17 @@ ic_public bool ic_enable_line_number_prompt_replacement(bool enable) {
 
 ic_public bool ic_line_number_prompt_replacement_is_enabled(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     return env->replace_prompt_line_with_line_number;
 }
 
 ic_public bool ic_enable_current_line_number_highlight(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->highlight_current_line_number;
     env->highlight_current_line_number = enable;
     return prev;
@@ -583,15 +635,17 @@ ic_public bool ic_enable_current_line_number_highlight(bool enable) {
 
 ic_public bool ic_current_line_number_highlight_is_enabled(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     return env->highlight_current_line_number;
 }
 
 ic_public bool ic_enable_visible_whitespace(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->show_whitespace_characters;
     env->show_whitespace_characters = enable;
     return prev;
@@ -599,8 +653,9 @@ ic_public bool ic_enable_visible_whitespace(bool enable) {
 
 ic_public void ic_set_whitespace_marker(const char* marker) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     mem_free(env->mem, env->whitespace_marker);
     env->whitespace_marker = NULL;
     if (marker != NULL && marker[0] != '\0') {
@@ -610,15 +665,17 @@ ic_public void ic_set_whitespace_marker(const char* marker) {
 
 ic_public const char* ic_get_whitespace_marker(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return NULL;
+    }
     return ic_env_get_whitespace_marker(env);
 }
 
 ic_public bool ic_enable_hint(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->no_hint;
     env->no_hint = !enable;
     return !prev;
@@ -626,8 +683,9 @@ ic_public bool ic_enable_hint(bool enable) {
 
 ic_public bool ic_enable_spell_correct(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->spell_correct;
     env->spell_correct = enable;
     return prev;
@@ -635,8 +693,9 @@ ic_public bool ic_enable_spell_correct(bool enable) {
 
 ic_public bool ic_enable_spell_correct_on_enter(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->spell_correct_on_enter;
     env->spell_correct_on_enter = enable;
     return prev;
@@ -644,8 +703,9 @@ ic_public bool ic_enable_spell_correct_on_enter(bool enable) {
 
 ic_public long ic_set_hint_delay(long delay_ms) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return 0;
+    }
     long prev = env->hint_delay;
     if (delay_ms < 0) {
         env->hint_delay = 0;
@@ -664,8 +724,9 @@ ic_public long ic_get_hint_delay(void) {
 
 ic_public long ic_set_idle_timeout(long timeout_ms) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return 0;
+    }
     long prev = env->idle_timeout;
     env->idle_timeout = (timeout_ms < 0 ? 0 : timeout_ms);
     return prev;
@@ -673,17 +734,20 @@ ic_public long ic_set_idle_timeout(long timeout_ms) {
 
 ic_public void ic_set_tty_esc_delay(long initial_delay_ms, long followup_delay_ms) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
-    if (env->tty == NULL)
+    }
+    if (env->tty == NULL) {
         return;
+    }
     tty_set_esc_delay(env->tty, initial_delay_ms, followup_delay_ms);
 }
 
 ic_public bool ic_enable_highlight(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->no_highlight;
     env->no_highlight = !enable;
     return !prev;
@@ -691,8 +755,9 @@ ic_public bool ic_enable_highlight(bool enable) {
 
 ic_public bool ic_enable_inline_help(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->no_help;
     env->no_help = !enable;
     return !prev;
@@ -700,8 +765,9 @@ ic_public bool ic_enable_inline_help(bool enable) {
 
 ic_public ic_status_hint_mode_t ic_set_status_hint_mode(ic_status_hint_mode_t mode) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return IC_STATUS_HINT_NORMAL;
+    }
 
     ic_status_hint_mode_t prev = env->status_hint_mode;
     switch (mode) {
@@ -720,8 +786,9 @@ ic_public ic_status_hint_mode_t ic_set_status_hint_mode(ic_status_hint_mode_t mo
 
 ic_public ic_status_hint_mode_t ic_get_status_hint_mode(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return IC_STATUS_HINT_NORMAL;
+    }
     return env->status_hint_mode;
 }
 
@@ -739,8 +806,9 @@ static ic_mouse_clicking_mode_t ic_normalize_mouse_clicking_mode(ic_mouse_clicki
 
 ic_public ic_mouse_clicking_mode_t ic_set_mouse_clicking_mode(ic_mouse_clicking_mode_t mode) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return IC_MOUSE_CLICKING_DISABLED;
+    }
 
     ic_mouse_clicking_mode_t prev = env->mouse_reporting_mode;
     env->mouse_reporting_mode = ic_normalize_mouse_clicking_mode(mode);
@@ -752,15 +820,17 @@ ic_public ic_mouse_clicking_mode_t ic_set_mouse_clicking_mode(ic_mouse_clicking_
 
 ic_public ic_mouse_clicking_mode_t ic_get_mouse_clicking_mode(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return IC_MOUSE_CLICKING_DISABLED;
+    }
     return ic_normalize_mouse_clicking_mode(env->mouse_reporting_mode);
 }
 
 ic_public bool ic_enable_mouse_clicking(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->mouse_reporting_enabled_by_default;
     env->mouse_reporting_enabled_by_default = enable;
     if (enable && (env->mouse_reporting_mode == IC_MOUSE_CLICKING_DISABLED ||
@@ -772,8 +842,9 @@ ic_public bool ic_enable_mouse_clicking(bool enable) {
 
 ic_public bool ic_enable_mouse_reporting_status_line(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->mouse_reporting_status_line_enabled;
     env->mouse_reporting_status_line_enabled = enable;
     return prev;
@@ -781,8 +852,9 @@ ic_public bool ic_enable_mouse_reporting_status_line(bool enable) {
 
 ic_public bool ic_enable_inline_right_prompt_cursor_follow(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->inline_right_prompt_follows_cursor;
     env->inline_right_prompt_follows_cursor = enable;
     return prev;
@@ -790,15 +862,17 @@ ic_public bool ic_enable_inline_right_prompt_cursor_follow(bool enable) {
 
 ic_public bool ic_inline_right_prompt_follows_cursor(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     return env->inline_right_prompt_follows_cursor;
 }
 
 ic_public bool ic_enable_brace_matching(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->no_bracematch;
     env->no_bracematch = !enable;
     return !prev;
@@ -806,8 +880,9 @@ ic_public bool ic_enable_brace_matching(bool enable) {
 
 ic_public void ic_set_matching_braces(const char* brace_pairs) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     mem_free(env->mem, env->match_braces);
     env->match_braces = NULL;
     if (brace_pairs != NULL) {
@@ -820,8 +895,9 @@ ic_public void ic_set_matching_braces(const char* brace_pairs) {
 
 ic_public bool ic_enable_brace_insertion(bool enable) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     bool prev = env->no_autobrace;
     env->no_autobrace = !enable;
     return !prev;
@@ -829,8 +905,9 @@ ic_public bool ic_enable_brace_insertion(bool enable) {
 
 ic_public void ic_set_insertion_braces(const char* brace_pairs) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     mem_free(env->mem, env->auto_braces);
     env->auto_braces = NULL;
     if (brace_pairs != NULL) {
@@ -843,12 +920,14 @@ ic_public void ic_set_insertion_braces(const char* brace_pairs) {
 
 ic_public bool ic_add_abbreviation(const char* trigger, const char* expansion) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || trigger == NULL || expansion == NULL)
+    if (env == NULL || trigger == NULL || expansion == NULL) {
         return false;
+    }
 
     ssize_t trigger_len = ic_strlen(trigger);
-    if (trigger_len <= 0)
+    if (trigger_len <= 0) {
         return false;
+    }
 
     for (ssize_t i = 0; i < trigger_len; ++i) {
         if (ic_char_is_white(trigger + i, 1)) {
@@ -892,17 +971,20 @@ ic_public bool ic_add_abbreviation(const char* trigger, const char* expansion) {
 
 ic_public bool ic_remove_abbreviation(const char* trigger) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || trigger == NULL || env->abbreviation_count <= 0)
+    if (env == NULL || trigger == NULL || env->abbreviation_count <= 0) {
         return false;
+    }
 
     ssize_t trigger_len = ic_strlen(trigger);
-    if (trigger_len <= 0)
+    if (trigger_len <= 0) {
         return false;
+    }
 
     ssize_t index = -1;
     ic_abbreviation_entry_t* entry = ic_env_find_abbreviation(env, trigger, trigger_len, &index);
-    if (entry == NULL)
+    if (entry == NULL) {
         return false;
+    }
 
     mem_free(env->mem, entry->trigger);
     mem_free(env->mem, entry->expansion);
@@ -919,8 +1001,9 @@ ic_public bool ic_remove_abbreviation(const char* trigger) {
 
 ic_public void ic_clear_abbreviations(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->abbreviation_count <= 0 || env->abbreviations == NULL)
+    if (env == NULL || env->abbreviation_count <= 0 || env->abbreviations == NULL) {
         return;
+    }
 
     for (ssize_t i = 0; i < env->abbreviation_count; ++i) {
         mem_free(env->mem, env->abbreviations[i].trigger);
@@ -1049,24 +1132,27 @@ ic_public void ic_set_command_palette_entry_handler(ic_command_palette_entry_han
 
 ic_public void ic_set_default_highlighter(ic_highlight_fun_t* highlighter, void* arg) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     env->highlighter = highlighter;
     env->highlighter_arg = arg;
 }
 
 ic_public void ic_set_unhandled_key_handler(ic_unhandled_key_fun_t* callback, void* arg) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     env->unhandled_key_handler = callback;
     env->unhandled_key_arg = arg;
 }
 
 ic_public void ic_set_status_message_callback(ic_status_message_fun_t* callback, void* arg) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     env->status_message_callback = callback;
     env->status_message_arg = arg;
 }
@@ -1074,36 +1160,42 @@ ic_public void ic_set_status_message_callback(ic_status_message_fun_t* callback,
 ic_public void ic_set_check_for_continuation_or_return_callback(
     ic_check_for_continuation_or_return_fun_t* callback, void* arg) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     env->continuation_check_callback = callback;
     env->continuation_check_arg = arg;
 }
 
 ic_public void ic_free(void* p) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     mem_free(env->mem, p);
 }
 
 ic_public void* ic_malloc(size_t sz) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return NULL;
+    }
     return mem_malloc(env->mem, to_ssize_t(sz));
 }
 
 ic_public const char* ic_strdup(const char* s) {
-    if (s == NULL)
+    if (s == NULL) {
         return NULL;
+    }
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return NULL;
+    }
     ssize_t len = ic_strlen(s);
     char* p = mem_malloc_tp_n(env->mem, char, len + 1);
-    if (p == NULL)
+    if (p == NULL) {
         return NULL;
+    }
     ic_memcpy(p, s, len);
     p[len] = '\0';
     return p;

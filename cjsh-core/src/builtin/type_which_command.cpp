@@ -152,8 +152,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
                     entries, ResolutionKind::Keyword, "keyword", show_type_only,
                     [&](const std::string&) { std::cout << name << " is a shell keyword\n"; })) {
                 found = true;
-                if (!show_all)
+                if (!show_all) {
                     continue;
+                }
             }
         }
 
@@ -163,8 +164,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
                                                    std::cout << name << " is a shell builtin\n";
                                                })) {
                 found = true;
-                if (!show_all && found)
+                if (!show_all && found) {
                     continue;
+                }
             }
         }
 
@@ -175,8 +177,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
                                         std::cout << name << " is aliased to `" << value << "'\n";
                                     })) {
                     found = true;
-                    if (!show_all)
+                    if (!show_all) {
                         continue;
+                    }
                 }
             }
         }
@@ -187,8 +190,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
                     entries, ResolutionKind::Function, "function", show_type_only,
                     [&](const std::string&) { std::cout << name << " is a function\n"; })) {
                 found = true;
-                if (!show_all)
+                if (!show_all) {
                     continue;
+                }
             }
         }
 

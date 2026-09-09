@@ -32,6 +32,7 @@ UseTab: Never
 ColumnLimit: 100
 ReflowComments: true
 BreakBeforeBraces: Attach
+InsertBraces: true
 BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: BeforeColon
 BreakInheritanceList: BeforeColon

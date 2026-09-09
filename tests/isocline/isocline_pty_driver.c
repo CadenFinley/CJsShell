@@ -92,8 +92,9 @@ static void queue_test_notifications(void) {
 
 static bool notification_runoff_handler(ic_keycode_t key, void* arg) {
     (void)arg;
-    if (key != IC_KEY_F6)
+    if (key != IC_KEY_F6) {
         return false;
+    }
     queue_test_notifications();
     return true;
 }
@@ -197,20 +198,22 @@ static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* 
         };
         const char* multiline = "m02 first line\nm02 second line";
         if (g_completion_mode == COMPLETION_MODE_MANY_TALL_REPLACEMENT) {
-            multiline = "m02 first line\npreview line 02\npreview line 03\npreview line 04\n"
-                        "preview line 05\npreview line 06\npreview line 07\npreview line 08\n"
-                        "preview line 09\npreview line 10\npreview line 11\npreview line 12\n"
-                        "preview line 13\npreview line 14\npreview line 15\npreview line 16\n"
-                        "preview line 17\npreview line 18\npreview line 19\npreview line 20";
+            multiline =
+                "m02 first line\npreview line 02\npreview line 03\npreview line 04\n"
+                "preview line 05\npreview line 06\npreview line 07\npreview line 08\n"
+                "preview line 09\npreview line 10\npreview line 11\npreview line 12\n"
+                "preview line 13\npreview line 14\npreview line 15\npreview line 16\n"
+                "preview line 17\npreview line 18\npreview line 19\npreview line 20";
         }
         if (g_wrap_completion_input) {
-            multiline = "m02 first line\n"
-                        "a long preview line that wraps across the terminal before the next newline; "
-                        "a long preview line that wraps across the terminal before the next newline; "
-                        "a long preview line that wraps across the terminal before the next newline; "
-                        "a long preview line that wraps across the terminal before the next newline; "
-                        "a long preview line that wraps across the terminal before the next newline; "
-                        "a long preview line that wraps across the terminal before the next newline";
+            multiline =
+                "m02 first line\n"
+                "a long preview line that wraps across the terminal before the next newline; "
+                "a long preview line that wraps across the terminal before the next newline; "
+                "a long preview line that wraps across the terminal before the next newline; "
+                "a long preview line that wraps across the terminal before the next newline; "
+                "a long preview line that wraps across the terminal before the next newline; "
+                "a long preview line that wraps across the terminal before the next newline";
         }
         char flattened[512];
         if (g_flatten_completion_display) {
@@ -1203,8 +1206,9 @@ static int run_case(const char* scenario) {
     if (external_pre_prompt_output) {
         ic_set_prompt_eol_mark("\n%");
         char* first = ic_readline("seed", NULL, "seed\r");
-        if (first == NULL)
+        if (first == NULL) {
             return 4;
+        }
         ic_free(first);
 
         ic_mark_command_start();
@@ -1215,22 +1219,25 @@ static int run_case(const char* scenario) {
         line = ic_readline(prompt_text, NULL, NULL);
     } else if (history_interactive_triplet) {
         char* first = ic_readline(prompt_text, NULL, NULL);
-        if (first == NULL)
+        if (first == NULL) {
             return 4;
+        }
         ic_free(first);
         emit_readline_step_done();
 
         char* second = ic_readline(prompt_text, NULL, NULL);
-        if (second == NULL)
+        if (second == NULL) {
             return 4;
+        }
         ic_free(second);
         emit_readline_step_done();
 
         line = ic_readline(prompt_text, NULL, NULL);
     } else if (history_sort_cycle_nonpersistent) {
         char* first = ic_readline(prompt_text, NULL, NULL);
-        if (first == NULL)
+        if (first == NULL) {
             return 4;
+        }
         emit_readline_step_done();
 
         char* second = ic_readline(prompt_text, NULL, NULL);
@@ -1247,8 +1254,9 @@ static int run_case(const char* scenario) {
         return 0;
     } else if (typeahead_two_readlines) {
         char* first = ic_readline(prompt_text, NULL, NULL);
-        if (first == NULL)
+        if (first == NULL) {
             return 4;
+        }
         char* second = ic_readline(prompt_text, NULL, NULL);
         if (second == NULL) {
             ic_free(first);

@@ -158,8 +158,9 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
     const char* help = NULL;
     const char* display = completions_get_display(env->completions, idx, &help);
     const char* source = completions_get_source(env->completions, idx);
-    if (display == NULL)
+    if (display == NULL) {
         return;
+    }
 
     const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
     ssize_t width_remaining = width;
@@ -201,8 +202,7 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
     char* source_alloc = NULL;
     if (source != NULL) {
         ssize_t limit = IC_LARGE_MENU_SOURCE_LIMIT;
-        source_display =
-            completion_source_view(env->mem, source, limit, &source_alloc);
+        source_display = completion_source_view(env->mem, source, limit, &source_alloc);
     }
     if (source_display != NULL) {
         (void)sbuf_append(eb->extra, " ");
@@ -270,17 +270,20 @@ static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb, bool a
     sbuf_clear(eb->hint);
     sbuf_clear(eb->hint_help);
 
-    if (env->no_hint || edit_current_line_is_empty(eb))
+    if (env->no_hint || edit_current_line_is_empty(eb)) {
         return;
+    }
 
     ssize_t hint_count = completions_count(env->completions);
-    if (hint_count <= 0)
+    if (hint_count <= 0) {
         return;
+    }
 
     const char* help = NULL;
     const char* hint = completions_get_hint(env->completions, 0, &help);
-    if (hint == NULL || *hint == '\0')
+    if (hint == NULL || *hint == '\0') {
         return;
+    }
 
     if (allow_inline_hint) {
         sbuf_replace(eb->hint, hint);
@@ -291,7 +294,7 @@ static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb, bool a
 }
 
 static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, ssize_t selected,
-                                                   ssize_t reserved_rows, ssize_t* preview_len) {
+                                                  ssize_t reserved_rows, ssize_t* preview_len) {
     *preview_len = -1;
     ssize_t current_rows = edit_menu_input_rows(env, eb);
     if (env == NULL || eb == NULL || env->complete_nopreview || selected < 0 ||
@@ -378,7 +381,7 @@ static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, s
             visible_len = sbuf_prev(preview, visible_len, NULL);
         }
         while (visible_len > 0 && (sbuf_char_at(preview, visible_len - 1) == '\n' ||
-                                    sbuf_char_at(preview, visible_len - 1) == '\r')) {
+                                   sbuf_char_at(preview, visible_len - 1) == '\r')) {
             visible_len--;
         }
         *preview_len = visible_len;
@@ -1094,8 +1097,9 @@ cleanup:
 
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab) {
     debug_msg("edit: complete: %zd: %s\n", eb->pos, sbuf_string(eb->input));
-    if (eb->pos < 0)
+    if (eb->pos < 0) {
         return;
+    }
     ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos,
                                          IC_MAX_COMPLETIONS_TO_TRY);
     bool more_available = (count >= IC_MAX_COMPLETIONS_TO_TRY);

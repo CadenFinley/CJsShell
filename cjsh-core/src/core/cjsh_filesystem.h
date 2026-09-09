@@ -71,20 +71,23 @@ class Result {
     }
 
     const T& value() const {
-        if (!value_)
+        if (!value_) {
             throw std::runtime_error("Attempted to access value of error Result");
+        }
         return *value_;
     }
 
     T& value() {
-        if (!value_)
+        if (!value_) {
             throw std::runtime_error("Attempted to access value of error Result");
+        }
         return *value_;
     }
 
     const std::string& error() const {
-        if (value_)
+        if (value_) {
             throw std::runtime_error("Attempted to access error of ok Result");
+        }
         return error_;
     }
 
@@ -115,8 +118,9 @@ class Result<void> {
     }
 
     const std::string& error() const {
-        if (has_value_)
+        if (has_value_) {
             throw std::runtime_error("Attempted to access error of ok Result");
+        }
         return error_;
     }
 

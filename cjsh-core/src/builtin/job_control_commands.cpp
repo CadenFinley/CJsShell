@@ -112,8 +112,9 @@ int open_controlling_terminal(bool& should_close) {
 int suspend_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(
             args, {"Usage: suspend [-f]", "Suspend this interactive shell until continued.",
-                   "-f allows suspension of a login shell."}))
+                   "-f allows suspension of a login shell."})) {
         return 0;
+    }
     const bool force = args.size() == 2 && args[1] == "-f";
     if (args.size() > 1 && !force) {
         print_error({ErrorType::INVALID_ARGUMENT, "suspend", "Usage: suspend [-f]", {}});

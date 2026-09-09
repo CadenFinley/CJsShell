@@ -52,28 +52,37 @@ std::string format_symbolic_mode(mode_t mask) {
     std::ostringstream oss;
 
     oss << "u=";
-    if (perms & S_IRUSR)
+    if (perms & S_IRUSR) {
         oss << "r";
-    if (perms & S_IWUSR)
+    }
+    if (perms & S_IWUSR) {
         oss << "w";
-    if (perms & S_IXUSR)
+    }
+    if (perms & S_IXUSR) {
         oss << "x";
+    }
 
     oss << ",g=";
-    if (perms & S_IRGRP)
+    if (perms & S_IRGRP) {
         oss << "r";
-    if (perms & S_IWGRP)
+    }
+    if (perms & S_IWGRP) {
         oss << "w";
-    if (perms & S_IXGRP)
+    }
+    if (perms & S_IXGRP) {
         oss << "x";
+    }
 
     oss << ",o=";
-    if (perms & S_IROTH)
+    if (perms & S_IROTH) {
         oss << "r";
-    if (perms & S_IWOTH)
+    }
+    if (perms & S_IWOTH) {
         oss << "w";
-    if (perms & S_IXOTH)
+    }
+    if (perms & S_IXOTH) {
         oss << "x";
+    }
 
     return oss.str();
 }

@@ -169,10 +169,12 @@ std::string extract_completion_scope_prefix(const char* prefix) {
 
 bool prepare_prefix_state(ic_completion_env_t* cenv, const char* prefix, std::string& prefix_str,
                           size_t& prefix_len) {
-    if (ic_stop_completing(cenv))
+    if (ic_stop_completing(cenv)) {
         return false;
-    if (completion_tracker::completion_limit_hit())
+    }
+    if (completion_tracker::completion_limit_hit()) {
         return false;
+    }
 
     prefix_str = prefix ? prefix : "";
     prefix_len = prefix_str.length();
@@ -247,8 +249,9 @@ bool add_command_completion(ic_completion_env_t* cenv, const std::string& candid
                             size_t prefix_len, const char* source) {
     long delete_before = static_cast<long>(prefix_len);
     std::string completion_text = candidate;
-    if (completion_text.empty() || completion_text.back() != ' ')
+    if (completion_text.empty() || completion_text.back() != ' ') {
         completion_text.push_back(' ');
+    }
     return completion_tracker::safe_add_completion_prim_with_source(
         cenv, completion_text.c_str(), nullptr, nullptr, source, delete_before, 0);
 }
@@ -258,19 +261,21 @@ constexpr int kHistoryCompletionHiddenExitCode = 127;
 std::string build_completion_suffix(const std::filesystem::directory_entry& entry) {
     std::string completion_suffix =
         completion_utils::quote_path_if_needed(entry.path().filename().string());
-    if (entry.is_directory())
+    if (entry.is_directory()) {
         completion_suffix += "/";
-    else
+    } else {
         completion_suffix += " ";
+    }
     return completion_suffix;
 }
 
 bool add_path_completion(ic_completion_env_t* cenv, const std::filesystem::directory_entry& entry,
                          long delete_before, const std::string& completion_suffix) {
     const char* source = classify_entry_source(entry);
-    if (delete_before == 0)
+    if (delete_before == 0) {
         return completion_tracker::safe_add_completion_with_source(cenv, completion_suffix.c_str(),
                                                                    source);
+    }
     return completion_tracker::safe_add_completion_prim_with_source(
         cenv, completion_suffix.c_str(), nullptr, nullptr, source, delete_before, 0);
 }
@@ -286,8 +291,9 @@ void determine_directory_target(const std::string& path, bool treat_as_directory
     size_t last_slash = path.find_last_of('/');
     if (last_slash != std::string::npos) {
         std::string directory_part = path.substr(0, last_slash);
-        if (directory_part.empty())
+        if (directory_part.empty()) {
             directory_part = "/";
+        }
         dir_path = directory_part;
         match_prefix = path.substr(last_slash + 1);
     } else {
@@ -298,8 +304,9 @@ void determine_directory_target(const std::string& path, bool treat_as_directory
 
 bool has_shebang_line(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::in | std::ios::binary);
-    if (!file.is_open())
+    if (!file.is_open()) {
         return false;
+    }
     char prefix[2];
     (void)file.read(prefix, sizeof(prefix));
     return file.gcount() == static_cast<std::streamsize>(sizeof(prefix)) && prefix[0] == '#' &&
@@ -310,22 +317,26 @@ bool is_runnable_file_entry(const std::filesystem::directory_entry& entry) {
     namespace fs = std::filesystem;
     std::error_code ec;
 
-    if (entry.is_directory(ec) || ec)
+    if (entry.is_directory(ec) || ec) {
         return false;
+    }
 
     ec.clear();
-    if (!entry.is_regular_file(ec) || ec)
+    if (!entry.is_regular_file(ec) || ec) {
         return false;
+    }
 
     ec.clear();
     fs::file_status status = entry.status(ec);
-    if (ec)
+    if (ec) {
         return false;
+    }
 
     constexpr auto exec_mask =
         fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
-    if ((status.permissions() & exec_mask) != fs::perms::none)
+    if ((status.permissions() & exec_mask) != fs::perms::none) {
         return true;
+    }
 
     return has_shebang_line(entry.path());
 }
@@ -334,22 +345,26 @@ bool is_executable_or_script_entry(const std::filesystem::directory_entry& entry
     namespace fs = std::filesystem;
     std::error_code ec;
 
-    if (entry.is_directory(ec))
+    if (entry.is_directory(ec)) {
         return true;
-    if (ec)
+    }
+    if (ec) {
         return false;
+    }
 
     return is_runnable_file_entry(entry);
 }
 
 int completion_entry_priority(const std::filesystem::directory_entry& entry) {
     namespace fs = std::filesystem;
-    if (is_runnable_file_entry(entry))
+    if (is_runnable_file_entry(entry)) {
         return 0;
+    }
 
     std::error_code ec;
-    if (entry.is_directory(ec) && !ec)
+    if (entry.is_directory(ec) && !ec) {
         return 1;
+    }
 
     return 2;
 }
@@ -357,24 +372,29 @@ int completion_entry_priority(const std::filesystem::directory_entry& entry) {
 const char* classify_entry_source(const std::filesystem::directory_entry& entry) {
     namespace fs = std::filesystem;
     std::error_code ec;
-    if (entry.is_directory(ec))
+    if (entry.is_directory(ec)) {
         return "directory";
-    if (ec)
+    }
+    if (ec) {
         return "file";
+    }
 
     ec.clear();
-    if (!entry.is_regular_file(ec) || ec)
+    if (!entry.is_regular_file(ec) || ec) {
         return "file";
+    }
 
     ec.clear();
     fs::file_status status = entry.status(ec);
-    if (ec)
+    if (ec) {
         return "file";
+    }
 
     constexpr auto exec_mask =
         fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
-    if ((status.permissions() & exec_mask) == fs::perms::none)
+    if ((status.permissions() & exec_mask) == fs::perms::none) {
         return "file";
+    }
 
     return has_shebang_line(entry.path()) ? "executable script" : "executable binary";
 }
@@ -386,26 +406,33 @@ void process_command_candidates(
     const std::function<bool(const std::string&)>& filter = {},
     const std::function<std::string(const std::string&)>& source_provider = {}) {
     for (const auto& item : container) {
-        if (completion_tracker::completion_limit_hit())
+        if (completion_tracker::completion_limit_hit()) {
             return;
-        if (ic_stop_completing(cenv))
+        }
+        if (ic_stop_completing(cenv)) {
             return;
+        }
         std::string candidate = extractor(item);
-        if (filter && !filter(candidate))
+        if (filter && !filter(candidate)) {
             continue;
-        if (!completion_utils::matches_completion_prefix(candidate, prefix))
+        }
+        if (!completion_utils::matches_completion_prefix(candidate, prefix)) {
             continue;
+        }
         const char* source_ptr = source;
         std::string dynamic_source;
         if (source_provider) {
             dynamic_source = source_provider(candidate);
-            if (!dynamic_source.empty())
+            if (!dynamic_source.empty()) {
                 source_ptr = dynamic_source.c_str();
+            }
         }
-        if (!add_command_completion(cenv, candidate, prefix_len, source_ptr))
+        if (!add_command_completion(cenv, candidate, prefix_len, source_ptr)) {
             return;
-        if (ic_stop_completing(cenv))
+        }
+        if (ic_stop_completing(cenv)) {
             return;
+        }
     }
 }
 
@@ -425,23 +452,28 @@ bool iterate_directory_entries(
     }
 
     auto emit_completion_for_entry = [&](const fs::directory_entry& entry) -> bool {
-        if (ic_stop_completing(cenv))
+        if (ic_stop_completing(cenv)) {
             return false;
-        if (completion_tracker::completion_limit_hit())
+        }
+        if (completion_tracker::completion_limit_hit()) {
             return false;
+        }
 
         long delete_before = match_prefix.empty() ? 0 : static_cast<long>(match_prefix.length());
         std::string completion_suffix = build_completion_suffix(entry);
-        if (!add_path_completion(cenv, entry, delete_before, completion_suffix))
+        if (!add_path_completion(cenv, entry, delete_before, completion_suffix)) {
             return false;
-        if (ic_stop_completing(cenv))
+        }
+        if (ic_stop_completing(cenv)) {
             return false;
+        }
         return true;
     };
 
     std::vector<fs::directory_entry> deferred_entries;
-    if (prioritize_runnable_entries)
+    if (prioritize_runnable_entries) {
         deferred_entries.reserve(32);
+    }
 
     fs::directory_iterator end;
     for (; it != end; (void)it.increment(ec)) {
@@ -449,42 +481,51 @@ bool iterate_directory_entries(
             break;
         }
         const auto& entry = *it;
-        if (ic_stop_completing(cenv))
+        if (ic_stop_completing(cenv)) {
             return false;
-        if (completion_tracker::completion_limit_hit())
+        }
+        if (completion_tracker::completion_limit_hit()) {
             return false;
+        }
 
         if (directories_only) {
             std::error_code dir_ec;
-            if (!entry.is_directory(dir_ec) || dir_ec)
+            if (!entry.is_directory(dir_ec) || dir_ec) {
                 continue;
+            }
         }
-        if (entry_filter && !entry_filter(entry))
+        if (entry_filter && !entry_filter(entry)) {
             continue;
+        }
 
         std::string filename = entry.path().filename().string();
-        if (filename.empty())
+        if (filename.empty()) {
             continue;
-        if (skip_hidden_without_prefix && match_prefix.empty() && filename[0] == '.')
+        }
+        if (skip_hidden_without_prefix && match_prefix.empty() && filename[0] == '.') {
             continue;
+        }
         if (!match_prefix.empty() &&
-            !completion_utils::matches_completion_prefix(filename, match_prefix))
+            !completion_utils::matches_completion_prefix(filename, match_prefix)) {
             continue;
+        }
 
         if (prioritize_runnable_entries) {
             deferred_entries.push_back(entry);
             continue;
         }
 
-        if (!emit_completion_for_entry(entry))
+        if (!emit_completion_for_entry(entry)) {
             return false;
+        }
     }
 
     if (!deferred_entries.empty()) {
         auto build_sort_key = [](const fs::directory_entry& entry) {
             std::string name = entry.path().filename().string();
-            if (g_completion_case_sensitive)
+            if (g_completion_case_sensitive) {
                 return name;
+            }
             return completion_utils::normalize_for_comparison(name);
         };
 
@@ -492,8 +533,9 @@ bool iterate_directory_entries(
                   [&](const fs::directory_entry& lhs, const fs::directory_entry& rhs) {
                       int lhs_priority = completion_entry_priority(lhs);
                       int rhs_priority = completion_entry_priority(rhs);
-                      if (lhs_priority != rhs_priority)
+                      if (lhs_priority != rhs_priority) {
                           return lhs_priority < rhs_priority;
+                      }
 
                       std::string lhs_key = build_sort_key(lhs);
                       std::string rhs_key = build_sort_key(rhs);
@@ -506,8 +548,9 @@ bool iterate_directory_entries(
                   });
 
         for (const auto& entry : deferred_entries) {
-            if (!emit_completion_for_entry(entry))
+            if (!emit_completion_for_entry(entry)) {
                 return false;
+            }
         }
     }
 
@@ -945,8 +988,9 @@ bool add_variable_completions(ic_completion_env_t* cenv, const std::string& pref
 
 CompletionContext detect_completion_context(
     const completion_context::CommandLineContext& command_context) {
-    if (!command_context.cursor_in_command_position)
+    if (!command_context.cursor_in_command_position) {
         return CONTEXT_ARGUMENT;
+    }
 
     const std::string& current = command_context.current_prefix;
     if (current.find('/') == 0 || current.find("./") == 0 || current.find("../") == 0) {
@@ -966,14 +1010,17 @@ bool is_job_control_command(const std::string& token) {
 bool add_job_control_argument_completions(ic_completion_env_t* cenv,
                                           const std::vector<std::string>& tokens,
                                           bool ends_with_space) {
-    if (tokens.empty())
+    if (tokens.empty()) {
         return false;
+    }
 
-    if (!is_job_control_command(tokens.front()))
+    if (!is_job_control_command(tokens.front())) {
         return false;
+    }
 
-    if (tokens.size() == 1 && !ends_with_space)
+    if (tokens.size() == 1 && !ends_with_space) {
         return false;
+    }
 
     std::string current_prefix;
     if (!ends_with_space && tokens.size() >= 2) {
@@ -983,8 +1030,9 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
     auto& job_manager = JobManager::instance();
     job_manager.update_job_statuses();
     auto jobs = job_manager.get_all_jobs();
-    if (jobs.empty())
+    if (jobs.empty()) {
         return false;
+    }
 
     long delete_before = static_cast<long>(current_prefix.size());
     bool added = false;
@@ -1038,14 +1086,17 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
     auto add_job_completion = [&](const std::string& token,
                                   const std::shared_ptr<JobControlJob>& job,
                                   const std::string& qualifier) -> bool {
-        if (!job)
+        if (!job) {
             return true;
-        if (!matches_prefix(token))
+        }
+        if (!matches_prefix(token)) {
             return true;
+        }
 
         std::string insert_text = token;
-        if (insert_text.empty() || insert_text.back() != ' ')
+        if (insert_text.empty() || insert_text.back() != ' ') {
             insert_text.push_back(' ');
+        }
 
         std::string summary_text = build_job_summary(job);
         std::string source_label = build_source_label(job, summary_text, qualifier);
@@ -1060,25 +1111,31 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
 
     auto add_relative_completion = [&](char marker, const std::string& qualifier,
                                        int job_id) -> bool {
-        if (job_id < 0)
+        if (job_id < 0) {
             return true;
+        }
         auto it = job_lookup.find(job_id);
-        if (it == job_lookup.end())
+        if (it == job_lookup.end()) {
             return true;
+        }
         std::string token(1, marker);
         return add_job_completion(token, it->second, qualifier);
     };
 
-    if (!add_relative_completion('+', "current job", job_manager.get_current_job()))
+    if (!add_relative_completion('+', "current job", job_manager.get_current_job())) {
         return added;
-    if (!add_relative_completion('-', "previous job", job_manager.get_previous_job()))
+    }
+    if (!add_relative_completion('-', "previous job", job_manager.get_previous_job())) {
         return added;
+    }
 
     for (const auto& job : jobs) {
-        if (completion_tracker::completion_limit_hit())
+        if (completion_tracker::completion_limit_hit()) {
             break;
-        if (ic_stop_completing(cenv))
+        }
+        if (ic_stop_completing(cenv)) {
             break;
+        }
 
         std::string completion_text = "%" + std::to_string(job->job_id);
 
@@ -1087,11 +1144,13 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
             continue;
         }
 
-        if (!add_job_completion(completion_text, job, ""))
+        if (!add_job_completion(completion_text, job, "")) {
             return added;
+        }
 
-        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
+        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
             break;
+        }
     }
 
     return added;
@@ -1291,8 +1350,9 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
 
 void add_command_token_completions(ic_completion_env_t* cenv, const std::string& decoded_prefix,
                                    std::size_t raw_prefix_length) {
-    if (ic_stop_completing(cenv) || completion_tracker::completion_limit_hit())
+    if (ic_stop_completing(cenv) || completion_tracker::completion_limit_hit()) {
         return;
+    }
 
     auto sources = collect_command_completion_sources(true);
     add_command_name_completions(cenv, sources, decoded_prefix, raw_prefix_length);
@@ -1303,15 +1363,17 @@ void add_command_token_completions(ic_completion_env_t* cenv, const std::string&
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::string prefix_str;
     size_t prefix_len = 0;
-    if (!prepare_prefix_state(cenv, prefix, prefix_str, prefix_len))
+    if (!prepare_prefix_state(cenv, prefix, prefix_str, prefix_len)) {
         return;
+    }
 
     add_command_token_completions(cenv, prefix_str, prefix_len);
 }
 
 bool looks_like_file_path(const std::string& str) {
-    if (str.empty())
+    if (str.empty()) {
         return false;
+    }
 
     if (str[0] == '/' || str.rfind("./", 0) == 0 || str.rfind("../", 0) == 0 ||
         str.rfind("~/", 0) == 0 || str.find('/') != std::string::npos) {
@@ -1363,8 +1425,9 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
                                         HistoryCompletionBatch& batch, bool rank_by_usage = false) {
     std::string prefix_str;
     size_t prefix_len = 0;
-    if (!prepare_prefix_state(cenv, prefix, prefix_str, prefix_len))
+    if (!prepare_prefix_state(cenv, prefix, prefix_str, prefix_len)) {
         return false;
+    }
 
     std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path());
     if (!history_file.is_open()) {
@@ -1386,8 +1449,9 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
     long long last_frequency = 1;
 
     while (std::getline(history_file, line) && (rank_by_usage || batch.matches.size() < 50)) {
-        if (line.empty())
+        if (line.empty()) {
             continue;
+        }
 
         if (!line.empty() && line[0] == '#') {
             last_exit_code = 0;
@@ -1396,8 +1460,9 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
             last_frequency = 1;
 
             const char* cursor = line.c_str() + 1;
-            while (*cursor == ' ' || *cursor == '\t')
+            while (*cursor == ' ' || *cursor == '\t') {
                 ++cursor;
+            }
 
             if (*cursor != '\0') {
                 std::string header(cursor);
@@ -1478,8 +1543,9 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
         std::reverse(batch.matches.begin(), batch.matches.end());
         std::stable_sort(batch.matches.begin(), batch.matches.end(),
                          [](const HistoryMatch& lhs, const HistoryMatch& rhs) {
-                             if (lhs.timestamp != rhs.timestamp)
+                             if (lhs.timestamp != rhs.timestamp) {
                                  return lhs.timestamp > rhs.timestamp;
+                             }
                              return lhs.frequency > rhs.frequency;
                          });
         // Deduplicate before applying the suggestion cap so repeats cannot crowd out other
@@ -1516,12 +1582,15 @@ void add_history_completion_matches(ic_completion_env_t* cenv, const HistoryComp
     size_t considered = 0;
 
     for (const auto& match : batch.matches) {
-        if (considered++ >= max_suggestions)
+        if (considered++ >= max_suggestions) {
             return;
-        if (!history_match_is_in_group(match, group))
+        }
+        if (!history_match_is_in_group(match, group)) {
             continue;
-        if (completion_tracker::completion_limit_hit())
+        }
+        if (completion_tracker::completion_limit_hit()) {
             return;
+        }
 
         const std::string& completion = match.command;
         long delete_before = static_cast<long>(batch.prefix_len);
@@ -1530,10 +1599,13 @@ void add_history_completion_matches(ic_completion_env_t* cenv, const HistoryComp
         std::string source_label =
             display_exit_code ? "history: " + std::to_string(match.exit_code) : "history";
         if (!completion_tracker::safe_add_completion_prim_with_source(
-                cenv, completion.c_str(), nullptr, nullptr, source_label.c_str(), delete_before, 0))
+                cenv, completion.c_str(), nullptr, nullptr, source_label.c_str(), delete_before,
+                0)) {
             return;
-        if (ic_stop_completing(cenv))
+        }
+        if (ic_stop_completing(cenv)) {
             return;
+        }
     }
 }
 
@@ -1653,8 +1725,9 @@ void remove_history_matches_duplicated_by_files(HistoryCompletionBatch& batch,
 }  // namespace
 
 void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
-    if (ic_stop_completing(cenv))
+    if (ic_stop_completing(cenv)) {
         return;
+    }
 
     if (completion_tracker::completion_limit_hit()) {
         return;
@@ -1680,8 +1753,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
                 if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, false,
-                                               debug_label))
+                                               debug_label)) {
                     return false;
+                }
             }
         } catch (const std::exception&) {
             // Best-effort completion: ignore filesystem errors.
@@ -1763,14 +1837,17 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
                 bool had_completions_before = ic_has_completions(cenv);
                 if (!iterate_directory_entries(cenv, dir_path, "", directories_only, false,
-                                               "all files", entry_filter, restrict_to_executables))
+                                               "all files", entry_filter,
+                                               restrict_to_executables)) {
                     return;
+                }
 
                 if (directories_only && !ic_has_completions(cenv) && !had_completions_before) {
                     if (!iterate_directory_entries(cenv, dir_path, "", false, false,
                                                    "all files (fallback)", entry_filter,
-                                                   restrict_to_executables))
+                                                   restrict_to_executables)) {
                         return;
+                    }
                 }
             }
         } catch (const std::exception& e) {
@@ -1793,20 +1870,23 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 bool had_completions_before = ic_has_completions(cenv);
                 if (!iterate_directory_entries(cenv, dir_path, match_prefix, true, true,
                                                "directory-only", entry_filter,
-                                               restrict_to_executables))
+                                               restrict_to_executables)) {
                     return;
+                }
 
                 if (!ic_has_completions(cenv) && !had_completions_before && match_prefix.empty()) {
                     if (!iterate_directory_entries(cenv, dir_path, "", false, true,
                                                    "all files (fallback)", entry_filter,
-                                                   restrict_to_executables))
+                                                   restrict_to_executables)) {
                         return;
+                    }
                 }
             } else {
                 if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, true,
                                                "general filename", entry_filter,
-                                               restrict_to_executables))
+                                               restrict_to_executables)) {
                     return;
+                }
             }
         }
     } catch (const std::exception&) {
@@ -1815,24 +1895,27 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 }
 
 void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
-    if (ic_stop_completing(cenv))
+    if (ic_stop_completing(cenv)) {
         return;
+    }
 
     long raw_cursor = 0;
     const char* raw_input = ic_completion_input(cenv, &raw_cursor);
     if (raw_input != nullptr && raw_cursor >= 0) {
         auto raw_context =
             completion_context::parse(raw_input, static_cast<std::size_t>(raw_cursor));
-        if (raw_context.cursor_in_assignment_lhs || raw_context.cursor_before_existing_word)
+        if (raw_context.cursor_in_assignment_lhs || raw_context.cursor_before_existing_word) {
             return;
+        }
     }
 
     const char* effective_prefix = (prefix != nullptr) ? prefix : "";
     std::string completion_scope_prefix = extract_completion_scope_prefix(effective_prefix);
     completion_context::CommandLineContext command_context =
         completion_context::parse(completion_scope_prefix);
-    if (cursor_is_inside_known_command(raw_input, raw_cursor, command_context))
+    if (cursor_is_inside_known_command(raw_input, raw_cursor, command_context)) {
         return;
+    }
     std::string active_prefix = command_context.segment_prefix;
     const char* current_line_prefix = active_prefix.c_str();
 
@@ -1939,8 +2022,9 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::string prefix_str(current_line_prefix);
             std::vector<std::string> tokens;
             tokens.reserve(command_context.words.size());
-            for (const auto& word : command_context.words)
+            for (const auto& word : command_context.words) {
                 tokens.push_back(word.text);
+            }
 
             (void)add_variable_completions(cenv, prefix_str);
             if (ic_stop_completing(cenv)) {

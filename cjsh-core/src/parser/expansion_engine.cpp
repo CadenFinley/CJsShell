@@ -334,13 +334,16 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
             stride_pos == std::string::npos ? std::string{} : range_tail.substr(stride_pos + 2);
 
         auto is_numeric = [](const std::string& str) {
-            if (str.empty())
+            if (str.empty()) {
                 return false;
+            }
             size_t start = 0;
-            if (str[0] == '-' || str[0] == '+')
+            if (str[0] == '-' || str[0] == '+') {
                 start = 1;
-            if (start >= str.length())
+            }
+            if (start >= str.length()) {
                 return false;
+            }
             auto start_it = str.begin();
             std::advance(start_it, static_cast<std::string::difference_type>(start));
             return std::all_of(start_it, str.end(), [](char c) { return std::isdigit(c); });

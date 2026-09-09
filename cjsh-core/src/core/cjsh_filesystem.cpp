@@ -1152,22 +1152,25 @@ bool prepare_persistence_directory(const std::filesystem::path& path) {
 
 bool initialize_cjsh_directories() {
     static bool initialized = false;
-    if (initialized)
+    if (initialized) {
         return true;
+    }
     initialized = true;
 
     // Never create a missing HOME as a side effect of starting a shell.
     const bool home_exists = path_is_directory(g_user_home_path());
     const bool cache_ok = home_exists && prepare_persistence_directory(g_cjsh_cache_path());
     config::cache_persistence_enabled = cache_ok;
-    if (!cache_ok)
+    if (!cache_ok) {
         warn_persistence_unavailable(g_cjsh_cache_path());
+    }
 
     if (config::completion_learning_enabled &&
         (!cache_ok || !prepare_persistence_directory(g_cjsh_generated_completions_path()))) {
         config::completion_learning_enabled = false;
-        if (cache_ok)
+        if (cache_ok) {
             warn_persistence_unavailable(g_cjsh_generated_completions_path());
+        }
     }
     return true;
 }
@@ -1196,8 +1199,9 @@ void initialize_history_storage() {
     config::history_persistence_enabled =
         fd >= 0 && fstat(fd, &history_stat) == 0 && S_ISREG(history_stat.st_mode);
     close_fd_if_valid(fd);
-    if (!config::history_persistence_enabled && (custom || cache_ok))
+    if (!config::history_persistence_enabled && (custom || cache_ok)) {
         warn_persistence_unavailable(path);
+    }
 }
 
 std::string find_executable_in_path(const std::string& name) {
@@ -1425,8 +1429,9 @@ void process_profile_files() {
 
     if (config::posix_mode) {
         (void)execute_startup_file_if_present("/etc/profile", true);
-        if (!cjsh_env::exit_requested())
+        if (!cjsh_env::exit_requested()) {
             (void)execute_startup_file_if_present(g_user_home_path() / ".profile", true);
+        }
         return;
     }
     (void)process_startup_file_with_fallback(g_cjsh_profile_path(), g_cjsh_profile_alt_path(),
@@ -1453,16 +1458,19 @@ void process_env_files() {
 
 void process_posix_env_file() {
     if (!config::posix_mode || !config::interactive_mode || startup_files_disabled() ||
-        getuid() != geteuid() || getgid() != getegid())
+        getuid() != geteuid() || getgid() != getegid()) {
         return;
+    }
     std::string path = cjsh_env::get_shell_variable_value("ENV");
-    if (path.empty())
+    if (path.empty()) {
         return;
+    }
     // Expand parameters (and arithmetic), without splitting, globbing, tilde
     // expansion, PATH search, or evaluating ENV as a command string.
     g_shell->get_parser()->expand_env_vars(path);
-    if (!path.empty() && !cjsh_env::exit_requested())
+    if (!path.empty() && !cjsh_env::exit_requested()) {
         (void)execute_startup_file_if_present(path, true);
+    }
 }
 
 void process_logout_file() {

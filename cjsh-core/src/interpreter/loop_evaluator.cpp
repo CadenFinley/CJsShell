@@ -289,11 +289,13 @@ bool collect_loop_body_lines(const std::vector<std::string>& src_lines, size_t s
             ++depth;
         } else if (matches_keyword_only(cur, "done")) {
             --depth;
-            if (depth == 0)
+            if (depth == 0) {
                 break;
+            }
         }
-        if (depth > 0)
+        if (depth > 0) {
             body_lines.push_back(cur_raw);
+        }
         ++k;
     }
 
@@ -676,8 +678,9 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                       Parser* shell_parser, const std::function<bool()>& should_abort_execution) {
     // shared while/until evaluator used by interpreter loop dispatch
     std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (first != keyword && first.rfind(keyword + " ", 0) != 0)
+    if (first != keyword && first.rfind(keyword + " ", 0) != 0) {
         return 1;
+    }
 
     auto abort_pending = [&]() {
         return cjsh_env::exit_requested() || (should_abort_execution && should_abort_execution());
@@ -693,8 +696,9 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
         if (tmp == keyword) {
             return true;
         }
-        if (tmp.rfind(keyword + " ", 0) == 0)
+        if (tmp.rfind(keyword + " ", 0) == 0) {
             tmp = tmp.substr(keyword.length() + 1);
+        }
         size_t do_pos = tmp.find("; do");
         if (do_pos != std::string::npos) {
             cond = trim(tmp.substr(0, do_pos));
@@ -739,8 +743,9 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                 break;
             }
             if (!cur.empty()) {
-                if (!cond.empty())
+                if (!cond.empty()) {
                     cond += " ";
+                }
                 cond += cur;
             }
         }
@@ -756,8 +761,9 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
     if (!body_inline.empty()) {
         std::string bi = body_inline;
         size_t done_pos = bi.rfind("; done");
-        if (done_pos != std::string::npos)
+        if (done_pos != std::string::npos) {
             bi = trim(bi.substr(0, done_pos));
+        }
         body_lines = shell_parser->parse_into_lines(bi);
         idx = j;
     } else {
@@ -793,19 +799,23 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             }
 
             bool continue_loop = is_until ? (c != 0) : (c == 0);
-            if (!continue_loop)
+            if (!continue_loop) {
                 break;
+            }
 
             // execute the collected loop body in interpreter context
             rc = execute_block(body_lines);
             auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
             rc = outcome.code;
-            if (abort_pending())
+            if (abort_pending()) {
                 break;
-            if (outcome.flow == LoopFlow::BREAK)
+            }
+            if (outcome.flow == LoopFlow::BREAK) {
                 break;
-            if (outcome.flow == LoopFlow::CONTINUE)
+            }
+            if (outcome.flow == LoopFlow::CONTINUE) {
                 continue;
+            }
         }
         return rc;
     };
@@ -861,8 +871,9 @@ LoopCommandOutcome handle_loop_command_result(int rc, int break_consumed_rc, int
     if (rc == 254) {
         int adjusted =
             adjust_loop_signal("CJSH_CONTINUE_LEVEL", continue_consumed_rc, continue_propagate_rc);
-        if (adjusted == continue_consumed_rc)
+        if (adjusted == continue_consumed_rc) {
             return {LoopFlow::CONTINUE, adjusted};
+        }
         return {LoopFlow::BREAK, adjusted};
     }
 #ifdef SIGINT
@@ -881,10 +892,12 @@ LoopCommandOutcome handle_loop_command_result(int rc, int break_consumed_rc, int
     }
 #endif
     if (rc != 0) {
-        if (g_shell && g_shell->should_abort_on_nonzero_exit())
+        if (g_shell && g_shell->should_abort_on_nonzero_exit()) {
             return {LoopFlow::BREAK, rc};
-        if (!allow_error_continue)
+        }
+        if (!allow_error_continue) {
             return {LoopFlow::BREAK, rc};
+        }
     }
     return {LoopFlow::NONE, rc};
 }
@@ -897,8 +910,9 @@ int handle_for_block(
     const std::function<bool()>& should_abort_execution) {
     // main for evaluator called after interpreter classifies a block as for
     std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (!parser_starts_with_keyword_token(first, "for") && first.rfind("for;", 0) != 0)
+    if (!parser_starts_with_keyword_token(first, "for") && first.rfind("for;", 0) != 0) {
         return 1;
+    }
 
     std::string var;
     std::vector<std::string> items;
@@ -1068,8 +1082,9 @@ int handle_for_block(
 
     ParsedLoopBlock parsed_loop;
     if (parse_inline_loop_block(first, shell_parser, parsed_loop)) {
-        if (!parse_header(parsed_loop.header))
+        if (!parse_header(parsed_loop.header)) {
             return 2;
+        }
 
         auto run_cached_body = [&]() -> LoopCommandOutcome {
             // execute one iteration body then translate result into loop flow semantics
@@ -1133,8 +1148,9 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
                         const std::function<int(const std::string&)>& execute_simple_or_pipeline,
                         Parser* shell_parser, const std::function<bool()>& should_abort_execution) {
     std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (!parser_starts_with_keyword_token(first, "select") && first.rfind("select;", 0) != 0)
+    if (!parser_starts_with_keyword_token(first, "select") && first.rfind("select;", 0) != 0) {
         return 1;
+    }
 
     std::string var;
     std::vector<std::string> items;
@@ -1233,10 +1249,12 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
 
             auto outcome = handle_loop_command_result(body_rc, 0, 255, 0, 254, true);
             rc = outcome.code;
-            if (outcome.flow == LoopFlow::BREAK)
+            if (outcome.flow == LoopFlow::BREAK) {
                 break;
-            if (outcome.flow == LoopFlow::CONTINUE)
+            }
+            if (outcome.flow == LoopFlow::CONTINUE) {
                 continue;
+            }
         }
 
         return finalize_with_trailing_commands(rc, trailing_commands);
@@ -1244,8 +1262,9 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
 
     ParsedLoopBlock parsed_loop;
     if (parse_inline_loop_block(first, shell_parser, parsed_loop)) {
-        if (!parse_header(parsed_loop.header))
+        if (!parse_header(parsed_loop.header)) {
             return 2;
+        }
 
         return execute_select_iterations(parsed_loop.body_lines, parsed_loop.trailing_commands);
     }
@@ -1281,16 +1300,19 @@ std::optional<int> try_execute_inline_do_block(
     size_t& segment_index,
     const std::function<int(const std::vector<std::string>&, size_t&)>& handler) {
     // reconstruct split loop fragments into one executable inline block for a single handler call
-    if (first_segment.find("; do") != std::string::npos)
+    if (first_segment.find("; do") != std::string::npos) {
         return std::nullopt;
+    }
 
     size_t lookahead = segment_index + 1;
-    if (lookahead >= segments.size())
+    if (lookahead >= segments.size()) {
         return std::optional<int>{report_inline_loop_syntax_error(first_segment, "do")};
+    }
 
     std::string next_segment = trim(strip_inline_comment(segments[lookahead]));
-    if (next_segment != "do" && next_segment.rfind("do ", 0) != 0)
+    if (next_segment != "do" && next_segment.rfind("do ", 0) != 0) {
         return std::optional<int>{report_inline_loop_syntax_error(first_segment, "do")};
+    }
 
     std::string body = next_segment.size() > 3 && next_segment.rfind("do ", 0) == 0
                            ? trim(next_segment.substr(3))
@@ -1306,17 +1328,20 @@ std::optional<int> try_execute_inline_do_block(
             done_suffix = trim(seg.substr(4));
             break;
         }
-        if (!body.empty())
+        if (!body.empty()) {
             body += "; ";
+        }
         body += seg;
     }
 
-    if (!found_done)
+    if (!found_done) {
         return std::optional<int>{report_inline_loop_syntax_error(first_segment, "done")};
+    }
 
     std::string combined = first_segment + "; do";
-    if (!body.empty())
+    if (!body.empty()) {
         combined += " " + body;
+    }
     combined += "; done";
     if (!done_suffix.empty()) {
         combined += " " + done_suffix;

@@ -196,8 +196,9 @@ void VariableExpander::expand_env_vars(std::string& arg) {
                 } else if (arg[end] == '}') {
                     brace_depth--;
                 }
-                if (brace_depth > 0)
+                if (brace_depth > 0) {
                     end++;
+                }
             }
 
             if (brace_depth == 0 && end < arg.length()) {
@@ -351,8 +352,9 @@ void VariableExpander::expand_exported_env_vars_only(std::string& arg) {
                     } else if (arg[brace_end] == '}') {
                         brace_depth--;
                     }
-                    if (brace_depth > 0)
+                    if (brace_depth > 0) {
                         brace_end++;
+                    }
                 }
 
                 if (brace_depth == 0) {

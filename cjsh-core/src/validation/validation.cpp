@@ -324,8 +324,9 @@ bool has_inline_terminator(const std::string& text, const std::string& terminato
 bool handle_inline_loop_header(
     const std::string& line, ControlToken keyword, size_t display_line,
     std::vector<std::tuple<ControlToken, ControlToken, size_t>>& control_stack) {
-    if (!starts_with_keyword_token(line, control_token_name(keyword)))
+    if (!starts_with_keyword_token(line, control_token_name(keyword))) {
         return false;
+    }
 
     size_t search_pos = 0;
     while ((search_pos = line.find(';', search_pos)) != std::string::npos) {

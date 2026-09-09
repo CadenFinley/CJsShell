@@ -355,8 +355,9 @@ std::vector<std::string> Built_ins::get_builtin_commands() const {
 }
 
 int Built_ins::builtin_command(const std::vector<std::string>& args) {
-    if (args.empty())
+    if (args.empty()) {
         return 1;
+    }
 
     auto it = builtins.find(args[0]);
     if (it != builtins.end()) {

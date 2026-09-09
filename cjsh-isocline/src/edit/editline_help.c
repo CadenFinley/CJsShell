@@ -184,8 +184,9 @@ static bool key_triggers_action(ic_env_t* env, ic_keycode_t key, ic_key_action_t
 }
 
 static void beautify_key_label(char* label) {
-    if (label == NULL)
+    if (label == NULL) {
         return;
+    }
     size_t len = strlen(label);
     if (len >= 6 && ic_strnicmp(label, "ctrl+", 5) == 0 && strchr(label + 5, '+') == NULL &&
         strlen(label + 5) == 1) {
@@ -195,23 +196,26 @@ static void beautify_key_label(char* label) {
         return;
     }
     for (size_t i = 0; i < len; ++i) {
-        if (label[i] == '+')
+        if (label[i] == '+') {
             label[i] = '-';
+        }
     }
 }
 
 static bool format_first_default_binding(ic_env_t* env, ic_key_action_t action,
                                          const char* default_specs, char* buffer, size_t buflen) {
-    if (buffer == NULL || buflen == 0)
+    if (buffer == NULL || buflen == 0) {
         return false;
+    }
 
     const char* specs_to_use = default_specs;
     if ((specs_to_use == NULL || specs_to_use[0] == '\0') && action > IC_KEY_ACTION_NONE &&
         action < IC_KEY_ACTION__MAX) {
         specs_to_use = ic_key_binding_profile_default_specs(action);
     }
-    if (specs_to_use == NULL || specs_to_use[0] == '\0')
+    if (specs_to_use == NULL || specs_to_use[0] == '\0') {
         return false;
+    }
 
     size_t len = strlen(specs_to_use);
     size_t start = 0;
@@ -223,11 +227,13 @@ static bool format_first_default_binding(ic_env_t* env, ic_key_action_t action,
                 memcpy(token, specs_to_use + start, tok_len);
                 token[tok_len] = '\0';
                 size_t left = 0;
-                while (token[left] == ' ')
+                while (token[left] == ' ') {
                     left++;
+                }
                 size_t right = strlen(token);
-                while (right > left && token[right - 1] == ' ')
+                while (right > left && token[right - 1] == ' ') {
                     right--;
+                }
                 token[right] = '\0';
                 if (right > left) {
                     const char* trimmed = token + left;
@@ -247,14 +253,17 @@ static bool format_first_default_binding(ic_env_t* env, ic_key_action_t action,
 
 static bool format_first_custom_binding(ic_env_t* env, ic_key_action_t action, char* buffer,
                                         size_t buflen) {
-    if (env == NULL || buffer == NULL || buflen == 0)
+    if (env == NULL || buffer == NULL || buflen == 0) {
         return false;
-    if (env->key_binding_count <= 0 || env->key_bindings == NULL)
+    }
+    if (env->key_binding_count <= 0 || env->key_bindings == NULL) {
         return false;
+    }
     for (ssize_t i = 0; i < env->key_binding_count; ++i) {
         ic_key_binding_entry_t entry = env->key_bindings[i];
-        if (entry.action != action)
+        if (entry.action != action) {
             continue;
+        }
         if (ic_format_key_spec(entry.key, buffer, buflen)) {
             beautify_key_label(buffer);
             return true;
@@ -272,19 +281,23 @@ static bool key_label_equals(const char* a, const char* b) {
 
 static bool help_label_exists(char labels[][HELP_LABEL_LEN], size_t count, const char* label) {
     for (size_t i = 0; i < count; ++i) {
-        if (key_label_equals(labels[i], label))
+        if (key_label_equals(labels[i], label)) {
             return true;
+        }
     }
     return false;
 }
 
 static void help_label_add(char labels[][HELP_LABEL_LEN], size_t* count, const char* label) {
-    if (label == NULL || labels == NULL || count == NULL)
+    if (label == NULL || labels == NULL || count == NULL) {
         return;
-    if (*count >= HELP_MAX_LABELS)
+    }
+    if (*count >= HELP_MAX_LABELS) {
         return;
-    if (help_label_exists(labels, *count, label))
+    }
+    if (help_label_exists(labels, *count, label)) {
         return;
+    }
     (void)ic_strncpy(labels[*count], HELP_LABEL_LEN, label, HELP_LABEL_LEN - 1);
     beautify_key_label(labels[*count]);
     (*count)++;
@@ -292,14 +305,17 @@ static void help_label_add(char labels[][HELP_LABEL_LEN], size_t* count, const c
 
 static void format_binding_keys(ic_env_t* env, ic_key_action_t action, const char* default_specs,
                                 char* buffer, size_t buflen, bool status_hint_mode) {
-    if (buffer == NULL || buflen == 0)
+    if (buffer == NULL || buflen == 0) {
         return;
+    }
 
     if (status_hint_mode) {
-        if (format_first_custom_binding(env, action, buffer, buflen))
+        if (format_first_custom_binding(env, action, buffer, buflen)) {
             return;
-        if (format_first_default_binding(env, action, default_specs, buffer, buflen))
+        }
+        if (format_first_default_binding(env, action, default_specs, buffer, buflen)) {
             return;
+        }
         (void)ic_strncpy(buffer, (ssize_t)buflen, "(unbound)", (ssize_t)buflen - 1);
         return;
     }
@@ -325,11 +341,13 @@ static void format_binding_keys(ic_env_t* env, ic_key_action_t action, const cha
                     token[tok_len] = '\0';
                     // trim spaces
                     size_t left = 0;
-                    while (token[left] == ' ')
+                    while (token[left] == ' ') {
                         left++;
+                    }
                     size_t right = strlen(token);
-                    while (right > left && token[right - 1] == ' ')
+                    while (right > left && token[right - 1] == ' ') {
                         right--;
+                    }
                     token[right] = '\0';
                     if (right > left) {
                         const char* trimmed = token + left;
@@ -351,8 +369,9 @@ static void format_binding_keys(ic_env_t* env, ic_key_action_t action, const cha
     if (env != NULL && env->key_binding_count > 0 && env->key_bindings != NULL) {
         for (ssize_t i = 0; i < env->key_binding_count; ++i) {
             ic_key_binding_entry_t entry = env->key_bindings[i];
-            if (entry.action != action)
+            if (entry.action != action) {
                 continue;
+            }
             char formatted[64];
             if (ic_format_key_spec(entry.key, formatted, sizeof(formatted))) {
                 help_label_add(labels, &label_count, formatted);
@@ -369,11 +388,13 @@ static void format_binding_keys(ic_env_t* env, ic_key_action_t action, const cha
     size_t pos = 0;
     for (size_t i = 0; i < label_count; ++i) {
         int written = snprintf(buffer + pos, buflen - pos, "%s%s", (i == 0 ? "" : ", "), labels[i]);
-        if (written < 0)
+        if (written < 0) {
             break;
+        }
         pos += (size_t)written;
-        if (pos >= buflen)
+        if (pos >= buflen) {
             break;
+        }
     }
 }
 

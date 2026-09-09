@@ -58,8 +58,9 @@ bool handle_quote_char(char c, bool& in_quotes, char& quote_char, std::string* o
         if (c == '"' || c == '\'' || c == '`') {
             in_quotes = true;
             quote_char = c;
-            if (output)
+            if (output) {
                 output->push_back(c);
+            }
             return true;
         }
         return false;
@@ -69,8 +70,9 @@ bool handle_quote_char(char c, bool& in_quotes, char& quote_char, std::string* o
         in_quotes = false;
         quote_char = '\0';
     }
-    if (output)
+    if (output) {
         output->push_back(c);
+    }
     return true;
 }
 
@@ -125,8 +127,9 @@ std::vector<std::string> split_top_level_semicolons(const std::string& text) {
 
     auto flush_segment = [&]() {
         std::string trimmed = trim(current);
-        if (!trimmed.empty())
+        if (!trimmed.empty()) {
             segments.push_back(trimmed);
+        }
         current.clear();
     };
 
@@ -140,18 +143,21 @@ std::vector<std::string> split_top_level_semicolons(const std::string& text) {
         if (c == '(') {
             paren_depth++;
         } else if (c == ')') {
-            if (paren_depth > 0)
+            if (paren_depth > 0) {
                 paren_depth--;
+            }
         } else if (c == '{') {
             brace_depth++;
         } else if (c == '}') {
-            if (brace_depth > 0)
+            if (brace_depth > 0) {
                 brace_depth--;
+            }
         } else if (c == '[') {
             bracket_depth++;
         } else if (c == ']') {
-            if (bracket_depth > 0)
+            if (bracket_depth > 0) {
                 bracket_depth--;
+            }
         } else if (c == ';' && paren_depth == 0 && brace_depth == 0 && bracket_depth == 0) {
             flush_segment();
             continue;
@@ -160,38 +166,43 @@ std::vector<std::string> split_top_level_semicolons(const std::string& text) {
         current.push_back(c);
     }
 
-    if (!current.empty())
+    if (!current.empty()) {
         flush_segment();
+    }
 
     return segments;
 }
 
 void expand_segment(const std::string& segment, std::vector<std::string>& out) {
     std::string cleaned = trim(strip_inline_comment(segment));
-    if (cleaned.empty())
+    if (cleaned.empty()) {
         return;
+    }
 
     if (parser_starts_with_keyword_token(cleaned, "fi")) {
         out.push_back("fi");
         std::string remainder = trim(cleaned.substr(2));
-        if (!remainder.empty())
+        if (!remainder.empty()) {
             expand_segment(remainder, out);
+        }
         return;
     }
 
     if (parser_starts_with_keyword_token(cleaned, "then")) {
         out.push_back("then");
         std::string remainder = trim(cleaned.substr(4));
-        if (!remainder.empty())
+        if (!remainder.empty()) {
             expand_segment(remainder, out);
+        }
         return;
     }
 
     if (parser_starts_with_keyword_token(cleaned, "else")) {
         out.push_back("else");
         std::string remainder = trim(cleaned.substr(4));
-        if (!remainder.empty())
+        if (!remainder.empty()) {
             expand_segment(remainder, out);
+        }
         return;
     }
 
@@ -242,18 +253,22 @@ struct ExpandedSingleLineIf {
 
 std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& line) {
     std::string cleaned = trim(strip_inline_comment(line));
-    if (cleaned.empty())
+    if (cleaned.empty()) {
         return std::nullopt;
+    }
 
-    if (!is_if_token(cleaned))
+    if (!is_if_token(cleaned)) {
         return std::nullopt;
+    }
 
-    if (cleaned.find("then") == std::string::npos)
+    if (cleaned.find("then") == std::string::npos) {
         return std::nullopt;
+    }
 
     auto segments = split_top_level_semicolons(cleaned);
-    if (segments.empty())
+    if (segments.empty()) {
         return std::nullopt;
+    }
 
     std::vector<std::string> tokens;
     tokens.reserve(segments.size() * 2);
@@ -261,8 +276,9 @@ std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& lin
         expand_segment(seg, tokens);
     }
 
-    if (tokens.empty())
+    if (tokens.empty()) {
         return std::nullopt;
+    }
 
     std::vector<std::string> block_lines;
     std::vector<std::string> trailing_tokens;
@@ -273,8 +289,9 @@ std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& lin
         const std::string& tok = tokens[i];
 
         if (!started) {
-            if (!is_if_token(tok))
+            if (!is_if_token(tok)) {
                 return std::nullopt;
+            }
             started = true;
         }
 
@@ -284,8 +301,9 @@ std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& lin
             depth++;
         } else if (tok == "fi") {
             depth--;
-            if (depth < 0)
+            if (depth < 0) {
                 return std::nullopt;
+            }
         }
 
         if (depth == 0) {
@@ -297,8 +315,9 @@ std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& lin
         }
     }
 
-    if (!started || depth != 0)
+    if (!started || depth != 0) {
         return std::nullopt;
+    }
 
     std::string trailing;
     for (const auto& t : trailing_tokens) {
@@ -344,18 +363,22 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
 
         bool has_trailing_commands = false;
         size_t fi_pos = line.find(" fi");
-        if (fi_pos == std::string::npos)
+        if (fi_pos == std::string::npos) {
             fi_pos = line.find(";fi");
+        }
         if (fi_pos != std::string::npos) {
             size_t after_fi = (line[fi_pos] == ' ') ? fi_pos + 3 : fi_pos + 3;
             while (after_fi < line.length() &&
-                   std::isspace(static_cast<unsigned char>(line[after_fi])))
+                   std::isspace(static_cast<unsigned char>(line[after_fi]))) {
                 after_fi++;
-            if (after_fi < line.length() && line[after_fi] == ';')
+            }
+            if (after_fi < line.length() && line[after_fi] == ';') {
                 after_fi++;
+            }
             while (after_fi < line.length() &&
-                   std::isspace(static_cast<unsigned char>(line[after_fi])))
+                   std::isspace(static_cast<unsigned char>(line[after_fi]))) {
                 after_fi++;
+            }
             has_trailing_commands = (after_fi < line.length());
         }
 
@@ -410,8 +433,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     for (const auto& cmd : trailing_cmds) {
                         int follow_rc = execute_simple_or_pipeline(cmd);
                         rc = follow_rc;
-                        if (follow_rc != 0 || cjsh_env::exit_requested())
+                        if (follow_rc != 0 || cjsh_env::exit_requested()) {
                             break;
+                        }
                     }
                 }
 
@@ -454,15 +478,17 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 p = cur.rfind(";then");
             }
             if (p != std::string::npos) {
-                if (!cond_accum.empty())
+                if (!cond_accum.empty()) {
                     cond_accum += " ";
+                }
                 cond_accum += cur.substr(0, p);
                 then_found = true;
                 break;
             }
             if (!cur.empty()) {
-                if (!cond_accum.empty())
+                if (!cond_accum.empty()) {
                     cond_accum += " ";
+                }
                 cond_accum += cur;
             }
         }
@@ -637,8 +663,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     for (const auto& c : cmds) {
                         int rc2 = execute_simple_or_pipeline(c);
                         body_rc = rc2;
-                        if (rc2 != 0)
+                        if (rc2 != 0) {
                             break;
+                        }
                     }
                 } else if (!else_body.empty()) {
                     // primary condition failed so run else body when present
@@ -646,8 +673,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     for (const auto& c : cmds) {
                         int rc2 = execute_simple_or_pipeline(c);
                         body_rc = rc2;
-                        if (rc2 != 0)
+                        if (rc2 != 0) {
                             break;
+                        }
                     }
                 }
 
@@ -672,8 +700,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                             for (const auto& c : after_cmds) {
                                 int rc3 = execute_simple_or_pipeline(c);
                                 body_rc = rc3;
-                                if (rc3 != 0 || cjsh_env::exit_requested())
+                                if (rc3 != 0 || cjsh_env::exit_requested()) {
                                     break;
+                                }
                             }
                         }
                     }
@@ -703,16 +732,18 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             if_count++;
             scan_pos += 4;
         }
-        if (line.rfind("if ", 0) == 0)
+        if (line.rfind("if ", 0) == 0) {
             if_count++;
+        }
         scan_pos = 0;
         while ((scan_pos = line.find("fi", scan_pos)) != std::string::npos) {
             bool is_word = (scan_pos == 0 ||
                             std::isalnum(static_cast<unsigned char>(line[scan_pos - 1])) == 0) &&
                            (scan_pos + 2 >= line.length() ||
                             std::isalnum(static_cast<unsigned char>(line[scan_pos + 2])) == 0);
-            if (is_word)
+            if (is_word) {
                 fi_count++;
+            }
             scan_pos += 2;
         }
         is_simple_single_line = (if_count == 1 && fi_count == 1);
@@ -751,8 +782,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 size_t search_pos = branch_pos;
                 while (search_pos < remaining.length()) {
                     size_t candidate = remaining.find("fi", search_pos);
-                    if (candidate == std::string::npos)
+                    if (candidate == std::string::npos) {
                         break;
+                    }
 
                     if (is_fi_token_boundary(remaining, candidate)) {
                         fi_pos = candidate;
@@ -762,8 +794,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 }
 
                 size_t next_pos = std::min({elif_pos, else_pos, fi_pos});
-                if (next_pos == std::string::npos)
+                if (next_pos == std::string::npos) {
                     break;
+                }
 
                 std::string commands = trim(remaining.substr(branch_pos, next_pos - branch_pos));
 
@@ -810,8 +843,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                             size_t search_fi = elif_body_start;
                             while (search_fi < remaining.length()) {
                                 size_t candidate = remaining.find("fi", search_fi);
-                                if (candidate == std::string::npos)
+                                if (candidate == std::string::npos) {
                                     break;
+                                }
 
                                 if (is_fi_token_boundary(remaining, candidate)) {
                                     next_fi = candidate;
@@ -937,8 +971,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             }
         } else if (cur == "fi") {
             depth--;
-            if (depth == 0)
+            if (depth == 0) {
                 break;
+            }
         } else if (depth == 1 && cur == "else") {
             if (in_elif_body && !current_elif_cond.empty()) {
                 elif_branches.push_back({current_elif_cond, current_elif_body});
@@ -1095,8 +1130,9 @@ std::string simplify_parentheses_in_condition(
                         }
                     }
 
-                    if (j == result.length())
+                    if (j == result.length()) {
                         break;
+                    }
 
                     continue;
                 }
@@ -1149,8 +1185,9 @@ int evaluate_logical_condition(const std::string& condition,
                                const std::function<int(const std::string&)>& executor) {
     // condition evaluator used by if and elif headers
     std::string cond = trim(condition);
-    if (cond.empty())
+    if (cond.empty()) {
         return 1;
+    }
 
     if (is_arithmetic_command_form_condition(cond)) {
         return executor(cond);
@@ -1261,8 +1298,9 @@ int evaluate_logical_condition(const std::string& condition,
         parts.push_back({trim(current_part), ""});
     }
 
-    if (parts.empty())
+    if (parts.empty()) {
         return 1;
+    }
 
     int result = executor(parts[0].first);
 

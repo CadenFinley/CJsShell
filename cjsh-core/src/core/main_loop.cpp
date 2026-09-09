@@ -739,8 +739,7 @@ void start_interactive_process() {
         std::cout << '\n';
 
         std::cout << " To suppress this help message run the command: 'firstboot'" << '\n';
-        std::cout << " To suppress the title line, launch cjsh with: '--no-titleline'"
-                  << '\n';
+        std::cout << " To suppress the title line, launch cjsh with: '--no-titleline'" << '\n';
         std::cout << " You can find many more toggles like this to fully customize your cjsh "
                      "experience with: 'cjshopt --help'\n";
         std::cout << '\n';

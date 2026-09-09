@@ -405,10 +405,12 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
 
     // Preserve caller identity labels, even when explicitly empty. Only fill
     // absent labels from the real user's account database.
-    if (getenv("USER") == nullptr)
+    if (getenv("USER") == nullptr) {
         (void)env_vars.emplace_back("USER", std::string(pw->pw_name));
-    if (getenv("LOGNAME") == nullptr)
+    }
+    if (getenv("LOGNAME") == nullptr) {
         (void)env_vars.emplace_back("LOGNAME", std::string(pw->pw_name));
+    }
 
     std::string home_value;
     // Raw getenv here: HOME bootstrap before shell vars exist.

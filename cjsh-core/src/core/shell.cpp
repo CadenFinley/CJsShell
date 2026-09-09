@@ -699,8 +699,9 @@ bool Shell::is_job_control_enabled() const {
 }
 
 bool Shell::suspend() {
-    if (!manages_terminal())
+    if (!manages_terminal()) {
         return false;
+    }
 
     // Readline may be suspended by a widget; commands must expose ordinary
     // terminal modes while the parent shell handles the stop notification.
@@ -721,13 +722,15 @@ bool Shell::suspend() {
     sigaddset(&mask, SIGTTIN);
     (void)sigprocmask(SIG_UNBLOCK, &mask, &old_mask);
     while (tcgetpgrp(shell_terminal) >= 0 && tcgetpgrp(shell_terminal) != getpgrp()) {
-        if (kill(getpid(), SIGTTIN) != 0)
+        if (kill(getpid(), SIGTTIN) != 0) {
             break;
+        }
     }
     (void)sigprocmask(SIG_SETMASK, &old_mask, nullptr);
     (void)sigaction(SIGTTIN, &previous, nullptr);
-    if (editor_active)
+    if (editor_active) {
         (void)ic_resume_readline_terminal();
+    }
     return stopped;
 }
 

@@ -53,11 +53,13 @@ bool is_shell_builtin(const std::string& token) {
 }
 
 bool is_variable_reference(const std::string& token) {
-    if (token.empty())
+    if (token.empty()) {
         return false;
+    }
 
-    if (token[0] == '$')
+    if (token[0] == '$') {
         return true;
+    }
 
     if (looks_like_assignment(token)) {
         return true;
@@ -67,8 +69,9 @@ bool is_variable_reference(const std::string& token) {
 }
 
 bool is_quoted_string(const std::string& token, char& quote_type) {
-    if (token.length() < 2)
+    if (token.length() < 2) {
         return false;
+    }
 
     char first = token[0];
     char last = token[token.length() - 1];

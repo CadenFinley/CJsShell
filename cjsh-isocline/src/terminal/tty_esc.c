@@ -175,18 +175,24 @@ static code_t esc_decode_vt(uint32_t vt_code) {
         case 201:
             return IC_KEY_PASTE_END;  // Bracketed paste end
         default:
-            if (vt_code >= 10 && vt_code <= 15)
+            if (vt_code >= 10 && vt_code <= 15) {
                 return KEY_F(1 + (vt_code - 10));
-            if (vt_code == 16)
+            }
+            if (vt_code == 16) {
                 return KEY_F5;  // minicom
-            if (vt_code >= 17 && vt_code <= 21)
+            }
+            if (vt_code >= 17 && vt_code <= 21) {
                 return KEY_F(6 + (vt_code - 17));
-            if (vt_code >= 23 && vt_code <= 26)
+            }
+            if (vt_code >= 23 && vt_code <= 26) {
                 return KEY_F(11 + (vt_code - 23));
-            if (vt_code >= 28 && vt_code <= 29)
+            }
+            if (vt_code >= 28 && vt_code <= 29) {
                 return KEY_F(15 + (vt_code - 28));
-            if (vt_code >= 31 && vt_code <= 34)
+            }
+            if (vt_code >= 31 && vt_code <= 34) {
                 return KEY_F(17 + (vt_code - 31));
+            }
     }
     return KEY_NONE;
 }
@@ -401,14 +407,16 @@ static bool tty_read_csi_num(tty_t* tty, uint8_t* ppeek, uint32_t* num, long esc
         count++;
         i = 10 * i + digit;
         if (!tty_readc_noblock(tty, ppeek, esc_timeout)) {
-            if (count > 0)
+            if (count > 0) {
                 *num = i;
+            }
             *ppeek = 0;
             return false;
         }
     }
-    if (count > 0)
+    if (count > 0) {
         *num = i;
+    }
     return true;
 }
 
@@ -465,8 +473,9 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
         return KEY_NONE;
     }
     if (peek == ';') {
-        if (!tty_readc_noblock(tty, &peek, esc_timeout))
+        if (!tty_readc_noblock(tty, &peek, esc_timeout)) {
             return KEY_NONE;
+        }
         if (!tty_read_csi_num(tty, &peek, &num2, esc_timeout) &&
             !tty_readc_noblock(tty, &peek, esc_recovery_timeout)) {
             return KEY_NONE;
@@ -495,19 +504,23 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
     // Adjust special cases into standard ones.
     if ((final == '@' || final == '9') && c1 == '[' && num1 == 1) {
         // ESC [ @, ESC [ 9  : on Mach
-        if (final == '@')
+        if (final == '@') {
             num1 = 3;  // DEL
-        else if (final == '9')
+        } else if (final == '9') {
             num1 = 2;  // INS
+        }
         final = '~';
     } else if (final == '^' || final == '$' || final == '@') {
         // Eterm/rxvt/urxt
-        if (final == '^')
+        if (final == '^') {
             modifiers |= KEY_MOD_CTRL;
-        if (final == '$')
+        }
+        if (final == '$') {
             modifiers |= KEY_MOD_SHIFT;
-        if (final == '@')
+        }
+        if (final == '@') {
             modifiers |= KEY_MOD_SHIFT | KEY_MOD_CTRL;
+        }
         final = '~';
     } else if (c1 == '[' && final >= 'a' &&
                final <= 'd') {  // note: do not catch ESC [ .. u  (for unicode)
@@ -526,15 +539,19 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
     // parameter 2 determines the modifiers (1 + bitmask: shift=0x1,alt=0x2,ctrl=0x4)
     // kitty protocol can add lock bits (caps=0x40,num=0x80), so avoid upper bounds.
     if (special != '<' && num2 > 1) {
-        if (num2 == 9)
+        if (num2 == 9) {
             num2 = 3;  // iTerm2 in xterm mode
+        }
         num2--;
-        if (num2 & 0x1)
+        if (num2 & 0x1) {
             modifiers |= KEY_MOD_SHIFT;
-        if (num2 & 0x2)
+        }
+        if (num2 & 0x2) {
             modifiers |= KEY_MOD_ALT;
-        if (num2 & 0x4)
+        }
+        if (num2 & 0x4) {
             modifiers |= KEY_MOD_CTRL;
+        }
     }
 
     // and translate
@@ -581,14 +598,17 @@ static code_t tty_read_osc(tty_t* tty, uint8_t* ppeek, long esc_timeout) {
             break;
         } else if (c == '\x1B') {
             uint8_t c1;
-            if (!tty_readc_noblock(tty, &c1, esc_timeout))
+            if (!tty_readc_noblock(tty, &c1, esc_timeout)) {
                 break;
-            if (c1 == '\\')
+            }
+            if (c1 == '\\') {
                 break;
+            }
             tty_cpush_char(tty, c1);
         }
-        if (!tty_readc_noblock(tty, ppeek, esc_timeout))
+        if (!tty_readc_noblock(tty, ppeek, esc_timeout)) {
             break;
+        }
     }
     return KEY_NONE;
 }
@@ -598,29 +618,33 @@ ic_private code_t tty_read_esc(tty_t* tty, long esc_initial_timeout, long esc_ti
     uint8_t peek = 0;
 
     // lone ESC?
-    if (!tty_readc_noblock(tty, &peek, esc_initial_timeout))
+    if (!tty_readc_noblock(tty, &peek, esc_initial_timeout)) {
         return KEY_ESC;
+    }
 
     // treat ESC ESC as Alt modifier (macOS sends ESC ESC [ [A-D] for
     // alt-<cursor>)
     if (peek == KEY_ESC) {
-        if (!tty_readc_noblock(tty, &peek, esc_timeout))
+        if (!tty_readc_noblock(tty, &peek, esc_timeout)) {
             goto alt;
+        }
         mods |= KEY_MOD_ALT;
     }
 
     // CSI ?
     if (peek == '[') {
-        if (!tty_readc_noblock(tty, &peek, esc_timeout))
+        if (!tty_readc_noblock(tty, &peek, esc_timeout)) {
             goto alt;
+        }
         return tty_read_csi(tty, '[', peek, mods, esc_timeout);  // ESC [ ...
     }
 
     // SS3?
     if (peek == 'O' || peek == 'o' || peek == '?' /*vt52*/) {
         uint8_t c1 = peek;
-        if (!tty_readc_noblock(tty, &peek, esc_timeout))
+        if (!tty_readc_noblock(tty, &peek, esc_timeout)) {
             goto alt;
+        }
         if (c1 == 'o') {
             // ETerm uses this for ctrl+<cursor>
             mods |= KEY_MOD_CTRL;
@@ -632,8 +656,9 @@ ic_private code_t tty_read_esc(tty_t* tty, long esc_initial_timeout, long esc_ti
 
     // OSC: we may get a delayed query response; ensure it is ignored
     if (peek == ']') {
-        if (!tty_readc_noblock(tty, &peek, esc_timeout))
+        if (!tty_readc_noblock(tty, &peek, esc_timeout)) {
             goto alt;
+        }
         return tty_read_osc(tty, &peek, esc_timeout);  // ESC ] ...
     }
 

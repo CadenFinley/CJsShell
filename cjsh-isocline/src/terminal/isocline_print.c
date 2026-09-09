@@ -47,43 +47,49 @@ ic_public void ic_printf(const char* fmt, ...) {
 
 ic_public void ic_vprintf(const char* fmt, va_list args) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->bbcode == NULL)
+    if (env == NULL || env->bbcode == NULL) {
         return;
+    }
     bbcode_vprintf(env->bbcode, fmt, args);
 }
 
 ic_public void ic_print(const char* s) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->bbcode == NULL)
+    if (env == NULL || env->bbcode == NULL) {
         return;
+    }
     bbcode_print(env->bbcode, s);
 }
 
 ic_public void ic_println(const char* s) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->bbcode == NULL)
+    if (env == NULL || env->bbcode == NULL) {
         return;
+    }
     bbcode_println(env->bbcode, s);
 }
 
 void ic_style_def(const char* name, const char* fmt) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->bbcode == NULL)
+    if (env == NULL || env->bbcode == NULL) {
         return;
+    }
     // printf("Defining style: %s -> %s\n", name, fmt);  // DEBUG
     bbcode_style_def(env->bbcode, name, fmt);
 }
 
 void ic_style_open(const char* fmt) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->bbcode == NULL)
+    if (env == NULL || env->bbcode == NULL) {
         return;
+    }
     bbcode_style_open(env->bbcode, fmt);
 }
 
 void ic_style_close(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->bbcode == NULL)
+    if (env == NULL || env->bbcode == NULL) {
         return;
+    }
     bbcode_style_close(env->bbcode, NULL);
 }

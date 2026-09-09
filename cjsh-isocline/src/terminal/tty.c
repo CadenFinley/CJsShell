@@ -183,24 +183,28 @@ static void tty_wakeup(tty_t* tty) {
 
 ic_private bool code_is_ascii_char(code_t c, char* chr) {
     if (c >= ' ' && c <= 0x7F) {
-        if (chr != NULL)
+        if (chr != NULL) {
             *chr = (char)c;
+        }
         return true;
     } else {
-        if (chr != NULL)
+        if (chr != NULL) {
             *chr = 0;
+        }
         return false;
     }
 }
 
 ic_private bool code_is_unicode(code_t c, unicode_t* uchr) {
     if (c <= KEY_UNICODE_MAX) {
-        if (uchr != NULL)
+        if (uchr != NULL) {
             *uchr = c;
+        }
         return true;
     } else {
-        if (uchr != NULL)
+        if (uchr != NULL) {
             *uchr = 0;
+        }
         return false;
     }
 }
@@ -212,8 +216,9 @@ ic_private bool code_is_virt_key(code_t c) {
 static code_t modify_code(code_t code, bool in_paste_mode);
 
 ic_private void tty_set_last_mouse_event(tty_t* tty, const tty_mouse_event_t* event) {
-    if (tty == NULL)
+    if (tty == NULL) {
         return;
+    }
 
     if (event == NULL) {
         memset(&tty->last_mouse_event, 0, sizeof(tty->last_mouse_event));
@@ -420,8 +425,9 @@ static code_t modify_code(code_t code, bool in_paste_mode) {
 
 ic_private code_t tty_read(tty_t* tty) {
     code_t code;
-    if (!tty_read_timeout(tty, -1, &code))
+    if (!tty_read_timeout(tty, -1, &code)) {
         return KEY_NONE;
+    }
     return code;
 }
 
@@ -431,47 +437,57 @@ ic_private code_t tty_read(tty_t* tty) {
 
 ic_private bool tty_read_esc_response(tty_t* tty, char esc_start, bool final_st, char* buf,
                                       ssize_t buflen, tty_response_fun_t* matches, void* arg) {
-    if (tty == NULL || buf == NULL || buflen <= 1 || buflen > TTY_CPUSH_MAX - 4)
+    if (tty == NULL || buf == NULL || buflen <= 1 || buflen > TTY_CPUSH_MAX - 4) {
         return false;
+    }
     buf[0] = 0;
     uint8_t consumed[TTY_CPUSH_MAX];
     ssize_t count = 0;
     ssize_t len = 0;
     uint8_t c = 0;
-    if (!tty_readc_noblock(tty, &c, 2 * tty->esc_initial_timeout))
+    if (!tty_readc_noblock(tty, &c, 2 * tty->esc_initial_timeout)) {
         return false;
+    }
     consumed[count++] = c;
-    if (c != '\x1B')
+    if (c != '\x1B') {
         goto rejected;
-    if (!tty_readc_noblock(tty, &c, tty->esc_timeout))
+    }
+    if (!tty_readc_noblock(tty, &c, tty->esc_timeout)) {
         goto rejected;
+    }
     consumed[count++] = c;
-    if (c != esc_start)
+    if (c != esc_start) {
         goto rejected;
+    }
     while (len < buflen - 1) {
-        if (!tty_readc_noblock(tty, &c, tty->esc_timeout))
+        if (!tty_readc_noblock(tty, &c, tty->esc_timeout)) {
             goto rejected;
+        }
         consumed[count++] = c;
         if (final_st) {
             if (c == '\x07') {
                 goto complete;
             } else if (c == '\x1B') {
-                if (!tty_readc_noblock(tty, &c, tty->esc_timeout))
+                if (!tty_readc_noblock(tty, &c, tty->esc_timeout)) {
                     goto rejected;
+                }
                 consumed[count++] = c;
-                if (c == '\\')
+                if (c == '\\') {
                     goto complete;
+                }
                 goto rejected;
             }
-            if (c < 0x20 || c == 0x7F)
+            if (c < 0x20 || c == 0x7F) {
                 goto rejected;
+            }
         } else {
             if (c >= 0x40 && c <= 0x7E) {
                 buf[len++] = (char)c;
                 goto complete;
             }
-            if (c < 0x20 || c > 0x3F)
+            if (c < 0x20 || c > 0x3F) {
                 goto rejected;
+            }
         }
         buf[len++] = (char)c;
     }
@@ -479,15 +495,17 @@ ic_private bool tty_read_esc_response(tty_t* tty, char esc_start, bool final_st,
 
 complete:
     buf[len] = 0;
-    if (matches != NULL && matches(buf, arg))
+    if (matches != NULL && matches(buf, arg)) {
         return true;
+    }
 
 rejected:
     // These bytes may be typing, paste, or a reply to a different query. Put
     // them back ahead of unread input, including NUL and partial escapes.
     assert(tty->cpush_count + count <= TTY_CPUSH_MAX);
-    while (count > 0)
+    while (count > 0) {
         tty->cpushbuf[tty->cpush_count++] = consumed[--count];
+    }
     buf[0] = 0;
     return false;
 }
@@ -497,16 +515,18 @@ rejected:
 //-------------------------------------------------------------
 
 static bool tty_code_pop(tty_t* tty, code_t* code) {
-    if (tty->push_count <= 0)
+    if (tty->push_count <= 0) {
         return false;
+    }
     tty->push_count--;
     *code = tty->pushbuf[tty->push_count];
     return true;
 }
 
 ic_private void tty_code_pushback(tty_t* tty, code_t c) {
-    if (tty->push_count >= TTY_PUSH_MAX)
+    if (tty->push_count >= TTY_PUSH_MAX) {
         return;
+    }
     tty->pushbuf[tty->push_count] = c;
     tty->push_count++;
     tty_wakeup(tty);
@@ -619,12 +639,15 @@ ic_private void tty_cpush_char(tty_t* tty, uint8_t c) {
 #if defined(_WIN32)
 static unsigned csi_mods(code_t mods) {
     unsigned m = 1;
-    if (mods & KEY_MOD_SHIFT)
+    if (mods & KEY_MOD_SHIFT) {
         m += 1;
-    if (mods & KEY_MOD_ALT)
+    }
+    if (mods & KEY_MOD_ALT) {
         m += 2;
-    if (mods & KEY_MOD_CTRL)
+    }
+    if (mods & KEY_MOD_CTRL) {
         m += 4;
+    }
     return m;
 }
 
@@ -697,8 +720,9 @@ ic_private tty_t* tty_new(alloc_t* mem, int fd_in) {
 }
 
 ic_private void tty_free(tty_t* tty) {
-    if (tty == NULL)
+    if (tty == NULL) {
         return;
+    }
     tty_end_raw(tty);
     tty_done_raw(tty);
     tty_close_wakeup_channel(tty);
@@ -707,22 +731,26 @@ ic_private void tty_free(tty_t* tty) {
 }
 
 ic_private bool tty_is_utf8(const tty_t* tty) {
-    if (tty == NULL)
+    if (tty == NULL) {
         return true;
+    }
     return (tty->is_utf8);
 }
 
 ic_private bool tty_is_raw_enabled(const tty_t* tty) {
-    if (tty == NULL)
+    if (tty == NULL) {
         return false;
+    }
     return tty->raw_enabled;
 }
 
 ic_private bool tty_input_pending(const tty_t* tty) {
-    if (tty == NULL)
+    if (tty == NULL) {
         return false;
-    if (tty->push_count > 0 || tty->cpush_count > 0 || tty_typeahead_replay_count(tty) > 0)
+    }
+    if (tty->push_count > 0 || tty->cpush_count > 0 || tty_typeahead_replay_count(tty) > 0) {
         return true;
+    }
 #if defined(FIONREAD)
     int navail = 0;
     if (ioctl(tty->fd_in, FIONREAD, &navail) == 0) {
@@ -847,11 +875,13 @@ ic_private bool tty_lost_terminal(const tty_t* tty) {
 }
 
 ic_private bool tty_term_resize_event(tty_t* tty) {
-    if (tty == NULL)
+    if (tty == NULL) {
         return true;
+    }
     if (tty->has_term_resize_event) {
-        if (!tty->term_resize_event)
+        if (!tty->term_resize_event) {
             return false;
+        }
         tty->term_resize_event = false;
     }
     return true;
@@ -947,10 +977,12 @@ static tty_event_t tty_wait_for_tty_event(tty_t* tty) {
 }
 
 static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
-    if (tty_cpop(tty, c))
+    if (tty_cpop(tty, c)) {
         return true;
-    if (tty_typeahead_replay_pop(tty, c))
+    }
+    if (tty_typeahead_replay_pop(tty, c)) {
         return true;
+    }
 
     while (true) {
         tty_event_t event = tty_wait_for_tty_event(tty);
@@ -969,10 +1001,12 @@ static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
 }
 
 ic_private bool tty_readc_noblock(tty_t* tty, uint8_t* c, long timeout_ms) {
-    if (tty_cpop(tty, c))
+    if (tty_cpop(tty, c)) {
         return true;
-    if (tty_typeahead_replay_pop(tty, c))
+    }
+    if (tty_typeahead_replay_pop(tty, c)) {
         return true;
+    }
 
     if (timeout_ms < 0) {
         return tty_readc_blocking(tty, c);
@@ -1197,22 +1231,27 @@ ic_public void ic_notify_readline(void) {
 }
 
 ic_private bool tty_start_raw(tty_t* tty) {
-    if (tty == NULL)
+    if (tty == NULL) {
         return false;
-    if (tty->raw_enabled)
+    }
+    if (tty->raw_enabled) {
         return true;
-    if (tcsetattr(tty->fd_in, TCSANOW, &tty->raw_ios) < 0)
+    }
+    if (tcsetattr(tty->fd_in, TCSANOW, &tty->raw_ios) < 0) {
         return false;
+    }
     tty->raw_enabled = true;
     tty->typeahead_crlf_swapped = false;
     return true;
 }
 
 ic_private void tty_end_raw(tty_t* tty) {
-    if (tty == NULL)
+    if (tty == NULL) {
         return;
-    if (!tty->raw_enabled)
+    }
+    if (!tty->raw_enabled) {
         return;
+    }
     // Preserve bytes that arrived under raw-mode CR/LF semantics before
     // switching to the swapped capture termios. Otherwise a raw Return still
     // waiting in the kernel queue is later decoded as if it had been swapped
@@ -1232,8 +1271,9 @@ ic_private void tty_end_raw(tty_t* tty) {
 
     const struct termios* restore_ios =
         (tty->typeahead_capture_mode ? &tty->typeahead_ios : &tty->orig_ios);
-    if (tcsetattr(tty->fd_in, TCSANOW, restore_ios) < 0)
+    if (tcsetattr(tty->fd_in, TCSANOW, restore_ios) < 0) {
         return;
+    }
     tty->raw_enabled = false;
     tty->typeahead_crlf_swapped =
         (tty->typeahead_capture_mode && (tty->orig_ios.c_iflag & ICRNL) != 0 &&
@@ -1287,11 +1327,13 @@ static void tty_derive_modes(tty_t* tty) {
 ic_private void tty_adopt_external_modes(tty_t* tty) {
     // Only adopt settings while commands own the modes. Editor/capture modes
     // are implementation details and must never become the external baseline.
-    if (tty == NULL || tty->raw_enabled || tty->typeahead_capture_mode)
+    if (tty == NULL || tty->raw_enabled || tty->typeahead_capture_mode) {
         return;
+    }
     struct termios modes;
-    if (tcgetattr(tty->fd_in, &modes) != 0)
+    if (tcgetattr(tty->fd_in, &modes) != 0) {
         return;
+    }
     // Canonical external settings are intentional (including -isig, -icrnl,
     // -opost, and control characters). A program leaving noncanonical modes
     // behind is treated as an abandoned raw session: restore the last baseline.
@@ -1311,8 +1353,9 @@ ic_private void tty_adopt_external_modes(tty_t* tty) {
 }
 
 static bool tty_init_raw(tty_t* tty) {
-    if (tcgetattr(tty->fd_in, &tty->orig_ios) == -1)
+    if (tcgetattr(tty->fd_in, &tty->orig_ios) == -1) {
         return false;
+    }
     tty_derive_modes(tty);
 
     signals_install(tty);
@@ -1340,10 +1383,12 @@ ic_private void tty_adopt_external_modes(tty_t* tty) {
 static void tty_waitc_console(tty_t* tty, long timeout_ms);
 
 ic_private bool tty_readc_noblock(tty_t* tty, uint8_t* c, long timeout_ms) {
-    if (tty_cpop(tty, c))
+    if (tty_cpop(tty, c)) {
         return true;
-    if (tty_typeahead_replay_pop(tty, c))
+    }
+    if (tty_typeahead_replay_pop(tty, c)) {
         return true;
+    }
 
     tty_waitc_console(tty, timeout_ms);
     return tty_cpop(tty, c);
@@ -1355,8 +1400,9 @@ static void tty_waitc_console(tty_t* tty, long timeout_ms) {
     uint32_t surrogate_hi = 0;
     while (true) {
         if (timeout_ms >= 0) {
-            if (!GetNumberOfConsoleInputEvents(tty->hcon, &count))
+            if (!GetNumberOfConsoleInputEvents(tty->hcon, &count)) {
                 return;
+            }
             if (count == 0) {
                 if (timeout_ms == 0) {
                     return;
@@ -1382,18 +1428,21 @@ static void tty_waitc_console(tty_t* tty, long timeout_ms) {
             }
         }
 
-        if (!ReadConsoleInputW(tty->hcon, &inp, 1, &count))
+        if (!ReadConsoleInputW(tty->hcon, &inp, 1, &count)) {
             return;
-        if (count != 1)
+        }
+        if (count != 1) {
             return;
+        }
 
         if (inp.EventType == WINDOW_BUFFER_SIZE_EVENT) {
             tty->term_resize_event = true;
             continue;
         }
 
-        if (inp.EventType != KEY_EVENT)
+        if (inp.EventType != KEY_EVENT) {
             continue;
+        }
 
         DWORD modstate = inp.Event.KeyEvent.dwControlKeyState;
 
@@ -1407,12 +1456,15 @@ static void tty_waitc_console(tty_t* tty, long timeout_ms) {
         }
 
         code_t mods = 0;
-        if ((modstate & (RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED)) != 0)
+        if ((modstate & (RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED)) != 0) {
             mods |= KEY_MOD_CTRL;
-        if ((modstate & (RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED)) != 0)
+        }
+        if ((modstate & (RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED)) != 0) {
             mods |= KEY_MOD_ALT;
-        if ((modstate & SHIFT_PRESSED) != 0)
+        }
+        if ((modstate & SHIFT_PRESSED) != 0) {
             mods |= KEY_MOD_SHIFT;
+        }
 
         uint32_t chr = (uint32_t)inp.Event.KeyEvent.uChar.UnicodeChar;
         WORD virt = inp.Event.KeyEvent.wVirtualKeyCode;
@@ -1510,8 +1562,9 @@ ic_private bool tty_async_stop(const tty_t* tty) {
 }
 
 ic_private bool tty_start_raw(tty_t* tty) {
-    if (tty->raw_enabled)
+    if (tty->raw_enabled) {
         return true;
+    }
     GetConsoleMode(tty->hcon, &tty->hcon_orig_mode);
     DWORD mode = ENABLE_QUICK_EDIT_MODE | ENABLE_WINDOW_INPUT
 
@@ -1530,8 +1583,9 @@ ic_private void tty_enable_typeahead_capture_mode(tty_t* tty, bool enable) {
 }
 
 ic_private void tty_end_raw(tty_t* tty) {
-    if (!tty->raw_enabled)
+    if (!tty->raw_enabled) {
         return;
+    }
     SetConsoleMode(tty->hcon, tty->hcon_orig_mode);
     tty->raw_enabled = false;
 }

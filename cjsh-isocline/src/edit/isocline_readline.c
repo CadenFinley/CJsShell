@@ -49,8 +49,9 @@
 static bool getline_interrupt = false;
 
 static void restore_heredoc_env(ic_env_t* env, bool singleline_only, char multiline_eol) {
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     env->singleline_only = singleline_only;
     env->multiline_eol = multiline_eol;
 }
@@ -222,10 +223,12 @@ ic_public char* ic_readline(const char* prompt_text, const char* inline_right_te
 
 ic_public bool ic_async_stop(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
-    if (env->tty == NULL)
+    }
+    if (env->tty == NULL) {
         return false;
+    }
     return tty_async_stop(env->tty);
 }
 
@@ -264,8 +267,9 @@ ic_public char* ic_readline_ex(const char* prompt_text, ic_completer_fun_t* comp
                                void* completer_arg, ic_highlight_fun_t* highlighter,
                                void* highlighter_arg) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return NULL;
+    }
     ic_completer_fun_t* prev_completer;
     void* prev_completer_arg;
     completions_get_completer(env->completions, &prev_completer, &prev_completer_arg);
@@ -285,8 +289,9 @@ ic_public char* ic_readline_ex(const char* prompt_text, ic_completer_fun_t* comp
 
 ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || delimiter == NULL)
+    if (env == NULL || delimiter == NULL) {
         return NULL;
+    }
 
     const bool prev_singleline_only = env->singleline_only;
     const char prev_multiline_eol = env->multiline_eol;

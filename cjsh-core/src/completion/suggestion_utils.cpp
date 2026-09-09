@@ -313,8 +313,9 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
                         break;
                     }
                 }
-                if (!found)
+                if (!found) {
                     break;
+                }
             }
 
             if (consecutive_matches >= static_cast<int>(target_name.length() * 0.8)) {

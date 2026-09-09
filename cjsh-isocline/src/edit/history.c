@@ -85,8 +85,9 @@ static const char* k_history_timestamp_key = "timestamp";
 static const char* k_history_frequency_key = "frequency";
 
 static bool history_metadata_key_valid(const char* key) {
-    if (key == NULL || key[0] == '\0')
+    if (key == NULL || key[0] == '\0') {
         return false;
+    }
     for (const char* p = key; *p != '\0'; ++p) {
         unsigned char c = (unsigned char)*p;
         if (isspace(c) || c == '=') {
@@ -97,8 +98,9 @@ static bool history_metadata_key_valid(const char* key) {
 }
 
 static void history_entry_clear(history_t* h, history_entry_t* entry) {
-    if (h == NULL || entry == NULL)
+    if (h == NULL || entry == NULL) {
         return;
+    }
     if (entry->command != NULL) {
         mem_free(h->mem, entry->command);
         entry->command = NULL;
@@ -116,18 +118,21 @@ static void history_entry_clear(history_t* h, history_entry_t* entry) {
 }
 
 static bool history_entry_reserve_metadata(history_t* h, history_entry_t* entry, ssize_t needed) {
-    if (entry == NULL || h == NULL)
+    if (entry == NULL || h == NULL) {
         return false;
-    if (needed <= entry->metadata_capacity)
+    }
+    if (needed <= entry->metadata_capacity) {
         return true;
+    }
     ssize_t new_capacity = (entry->metadata_capacity == 0 ? 4 : entry->metadata_capacity);
     while (new_capacity < needed) {
         new_capacity *= 2;
     }
     history_metadata_t* resized =
         mem_realloc_tp(h->mem, history_metadata_t, entry->metadata, new_capacity);
-    if (resized == NULL)
+    if (resized == NULL) {
         return false;
+    }
     entry->metadata = resized;
     entry->metadata_capacity = new_capacity;
     return true;
@@ -135,13 +140,15 @@ static bool history_entry_reserve_metadata(history_t* h, history_entry_t* entry,
 
 static const char* history_entry_metadata_lookup(const history_entry_t* entry, const char* key,
                                                  ssize_t* idx_out) {
-    if (entry == NULL || key == NULL)
+    if (entry == NULL || key == NULL) {
         return NULL;
+    }
     for (ssize_t i = 0; i < entry->metadata_count; ++i) {
         const char* existing_key = entry->metadata[i].key;
         if (existing_key != NULL && ic_stricmp(existing_key, key) == 0) {
-            if (idx_out != NULL)
+            if (idx_out != NULL) {
                 *idx_out = i;
+            }
             return entry->metadata[i].value;
         }
     }
@@ -152,19 +159,23 @@ static bool history_entry_set_metadata(history_t* h, history_entry_t* entry, con
                                        const char* value);
 
 static bool history_metadata_read_frequency(const char* value, long long* frequency_out) {
-    if (frequency_out != NULL)
+    if (frequency_out != NULL) {
         *frequency_out = 0;
-    if (value == NULL || value[0] == '\0')
+    }
+    if (value == NULL || value[0] == '\0') {
         return false;
+    }
 
     errno = 0;
     char* end = NULL;
     long long parsed = strtoll(value, &end, 10);
-    if (errno != 0 || end == value || *end != '\0' || parsed < 1)
+    if (errno != 0 || end == value || *end != '\0' || parsed < 1) {
         return false;
+    }
 
-    if (frequency_out != NULL)
+    if (frequency_out != NULL) {
         *frequency_out = parsed;
+    }
     return true;
 }
 
@@ -178,23 +189,27 @@ static long long history_entry_frequency(const history_entry_t* entry) {
 }
 
 static bool history_entry_set_frequency(history_t* h, history_entry_t* entry, long long frequency) {
-    if (h == NULL || entry == NULL)
+    if (h == NULL || entry == NULL) {
         return false;
-    if (frequency < 1)
+    }
+    if (frequency < 1) {
         frequency = 1;
+    }
 
     char freq_buf[32];
     int n = snprintf(freq_buf, sizeof(freq_buf), "%lld", frequency);
-    if (n <= 0 || n >= (int)sizeof(freq_buf))
+    if (n <= 0 || n >= (int)sizeof(freq_buf)) {
         return false;
+    }
 
     return history_entry_set_metadata(h, entry, k_history_frequency_key, freq_buf);
 }
 
 static bool history_entry_set_metadata_owned(history_t* h, history_entry_t* entry, char* key,
                                              char* value) {
-    if (h == NULL || entry == NULL || key == NULL)
+    if (h == NULL || entry == NULL || key == NULL) {
         return false;
+    }
     if (!history_metadata_key_valid(key)) {
         mem_free(h->mem, key);
         mem_free(h->mem, value);
@@ -232,8 +247,9 @@ static bool history_entry_set_metadata_owned(history_t* h, history_entry_t* entr
 
 static bool history_entry_set_metadata(history_t* h, history_entry_t* entry, const char* key,
                                        const char* value) {
-    if (h == NULL || entry == NULL || key == NULL)
+    if (h == NULL || entry == NULL || key == NULL) {
         return false;
+    }
     char* key_copy = mem_strdup(h->mem, key);
     char* value_copy = mem_strdup(h->mem, value == NULL ? "" : value);
     if (key_copy == NULL || value_copy == NULL) {
@@ -245,13 +261,15 @@ static bool history_entry_set_metadata(history_t* h, history_entry_t* entry, con
 }
 
 static bool history_entry_set_current_timestamp(history_t* h, history_entry_t* entry) {
-    if (h == NULL || entry == NULL)
+    if (h == NULL || entry == NULL) {
         return false;
+    }
 
     char ts_buf[32];
     int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
-    if (n <= 0 || n >= (int)sizeof(ts_buf))
+    if (n <= 0 || n >= (int)sizeof(ts_buf)) {
         return false;
+    }
     return history_entry_set_metadata(h, entry, k_history_timestamp_key, ts_buf);
 }
 
@@ -270,8 +288,9 @@ static void history_list_init(history_list_t* list) {
 }
 
 static void history_list_free(history_t* h, history_list_t* list) {
-    if (list->entries == NULL)
+    if (list->entries == NULL) {
         return;
+    }
     for (ssize_t i = 0; i < list->count; i++) {
         history_entry_clear(h, &list->entries[i]);
     }
@@ -282,24 +301,27 @@ static void history_list_free(history_t* h, history_list_t* list) {
 }
 
 static bool history_list_reserve(history_t* h, history_list_t* list, ssize_t needed) {
-    if (needed <= list->capacity)
+    if (needed <= list->capacity) {
         return true;
+    }
     ssize_t new_capacity = (list->capacity == 0) ? 16 : list->capacity;
     while (new_capacity < needed) {
         new_capacity *= 2;
     }
     history_entry_t* new_entries =
         mem_realloc_tp(h->mem, history_entry_t, list->entries, new_capacity);
-    if (new_entries == NULL)
+    if (new_entries == NULL) {
         return false;
+    }
     list->entries = new_entries;
     list->capacity = new_capacity;
     return true;
 }
 
 static bool history_list_append(history_t* h, history_list_t* list, history_entry_t entry) {
-    if (entry.command == NULL)
+    if (entry.command == NULL) {
         return true;
+    }
     if (!history_list_reserve(h, list, list->count + 1)) {
         history_entry_clear(h, &entry);
         return false;
@@ -310,8 +332,9 @@ static bool history_list_append(history_t* h, history_list_t* list, history_entr
 }
 
 static void history_list_remove_at(history_t* h, history_list_t* list, ssize_t idx) {
-    if (idx < 0 || idx >= list->count)
+    if (idx < 0 || idx >= list->count) {
         return;
+    }
     history_entry_clear(h, &list->entries[idx]);
     if (idx < list->count - 1) {
         memmove(&list->entries[idx], &list->entries[idx + 1],
@@ -333,8 +356,9 @@ static bool history_write_successful(int result) {
 }
 
 static bool history_close_stream(FILE* f) {
-    if (f == NULL)
+    if (f == NULL) {
         return true;
+    }
     if (fclose(f) != 0) {
         debug_msg("history: fclose failed\n");
         return false;
@@ -343,8 +367,9 @@ static bool history_close_stream(FILE* f) {
 }
 
 static void history_list_prune_to_max(history_t* h, history_list_t* list) {
-    if (h->max_entries < 0)
+    if (h->max_entries < 0) {
         return;
+    }
     if (h->max_entries == 0) {
         while (list->count > 0) {
             history_list_remove_at(h, list, 0);
@@ -357,13 +382,15 @@ static void history_list_prune_to_max(history_t* h, history_list_t* list) {
 }
 
 static void history_list_remove_duplicates(history_t* h, history_list_t* list) {
-    if (h == NULL || list == NULL || h->allow_duplicates)
+    if (h == NULL || list == NULL || h->allow_duplicates) {
         return;
+    }
 
     for (ssize_t i = list->count - 1; i >= 0; i--) {
         const char* current = list->entries[i].command;
-        if (current == NULL)
+        if (current == NULL) {
             continue;
+        }
 
         for (ssize_t j = i - 1; j >= 0; j--) {
             const char* candidate = list->entries[j].command;
@@ -383,8 +410,9 @@ static bool history_write_all(const history_t* h, const history_list_t* list);
 static bool history_collect_disk_entries(history_t* h, history_list_t* list, bool dedup);
 
 static bool history_list_remove_value(history_t* h, history_list_t* list, const char* value) {
-    if (list == NULL || value == NULL)
+    if (list == NULL || value == NULL) {
         return false;
+    }
     bool removed = false;
     for (ssize_t i = list->count - 1; i >= 0; i--) {
         if (list->entries[i].command != NULL && strcmp(list->entries[i].command, value) == 0) {
@@ -397,20 +425,24 @@ static bool history_list_remove_value(history_t* h, history_list_t* list, const 
 
 static const history_entry_t* history_list_find_last_value(const history_list_t* list,
                                                            const char* value) {
-    if (list == NULL || value == NULL)
+    if (list == NULL || value == NULL) {
         return NULL;
+    }
     for (ssize_t i = list->count - 1; i >= 0; --i) {
-        if (list->entries[i].command != NULL && strcmp(list->entries[i].command, value) == 0)
+        if (list->entries[i].command != NULL && strcmp(list->entries[i].command, value) == 0) {
             return &list->entries[i];
+        }
     }
     return NULL;
 }
 
 ic_private bool history_snapshot_load(history_t* h, history_snapshot_t* snap, bool dedup) {
-    if (snap == NULL)
+    if (snap == NULL) {
         return false;
-    if (h == NULL)
+    }
+    if (h == NULL) {
         return false;
+    }
     history_snapshot_free(h, snap);
     if (history_is_disabled(h)) {
         snap->entries = NULL;
@@ -433,8 +465,9 @@ ic_private bool history_snapshot_load(history_t* h, history_snapshot_t* snap, bo
 }
 
 ic_private void history_snapshot_free(history_t* h, history_snapshot_t* snap) {
-    if (snap == NULL)
+    if (snap == NULL) {
         return;
+    }
     if (h == NULL) {
         snap->entries = NULL;
         snap->count = 0;
@@ -456,19 +489,23 @@ ic_private void history_snapshot_free(history_t* h, history_snapshot_t* snap) {
 }
 
 ic_private const history_entry_t* history_snapshot_get(const history_snapshot_t* snap, ssize_t n) {
-    if (snap == NULL || snap->entries == NULL)
+    if (snap == NULL || snap->entries == NULL) {
         return NULL;
-    if (n < 0 || n >= snap->count)
+    }
+    if (n < 0 || n >= snap->count) {
         return NULL;
+    }
     ssize_t idx = snap->count - n - 1;
-    if (idx < 0 || idx >= snap->count)
+    if (idx < 0 || idx >= snap->count) {
         return NULL;
+    }
     return &snap->entries[idx];
 }
 
 ic_private ssize_t history_snapshot_count(const history_snapshot_t* snap) {
-    if (snap == NULL)
+    if (snap == NULL) {
         return 0;
+    }
     return snap->count;
 }
 
@@ -546,8 +583,9 @@ static char* history_entry_dup_trimmed(alloc_t* mem, const char* entry) {
 
 static bool history_entry_normalize_metadata(history_t* h, history_entry_t* entry,
                                              long long default_frequency) {
-    if (h == NULL || entry == NULL)
+    if (h == NULL || entry == NULL) {
         return false;
+    }
 
     const bool use_defaults = (entry->metadata_count == 0);
     const char* timestamp = history_entry_metadata_lookup(entry, k_history_timestamp_key, NULL);
@@ -566,8 +604,9 @@ static bool history_entry_normalize_metadata(history_t* h, history_entry_t* entr
 
 ic_private history_t* history_new(alloc_t* mem) {
     history_t* h = mem_zalloc_tp(mem, history_t);
-    if (h == NULL)
+    if (h == NULL) {
         return NULL;
+    }
     h->mem = mem;
     h->allow_duplicates = false;
     h->auto_add = true;
@@ -579,8 +618,9 @@ ic_private history_t* history_new(alloc_t* mem) {
 }
 
 ic_private void history_free(history_t* h) {
-    if (h == NULL)
+    if (h == NULL) {
         return;
+    }
     if (h->scratch != NULL) {
         mem_free(h->mem, h->scratch);
         h->scratch = NULL;
@@ -593,8 +633,9 @@ ic_private void history_free(history_t* h) {
 }
 
 ic_private bool history_enable_auto_add(history_t* h, bool enable) {
-    if (h == NULL)
+    if (h == NULL) {
         return false;
+    }
     bool previous = h->auto_add;
     h->auto_add = enable;
     return previous;
@@ -607,27 +648,31 @@ ic_private bool history_enable_duplicates(history_t* h, bool enable) {
 }
 
 ic_private bool history_set_fuzzy_case_sensitive(history_t* h, bool enable) {
-    if (h == NULL)
+    if (h == NULL) {
         return true;
+    }
     bool prev = h->fuzzy_case_sensitive;
     h->fuzzy_case_sensitive = enable;
     return prev;
 }
 
 ic_private bool history_is_fuzzy_case_sensitive(const history_t* h) {
-    if (h == NULL)
+    if (h == NULL) {
         return true;
+    }
     return h->fuzzy_case_sensitive;
 }
 
 static const char* history_set_scratch(history_t* h, const char* entry) {
-    if (entry == NULL)
+    if (entry == NULL) {
         return NULL;
+    }
     ssize_t needed = ic_strlen(entry) + 1;
     if (needed > h->scratch_cap) {
         char* newscratch = mem_realloc_tp(h->mem, char, h->scratch, needed);
-        if (newscratch == NULL)
+        if (newscratch == NULL) {
             return NULL;
+        }
         h->scratch = newscratch;
         h->scratch_cap = needed;
     }
@@ -636,8 +681,9 @@ static const char* history_set_scratch(history_t* h, const char* entry) {
 }
 
 ic_private ssize_t history_count(const history_t* h) {
-    if (history_is_disabled(h))
+    if (history_is_disabled(h)) {
         return 0;
+    }
     history_list_t list;
     history_list_init(&list);
     history_t* mutable_h = (history_t*)h;
@@ -651,8 +697,9 @@ ic_private ssize_t history_count(const history_t* h) {
 }
 
 ic_private const char* history_get(const history_t* h, ssize_t n) {
-    if (history_is_disabled(h))
+    if (history_is_disabled(h)) {
         return NULL;
+    }
     history_list_t list;
     history_list_init(&list);
     history_t* mutable_h = (history_t*)h;
@@ -670,8 +717,9 @@ ic_private const char* history_get(const history_t* h, ssize_t n) {
 }
 
 static bool history_update_file(history_t* h, history_list_t* list) {
-    if (!history_write_all(h, list))
+    if (!history_write_all(h, list)) {
         return false;
+    }
     return true;
 }
 
@@ -680,8 +728,9 @@ static bool history_push_with_metadata_unlocked(history_t* h, const char* entry,
                                                 size_t metadata_count);
 
 static bool history_update_unlocked(history_t* h, const char* entry) {
-    if (h == NULL || entry == NULL || history_is_disabled(h))
+    if (h == NULL || entry == NULL || history_is_disabled(h)) {
         return false;
+    }
 
     history_list_t list;
     history_list_init(&list);
@@ -719,12 +768,14 @@ ic_private bool history_push(history_t* h, const char* entry) {
 static bool history_push_with_metadata_unlocked(history_t* h, const char* entry,
                                                 const ic_history_metadata_t* metadata,
                                                 size_t metadata_count) {
-    if (h == NULL || entry == NULL || history_is_disabled(h))
+    if (h == NULL || entry == NULL || history_is_disabled(h)) {
         return false;
+    }
 
     char* normalized = history_entry_dup_trimmed(h->mem, entry);
-    if (normalized == NULL)
+    if (normalized == NULL) {
         return false;
+    }
 
     history_list_t list;
     history_list_init(&list);
@@ -755,8 +806,9 @@ static bool history_push_with_metadata_unlocked(history_t* h, const char* entry,
     };
 
     for (size_t i = 0; i < metadata_count; ++i) {
-        if (metadata == NULL || metadata[i].key == NULL)
+        if (metadata == NULL || metadata[i].key == NULL) {
             continue;
+        }
         if (!history_entry_set_metadata(h, &new_entry, metadata[i].key,
                                         metadata[i].value == NULL ? "" : metadata[i].value)) {
             history_entry_clear(h, &new_entry);
@@ -783,8 +835,9 @@ static bool history_push_with_metadata_unlocked(history_t* h, const char* entry,
 }
 
 static void history_remove_last_unlocked(history_t* h) {
-    if (history_is_disabled(h))
+    if (history_is_disabled(h)) {
         return;
+    }
     history_list_t list;
     history_list_init(&list);
     const bool previous_allow_duplicates = h->allow_duplicates;
@@ -805,15 +858,17 @@ static void history_remove_last_unlocked(history_t* h) {
 }
 
 static void history_clear_unlocked(history_t* h) {
-    if (h == NULL)
+    if (h == NULL) {
         return;
+    }
     if (h->scratch != NULL) {
         mem_free(h->mem, h->scratch);
         h->scratch = NULL;
         h->scratch_cap = 0;
     }
-    if (h->fname == NULL || history_is_disabled(h))
+    if (h->fname == NULL || history_is_disabled(h)) {
         return;
+    }
     history_list_t list;
     history_list_init(&list);
     (void)history_write_all(h, &list);
@@ -821,8 +876,9 @@ static void history_clear_unlocked(history_t* h) {
 
 ic_private bool history_search(const history_t* h, ssize_t from, const char* search, bool backward,
                                ssize_t* hidx, ssize_t* hpos) {
-    if (h == NULL || search == NULL || history_is_disabled(h))
+    if (h == NULL || search == NULL || history_is_disabled(h)) {
         return false;
+    }
     history_list_t list;
     history_list_init(&list);
     history_t* mutable_h = (history_t*)h;
@@ -838,8 +894,9 @@ ic_private bool history_search(const history_t* h, ssize_t from, const char* sea
         for (ssize_t i = from; i < list.count; i++) {
             ssize_t idx = list.count - i - 1;
             const char* cmd = list.entries[idx].command;
-            if (cmd == NULL)
+            if (cmd == NULL) {
                 continue;
+            }
             p = strstr(cmd, search);
             if (p != NULL) {
                 found = i;
@@ -849,11 +906,13 @@ ic_private bool history_search(const history_t* h, ssize_t from, const char* sea
     } else {
         for (ssize_t i = from; i >= 0; i--) {
             ssize_t idx = list.count - i - 1;
-            if (idx < 0 || idx >= list.count)
+            if (idx < 0 || idx >= list.count) {
                 continue;
+            }
             const char* cmd = list.entries[idx].command;
-            if (cmd == NULL)
+            if (cmd == NULL) {
                 continue;
+            }
             p = strstr(cmd, search);
             if (p != NULL) {
                 found = i;
@@ -863,10 +922,12 @@ ic_private bool history_search(const history_t* h, ssize_t from, const char* sea
     }
 
     if (found >= 0 && p != NULL) {
-        if (hidx != NULL)
+        if (hidx != NULL) {
             *hidx = found;
-        if (hpos != NULL && list.entries[list.count - found - 1].command != NULL)
+        }
+        if (hpos != NULL && list.entries[list.count - found - 1].command != NULL) {
             *hpos = (ssize_t)(p - list.entries[list.count - found - 1].command);
+        }
         history_list_free(mutable_h, &list);
         return true;
     }
@@ -877,8 +938,9 @@ ic_private bool history_search(const history_t* h, ssize_t from, const char* sea
 
 ic_private bool history_search_prefix(const history_t* h, ssize_t from, const char* prefix,
                                       bool backward, ssize_t* hidx) {
-    if (prefix == NULL || h == NULL || history_is_disabled(h))
+    if (prefix == NULL || h == NULL || history_is_disabled(h)) {
         return false;
+    }
 
     history_list_t list;
     history_list_init(&list);
@@ -893,14 +955,16 @@ ic_private bool history_search_prefix(const history_t* h, ssize_t from, const ch
         bool result = false;
         if (backward) {
             if (from < list.count) {
-                if (hidx != NULL)
+                if (hidx != NULL) {
                     *hidx = from;
+                }
                 result = true;
             }
         } else {
             if (from >= 0) {
-                if (hidx != NULL)
+                if (hidx != NULL) {
                     *hidx = from;
+                }
                 result = true;
             }
         }
@@ -911,12 +975,14 @@ ic_private bool history_search_prefix(const history_t* h, ssize_t from, const ch
     if (backward) {
         for (ssize_t i = from; i < list.count; i++) {
             ssize_t idx = list.count - i - 1;
-            if (idx < 0 || idx >= list.count)
+            if (idx < 0 || idx >= list.count) {
                 continue;
+            }
             const char* entry = list.entries[idx].command;
             if (entry != NULL && strncmp(entry, prefix, prefix_len) == 0) {
-                if (hidx != NULL)
+                if (hidx != NULL) {
                     *hidx = i;
+                }
                 history_list_free(mutable_h, &list);
                 return true;
             }
@@ -924,12 +990,14 @@ ic_private bool history_search_prefix(const history_t* h, ssize_t from, const ch
     } else {
         for (ssize_t i = from; i >= 0; i--) {
             ssize_t idx = list.count - i - 1;
-            if (idx < 0 || idx >= list.count)
+            if (idx < 0 || idx >= list.count) {
                 continue;
+            }
             const char* entry = list.entries[idx].command;
             if (entry != NULL && strncmp(entry, prefix, prefix_len) == 0) {
-                if (hidx != NULL)
+                if (hidx != NULL) {
                     *hidx = i;
+                }
                 history_list_free(mutable_h, &list);
                 return true;
             }
@@ -953,8 +1021,9 @@ static int compare_matches(const void* a, const void* b) {
 
 static void history_query_filters_free(history_t* h, history_query_filter_t* filters,
                                        size_t filter_count) {
-    if (h == NULL || filters == NULL)
+    if (h == NULL || filters == NULL) {
         return;
+    }
     for (size_t i = 0; i < filter_count; ++i) {
         mem_free(h->mem, filters[i].key);
         mem_free(h->mem, filters[i].value);
@@ -964,8 +1033,9 @@ static void history_query_filters_free(history_t* h, history_query_filter_t* fil
 
 static bool history_query_filters_append(history_t* h, history_query_filter_t** filters,
                                          size_t* count, size_t* capacity, char* key, char* value) {
-    if (h == NULL || filters == NULL || count == NULL || capacity == NULL || key == NULL)
+    if (h == NULL || filters == NULL || count == NULL || capacity == NULL || key == NULL) {
         return false;
+    }
     if (!history_metadata_key_valid(key)) {
         mem_free(h->mem, key);
         mem_free(h->mem, value);
@@ -999,13 +1069,15 @@ static bool history_query_filters_append(history_t* h, history_query_filter_t** 
 static bool history_parse_metadata_filter_token(history_t* h, const char* token, size_t len,
                                                 history_query_filter_t** filters,
                                                 size_t* filter_count, size_t* filter_capacity) {
-    if (h == NULL || token == NULL || len == 0)
+    if (h == NULL || token == NULL || len == 0) {
         return false;
+    }
 
     for (size_t i = 0; i + 1 < len; ++i) {
         if (token[i] == ':' && token[i + 1] == ':') {
-            if (i == 0)
+            if (i == 0) {
                 return false;
+            }
             ssize_t key_len = (ssize_t)i;
             const char* value_start = token + i + 2;
             ssize_t value_len = (ssize_t)((token + len) - value_start);
@@ -1035,8 +1107,9 @@ static bool history_parse_metadata_filter_token(history_t* h, const char* token,
             break;
         }
     }
-    if (delim == NULL || delim == token || delim >= token + len - 1)
+    if (delim == NULL || delim == token || delim >= token + len - 1) {
         return false;
+    }
 
     ssize_t key_len = (ssize_t)(delim - token);
     ssize_t value_len = (ssize_t)((token + len) - (delim + 1));
@@ -1053,10 +1126,12 @@ static bool history_parse_metadata_filter_token(history_t* h, const char* token,
 static bool history_entry_matches_filters(const history_entry_t* entry,
                                           const history_query_filter_t* filters,
                                           size_t filter_count) {
-    if (filter_count == 0)
+    if (filter_count == 0) {
         return true;
-    if (entry == NULL)
+    }
+    if (entry == NULL) {
         return false;
+    }
     for (size_t i = 0; i < filter_count; ++i) {
         const char* value = history_entry_get_metadata(entry, filters[i].key);
         if (value == NULL || strcmp(value, filters[i].value) != 0) {
@@ -1070,18 +1145,21 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
                                                history_match_t* matches, ssize_t max_matches,
                                                ssize_t* match_count, bool* metadata_filter_applied,
                                                bool case_sensitive) {
-    if (metadata_filter_applied)
+    if (metadata_filter_applied) {
         *metadata_filter_applied = false;
+    }
 
     if (h == NULL || query == NULL || matches == NULL || max_matches <= 0) {
-        if (match_count)
+        if (match_count) {
             *match_count = 0;
+        }
         return false;
     }
 
     if (history_is_disabled(h)) {
-        if (match_count)
+        if (match_count) {
             *match_count = 0;
+        }
         return false;
     }
 
@@ -1090,8 +1168,9 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
     history_t* mutable_h = (history_t*)h;
     if (!history_collect_entries(mutable_h, &list, true)) {
         history_list_free(mutable_h, &list);
-        if (match_count)
+        if (match_count) {
             *match_count = 0;
+        }
         return false;
     }
 
@@ -1103,8 +1182,9 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
     size_t sanitized_len = 0;
 
     ssize_t original_query_len = ic_strlen(query);
-    if (original_query_len < 0)
+    if (original_query_len < 0) {
         original_query_len = 0;
+    }
     sanitized_query = mem_malloc_tp_n(mutable_h->mem, char, (size_t)original_query_len + 1);
     if (sanitized_query != NULL) {
         sanitized_query[0] = '\0';
@@ -1123,8 +1203,9 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
         }
 
         size_t token_len = (size_t)(cursor - token_start);
-        if (token_len == 0)
+        if (token_len == 0) {
             break;
+        }
 
         if (history_parse_metadata_filter_token(mutable_h, token_start, token_len, &filters,
                                                 &filter_count, &filter_capacity)) {
@@ -1160,8 +1241,9 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
         }
     }
 
-    if (effective_query == NULL)
+    if (effective_query == NULL) {
         effective_query = "";
+    }
 
     if (filter_count > 0 && metadata_filter_applied != NULL) {
         *metadata_filter_applied = true;
@@ -1173,10 +1255,12 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
         for (ssize_t offset = 0; offset < list.count && count < max_matches; offset++) {
             ssize_t idx = list.count - offset - 1;
             const history_entry_t* entry = &list.entries[idx];
-            if (entry->command == NULL)
+            if (entry->command == NULL) {
                 continue;
-            if (!history_entry_matches_filters(entry, filters, filter_count))
+            }
+            if (!history_entry_matches_filters(entry, filters, filter_count)) {
                 continue;
+            }
 
             matches[count].hidx = offset;
             matches[count].score = (int)(100 - offset);
@@ -1188,10 +1272,12 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
         for (ssize_t offset = 0; offset < list.count; offset++) {
             ssize_t idx = list.count - offset - 1;
             const history_entry_t* entry = &list.entries[idx];
-            if (entry->command == NULL)
+            if (entry->command == NULL) {
                 continue;
-            if (!history_entry_matches_filters(entry, filters, filter_count))
+            }
+            if (!history_entry_matches_filters(entry, filters, filter_count)) {
                 continue;
+            }
 
             ssize_t mpos = 0;
             ssize_t mlen = 0;
@@ -1232,11 +1318,13 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
         qsort(matches, count, sizeof(history_match_t), compare_matches);
     }
 
-    if (match_count)
+    if (match_count) {
         *match_count = count;
+    }
 
-    if (sanitized_query != NULL)
+    if (sanitized_query != NULL) {
         mem_free(mutable_h->mem, sanitized_query);
+    }
     history_query_filters_free(mutable_h, filters, filter_count);
     history_list_free(mutable_h, &list);
 
@@ -1253,8 +1341,9 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
 }
 
 ic_private void history_load_from(history_t* h, const char* fname, long max_entries) {
-    if (h == NULL)
+    if (h == NULL) {
         return;
+    }
 
     if (h->fname != NULL) {
         mem_free(h->mem, h->fname);
@@ -1283,25 +1372,31 @@ ic_private void history_load_from(history_t* h, const char* fname, long max_entr
         h->max_entries = max_entries;
     }
 
-    if (!history_is_disabled(h))
+    if (!history_is_disabled(h)) {
         history_load(h);
+    }
 }
 
 static char from_xdigit(int c) {
-    if (c >= '0' && c <= '9')
+    if (c >= '0' && c <= '9') {
         return (char)(c - '0');
-    if (c >= 'A' && c <= 'F')
+    }
+    if (c >= 'A' && c <= 'F') {
         return (char)(10 + (c - 'A'));
-    if (c >= 'a' && c <= 'f')
+    }
+    if (c >= 'a' && c <= 'f') {
         return (char)(10 + (c - 'a'));
+    }
     return 0;
 }
 
 static char to_xdigit(uint8_t c) {
-    if (c <= 9)
+    if (c <= 9) {
         return ((char)c + '0');
-    if (c >= 10 && c <= 15)
+    }
+    if (c >= 10 && c <= 15) {
         return ((char)c - 10 + 'A');
+    }
     return '0';
 }
 
@@ -1319,12 +1414,14 @@ static char* history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {
             }
             break;
         }
-        if (c == '\n')
+        if (c == '\n') {
             break;
+        }
         if (c == '\\') {
             int esc = fgetc(f);
-            if (esc == EOF)
+            if (esc == EOF) {
                 return NULL;
+            }
             if (esc == 'n') {
                 (void)sbuf_append(sbuf, "\n");
             } else if (esc == 'r') {
@@ -1335,11 +1432,13 @@ static char* history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {
                 (void)sbuf_append(sbuf, "\\");
             } else if (esc == 'x') {
                 int c1 = fgetc(f);
-                if (c1 == EOF)
+                if (c1 == EOF) {
                     return NULL;
+                }
                 int c2 = fgetc(f);
-                if (c2 == EOF)
+                if (c2 == EOF) {
                     return NULL;
+                }
                 if (ic_isxdigit(c1) && ic_isxdigit(c2)) {
                     char chr = from_xdigit(c1) * 16 + from_xdigit(c2);
                     (void)sbuf_append_char(sbuf, chr);
@@ -1353,21 +1452,25 @@ static char* history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {
             (void)sbuf_append_char(sbuf, (char)c);
         }
     }
-    if (sbuf_len(sbuf) == 0)
+    if (sbuf_len(sbuf) == 0) {
         return mem_strdup(h->mem, "");
-    if (sbuf_string(sbuf)[0] == '#')
+    }
+    if (sbuf_string(sbuf)[0] == '#') {
         return NULL;
+    }
     return history_entry_dup_trimmed(h->mem, sbuf_string(sbuf));
 }
 
 static bool history_write_entry(const char* entry, FILE* f, stringbuf_t* sbuf) {
     sbuf_clear(sbuf);
 
-    if (entry == NULL)
+    if (entry == NULL) {
         return true;
+    }
 
-    if (*entry == '\0')
+    if (*entry == '\0') {
         return history_write_successful(fputc('\n', f));
+    }
 
     while (*entry != 0) {
         char c = *entry++;
@@ -1392,17 +1495,20 @@ static bool history_write_entry(const char* entry, FILE* f, stringbuf_t* sbuf) {
 
     if (sbuf_len(sbuf) > 0) {
         (void)sbuf_append(sbuf, "\n");
-        if (!history_write_successful(fputs(sbuf_string(sbuf), f)))
+        if (!history_write_successful(fputs(sbuf_string(sbuf), f))) {
             return false;
+        }
     }
     return true;
 }
 
 static bool history_metadata_write_escaped(stringbuf_t* sbuf, const char* value) {
-    if (sbuf == NULL)
+    if (sbuf == NULL) {
         return false;
-    if (value == NULL)
+    }
+    if (value == NULL) {
         return true;
+    }
     for (const char* p = value; *p != '\0'; ++p) {
         uint8_t c = (uint8_t)(*p);
         if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
@@ -1418,12 +1524,14 @@ static bool history_metadata_write_escaped(stringbuf_t* sbuf, const char* value)
 }
 
 static char* history_metadata_decode_escaped(history_t* h, const char* encoded) {
-    if (h == NULL || encoded == NULL)
+    if (h == NULL || encoded == NULL) {
         return NULL;
+    }
     ssize_t len = ic_strlen(encoded);
     char* out = mem_malloc_tp_n(h->mem, char, len + 1);
-    if (out == NULL)
+    if (out == NULL) {
         return NULL;
+    }
     ssize_t o = 0;
     for (ssize_t i = 0; i < len; ++i) {
         char c = encoded[i];
@@ -1442,12 +1550,14 @@ static char* history_metadata_decode_escaped(history_t* h, const char* encoded) 
 
 static bool history_parse_metadata_header_line(history_t* h, history_entry_t* entry,
                                                const char* header_line) {
-    if (h == NULL || entry == NULL || header_line == NULL)
+    if (h == NULL || entry == NULL || header_line == NULL) {
         return false;
+    }
 
     const char* cursor = header_line + 1;
-    while (*cursor == ' ' || *cursor == '\t')
+    while (*cursor == ' ' || *cursor == '\t') {
         cursor++;
+    }
     if (*cursor == '\0' || *cursor == '\n' || *cursor == '\r') {
         return false;
     }
@@ -1458,19 +1568,23 @@ static bool history_parse_metadata_header_line(history_t* h, history_entry_t* en
             has_equals = true;
             break;
         }
-        if (*p == '\n' || *p == '\r')
+        if (*p == '\n' || *p == '\r') {
             break;
+        }
     }
 
-    if (!has_equals)
+    if (!has_equals) {
         return false;
+    }
 
     const char* token = cursor;
     while (*token != '\0' && *token != '\n' && *token != '\r') {
-        while (*token == ' ' || *token == '\t')
+        while (*token == ' ' || *token == '\t') {
             token++;
-        if (*token == '\0' || *token == '\n' || *token == '\r')
+        }
+        if (*token == '\0' || *token == '\n' || *token == '\r') {
             break;
+        }
 
         const char* token_end = token;
         while (*token_end != '\0' && *token_end != '\n' && *token_end != '\r' &&
@@ -1479,8 +1593,9 @@ static bool history_parse_metadata_header_line(history_t* h, history_entry_t* en
         }
 
         const char* equals = token;
-        while (equals < token_end && *equals != '=')
+        while (equals < token_end && *equals != '=') {
             equals++;
+        }
 
         if (equals > token && equals < token_end) {
             char* key = mem_strndup(h->mem, token, (ssize_t)(equals - token));
@@ -1506,8 +1621,9 @@ static bool history_parse_metadata_header_line(history_t* h, history_entry_t* en
 }
 
 static bool history_write_record(const history_entry_t* entry, FILE* f, stringbuf_t* sbuf) {
-    if (entry == NULL || entry->command == NULL)
+    if (entry == NULL || entry->command == NULL) {
         return true;
+    }
 
     sbuf_clear(sbuf);
     (void)sbuf_append(sbuf, "#");
@@ -1515,8 +1631,9 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
     bool wrote_metadata = false;
     for (ssize_t i = 0; i < entry->metadata_count; ++i) {
         const char* key = entry->metadata[i].key;
-        if (!history_metadata_key_valid(key))
+        if (!history_metadata_key_valid(key)) {
             continue;
+        }
         wrote_metadata = true;
         (void)sbuf_append_char(sbuf, ' ');
         (void)sbuf_append(sbuf, key);
@@ -1532,8 +1649,9 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
 
         char ts_buf[32];
         int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
-        if (n <= 0 || n >= (int)sizeof(ts_buf))
+        if (n <= 0 || n >= (int)sizeof(ts_buf)) {
             return false;
+        }
         (void)sbuf_append_char(sbuf, ' ');
         (void)sbuf_append(sbuf, k_history_timestamp_key);
         (void)sbuf_append_char(sbuf, '=');
@@ -1541,27 +1659,33 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
     }
     (void)sbuf_append_char(sbuf, '\n');
 
-    if (!history_write_successful(fputs(sbuf_string(sbuf), f)))
+    if (!history_write_successful(fputs(sbuf_string(sbuf), f))) {
         return false;
+    }
 
     return history_write_entry(entry->command, f, sbuf);
 }
 
 static bool history_collect_disk_entries(history_t* h, history_list_t* list, bool dedup) {
     history_list_init(list);
-    if (h == NULL)
+    if (h == NULL) {
         return false;
-    if (history_is_disabled(h))
+    }
+    if (history_is_disabled(h)) {
         return true;
-    if (h->fname == NULL)
+    }
+    if (h->fname == NULL) {
         return true;
+    }
 
     struct stat st;
-    if (stat(h->fname, &st) == 0 && !S_ISREG(st.st_mode))
+    if (stat(h->fname, &st) == 0 && !S_ISREG(st.st_mode)) {
         return false;
+    }
     FILE* f = fopen(h->fname, "r");
-    if (f == NULL)
+    if (f == NULL) {
         return errno == ENOENT;
+    }
 
     stringbuf_t* sbuf = sbuf_new(h->mem);
     if (sbuf == NULL) {
@@ -1579,14 +1703,16 @@ static bool history_collect_disk_entries(history_t* h, history_list_t* list, boo
 
         int c = fgetc(f);
         if (c == EOF) {
-            if (ferror(f))
+            if (ferror(f)) {
                 success = false;
-            else
+            } else {
                 clearerr(f);
+            }
             break;
         }
-        if (c == '\n' || c == '\r')
+        if (c == '\n' || c == '\r') {
             continue;
+        }
 
         history_entry_t entry = {
             .command = NULL,
@@ -1602,8 +1728,9 @@ static bool history_collect_disk_entries(history_t* h, history_list_t* list, boo
             }
             errno = 0;
             if (fgets(header_buf, sizeof(header_buf), f) == NULL) {
-                if (ferror(f))
+                if (ferror(f)) {
                     success = false;
+                }
                 break;
             }
 
@@ -1620,8 +1747,9 @@ static bool history_collect_disk_entries(history_t* h, history_list_t* list, boo
 
             int next_char = fgetc(f);
             if (next_char == EOF) {
-                if (ferror(f))
+                if (ferror(f)) {
                     success = false;
+                }
                 break;
             }
             if (next_char == '#') {
@@ -1689,22 +1817,25 @@ static bool history_collect_disk_entries(history_t* h, history_list_t* list, boo
     }
 
     history_list_prune_to_max(h, list);
-    if (dedup)
+    if (dedup) {
         history_list_remove_duplicates(h, list);
-    else if (!h->allow_duplicates)
+    } else if (!h->allow_duplicates) {
         history_list_remove_duplicates(h, list);
+    }
 
     return close_ok;
 }
 
 static bool history_collect_entries(history_t* h, history_list_t* list, bool dedup) {
-    if (!history_collect_disk_entries(h, list, dedup))
+    if (!history_collect_disk_entries(h, list, dedup)) {
         return false;
+    }
     if (!history_is_disabled(h) && h->pending != NULL) {
         history_entry_t entry = {0};
         entry.command = mem_strdup(h->mem, h->pending);
-        if (entry.command == NULL || !history_list_append(h, list, entry))
+        if (entry.command == NULL || !history_list_append(h, list, entry)) {
             return false;
+        }
     }
     return true;
 }
@@ -1720,13 +1851,15 @@ static void history_persistence_error(history_t* h) {
 // The lock has a stable inode across replacements of the data file. Readers
 // need no lock: opening the data file sees either complete committed snapshot.
 static int history_lock(history_t* h) {
-    if (history_is_disabled(h) || h->fname == NULL)
+    if (history_is_disabled(h) || h->fname == NULL) {
         return -1;
+    }
 #ifndef _WIN32
     const size_t len = strlen(h->fname) + 6;
     char* path = mem_malloc_tp_n(h->mem, char, (ssize_t)len);
-    if (path == NULL)
+    if (path == NULL) {
         return -1;
+    }
     snprintf(path, len, "%s.lock", h->fname);
     const int fd = open(path, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600);
     mem_free(h->mem, path);
@@ -1737,8 +1870,9 @@ static int history_lock(history_t* h) {
             do {
                 result = flock(fd, LOCK_EX);
             } while (result != 0 && errno == EINTR);
-            if (result == 0)
+            if (result == 0) {
                 return fd;
+            }
         }
         close(fd);
     }
@@ -1751,47 +1885,57 @@ static int history_lock(history_t* h) {
 
 static void history_unlock(int fd) {
 #ifndef _WIN32
-    if (fd >= 0)
+    if (fd >= 0) {
         close(fd);
+    }
 #else
     ic_unused(fd);
 #endif
 }
 
 static bool history_write_all(const history_t* h, const history_list_t* list) {
-    if (h == NULL || h->fname == NULL)
+    if (h == NULL || h->fname == NULL) {
         return false;
+    }
     const size_t len = strlen(h->fname) + 12;
     char* temporary = mem_malloc_tp_n(h->mem, char, (ssize_t)len);
-    if (temporary == NULL)
+    if (temporary == NULL) {
         return false;
+    }
     snprintf(temporary, len, "%s.tmp.XXXXXX", h->fname);
 #ifndef _WIN32
     int fd = mkstemp(temporary);
     FILE* f = fd < 0 ? NULL : fdopen(fd, "w");
-    if (fd >= 0 && f == NULL)
+    if (fd >= 0 && f == NULL) {
         close(fd);
+    }
 #else
     FILE* f = NULL;
-    if (_mktemp_s(temporary, len) == 0)
+    if (_mktemp_s(temporary, len) == 0) {
         f = fopen(temporary, "w");
+    }
 #endif
     bool ok = f != NULL;
     stringbuf_t* sbuf = sbuf_new(h->mem);
-    if (sbuf == NULL)
+    if (sbuf == NULL) {
         ok = false;
-    for (ssize_t i = 0; ok && i < list->count; i++)
+    }
+    for (ssize_t i = 0; ok && i < list->count; i++) {
         ok = history_write_record(&list->entries[i], f, sbuf);
+    }
     sbuf_free(sbuf);
     if (f != NULL) {
-        if (fflush(f) != 0)
+        if (fflush(f) != 0) {
             ok = false;
+        }
 #ifndef _WIN32
-        if (ok && fsync(fileno(f)) != 0)
+        if (ok && fsync(fileno(f)) != 0) {
             ok = false;
+        }
 #endif
-        if (!history_close_stream(f))
+        if (!history_close_stream(f)) {
             ok = false;
+        }
     }
     if (ok) {
 #ifndef _WIN32
@@ -1810,38 +1954,45 @@ static bool history_write_all(const history_t* h, const history_list_t* list) {
 }
 
 ic_private void history_begin_edit(history_t* h) {
-    if (history_is_disabled(h))
+    if (history_is_disabled(h)) {
         return;
+    }
     mem_free(h->mem, h->pending);
     h->pending = mem_strdup(h->mem, "");
 }
 
 ic_private void history_end_edit(history_t* h, const char* entry) {
-    if (h == NULL)
+    if (h == NULL) {
         return;
+    }
     mem_free(h->mem, h->pending);
     h->pending = NULL;
-    if (h->auto_add && entry != NULL && strlen(entry) > 1)
+    if (h->auto_add && entry != NULL && strlen(entry) > 1) {
         (void)history_push(h, entry);
+    }
 }
 
 ic_private bool history_update(history_t* h, const char* entry) {
-    if (history_is_disabled(h) || entry == NULL)
+    if (history_is_disabled(h) || entry == NULL) {
         return false;
+    }
     if (h->pending != NULL) {
         char* copy = history_entry_dup_trimmed(h->mem, entry);
-        if (copy == NULL)
+        if (copy == NULL) {
             return false;
+        }
         mem_free(h->mem, h->pending);
         h->pending = copy;
         return true;
     }
     int fd = history_lock(h);
-    if (fd < 0)
+    if (fd < 0) {
         return false;
+    }
     bool ok = history_update_unlocked(h, entry);
-    if (!ok)
+    if (!ok) {
         history_persistence_error(h);
+    }
     history_unlock(fd);
     return ok;
 }
@@ -1849,55 +2000,64 @@ ic_private bool history_update(history_t* h, const char* entry) {
 ic_private bool history_push_with_metadata(history_t* h, const char* entry,
                                            const ic_history_metadata_t* metadata,
                                            size_t metadata_count) {
-    if (entry == NULL)
+    if (entry == NULL) {
         return false;
+    }
     int fd = history_lock(h);
-    if (fd < 0)
+    if (fd < 0) {
         return false;
+    }
     bool ok = history_push_with_metadata_unlocked(h, entry, metadata, metadata_count);
-    if (!ok)
+    if (!ok) {
         history_persistence_error(h);
+    }
     history_unlock(fd);
     return ok;
 }
 
 ic_private void history_remove_last(history_t* h) {
-    if (h == NULL)
+    if (h == NULL) {
         return;
+    }
     if (h->pending != NULL) {
         mem_free(h->mem, h->pending);
         h->pending = NULL;
         return;
     }
     int fd = history_lock(h);
-    if (fd < 0)
+    if (fd < 0) {
         return;
+    }
     history_remove_last_unlocked(h);
     history_unlock(fd);
 }
 
 ic_private void history_clear(history_t* h) {
-    if (h == NULL)
+    if (h == NULL) {
         return;
+    }
     mem_free(h->mem, h->pending);
     h->pending = NULL;
     int fd = history_lock(h);
-    if (fd < 0)
+    if (fd < 0) {
         return;
+    }
     history_clear_unlocked(h);
     history_unlock(fd);
 }
 
 ic_private void history_load(history_t* h) {
     int fd = history_lock(h);
-    if (fd < 0)
+    if (fd < 0) {
         return;
+    }
     history_list_t list;
     history_list_init(&list);
-    if (history_collect_disk_entries(h, &list, true))
+    if (history_collect_disk_entries(h, &list, true)) {
         (void)history_write_all(h, &list);
-    else
+    } else {
         history_persistence_error(h);
+    }
     history_list_free(h, &list);
     history_unlock(fd);
 }

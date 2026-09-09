@@ -112,8 +112,9 @@ static void sample_completion_builder(ic_completion_env_t* cenv, const char* pre
 
 static stringbuf_t* new_stringbuf(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return NULL;
+    }
     return sbuf_new(mem);
 }
 
@@ -175,8 +176,9 @@ static bool test_readline_disposition_name_mappings(void) {
 
 static bool test_multiline_toggle(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->singleline_only = true;
     bool was_enabled = ic_enable_multiline(true);
@@ -195,8 +197,9 @@ static bool test_multiline_toggle(void) {
 
 static bool test_multiline_continuation_retention_toggle(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->retain_multiline_continuation = false;
     EXPECT_FALSE(ic_enable_multiline_continuation_retention(true),
@@ -213,8 +216,9 @@ static bool test_multiline_continuation_retention_toggle(void) {
 
 static bool test_line_number_modes(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->show_line_numbers = true;
     env->relative_line_numbers = false;
@@ -243,8 +247,9 @@ static bool test_line_number_modes(void) {
 
 static bool test_line_number_continuation_prompt_toggle(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->allow_line_numbers_with_continuation_prompt = false;
     bool prev = ic_enable_line_numbers_with_continuation_prompt(true);
@@ -270,8 +275,9 @@ static bool test_line_number_continuation_prompt_toggle(void) {
 
 static bool test_line_number_prompt_replacement_toggle(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->replace_prompt_line_with_line_number = false;
     bool prev = ic_enable_line_number_prompt_replacement(true);
@@ -313,8 +319,9 @@ static bool test_prompt_line_replacement_requires_content(void) {
 
 static bool test_visible_whitespace_marker(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->show_whitespace_characters = false;
     ic_set_whitespace_marker(NULL);
@@ -342,8 +349,9 @@ static bool test_visible_whitespace_marker(void) {
 
 static bool test_multiline_start_line_count_clamp(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->multiline_start_line_count = 4;
 
@@ -368,8 +376,9 @@ static bool test_multiline_start_line_count_clamp(void) {
 
 static bool test_multiline_max_line_count_defaults_and_clamps(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     EXPECT_TRUE(ic_get_multiline_max_line_count() == 15,
                 "multiline viewport should default to 15 visible rows");
@@ -395,8 +404,9 @@ static bool test_multiline_max_line_count_defaults_and_clamps(void) {
 
 static bool test_multiline_bottom_line_count_defaults_and_clamps(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     EXPECT_TRUE(ic_get_multiline_bottom_line_count() == 3,
                 "multiline viewport should default to three content rows below the cursor");
@@ -532,8 +542,9 @@ static bool test_multiline_viewport_symmetric_scroll_margin(void) {
 
 static bool test_editline_buffer_api_without_editor(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->current_editor = NULL;
     EXPECT_FALSE(ic_set_buffer("demo"), "setting buffer without editor should fail");
@@ -555,8 +566,9 @@ static bool test_editline_buffer_api_without_editor(void) {
 
 static bool test_continuation_callback_registration(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->continuation_check_callback = NULL;
     env->continuation_check_arg = NULL;
@@ -578,8 +590,9 @@ static bool test_continuation_callback_registration(void) {
 
 static bool test_completion_generation_and_apply(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     ic_completer_fun_t* prev_fun = NULL;
     void* prev_arg = NULL;
@@ -611,10 +624,12 @@ static bool test_completion_generation_and_apply(void) {
     const char* alpine_source = NULL;
     for (ssize_t i = 0; i < produced; ++i) {
         const char* replacement = completions_get_replacement(env->completions, i);
-        if (replacement == NULL)
+        if (replacement == NULL) {
             continue;
-        if (strcmp(replacement, "alphabet") == 0)
+        }
+        if (strcmp(replacement, "alphabet") == 0) {
             found_alphabet = true;
+        }
         if (strcmp(replacement, "alpine") == 0) {
             found_alpine = true;
             alpine_source = completions_get_source(env->completions, i);
@@ -641,8 +656,9 @@ static bool test_completion_generation_and_apply(void) {
     EXPECT_TRUE(delete_after == 0, "apply range should account for delete_after");
 
     stringbuf_t* sb = new_stringbuf();
-    if (sb == NULL)
+    if (sb == NULL) {
         return false;
+    }
     sbuf_replace(sb, "a");
     ssize_t new_pos = completions_apply(env->completions, 0, sb, 1);
     EXPECT_TRUE(new_pos > 1, "completion apply should advance cursor");
@@ -663,12 +679,14 @@ static bool test_completion_generation_and_apply(void) {
 static bool test_history_dedup_snapshot(void) {
     ic_env_t* env = ensure_env();
     alloc_t* mem = test_allocator();
-    if (env == NULL || mem == NULL)
+    if (env == NULL || mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_behavior.log";
     (void)remove(history_path);
@@ -698,12 +716,15 @@ static bool test_history_dedup_snapshot(void) {
     ssize_t echo_instances = 0;
     for (ssize_t i = 0; i < snap.count; ++i) {
         const history_entry_t* entry = history_snapshot_get(&snap, i);
-        if (entry == NULL)
+        if (entry == NULL) {
             continue;
-        if (strcmp(entry->command, "printf bye") == 0)
+        }
+        if (strcmp(entry->command, "printf bye") == 0) {
             found_printf = true;
-        if (strcmp(entry->command, "echo hi") == 0)
+        }
+        if (strcmp(entry->command, "echo hi") == 0) {
             echo_instances++;
+        }
     }
     EXPECT_TRUE(found_printf, "history snapshot should contain the printf entry");
     EXPECT_TRUE(echo_instances >= 2, "history snapshot should retain duplicate echo entries");
@@ -725,12 +746,14 @@ static bool test_history_dedup_snapshot(void) {
 
 static bool test_history_frequency_metadata_tracking(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_frequency.log";
     (void)remove(history_path);
@@ -816,12 +839,14 @@ static bool test_history_frequency_metadata_tracking(void) {
 
 static bool test_history_frequency_metadata_interactive_flow(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_frequency_interactive.log";
     (void)remove(history_path);
@@ -877,12 +902,14 @@ static bool test_history_frequency_metadata_interactive_flow(void) {
 
 static bool test_history_snapshot_dedup_keeps_latest_entry(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_dedup_latest.log";
     (void)remove(history_path);
@@ -923,12 +950,14 @@ static bool test_history_snapshot_dedup_keeps_latest_entry(void) {
 static bool test_history_fuzzy_case_toggle(void) {
     ic_env_t* env = ensure_env();
     alloc_t* mem = test_allocator();
-    if (env == NULL || mem == NULL)
+    if (env == NULL || mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_case_toggle.log";
     (void)remove(history_path);
@@ -972,13 +1001,15 @@ static bool test_history_fuzzy_case_toggle(void) {
 
 static bool test_history_fuzzy_case_toggle_via_api(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     history_t* original = env->history;
     history_t* temp_history = history_new(env->mem);
-    if (temp_history == NULL)
+    if (temp_history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_case_toggle_env.log";
     (void)remove(history_path);
@@ -1024,8 +1055,9 @@ static bool test_history_fuzzy_case_toggle_via_api(void) {
 
 static bool test_history_search_sort_api(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     const char* metadata_key = "unexpected";
 
@@ -1065,8 +1097,9 @@ static bool test_history_search_sort_api(void) {
 
 static bool test_line_wrapping_calculations(void) {
     stringbuf_t* sb = new_stringbuf();
-    if (sb == NULL)
+    if (sb == NULL) {
         return false;
+    }
 
     sbuf_replace(sb, "abcd");
     rowcol_t rc = {0};
@@ -1311,8 +1344,9 @@ static bool test_stringbuf_empty_non_utf8_result(void) {
 
 static bool test_stringbuf_utf8_navigation_and_deletion(void) {
     stringbuf_t* sb = new_stringbuf();
-    if (sb == NULL)
+    if (sb == NULL) {
         return false;
+    }
 
     sbuf_replace(sb,
                  "a\xE2\x82\xAC"
@@ -1352,8 +1386,9 @@ static bool test_push_raw_input_preconditions(void) {
     EXPECT_TRUE(ic_push_raw_input(bytes, 0), "zero-length raw input should be accepted as no-op");
 
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     tty_t* saved_tty = env->tty;
     env->tty = NULL;
@@ -1414,8 +1449,9 @@ static bool test_tty_character_pushback_capacity_guard(void) {
 
 static bool test_push_raw_input_null_pointer_rejected(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     struct tty_s tty_probe;
     memset(&tty_probe, 0, sizeof(tty_probe));
@@ -1465,8 +1501,9 @@ static bool test_escape_skip_charset_sequence_length(void) {
 
 static bool test_typeahead_toggle_lifecycle(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(false);
     EXPECT_FALSE(ic_typeahead_is_enabled(), "typeahead should be disabled after reset");
@@ -1493,8 +1530,9 @@ static bool test_typeahead_toggle_lifecycle(void) {
 
 static bool test_typeahead_clear_pending_state(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"clear-me", strlen("clear-me")),
@@ -1716,8 +1754,9 @@ static bool test_typeahead_normalize_ctrl_w_stops_at_carriage_return(void) {
 
 static bool test_typeahead_ingest_rejects_disabled_null_and_empty_input(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(false);
     EXPECT_FALSE(ic_typeahead_ingest_raw_input((const uint8_t*)"abc", 3),
@@ -1739,8 +1778,9 @@ static bool test_typeahead_ingest_rejects_disabled_null_and_empty_input(void) {
 
 static bool test_typeahead_ingest_plain_text_sets_pending_initial_input(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"echo ok", strlen("echo ok")),
@@ -1756,8 +1796,9 @@ static bool test_typeahead_ingest_plain_text_sets_pending_initial_input(void) {
 
 static bool test_typeahead_ingest_appends_to_existing_pending_input(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"git ", strlen("git ")),
@@ -1773,8 +1814,9 @@ static bool test_typeahead_ingest_appends_to_existing_pending_input(void) {
 
 static bool test_typeahead_ingest_filters_escape_sequences_before_pending_input(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     const char* raw =
@@ -1791,8 +1833,9 @@ static bool test_typeahead_ingest_filters_escape_sequences_before_pending_input(
 
 static bool test_typeahead_ingest_preserves_carriage_return_as_submit(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"make test\r", strlen("make test\r")),
@@ -1806,8 +1849,9 @@ static bool test_typeahead_ingest_preserves_carriage_return_as_submit(void) {
 
 static bool test_typeahead_ingest_preserves_ctrl_j_as_line_feed(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"first command\nsecond",
@@ -1822,8 +1866,9 @@ static bool test_typeahead_ingest_preserves_ctrl_j_as_line_feed(void) {
 
 static bool test_typeahead_ingest_keeps_last_submitted_line_with_trailing_return(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     const char* raw = "first\rsecond\r";
@@ -1838,8 +1883,9 @@ static bool test_typeahead_ingest_keeps_last_submitted_line_with_trailing_return
 
 static bool test_typeahead_ingest_returns_only_clear_pending_input(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"\r\r", strlen("\r\r")),
@@ -1855,8 +1901,9 @@ static bool test_typeahead_ingest_returns_only_clear_pending_input(void) {
 
 static bool test_typeahead_ingest_line_feeds_only_remain_editable(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     static const uint8_t raw[] = {'\n', '\n'};
@@ -1870,8 +1917,9 @@ static bool test_typeahead_ingest_line_feeds_only_remain_editable(void) {
 
 static bool test_typeahead_ingest_chunked_ctrl_j_then_return(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"alpha\n", 6),
@@ -1889,8 +1937,9 @@ static bool test_typeahead_ingest_chunked_ctrl_j_then_return(void) {
 
 static bool test_typeahead_prepare_clears_raw_without_controls_and_keeps_initial_input(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     g_typeahead_capture_gate_result = false;
@@ -1910,8 +1959,9 @@ static bool test_typeahead_prepare_clears_raw_without_controls_and_keeps_initial
 
 static bool test_typeahead_prepare_replays_control_raw_bytes_in_original_order(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     g_typeahead_capture_gate_result = false;
@@ -1948,8 +1998,9 @@ static bool test_typeahead_prepare_replays_control_raw_bytes_in_original_order(v
 
 static bool test_typeahead_prepare_failed_control_replay_preserves_initial_input(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     g_typeahead_capture_gate_result = false;
@@ -1974,8 +2025,9 @@ static bool test_typeahead_prepare_failed_control_replay_preserves_initial_input
 
 static bool test_typeahead_pending_input_hidden_when_disabled(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     reset_typeahead_test_state(true);
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"hidden", strlen("hidden")),
@@ -1995,8 +2047,9 @@ static bool test_typeahead_pending_input_hidden_when_disabled(void) {
 
 static bool test_prompt_marker_roundtrip(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     ic_set_prompt_marker("=> ", ".. ");
     EXPECT_STREQ(ic_get_prompt_marker(), "=> ", "primary prompt marker should round-trip");
@@ -2018,8 +2071,9 @@ static bool test_prompt_marker_roundtrip(void) {
 
 static bool test_menu_prompt_api_roundtrip(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     ic_set_history_search_prompt(NULL);
     ic_set_command_palette_prompt(NULL);
@@ -2052,8 +2106,9 @@ static bool test_menu_prompt_api_roundtrip(void) {
 
 static bool test_hint_delay_clamps(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->hint_delay = 250;
     long previous = ic_set_hint_delay(-1);
@@ -2073,8 +2128,9 @@ static bool test_hint_delay_clamps(void) {
 
 static bool test_idle_timeout_setting(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->idle_timeout = 250;
     long previous = ic_set_idle_timeout(-1);
@@ -2092,8 +2148,9 @@ static bool test_idle_timeout_setting(void) {
 
 static bool test_status_hint_mode_validation(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->status_hint_mode = IC_STATUS_HINT_PERSISTENT;
     ic_status_hint_mode_t prev = ic_set_status_hint_mode((ic_status_hint_mode_t)99);
@@ -2114,8 +2171,9 @@ static bool test_status_hint_mode_validation(void) {
 
 static bool test_mouse_reporting_option_toggles(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->mouse_reporting_mode = IC_MOUSE_CLICKING_DISABLED;
     env->mouse_reporting_enabled_by_default = false;
@@ -2199,8 +2257,9 @@ static bool test_mouse_reporting_option_toggles(void) {
 
 static bool test_mouse_reporting_defaults(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_MENU_ONLY,
                 "mouse clicking should default to menu-only off mode");
@@ -2211,8 +2270,9 @@ static bool test_mouse_reporting_defaults(void) {
 
 static bool test_option_toggle_consistency(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->complete_autotab = false;
     EXPECT_FALSE(ic_enable_auto_tab(true), "auto-tab should report previously disabled state");
@@ -2329,8 +2389,9 @@ static bool test_option_toggle_consistency(void) {
 
 static bool test_brace_pair_setters_validation(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     ic_set_matching_braces("()<>[]");
     EXPECT_STREQ(ic_env_get_match_braces(env), "()<>[]",
@@ -2361,8 +2422,9 @@ static bool test_brace_pair_setters_validation(void) {
 
 static bool test_abbreviation_management(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     ic_clear_abbreviations();
     EXPECT_TRUE(env->abbreviation_count == 0, "clear abbreviations should reset entry count");
@@ -2441,8 +2503,9 @@ static bool test_key_spec_parse_and_format_roundtrip(void) {
 
 static bool test_key_binding_crud_and_profiles(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     const char* original_profile = ic_get_key_binding_profile();
     EXPECT_TRUE(ic_set_key_binding_profile("emacs"), "switching to emacs profile should succeed");
@@ -2497,12 +2560,15 @@ static bool test_key_binding_crud_and_profiles(void) {
     bool saw_emacs = false;
     bool saw_vim = false;
     for (size_t i = 0; i < profile_written; ++i) {
-        if (profiles[i].name == NULL)
+        if (profiles[i].name == NULL) {
             continue;
-        if (strcmp(profiles[i].name, "emacs") == 0)
+        }
+        if (strcmp(profiles[i].name, "emacs") == 0) {
             saw_emacs = true;
-        if (strcmp(profiles[i].name, "vim") == 0)
+        }
+        if (strcmp(profiles[i].name, "vim") == 0) {
             saw_vim = true;
+        }
     }
     EXPECT_TRUE(saw_emacs && saw_vim, "profile listing should expose both emacs and vim profiles");
 
@@ -2867,8 +2933,9 @@ static bool test_prev_next_char_utf8_helpers(void) {
 
 static bool test_term_visibility_tracking_with_escape_and_control_bytes(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return false;
+    }
 
     term_reset_line_state(env->term);
     term_set_track_output(env->term, true);
@@ -2893,8 +2960,9 @@ static bool test_term_visibility_tracking_with_escape_and_control_bytes(void) {
 
 static bool test_term_visibility_tracking_escape_only_sequences(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return false;
+    }
 
     term_reset_line_state(env->term);
     term_set_track_output(env->term, true);
@@ -2917,8 +2985,9 @@ static bool test_term_visibility_tracking_escape_only_sequences(void) {
 
 static bool test_term_visibility_tracking_control_bytes_only(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return false;
+    }
 
     term_reset_line_state(env->term);
     term_set_track_output(env->term, true);
@@ -2943,8 +3012,9 @@ static bool test_term_visibility_tracking_control_bytes_only(void) {
 
 static bool test_term_visibility_tracking_carriage_return_preserves_visible_state(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return false;
+    }
 
     term_reset_line_state(env->term);
     term_set_track_output(env->term, true);
@@ -2968,8 +3038,9 @@ static bool test_term_visibility_tracking_carriage_return_preserves_visible_stat
 
 static bool test_term_visibility_tracking_bracketed_paste_toggle_sequences(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return false;
+    }
 
     term_reset_line_state(env->term);
     term_set_track_output(env->term, true);
@@ -2999,8 +3070,9 @@ static bool test_term_visibility_tracking_bracketed_paste_toggle_sequences(void)
 
 static bool test_term_visibility_tracking_multiline_last_line_only(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return false;
+    }
 
     term_reset_line_state(env->term);
     term_set_track_output(env->term, true);
@@ -3024,8 +3096,9 @@ static bool test_term_visibility_tracking_multiline_last_line_only(void) {
 
 static bool test_term_cursor_start_tracking_transitions(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return false;
+    }
 
     term_reset_line_state(env->term);
     term_set_track_output(env->term, true);
@@ -3057,8 +3130,9 @@ static bool test_term_cursor_start_tracking_transitions(void) {
 
 static bool test_term_visibility_tracking_escape_whitespace_mix(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return false;
+    }
 
     term_reset_line_state(env->term);
     term_set_track_output(env->term, true);
@@ -3084,8 +3158,9 @@ static bool test_term_visibility_tracking_escape_whitespace_mix(void) {
 
 static bool test_tty_bracketed_paste_enter_translation_flow(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->tty == NULL)
+    if (env == NULL || env->tty == NULL) {
         return true;
+    }
 
     code_t drained = KEY_NONE;
     while (tty_read_timeout(env->tty, 0, &drained)) {
@@ -3100,10 +3175,12 @@ static bool test_tty_bracketed_paste_enter_translation_flow(void) {
     size_t seen_count = 0;
     for (size_t i = 0; i < 32 && seen_count < 4; ++i) {
         code_t code = KEY_NONE;
-        if (!tty_read_timeout(env->tty, 0, &code))
+        if (!tty_read_timeout(env->tty, 0, &code)) {
             break;
-        if (code == KEY_EVENT_RESIZE)
+        }
+        if (code == KEY_EVENT_RESIZE) {
             continue;
+        }
         seen[seen_count++] = code;
     }
 
@@ -3122,8 +3199,9 @@ static bool test_tty_bracketed_paste_enter_translation_flow(void) {
 
 static bool test_tty_bracketed_paste_repeated_start_without_end(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->tty == NULL)
+    if (env == NULL || env->tty == NULL) {
         return true;
+    }
 
     code_t drained = KEY_NONE;
     while (tty_read_timeout(env->tty, 0, &drained)) {
@@ -3138,10 +3216,12 @@ static bool test_tty_bracketed_paste_repeated_start_without_end(void) {
     size_t seen_count = 0;
     for (size_t i = 0; i < 40 && seen_count < 5; ++i) {
         code_t code = KEY_NONE;
-        if (!tty_read_timeout(env->tty, 0, &code))
+        if (!tty_read_timeout(env->tty, 0, &code)) {
             break;
-        if (code == KEY_EVENT_RESIZE)
+        }
+        if (code == KEY_EVENT_RESIZE) {
             continue;
+        }
         seen[seen_count++] = code;
     }
 
@@ -3161,8 +3241,9 @@ static bool test_tty_bracketed_paste_repeated_start_without_end(void) {
 
 static bool test_tty_bracketed_paste_repeated_end_without_start(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->tty == NULL)
+    if (env == NULL || env->tty == NULL) {
         return true;
+    }
 
     code_t drained = KEY_NONE;
     while (tty_read_timeout(env->tty, 0, &drained)) {
@@ -3177,10 +3258,12 @@ static bool test_tty_bracketed_paste_repeated_end_without_start(void) {
     size_t seen_count = 0;
     for (size_t i = 0; i < 32 && seen_count < 4; ++i) {
         code_t code = KEY_NONE;
-        if (!tty_read_timeout(env->tty, 0, &code))
+        if (!tty_read_timeout(env->tty, 0, &code)) {
             break;
-        if (code == KEY_EVENT_RESIZE)
+        }
+        if (code == KEY_EVENT_RESIZE) {
             continue;
+        }
         seen[seen_count++] = code;
     }
 
@@ -3200,8 +3283,9 @@ static bool test_tty_bracketed_paste_repeated_end_without_start(void) {
 
 static bool test_tty_sgr_mouse_event_metadata(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->tty == NULL)
+    if (env == NULL || env->tty == NULL) {
         return true;
+    }
 
     code_t drained = KEY_NONE;
     while (tty_read_timeout(env->tty, 0, &drained)) {
@@ -3283,8 +3367,9 @@ static bool test_tty_sgr_mouse_event_metadata(void) {
 
 static bool test_tty_focus_event_decode(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->tty == NULL)
+    if (env == NULL || env->tty == NULL) {
         return true;
+    }
 
     code_t drained = KEY_NONE;
     while (tty_read_timeout(env->tty, 0, &drained)) {
@@ -3331,8 +3416,9 @@ static bool test_tty_focus_event_decode(void) {
 
 static bool test_tty_kitty_ctrl_sequence_decode_regression(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->tty == NULL)
+    if (env == NULL || env->tty == NULL) {
         return true;
+    }
 
     code_t drained = KEY_NONE;
     while (tty_read_timeout(env->tty, 0, &drained)) {
@@ -3403,8 +3489,9 @@ static bool test_key_spec_ctrl_space_variants(void) {
 
 static bool test_initial_input_env_lifecycle(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     ic_env_clear_initial_input(env);
     EXPECT_TRUE(env->initial_input == NULL,
@@ -3474,12 +3561,14 @@ static bool test_unicode_display_width_osc_sequence_ignored(void) {
 
 static bool test_history_search_direction_and_position(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_search_behavior.log";
     (void)remove(history_path);
@@ -3517,12 +3606,14 @@ static bool test_history_search_direction_and_position(void) {
 
 static bool test_history_fuzzy_metadata_filtering(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_metadata_filter.log";
     (void)remove(history_path);
@@ -3600,12 +3691,14 @@ static bool test_history_fuzzy_metadata_filtering(void) {
 
 static bool test_history_disabled_mode_rejects_push(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_disabled.log";
     (void)remove(history_path);
@@ -3666,8 +3759,9 @@ static bool test_key_binding_named_invalid_inputs(void) {
 
 static bool test_tty_code_pushback_order_and_capacity_guard(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->tty == NULL)
+    if (env == NULL || env->tty == NULL) {
         return true;
+    }
 
     code_t drained = KEY_NONE;
     while (tty_read_timeout(env->tty, 0, &drained)) {
@@ -3698,8 +3792,9 @@ static bool test_tty_code_pushback_order_and_capacity_guard(void) {
 
 static bool test_term_manual_visibility_override_api(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->term == NULL)
+    if (env == NULL || env->term == NULL) {
         return false;
+    }
 
     term_reset_line_state(env->term);
     ic_term_mark_line_visible(true);
@@ -3756,8 +3851,9 @@ static bool test_prompt_line_replacement_gate_matrix(void) {
 
 static bool test_bbcode_default_styles_are_registered(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL || env->term == NULL || env->bbcode == NULL)
+    if (env == NULL || env->term == NULL || env->bbcode == NULL) {
         return false;
+    }
 
     const attr_t prompt_attr = bbcode_style(env->bbcode, "ic-prompt");
     const attr_t error_attr = bbcode_style(env->bbcode, "ic-error");
@@ -3773,12 +3869,14 @@ static bool test_bbcode_default_styles_are_registered(void) {
 
 static bool test_history_update_and_remove_last_flow(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_update_flow.log";
     (void)remove(history_path);
@@ -3809,12 +3907,14 @@ static bool test_history_update_and_remove_last_flow(void) {
 
 static bool test_history_snapshot_bounds_and_order(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_snapshot_order.log";
     (void)remove(history_path);
@@ -3853,12 +3953,14 @@ static bool test_history_snapshot_bounds_and_order(void) {
 
 static bool test_history_search_prefix_empty_query_behavior(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_prefix_empty.log";
     (void)remove(history_path);
@@ -3943,12 +4045,14 @@ static bool test_unicode_display_width_invalid_utf8_fallback(void) {
 
 static bool test_history_max_entries_pruning(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_max_entries.log";
     (void)remove(history_path);
@@ -3975,12 +4079,14 @@ static bool test_history_max_entries_pruning(void) {
 
 static bool test_history_snapshot_load_dedup_mode(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_snapshot_dedup.log";
     (void)remove(history_path);
@@ -4002,12 +4108,15 @@ static bool test_history_snapshot_load_dedup_mode(void) {
     bool saw_unique = false;
     for (ssize_t i = 0; i < deduped.count; ++i) {
         const history_entry_t* entry = history_snapshot_get(&deduped, i);
-        if (entry == NULL || entry->command == NULL)
+        if (entry == NULL || entry->command == NULL) {
             continue;
-        if (strcmp(entry->command, "dup") == 0)
+        }
+        if (strcmp(entry->command, "dup") == 0) {
             saw_dup = true;
-        if (strcmp(entry->command, "unique") == 0)
+        }
+        if (strcmp(entry->command, "unique") == 0) {
             saw_unique = true;
+        }
     }
     EXPECT_TRUE(saw_dup && saw_unique,
                 "dedup snapshot should retain one duplicate plus unique entries");
@@ -4021,12 +4130,14 @@ static bool test_history_snapshot_load_dedup_mode(void) {
 
 static bool test_history_remove_last_on_empty_safe(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_remove_empty.log";
     (void)remove(history_path);
@@ -4050,12 +4161,14 @@ static bool test_history_remove_last_on_empty_safe(void) {
 
 static bool test_history_fuzzy_max_matches_cap(void) {
     alloc_t* mem = test_allocator();
-    if (mem == NULL)
+    if (mem == NULL) {
         return false;
+    }
 
     history_t* history = history_new(mem);
-    if (history == NULL)
+    if (history == NULL) {
         return false;
+    }
 
     const char* history_path = "./isocline_history_fuzzy_cap.log";
     (void)remove(history_path);
@@ -4122,8 +4235,9 @@ static bool test_key_queue_api_noop_inputs(void) {
 
 static bool test_command_palette_entry_registration_and_listing(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     ic_clear_command_palette_entries();
     EXPECT_TRUE(ic_list_command_palette_entries(NULL, 0) == 0,
@@ -4182,8 +4296,9 @@ static bool test_command_palette_entry_registration_and_listing(void) {
 
 static bool test_command_palette_handler_registration(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     ic_set_command_palette_entry_handler(NULL, NULL);
     EXPECT_TRUE(env->command_palette_handler == NULL,
@@ -4217,8 +4332,9 @@ static bool test_command_palette_handler_registration(void) {
 
 static bool test_custom_menu_rejects_calls_without_active_editor(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     env->current_editor = NULL;
     const ic_menu_item_t items[] = {
@@ -4247,8 +4363,9 @@ static bool test_custom_menu_rejects_calls_without_active_editor(void) {
 
 static bool test_status_message_callback_registration(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     ic_set_status_message_callback(NULL, NULL);
     EXPECT_TRUE(env->status_message_callback == NULL,
@@ -4268,8 +4385,9 @@ static bool test_status_message_callback_registration(void) {
 
 static bool test_term_color_bits_and_toggle_roundtrip(void) {
     ic_env_t* env = ensure_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
 
     int bits = ic_term_get_color_bits();
     EXPECT_TRUE(bits == 1 || bits == 3 || bits == 4 || bits == 8 || bits == 24,

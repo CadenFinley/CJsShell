@@ -140,8 +140,9 @@ FunctionParseResult parse_and_register_functions(
                 size_t end_delim = after_body.find(closing_delim);
                 if (end_delim != std::string::npos) {
                     std::string body_part = trim_func(after_body.substr(0, end_delim));
-                    if (!body_part.empty())
+                    if (!body_part.empty()) {
                         body_lines.push_back(body_part);
+                    }
 
                     if (readonly_function_manager_is(func_name)) {
                         print_error({ErrorType::INVALID_ARGUMENT,
@@ -190,8 +191,9 @@ FunctionParseResult parse_and_register_functions(
                         size_t pos = func_line.find(closing_delim);
                         if (pos != std::string::npos) {
                             std::string before = trim_func(func_line.substr(0, pos));
-                            if (!before.empty())
+                            if (!before.empty()) {
                                 body_lines.push_back(before);
+                            }
 
                             if (pos + 1 < func_line.length()) {
                                 after_closing_delim = trim_func(func_line.substr(pos + 1));

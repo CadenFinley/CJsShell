@@ -101,8 +101,9 @@ std::unordered_map<std::string, std::string> g_summary_cache;
 std::optional<std::string> lookup_summary_cache(const std::string& key) {
     std::lock_guard<std::mutex> lock(g_cache_mutex);
     auto it = g_summary_cache.find(key);
-    if (it == g_summary_cache.end())
+    if (it == g_summary_cache.end()) {
         return std::nullopt;
+    }
     return it->second;
 }
 
@@ -131,18 +132,21 @@ std::string collapse_whitespace(const std::string& text) {
 
 std::string sanitize_description(const std::string& text) {
     std::string collapsed = collapse_whitespace(text);
-    if (collapsed.empty())
+    if (collapsed.empty()) {
         return collapsed;
+    }
     return collapsed;
 }
 
 bool attach_executable_path_if_missing(CommandDoc& doc, const std::string& doc_target) {
-    if (!doc.executable_path.empty())
+    if (!doc.executable_path.empty()) {
         return false;
+    }
 
     std::string resolved_path = cjsh_filesystem::find_executable_in_path(doc_target);
-    if (resolved_path.empty())
+    if (resolved_path.empty()) {
         return false;
+    }
 
     doc.executable_path = std::move(resolved_path);
     return true;
@@ -154,8 +158,9 @@ bool has_lowercase(const std::string& value) {
 }
 
 std::string normalize_subcommand_token(const std::string& token) {
-    if (!has_lowercase(token))
+    if (!has_lowercase(token)) {
         return token;
+    }
 
     std::size_t first_alpha = std::string::npos;
     for (std::size_t i = 0; i < token.size(); ++i) {
@@ -166,57 +171,71 @@ std::string normalize_subcommand_token(const std::string& token) {
         }
     }
 
-    if (first_alpha == std::string::npos)
+    if (first_alpha == std::string::npos) {
         return token;
+    }
 
     unsigned char first_char = static_cast<unsigned char>(token[first_alpha]);
-    if (std::isupper(first_char) == 0)
+    if (std::isupper(first_char) == 0) {
         return token;
+    }
 
     return string_utils::to_lower_copy(token);
 }
 
 bool is_section_heading(const std::string& trimmed_line) {
-    if (trimmed_line.empty())
+    if (trimmed_line.empty()) {
         return false;
+    }
 
     bool has_alpha = false;
     for (char ch : trimmed_line) {
         unsigned char uch = static_cast<unsigned char>(ch);
-        if (std::islower(uch) != 0)
+        if (std::islower(uch) != 0) {
             return false;
-        if (std::isalpha(uch) != 0)
+        }
+        if (std::isalpha(uch) != 0) {
             has_alpha = true;
+        }
     }
     return has_alpha;
 }
 
 Section section_from_heading(const std::string& heading) {
     std::string upper = string_utils::to_upper_copy(heading);
-    if (upper.find("OPTION") != std::string::npos)
+    if (upper.find("OPTION") != std::string::npos) {
         return Section::Options;
-    if (upper.find("COMMAND") != std::string::npos || upper.find("SUBCOMMAND") != std::string::npos)
+    }
+    if (upper.find("COMMAND") != std::string::npos ||
+        upper.find("SUBCOMMAND") != std::string::npos) {
         return Section::Commands;
+    }
     return Section::None;
 }
 
 bool is_token_allowed_for_combination(const std::string& token) {
-    if (token.empty())
+    if (token.empty()) {
         return false;
-    if (token[0] == '-' || token[0] == '~')
+    }
+    if (token[0] == '-' || token[0] == '~') {
         return false;
-    if (token.find('/') != std::string::npos)
+    }
+    if (token.find('/') != std::string::npos) {
         return false;
-    if (token.find('.') != std::string::npos)
+    }
+    if (token.find('.') != std::string::npos) {
         return false;
+    }
 
     bool has_alpha = false;
     for (char ch : token) {
         unsigned char uch = static_cast<unsigned char>(ch);
-        if (std::isalpha(uch) != 0)
+        if (std::isalpha(uch) != 0) {
             has_alpha = true;
-        if ((std::isalnum(uch) == 0) && ch != '-' && ch != '_')
+        }
+        if ((std::isalnum(uch) == 0) && ch != '-' && ch != '_') {
             return false;
+        }
     }
     return has_alpha;
 }
@@ -226,10 +245,12 @@ std::pair<std::string, std::string> split_option_line(const std::string& line) {
     std::size_t tab_pos = line.find('\t');
     std::size_t split_pos = std::string::npos;
 
-    if (double_space != std::string::npos)
+    if (double_space != std::string::npos) {
         split_pos = double_space;
-    if (tab_pos != std::string::npos && (split_pos == std::string::npos || tab_pos < split_pos))
+    }
+    if (tab_pos != std::string::npos && (split_pos == std::string::npos || tab_pos < split_pos)) {
         split_pos = tab_pos;
+    }
     if (split_pos == std::string::npos) {
         std::size_t first_space = line.find(' ');
         if (first_space != std::string::npos) {
@@ -253,20 +274,26 @@ struct ParsedOptionSpec {
 };
 
 ValueType infer_value_type(const std::string& value_name, const std::vector<std::string>& choices) {
-    if (!choices.empty())
+    if (!choices.empty()) {
         return ValueType::Enum;
+    }
 
     std::string upper = string_utils::to_upper_copy(value_name);
-    if (upper.find("DIRECTORY") != std::string::npos || upper == "DIR")
+    if (upper.find("DIRECTORY") != std::string::npos || upper == "DIR") {
         return ValueType::Directory;
-    if (upper.find("FILE") != std::string::npos || upper.find("PATH") != std::string::npos)
+    }
+    if (upper.find("FILE") != std::string::npos || upper.find("PATH") != std::string::npos) {
         return ValueType::File;
-    if (upper.find("COMMAND") != std::string::npos || upper == "CMD")
+    }
+    if (upper.find("COMMAND") != std::string::npos || upper == "CMD") {
         return ValueType::Command;
-    if (upper.find("BRANCH") != std::string::npos || upper == "REF")
+    }
+    if (upper.find("BRANCH") != std::string::npos || upper == "REF") {
         return ValueType::Branch;
-    if (upper.find("PROCESS") != std::string::npos || upper == "PID")
+    }
+    if (upper.find("PROCESS") != std::string::npos || upper == "PID") {
         return ValueType::Process;
+    }
     return value_name.empty() ? ValueType::None : ValueType::Text;
 }
 
@@ -286,16 +313,18 @@ std::vector<std::string> parse_value_choices(const std::string& value_expression
     for (char ch : body) {
         if (ch == delimiter) {
             std::string choice = string_utils::trim_ascii_whitespace_copy(current);
-            if (!choice.empty())
+            if (!choice.empty()) {
                 choices.push_back(std::move(choice));
+            }
             current.clear();
         } else {
             current.push_back(ch);
         }
     }
     std::string choice = string_utils::trim_ascii_whitespace_copy(current);
-    if (!choice.empty())
+    if (!choice.empty()) {
         choices.push_back(std::move(choice));
+    }
     return choices;
 }
 
@@ -306,12 +335,15 @@ void merge_value_spec(CompletionValueSpec& destination, const CompletionValueSpe
          destination.requirement == ValueRequirement::None)) {
         destination.requirement = source.requirement;
     }
-    if (destination.type == ValueType::None || source.type == ValueType::Enum)
+    if (destination.type == ValueType::None || source.type == ValueType::Enum) {
         destination.type = source.type;
-    if (destination.name.empty())
+    }
+    if (destination.name.empty()) {
         destination.name = source.name;
-    if (destination.choices.empty())
+    }
+    if (destination.choices.empty()) {
         destination.choices = source.choices;
+    }
     if (destination_had_value && destination.separator != source.separator) {
         destination.separator = ValueSeparator::Either;
     } else if (source.requirement != ValueRequirement::None) {
@@ -324,15 +356,17 @@ ParsedOptionSpec parse_option_spec(const std::string& spec) {
     std::string current;
     int nesting = 0;
     for (char ch : spec) {
-        if (ch == '[' || ch == '{' || ch == '(' || ch == '<')
+        if (ch == '[' || ch == '{' || ch == '(' || ch == '<') {
             ++nesting;
-        else if ((ch == ']' || ch == '}' || ch == ')' || ch == '>') && nesting > 0)
+        } else if ((ch == ']' || ch == '}' || ch == ')' || ch == '>') && nesting > 0) {
             --nesting;
+        }
 
         if (ch == ',' && nesting == 0) {
             std::string cleaned = string_utils::trim_ascii_whitespace_copy(current);
-            if (!cleaned.empty())
+            if (!cleaned.empty()) {
                 variants.push_back(cleaned);
+            }
             current.clear();
         } else {
             current.push_back(ch);
@@ -340,33 +374,39 @@ ParsedOptionSpec parse_option_spec(const std::string& spec) {
     }
     if (!current.empty()) {
         std::string cleaned = string_utils::trim_ascii_whitespace_copy(current);
-        if (!cleaned.empty())
+        if (!cleaned.empty()) {
             variants.push_back(cleaned);
+        }
     }
 
     ParsedOptionSpec result;
     result.names.reserve(variants.size());
     for (const std::string& variant : variants) {
-        if (variant.empty() || variant[0] != '-')
+        if (variant.empty() || variant[0] != '-') {
             continue;
+        }
 
         std::size_t name_end = variant.find_first_of(" \t=[{(<");
         std::string name = variant.substr(0, name_end);
         while (!name.empty() && (name.back() == ',' || name.back() == ';' || name.back() == '.')) {
             name.pop_back();
         }
-        if (name.empty() || name[0] != '-')
+        if (name.empty() || name[0] != '-') {
             continue;
-        if (std::find(result.names.begin(), result.names.end(), name) == result.names.end())
+        }
+        if (std::find(result.names.begin(), result.names.end(), name) == result.names.end()) {
             result.names.push_back(name);
+        }
 
-        if (name_end == std::string::npos)
+        if (name_end == std::string::npos) {
             continue;
+        }
 
         std::string value_expression =
             string_utils::trim_ascii_whitespace_copy(variant.substr(name_end));
-        if (value_expression.empty())
+        if (value_expression.empty()) {
             continue;
+        }
 
         CompletionValueSpec value;
         value.requirement = ValueRequirement::Required;
@@ -406,17 +446,20 @@ ParsedOptionSpec parse_option_spec(const std::string& spec) {
     if (result.names.empty() && !spec.empty() && spec[0] == '-') {
         std::string fallback = spec;
         std::size_t space_pos = fallback.find_first_of(" \t");
-        if (space_pos != std::string::npos)
+        if (space_pos != std::string::npos) {
             fallback = fallback.substr(0, space_pos);
+        }
         std::size_t bracket_pos = fallback.find_first_of("[{(");
-        if (bracket_pos != std::string::npos)
+        if (bracket_pos != std::string::npos) {
             fallback = fallback.substr(0, bracket_pos);
+        }
         while (!fallback.empty() &&
                (fallback.back() == ',' || fallback.back() == ';' || fallback.back() == '.')) {
             fallback.pop_back();
         }
-        if (!fallback.empty() && fallback[0] == '-')
+        if (!fallback.empty() && fallback[0] == '-') {
             result.names.push_back(fallback);
+        }
     }
 
     return result;
@@ -442,11 +485,13 @@ std::string sanitize_man_output(const std::string& raw) {
     std::string cleaned;
     cleaned.reserve(raw.size());
     for (char ch : raw) {
-        if (ch == '\r')
+        if (ch == '\r') {
             continue;
+        }
         if (ch == '\b') {
-            if (!cleaned.empty())
+            if (!cleaned.empty()) {
                 cleaned.pop_back();
+            }
             continue;
         }
         cleaned.push_back(ch);
@@ -460,14 +505,16 @@ std::vector<std::string> build_prefixes(const std::string& doc_target) {
 
     std::string spaced = doc_target;
     std::replace(spaced.begin(), spaced.end(), '-', ' ');
-    if (std::find(prefixes.begin(), prefixes.end(), spaced) == prefixes.end())
+    if (std::find(prefixes.begin(), prefixes.end(), spaced) == prefixes.end()) {
         prefixes.push_back(spaced);
+    }
 
     std::size_t dash_pos = doc_target.find('-');
     if (dash_pos != std::string::npos) {
         std::string base = doc_target.substr(0, dash_pos);
-        if (std::find(prefixes.begin(), prefixes.end(), base) == prefixes.end())
+        if (std::find(prefixes.begin(), prefixes.end(), base) == prefixes.end()) {
             prefixes.push_back(base);
+        }
     }
 
     std::sort(prefixes.begin(), prefixes.end(),
@@ -478,8 +525,9 @@ std::vector<std::string> build_prefixes(const std::string& doc_target) {
 
 std::string strip_known_prefix(const std::string& line, const std::vector<std::string>& prefixes) {
     for (const auto& prefix : prefixes) {
-        if (prefix.empty())
+        if (prefix.empty()) {
             continue;
+        }
 
         const std::string variants[] = {prefix + " ", prefix + "\t", prefix + "-",
                                         prefix + "::", prefix + ":"};
@@ -495,30 +543,35 @@ std::string strip_known_prefix(const std::string& line, const std::vector<std::s
 std::optional<std::pair<std::string, std::string>> parse_command_line(
     const std::vector<std::string>& prefixes, const std::string& original_line) {
     std::string working = string_utils::trim_ascii_whitespace_copy(original_line);
-    if (working.empty())
+    if (working.empty()) {
         return std::nullopt;
+    }
 
     working = strip_known_prefix(working, prefixes);
 
-    if (working.empty())
+    if (working.empty()) {
         return std::nullopt;
+    }
 
     if (working[0] == '-' || working[0] == '*') {
         std::size_t pos = working.find_first_not_of("-* ");
-        if (pos != std::string::npos)
+        if (pos != std::string::npos) {
             working = working.substr(pos);
-        else
+        } else {
             return std::nullopt;
+        }
     }
 
-    if (working.empty() || !has_lowercase(working))
+    if (working.empty() || !has_lowercase(working)) {
         return std::nullopt;
+    }
 
     std::size_t first_space = working.find_first_of(" \t");
     std::size_t split_pos = working.find("  ");
     std::size_t tab_pos = working.find('\t');
-    if (tab_pos != std::string::npos && (split_pos == std::string::npos || tab_pos < split_pos))
+    if (tab_pos != std::string::npos && (split_pos == std::string::npos || tab_pos < split_pos)) {
         split_pos = tab_pos;
+    }
 
     std::string name_part;
     std::string description_part;
@@ -546,29 +599,34 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
                 if (paren_open != std::string::npos &&
                     (first_space == std::string::npos || paren_open < first_space)) {
                     std::size_t paren_close = working.find(')', paren_open + 1);
-                    if (paren_close == std::string::npos)
+                    if (paren_close == std::string::npos) {
                         return std::nullopt;
-                    if (paren_close == paren_open + 1)
+                    }
+                    if (paren_close == paren_open + 1) {
                         return std::nullopt;
+                    }
 
                     unsigned char first_inside =
                         static_cast<unsigned char>(working[paren_open + 1]);
-                    if (std::isdigit(first_inside) == 0)
+                    if (std::isdigit(first_inside) == 0) {
                         return std::nullopt;
+                    }
                     for (std::size_t idx = paren_open + 2; idx < paren_close; ++idx) {
                         unsigned char ch = static_cast<unsigned char>(working[idx]);
-                        if (std::isalnum(ch) == 0 && ch != '-')
+                        if (std::isalnum(ch) == 0 && ch != '-') {
                             return std::nullopt;
+                        }
                     }
 
                     name_part = string_utils::trim_ascii_whitespace_copy(
                         working.substr(0, paren_close + 1));
                     std::size_t desc_start = working.find_first_not_of(" \t", paren_close + 1);
-                    if (desc_start != std::string::npos)
+                    if (desc_start != std::string::npos) {
                         description_part =
                             string_utils::trim_ascii_whitespace_copy(working.substr(desc_start));
-                    else
+                    } else {
                         description_part.clear();
+                    }
                 } else {
                     std::string candidate_name;
                     std::string candidate_description;
@@ -584,23 +642,28 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
                     }
 
                     auto is_simple_command_name = [](const std::string& name) {
-                        if (name.empty())
+                        if (name.empty()) {
                             return false;
+                        }
                         unsigned char first_char = static_cast<unsigned char>(name[0]);
-                        if (std::islower(first_char) == 0 && first_char != '_')
+                        if (std::islower(first_char) == 0 && first_char != '_') {
                             return false;
+                        }
                         for (char ch : name) {
                             unsigned char uch = static_cast<unsigned char>(ch);
-                            if (std::isalpha(uch) != 0 && std::islower(uch) == 0)
+                            if (std::isalpha(uch) != 0 && std::islower(uch) == 0) {
                                 return false;
-                            if (std::isalnum(uch) == 0 && ch != '-' && ch != '_')
+                            }
+                            if (std::isalnum(uch) == 0 && ch != '-' && ch != '_') {
                                 return false;
+                            }
                         }
                         return has_lowercase(name);
                     };
 
-                    if (!is_simple_command_name(candidate_name))
+                    if (!is_simple_command_name(candidate_name)) {
                         return std::nullopt;
+                    }
 
                     name_part = candidate_name;
                     description_part = candidate_description;
@@ -609,26 +672,31 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
         }
     }
 
-    if (name_part.empty())
+    if (name_part.empty()) {
         return std::nullopt;
+    }
 
     std::size_t special_pos = name_part.find_first_of(" \t([{:");
-    if (special_pos != std::string::npos)
+    if (special_pos != std::string::npos) {
         name_part = name_part.substr(0, special_pos);
+    }
 
     while (!name_part.empty() &&
            (name_part.back() == ':' || name_part.back() == ';' || name_part.back() == ',')) {
         name_part.pop_back();
     }
 
-    if (name_part.empty())
+    if (name_part.empty()) {
         return std::nullopt;
+    }
 
-    if (!std::isalpha(static_cast<unsigned char>(name_part[0])) && name_part[0] != '_')
+    if (!std::isalpha(static_cast<unsigned char>(name_part[0])) && name_part[0] != '_') {
         return std::nullopt;
+    }
 
-    if (!has_lowercase(name_part))
+    if (!has_lowercase(name_part)) {
         return std::nullopt;
+    }
 
     name_part = normalize_subcommand_token(name_part);
 
@@ -637,18 +705,21 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
 
 void flush_option_state(OptionState& state, std::vector<CompletionEntry>& entries,
                         std::unordered_set<std::string>& seen) {
-    if (!state.active || state.names.empty())
+    if (!state.active || state.names.empty()) {
         return;
+    }
 
     std::string description = sanitize_description(state.description);
-    if (description.empty())
+    if (description.empty()) {
         description = "option";
+    }
 
     std::vector<std::string> unique_names;
     unique_names.reserve(state.names.size());
     for (const auto& name : state.names) {
-        if (!name.empty() && seen.insert("O|" + name).second)
+        if (!name.empty() && seen.insert("O|" + name).second) {
             unique_names.push_back(name);
+        }
     }
     if (unique_names.empty()) {
         state = OptionState{};
@@ -659,8 +730,9 @@ void flush_option_state(OptionState& state, std::vector<CompletionEntry>& entrie
                                        [](const std::string& lhs, const std::string& rhs) {
                                            const bool lhs_long = lhs.rfind("--", 0) == 0;
                                            const bool rhs_long = rhs.rfind("--", 0) == 0;
-                                           if (lhs_long != rhs_long)
+                                           if (lhs_long != rhs_long) {
                                                return !lhs_long;
+                                           }
                                            return lhs.size() < rhs.size();
                                        });
 
@@ -672,8 +744,9 @@ void flush_option_state(OptionState& state, std::vector<CompletionEntry>& entrie
     entry.repeatable = true;  // Man pages generally do not describe repeatability reliably.
 
     for (const auto& name : unique_names) {
-        if (name != entry.text)
+        if (name != entry.text) {
             entry.aliases.push_back(name);
+        }
     }
     entries.push_back(std::move(entry));
 
@@ -682,12 +755,14 @@ void flush_option_state(OptionState& state, std::vector<CompletionEntry>& entrie
 
 void flush_command_state(CommandState& state, std::vector<CompletionEntry>& entries,
                          std::unordered_set<std::string>& seen) {
-    if (!state.active || state.name.empty())
+    if (!state.active || state.name.empty()) {
         return;
+    }
 
     std::string description = sanitize_description(state.description);
-    if (description.empty())
+    if (description.empty()) {
         description = "subcommand";
+    }
 
     std::string key = "S|" + state.name;
     if (seen.insert(key).second) {
@@ -764,8 +839,9 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
             } else if (command_state.active) {
                 std::string extra = string_utils::trim_ascii_whitespace_copy(left_trimmed);
                 if (!extra.empty()) {
-                    if (!command_state.description.empty())
+                    if (!command_state.description.empty()) {
                         command_state.description += ' ';
+                    }
                     command_state.description += extra;
                 }
                 continue;
@@ -788,8 +864,9 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
 
 std::string strip_summary_prefix(const std::string& doc_target, const std::string& line) {
     std::string working = string_utils::trim_ascii_whitespace_copy(line);
-    if (working.empty())
+    if (working.empty()) {
         return working;
+    }
 
     const std::string patterns[] = {" - ", " \\- ", " \xE2\x80\x94 ", " \xE2\x80\x93 ", " -- "};
     for (const auto& pattern : patterns) {
@@ -808,8 +885,9 @@ std::string strip_summary_prefix(const std::string& doc_target, const std::strin
             (void)candidate.erase(candidate.begin());
         }
         candidate = string_utils::trim_ascii_whitespace_copy(candidate);
-        if (!candidate.empty())
+        if (!candidate.empty()) {
             return sanitize_description(candidate);
+        }
     }
 
     if (!doc_target.empty() && working.rfind(doc_target, 0) == 0) {
@@ -819,16 +897,18 @@ std::string strip_summary_prefix(const std::string& doc_target, const std::strin
             (void)candidate.erase(candidate.begin());
             candidate = string_utils::trim_ascii_whitespace_copy(candidate);
         }
-        if (!candidate.empty())
+        if (!candidate.empty()) {
             return sanitize_description(candidate);
+        }
     }
 
     return sanitize_description(working);
 }
 
 std::string extract_command_summary(const std::string& doc_target, const std::string& man_text) {
-    if (man_text.empty())
+    if (man_text.empty()) {
         return {};
+    }
 
     std::vector<std::string> lines = split_lines(man_text);
     bool in_name_section = false;
@@ -838,8 +918,9 @@ std::string extract_command_summary(const std::string& doc_target, const std::st
         std::string trimmed_line = string_utils::trim_ascii_whitespace_copy(raw_line);
 
         if (!in_name_section) {
-            if (trimmed_line.empty())
+            if (trimmed_line.empty()) {
                 continue;
+            }
             std::string upper = string_utils::to_upper_copy(trimmed_line);
             if (upper == "NAME") {
                 in_name_section = true;
@@ -848,27 +929,31 @@ std::string extract_command_summary(const std::string& doc_target, const std::st
         }
 
         if (trimmed_line.empty()) {
-            if (!collected_line.empty())
+            if (!collected_line.empty()) {
                 break;
+            }
             continue;
         }
 
         if (is_section_heading(trimmed_line)) {
-            if (!collected_line.empty())
+            if (!collected_line.empty()) {
                 break;
+            }
             continue;
         }
 
-        if (collected_line.empty())
+        if (collected_line.empty()) {
             collected_line = trimmed_line;
-        else
+        } else {
             collected_line += ' ' + trimmed_line;
+        }
 
         break;
     }
 
-    if (collected_line.empty())
+    if (collected_line.empty()) {
         return {};
+    }
 
     return strip_summary_prefix(doc_target, collected_line);
 }
@@ -888,16 +973,18 @@ std::string sanitize_command_for_cache(const std::string& command) {
             sanitized.push_back('_');
         }
     }
-    if (sanitized.empty())
+    if (sanitized.empty()) {
         sanitized = "command";
+    }
     return sanitized;
 }
 
 std::optional<CommandDoc> read_cache_entries(const std::filesystem::path& path,
                                              const std::string& doc_target) {
     auto result = cjsh_filesystem::read_file_content(path.string());
-    if (result.is_error())
+    if (result.is_error()) {
         return std::nullopt;
+    }
     return completion_specs::parse_command_doc(doc_target, result.value());
 }
 
@@ -943,8 +1030,9 @@ std::string fetch_man_page_text(const std::string& target) {
 CommandDoc load_entries_for_target(const std::string& doc_target, bool allow_fetch,
                                    bool attach_executable_path = false,
                                    bool update_memory_cache = true) {
-    if (doc_target.empty())
+    if (doc_target.empty()) {
         return {};
+    }
 
     std::string key = normalize_key(doc_target);
     std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path() /
@@ -955,10 +1043,11 @@ CommandDoc load_entries_for_target(const std::string& doc_target, bool allow_fet
         if (should_update_memory_cache) {
             g_memory_cache[key] = doc;
         }
-        if (doc.entries.empty() && doc.summary.empty())
+        if (doc.entries.empty() && doc.summary.empty()) {
             (void)g_failed_targets.insert(key);
-        else
+        } else {
             (void)g_failed_targets.erase(key);
+        }
     };
 
     if (auto registered_doc = completion_specs::lookup_registered_command_doc(doc_target);
@@ -973,16 +1062,18 @@ CommandDoc load_entries_for_target(const std::string& doc_target, bool allow_fet
     {
         std::lock_guard<std::mutex> lock(g_cache_mutex);
         auto memo_it = g_memory_cache.find(key);
-        if (memo_it != g_memory_cache.end())
+        if (memo_it != g_memory_cache.end()) {
             memoized_doc = memo_it->second;
+        }
     }
     if (memoized_doc.has_value()) {
         CommandDoc doc = std::move(*memoized_doc);
         bool path_added = false;
         if (attach_executable_path && doc.executable_path.empty()) {
             path_added = attach_executable_path_if_missing(doc, doc_target);
-            if (path_added)
+            if (path_added) {
                 update_cache_maps(doc);
+            }
         }
         if (path_added) {
             std::error_code exists_error;
@@ -1002,8 +1093,9 @@ CommandDoc load_entries_for_target(const std::string& doc_target, bool allow_fet
 
     {
         std::lock_guard<std::mutex> lock(g_cache_mutex);
-        if (g_failed_targets.find(key) != g_failed_targets.end())
+        if (g_failed_targets.find(key) != g_failed_targets.end()) {
             return {};
+        }
     }
 
     if (auto cached_doc_opt = read_cache_entries(cache_path, doc_target);
@@ -1019,18 +1111,21 @@ CommandDoc load_entries_for_target(const std::string& doc_target, bool allow_fet
         return cached_doc;
     }
 
-    if (!allow_fetch)
+    if (!allow_fetch) {
         return {};
+    }
 
     std::string man_text = fetch_man_page_text(doc_target);
     CommandDoc doc;
-    if (!man_text.empty())
+    if (!man_text.empty()) {
         doc = parse_man_page_completion_spec(doc_target, man_text);
-    else
+    } else {
         doc.summary_present = true;
+    }
 
-    if (attach_executable_path)
+    if (attach_executable_path) {
         (void)attach_executable_path_if_missing(doc, doc_target);
+    }
 
     write_cache_entries(cache_path, doc_target, doc);
 
@@ -1051,11 +1146,13 @@ struct ResolvedCompletionContext {
 const CompletionEntry* find_entry(const std::vector<CompletionEntry>& entries, EntryKind kind,
                                   const std::string& token) {
     auto it = std::find_if(entries.begin(), entries.end(), [&](const CompletionEntry& entry) {
-        if (entry.kind != kind)
+        if (entry.kind != kind) {
             return false;
+        }
         for (const auto& name : completion_specs::entry_names(entry)) {
-            if (completion_utils::equals_completion_token(name, token))
+            if (completion_utils::equals_completion_token(name, token)) {
                 return true;
+            }
         }
         return false;
     });
@@ -1063,17 +1160,20 @@ const CompletionEntry* find_entry(const std::vector<CompletionEntry>& entries, E
 }
 
 void remember_used_entry(ResolvedCompletionContext& context, const CompletionEntry& entry) {
-    for (const auto& name : completion_specs::entry_names(entry))
+    for (const auto& name : completion_specs::entry_names(entry)) {
         context.used_names.insert(normalize_key(name));
-    for (const auto& conflict : entry.conflicts)
+    }
+    for (const auto& conflict : entry.conflicts) {
         context.used_conflicts.insert(normalize_key(conflict));
+    }
 }
 
 ResolvedCompletionContext resolve_completion_context(const std::vector<std::string>& tokens,
                                                      std::size_t stable_count, bool allow_fetch) {
     ResolvedCompletionContext context;
-    if (tokens.empty())
+    if (tokens.empty()) {
         return context;
+    }
 
     std::string current_doc = tokens[0];
     CommandDoc current_doc_data = load_entries_for_target(current_doc, allow_fetch, true);
@@ -1154,21 +1254,25 @@ bool constraint_is_satisfied(const std::unordered_set<std::string>& used_names,
 bool entry_is_available(const CompletionEntry& entry, const ResolvedCompletionContext& context) {
     if (!entry.repeatable) {
         for (const auto& name : completion_specs::entry_names(entry)) {
-            if (constraint_is_satisfied(context.used_names, name))
+            if (constraint_is_satisfied(context.used_names, name)) {
                 return false;
+            }
         }
     }
     for (const auto& name : completion_specs::entry_names(entry)) {
-        if (constraint_is_satisfied(context.used_conflicts, name))
+        if (constraint_is_satisfied(context.used_conflicts, name)) {
             return false;
+        }
     }
     for (const auto& conflict : entry.conflicts) {
-        if (constraint_is_satisfied(context.used_names, conflict))
+        if (constraint_is_satisfied(context.used_names, conflict)) {
             return false;
+        }
     }
     for (const auto& dependency : entry.dependencies) {
-        if (!constraint_is_satisfied(context.used_names, dependency))
+        if (!constraint_is_satisfied(context.used_names, dependency)) {
             return false;
+        }
     }
     return true;
 }
@@ -1178,15 +1282,18 @@ const CompletionEntry* positional_entry_for_index(const std::vector<CompletionEn
     const CompletionEntry* variadic_fallback = nullptr;
     std::size_t inferred_index = 0;
     for (const auto& entry : entries) {
-        if (entry.kind != EntryKind::Positional)
+        if (entry.kind != EntryKind::Positional) {
             continue;
+        }
         ++inferred_index;
         std::size_t declared_index =
             entry.positional_index == 0 ? inferred_index : entry.positional_index;
-        if (declared_index == index)
+        if (declared_index == index) {
             return &entry;
-        if (entry.variadic && declared_index <= index)
+        }
+        if (entry.variadic && declared_index <= index) {
             variadic_fallback = &entry;
+        }
     }
     return variadic_fallback;
 }
@@ -1196,20 +1303,24 @@ std::vector<completion_specs::DynamicCompletionCandidate> collect_value_candidat
     const ResolvedCompletionContext& context, const std::string& current_value) {
     std::vector<completion_specs::DynamicCompletionCandidate> candidates;
     candidates.reserve(entry.value.choices.size());
-    for (const auto& choice : entry.value.choices)
+    for (const auto& choice : entry.value.choices) {
         candidates.push_back({choice, entry.description});
+    }
 
     std::string provider = entry.value.dynamic_provider;
-    if (provider.empty())
+    if (provider.empty()) {
         provider = completion_specs::default_provider_for_value_type(entry.value.type);
-    if (provider.empty())
+    }
+    if (provider.empty()) {
         return candidates;
+    }
 
     completion_specs::DynamicCompletionRequest request;
     request.command = tokens.empty() ? std::string{} : tokens.front();
     request.command_path = context.command_path;
-    if (tokens.size() > 1)
+    if (tokens.size() > 1) {
         request.arguments.assign(tokens.begin() + 1, tokens.end());
+    }
     request.argument_index = context.positional_count + 1;
     request.current_value = current_value;
     std::error_code cwd_error;
@@ -1235,8 +1346,9 @@ completion_specs::CommandDoc parse_man_page_completion_spec(const std::string& c
 }
 
 std::string get_command_summary(const std::string& command, bool allow_fetch) {
-    if (command.empty())
+    if (command.empty()) {
         return {};
+    }
 
     std::string key = normalize_key(command);
     if (auto cached = lookup_summary_cache(key); cached.has_value()) {
@@ -1259,8 +1371,9 @@ bool regenerate_external_completion_cache(const std::string& command, bool force
                                           bool include_subcommands,
                                           ::CompletionCacheProgressCallback progress_callback,
                                           ::CompletionCacheCancelCallback cancel_callback) {
-    if (command.empty())
+    if (command.empty()) {
         return false;
+    }
 
     std::vector<std::string> pending_targets = {command};
     std::unordered_set<std::string> visited_targets;
@@ -1274,12 +1387,14 @@ bool regenerate_external_completion_cache(const std::string& command, bool force
         std::string current_target = pending_targets.back();
         pending_targets.pop_back();
 
-        if (current_target.empty())
+        if (current_target.empty()) {
             continue;
+        }
 
         std::string normalized_target = normalize_key(current_target);
-        if (!visited_targets.insert(normalized_target).second)
+        if (!visited_targets.insert(normalized_target).second) {
             continue;
+        }
 
         CompletionCacheTargetResult result = regenerate_external_completion_cache_target(
             current_target, force_refresh, include_subcommands);
@@ -1308,8 +1423,9 @@ CompletionCacheTargetResult regenerate_external_completion_cache_target(const st
                                                                         bool force_refresh,
                                                                         bool discover_subcommands) {
     CompletionCacheTargetResult result;
-    if (target.empty())
+    if (target.empty()) {
         return result;
+    }
 
     std::string normalized_target = normalize_key(target);
     {
@@ -1329,16 +1445,19 @@ CompletionCacheTargetResult regenerate_external_completion_cache_target(const st
     CommandDoc doc = load_entries_for_target(target, true, true);
     result.generated = !doc.entries.empty() || !doc.summary.empty();
 
-    if (!discover_subcommands)
+    if (!discover_subcommands) {
         return result;
+    }
 
     for (const auto& entry : doc.entries) {
-        if (entry.kind != EntryKind::Subcommand)
+        if (entry.kind != EntryKind::Subcommand) {
             continue;
+        }
 
         std::string subcommand = normalize_subcommand_token(entry.text);
-        if (!is_token_allowed_for_combination(subcommand))
+        if (!is_token_allowed_for_combination(subcommand)) {
             continue;
+        }
 
         result.discovered_targets.push_back(target + "-" + subcommand);
     }
@@ -1347,16 +1466,19 @@ CompletionCacheTargetResult regenerate_external_completion_cache_target(const st
 }
 
 void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_path_input) {
-    if (cenv == nullptr || raw_path_input == nullptr)
+    if (cenv == nullptr || raw_path_input == nullptr) {
         return;
-    if (ic_stop_completing(cenv))
+    }
+    if (ic_stop_completing(cenv)) {
         return;
+    }
 
     std::string line(raw_path_input);
     completion_context::CommandLineContext command_context = completion_context::parse(line);
     const std::vector<std::string>& tokens = command_context.effective_tokens;
-    if (tokens.empty())
+    if (tokens.empty()) {
         return;
+    }
 
     bool ends_with_space = command_context.at_word_boundary;
 
@@ -1364,12 +1486,14 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
     if (!ends_with_space && !tokens.empty()) {
         stable_count = tokens.size() - 1;
     }
-    if (stable_count == 0)
+    if (stable_count == 0) {
         stable_count = 1;
+    }
 
     std::string current_prefix;
-    if (!ends_with_space && !tokens.empty())
+    if (!ends_with_space && !tokens.empty()) {
         current_prefix = command_context.current_prefix;
+    }
 
     bool executable_found = !cjsh_filesystem::find_executable_in_path(tokens.front()).empty();
     bool allow_fetch = config::completion_learning_enabled && executable_found;
@@ -1395,14 +1519,16 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
             }
 
             std::string insert_text = replacement_base + candidate.value;
-            if (!insert_text.empty() && insert_text.back() != ' ')
+            if (!insert_text.empty() && insert_text.back() != ' ') {
                 insert_text.push_back(' ');
+            }
             std::string source =
                 candidate.description.empty()
                     ? (!entry.description.empty() ? entry.description : entry.value.name)
                     : candidate.description;
-            if (entry.deprecated)
+            if (entry.deprecated) {
                 source = "deprecated · " + source;
+            }
             if (!completion_tracker::safe_add_completion_prim_with_source(
                     cenv, insert_text.c_str(), nullptr, nullptr, source.c_str(), delete_before,
                     0)) {
@@ -1444,10 +1570,12 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
     }
 
     for (const auto& entry : context.entries) {
-        if (completion_tracker::completion_limit_hit())
+        if (completion_tracker::completion_limit_hit()) {
             break;
-        if (ic_stop_completing(cenv))
+        }
+        if (ic_stop_completing(cenv)) {
             break;
+        }
         if (entry.kind == EntryKind::Positional || !entry_is_available(entry, context)) {
             continue;
         }
@@ -1457,8 +1585,9 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
         }
 
         for (std::string candidate_name : completion_specs::entry_names(entry)) {
-            if (entry.kind == EntryKind::Subcommand)
+            if (entry.kind == EntryKind::Subcommand) {
                 candidate_name = normalize_subcommand_token(candidate_name);
+            }
 
             if (!current_prefix.empty() &&
                 !completion_utils::matches_completion_prefix(candidate_name, current_prefix)) {
@@ -1476,15 +1605,17 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
                 }
             }
 
-            if (append_space && !insert_text.empty() && insert_text.back() != ' ')
+            if (append_space && !insert_text.empty() && insert_text.back() != ' ') {
                 insert_text.push_back(' ');
+            }
 
             std::string source =
                 entry.description.empty()
                     ? (entry.kind == EntryKind::Subcommand ? "subcommand" : "option")
                     : entry.description;
-            if (entry.deprecated)
+            if (entry.deprecated) {
                 source = "deprecated · " + source;
+            }
 
             if (!completion_tracker::safe_add_completion_prim_with_source(
                     cenv, insert_text.c_str(), nullptr, nullptr, source.c_str(), delete_before,
@@ -1492,8 +1623,9 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
                 return;
             }
             ++added;
-            if (added >= 120)
+            if (added >= 120) {
                 return;
+            }
         }
     }
 }

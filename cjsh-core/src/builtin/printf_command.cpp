@@ -93,8 +93,9 @@ static void verify_numeric(const char* s, char* end, const std::string& original
 
 template <typename Numeric, typename Parser>
 Numeric parse_printf_numeric(const char* s, Parser parse) {
-    if (!s || !*s)
+    if (!s || !*s) {
         return Numeric{};
+    }
 
     char* end = nullptr;
     Numeric val{};
@@ -202,8 +203,9 @@ static int print_esc(const char* escstart, bool octal_0) {
     int esc_length;
 
     if (*p == 'x') {
-        for (esc_length = 0, ++p; esc_length < 2 && is_hex_digit(*p); ++esc_length, ++p)
+        for (esc_length = 0, ++p; esc_length < 2 && is_hex_digit(*p); ++esc_length, ++p) {
             esc_value = esc_value * 16 + from_hex_digit(*p);
+        }
         if (esc_length == 0) {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "printf",
@@ -216,8 +218,9 @@ static int print_esc(const char* escstart, bool octal_0) {
         (void)putchar(esc_value);
     } else if (is_octal_digit(*p)) {
         for (esc_length = 0, p += octal_0 && *p == '0'; esc_length < 3 && is_octal_digit(*p);
-             ++esc_length, ++p)
+             ++esc_length, ++p) {
             esc_value = esc_value * 8 + from_octal(*p);
+        }
         (void)putchar(esc_value);
     } else if (*p && strchr("\"\\abcefnrtv", *p)) {
         print_esc_char(*p++);
@@ -258,11 +261,13 @@ static int print_esc(const char* escstart, bool octal_0) {
 }
 
 static void print_esc_string(const char* str) {
-    for (; *str && !output_stopped; str++)
-        if (*str == '\\')
+    for (; *str && !output_stopped; str++) {
+        if (*str == '\\') {
             str += print_esc(str, true);
-        else
+        } else {
             (void)putchar(*str);
+        }
+    }
 }
 
 static std::string shell_escape(const std::string& str) {
@@ -471,8 +476,9 @@ static arg_cursor get_curr_arg(int pos, arg_cursor ac) {
     if (arg > 0) {
         arg--;
         ac.f = f + 1;
-        if (pos == 0)
+        if (pos == 0) {
             ac.direc_arg = arg;
+        }
     } else {
         arg = (pos == 0                      ? (ac.direc_arg = -1)
                : pos < 3 || ac.direc_arg < 0 ? ++ac.curr_s_arg
@@ -481,8 +487,9 @@ static arg_cursor get_curr_arg(int pos, arg_cursor ac) {
 
     if (arg >= 0) {
         ac.curr_arg = arg;
-        if (arg > ac.end_arg)
+        if (arg > ac.end_arg) {
             ac.end_arg = arg;
+        }
     }
     return ac;
 }
@@ -522,10 +529,12 @@ static int print_formatted(const char* format, int argc, char** argv) {
                     report_format_error(ac.error_msg);
                     return -1;
                 }
-                if (ac.curr_arg < argc)
+                if (ac.curr_arg < argc) {
                     print_esc_string(argv[ac.curr_arg]);
-                if (output_stopped)
+                }
+                if (output_stopped) {
                     break;
+                }
                 continue;
             }
 
@@ -615,8 +624,9 @@ static int print_formatted(const char* format, int argc, char** argv) {
                     long long precision_value = 0;
                     if (ac.curr_arg < argc) {
                         precision_value = vstrtoimax(argv[ac.curr_arg]);
-                        if (precision_value < 0)
+                        if (precision_value < 0) {
                             precision_value = -1;
+                        }
                     }
                     if (precision_value >= 0 && precision_value > kMaxPrintfPrecision) {
                         report_format_error("precision too large");
@@ -648,8 +658,9 @@ static int print_formatted(const char* format, int argc, char** argv) {
                 }
             }
 
-            while (*ac.f && strchr("hlLjzt", *ac.f))
+            while (*ac.f && strchr("hlLjzt", *ac.f)) {
                 ac.f++;
+            }
 
             unsigned char conversion = static_cast<unsigned char>(*ac.f);
             if (!ok[conversion]) {
@@ -741,10 +752,12 @@ int printf_command(const std::vector<std::string>& args) {
     int args_used;
     do {
         args_used = print_formatted(format.c_str(), argc, argv);
-        if (args_used < 0)
+        if (args_used < 0) {
             return 1;
-        if (output_stopped)
+        }
+        if (output_stopped) {
             break;
+        }
         argc -= args_used;
         argv += args_used;
     } while (args_used > 0 && argc > 0);

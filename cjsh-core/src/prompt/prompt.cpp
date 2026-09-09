@@ -1185,8 +1185,7 @@ void apply_terminal_window_title() {
     if (!config::interactive_mode || config::posix_mode) {
         return;
     }
-    FILE* output = isatty(STDOUT_FILENO) ? stdout :
-                   (isatty(STDERR_FILENO) ? stderr : nullptr);
+    FILE* output = isatty(STDOUT_FILENO) ? stdout : (isatty(STDERR_FILENO) ? stderr : nullptr);
     if (output == nullptr) {
         return;
     }

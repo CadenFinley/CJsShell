@@ -424,8 +424,9 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
     using namespace token_constants;
 
     size_t len = std::strlen(input);
-    if (len == 0)
+    if (len == 0) {
         return;
+    }
 
     std::string raw_input(input, len);
 

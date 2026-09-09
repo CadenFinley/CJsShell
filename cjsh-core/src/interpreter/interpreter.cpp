@@ -587,8 +587,9 @@ int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>
 
     flags::set_positional_parameters(saved_params);
 
-    for (const auto& n : param_names)
+    for (const auto& n : param_names) {
         (void)unsetenv(n.c_str());
+    }
 
     pop_function_scope();
 
@@ -742,8 +743,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
         // single-command executor used by if conditions and by branch body commands
         std::string text = process_line_for_validation(cmd_text);
-        if (text.empty())
+        if (text.empty()) {
             return 0;
+        }
 
         auto has_control_operators = [](const std::string& input) {
             return input.find_first_of("|&;<>!(){}`") != std::string::npos;
@@ -1108,8 +1110,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                             expanded_args = c.args;
                         }
                     }
-                    if (expanded_args.empty())
+                    if (expanded_args.empty()) {
                         return 0;
+                    }
 
                     if (expanded_args.size() == 2 && expanded_args[0] == "__ALIAS_PIPELINE__") {
                         std::string pipeline_text = expanded_args[1];
@@ -1144,8 +1147,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 }
             }
 
-            if (cmds.empty())
+            if (cmds.empty()) {
                 return 0;
+            }
             return run_pipeline(cmds);
         } catch (const std::bad_alloc&) {
             std::vector<std::string> suggestions = {
@@ -1241,8 +1245,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
     auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         std::string first = trim(strip_inline_comment(src_lines[idx]));
-        if (!is_statement_keyword_prefix(first, StatementKeyword::Case))
+        if (!is_statement_keyword_prefix(first, StatementKeyword::Case)) {
             return 1;
+        }
 
         if (auto inline_case_result = try_handle_inline_case(first, true)) {
             return *inline_case_result;
@@ -1253,13 +1258,15 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         bool found_in = false;
 
         auto header_tokens = shell_parser->parse_command(header_accum);
-        if (std::find(header_tokens.begin(), header_tokens.end(), "in") != header_tokens.end())
+        if (std::find(header_tokens.begin(), header_tokens.end(), "in") != header_tokens.end()) {
             found_in = true;
+        }
 
         while (!found_in && ++j < src_lines.size()) {
             std::string cur = trim(strip_inline_comment(src_lines[j]));
-            if (cur.empty())
+            if (cur.empty()) {
                 continue;
+            }
             header_accum += " " + cur;
             header_tokens = shell_parser->parse_command(header_accum);
             if (std::find(header_tokens.begin(), header_tokens.end(), "in") !=
@@ -1319,8 +1326,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         std::string combined_patterns;
-        if (!inline_segment.empty())
+        if (!inline_segment.empty()) {
             combined_patterns = inline_segment;
+        }
 
         if (!inline_has_esac) {
             auto body_pair = case_evaluator::collect_case_body(src_lines, j + 1);
@@ -1331,8 +1339,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 return 1;
             }
             if (!body_content.empty()) {
-                if (!combined_patterns.empty())
+                if (!combined_patterns.empty()) {
                     combined_patterns += '\n';
+                }
                 combined_patterns += body_content;
             }
         } else {
@@ -1496,8 +1505,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         std::vector<LogicalCommand> lcmds = shell_parser->parse_logical_commands(line);
-        if (lcmds.empty())
+        if (lcmds.empty()) {
             continue;
+        }
 
         last_code = 0;
         for (size_t i = 0; i < lcmds.size(); ++i) {
@@ -1568,8 +1578,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             for (size_t k = 0; k < semis.size(); ++k) {
                 const std::string& semi = semis[k];
                 auto segs = shell_script_interpreter::detail::split_ampersand(semi);
-                if (segs.empty())
+                if (segs.empty()) {
                     segs.push_back(semi);
+                }
                 for (const auto& cmd_text : segs) {
                     if (g_shell != nullptr && g_shell->get_shell_option(ShellOption::Verbose)) {
                         std::string verbose_text = trim(strip_inline_comment(cmd_text));
@@ -1666,8 +1677,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                             if (body_close_pos != std::string::npos) {
                                 std::string body_part =
                                     trim(after_body_open.substr(0, body_close_pos));
-                                if (!body_part.empty())
+                                if (!body_part.empty()) {
                                     body_lines.push_back(body_part);
+                                }
                                 if (readonly_function_manager_is(func_name)) {
                                     print_error({ErrorType::INVALID_ARGUMENT,
                                                  "readonly",
@@ -1962,16 +1974,18 @@ bool ShellScriptInterpreter::should_interpret_as_cjsh_script(const std::string& 
         return false;
     }
 
-    if (!is_readable_file(path))
+    if (!is_readable_file(path)) {
         return false;
+    }
 
     if (extension == ".cjsh") {
         return true;
     }
 
     std::ifstream f(path);
-    if (!f)
+    if (!f) {
         return false;
+    }
     std::string first_line;
     (void)std::getline(f, first_line);
     return first_line.rfind("#!", 0) == 0 && first_line.find("cjsh") != std::string::npos;
@@ -1981,8 +1995,9 @@ int ShellScriptInterpreter::evaluate_logical_condition_internal(
     const std::string& condition, cjsh::FunctionRef<int(const std::string&)> executor) {
     // this is the interpreter-side condition pipeline used by if and elif before branch selection
     std::string cond = trim(condition);
-    if (cond.empty())
+    if (cond.empty()) {
         return 1;
+    }
 
     // resolve arithmetic command substitutions first so the lower condition evaluator receives
     // final text with numeric results in place
@@ -2080,8 +2095,9 @@ int ShellScriptInterpreter::set_last_status(int code) {
 }
 
 int ShellScriptInterpreter::run_pipeline(const std::vector<Command>& cmds) {
-    if (!g_shell || !g_shell->shell_exec)
+    if (!g_shell || !g_shell->shell_exec) {
         return set_last_status(1);
+    }
 
     int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
     g_shell->shell_exec->print_error_if_needed(exit_code);

@@ -180,8 +180,7 @@ static bool custom_menu_mouse_select(ic_env_t* env, editor_t* eb, ssize_t item_c
 
     ssize_t target_row = 0;
     ssize_t target_col = 0;
-    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col,
-                                           NULL)) {
+    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col, NULL)) {
         return false;
     }
     ic_unused(target_col);
@@ -307,8 +306,7 @@ again:;
                 continue;
             }
             custom_menu_render_item(env, eb, display_buffer, &items[match->item_idx], match,
-                                    is_filtered, match_idx == selected_idx,
-                                    selected_preview_limit);
+                                    is_filtered, match_idx == selected_idx, selected_preview_limit);
         }
         edit_menu_append_scroll_hint(eb->extra, match_count, last_display_count, scroll_offset);
     } else {

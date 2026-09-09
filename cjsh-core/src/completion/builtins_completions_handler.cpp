@@ -85,8 +85,9 @@ constexpr const char kKillSummary[] = "Send signals to processes or jobs";
 constexpr const char kTrapSummary[] = "Set or list signal handlers";
 
 std::string strip_sig_prefix(const std::string& value) {
-    if (value.size() > 3 && value.rfind("SIG", 0) == 0)
+    if (value.size() > 3 && value.rfind("SIG", 0) == 0) {
         return value.substr(3);
+    }
     return value;
 }
 
@@ -117,8 +118,9 @@ void append_available_signal_entries(std::vector<CompletionEntry>& entries,
 
 void append_kill_signal_entries(std::vector<CompletionEntry>& entries) {
     const auto& signals = SignalHandler::available_signals();
-    if (signals.empty())
+    if (signals.empty()) {
         return;
+    }
 
     std::unordered_set<std::string> seen_tokens;
     seen_tokens.reserve(signals.size() * 3 + 2);
@@ -131,8 +133,9 @@ void append_kill_signal_entries(std::vector<CompletionEntry>& entries) {
 
 void append_trap_signal_entries(std::vector<CompletionEntry>& entries) {
     const auto& signals = SignalHandler::available_signals();
-    if (signals.empty())
+    if (signals.empty()) {
         return;
+    }
 
     std::unordered_set<std::string> seen_tokens;
     seen_tokens.reserve(signals.size() * 3 + 4);
@@ -146,8 +149,9 @@ void append_trap_signal_entries(std::vector<CompletionEntry>& entries) {
 std::string format_job_description(const JobControlJob& job) {
     const std::string& source = job.has_custom_name() ? job.custom_name : job.command;
     std::string summary = completion_utils::sanitize_job_command_summary(source);
-    if (summary.empty())
+    if (summary.empty()) {
         summary = "command unavailable";
+    }
     return "job %" + std::to_string(job.job_id) + " · " + summary;
 }
 
@@ -155,29 +159,34 @@ void append_kill_job_pid_entries(std::vector<CompletionEntry>& entries) {
     auto& job_manager = JobManager::instance();
     job_manager.update_job_statuses();
     auto jobs = job_manager.get_all_jobs();
-    if (jobs.empty())
+    if (jobs.empty()) {
         return;
+    }
 
     std::unordered_set<long long> seen_pids;
     seen_pids.reserve(jobs.size() * 2);
 
     auto add_pid_entry = [&](const std::shared_ptr<JobControlJob>& job, pid_t pid) {
-        if (!job || pid <= 0)
+        if (!job || pid <= 0) {
             return;
+        }
         long long pid_value = static_cast<long long>(pid);
-        if (!seen_pids.insert(pid_value).second)
+        if (!seen_pids.insert(pid_value).second) {
             return;
+        }
         entries.push_back(make_option(std::to_string(pid_value), format_job_description(*job)));
     };
 
     for (const auto& job : jobs) {
-        if (!job)
+        if (!job) {
             continue;
+        }
         for (pid_t pid : job->pids) {
             add_pid_entry(job, pid);
         }
-        if (job->pgid > 0)
+        if (job->pgid > 0) {
             add_pid_entry(job, job->pgid);
+        }
     }
 }
 
@@ -908,19 +917,22 @@ const CommandDoc* lookup_builtin_command_doc(const std::string& doc_target) {
         return nullptr;
     }
 
-    if (const auto* dynamic_doc = lookup_dynamic_builtin_doc(doc_target))
+    if (const auto* dynamic_doc = lookup_dynamic_builtin_doc(doc_target)) {
         return dynamic_doc;
+    }
 
     const auto& docs = builtin_command_docs();
     auto it = docs.find(doc_target);
-    if (it != docs.end())
+    if (it != docs.end()) {
         return &it->second;
+    }
     return nullptr;
 }
 
 std::string get_builtin_summary(const std::string& command) {
-    if (const auto* doc = lookup_builtin_command_doc(command))
+    if (const auto* doc = lookup_builtin_command_doc(command)) {
         return doc->summary;
+    }
     return {};
 }
 

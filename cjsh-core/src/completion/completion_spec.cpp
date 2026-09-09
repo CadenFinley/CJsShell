@@ -80,12 +80,15 @@ std::string encode_field(const std::string& value) {
 }
 
 int hex_value(char ch) {
-    if (ch >= '0' && ch <= '9')
+    if (ch >= '0' && ch <= '9') {
         return ch - '0';
-    if (ch >= 'a' && ch <= 'f')
+    }
+    if (ch >= 'a' && ch <= 'f') {
         return 10 + ch - 'a';
-    if (ch >= 'A' && ch <= 'F')
+    }
+    if (ch >= 'A' && ch <= 'F') {
         return 10 + ch - 'A';
+    }
     return -1;
 }
 
@@ -97,12 +100,14 @@ std::optional<std::string> decode_field(const std::string& value) {
             decoded.push_back(value[index]);
             continue;
         }
-        if (index + 2 >= value.size())
+        if (index + 2 >= value.size()) {
             return std::nullopt;
+        }
         int high = hex_value(value[index + 1]);
         int low = hex_value(value[index + 2]);
-        if (high < 0 || low < 0)
+        if (high < 0 || low < 0) {
             return std::nullopt;
+        }
         decoded.push_back(static_cast<char>((high << 4) | low));
         index += 2;
     }
@@ -112,8 +117,9 @@ std::optional<std::string> decode_field(const std::string& value) {
 std::string encode_list(const std::vector<std::string>& values) {
     std::ostringstream stream;
     for (std::size_t index = 0; index < values.size(); ++index) {
-        if (index != 0)
+        if (index != 0) {
             stream << ',';
+        }
         stream << encode_field(values[index]);
     }
     return stream.str();
@@ -121,8 +127,9 @@ std::string encode_list(const std::vector<std::string>& values) {
 
 std::optional<std::vector<std::string>> decode_list(const std::string& value) {
     std::vector<std::string> result;
-    if (value.empty())
+    if (value.empty()) {
         return result;
+    }
 
     std::size_t start = 0;
     while (start <= value.size()) {
@@ -130,11 +137,13 @@ std::optional<std::vector<std::string>> decode_list(const std::string& value) {
         std::string encoded =
             value.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
         auto decoded = decode_field(encoded);
-        if (!decoded.has_value())
+        if (!decoded.has_value()) {
             return std::nullopt;
+        }
         result.push_back(std::move(*decoded));
-        if (comma == std::string::npos)
+        if (comma == std::string::npos) {
             break;
+        }
         start = comma + 1;
     }
     return result;
@@ -147,18 +156,21 @@ std::vector<std::string> split_tabs(const std::string& line) {
         std::size_t tab = line.find('\t', start);
         fields.push_back(
             line.substr(start, tab == std::string::npos ? std::string::npos : tab - start));
-        if (tab == std::string::npos)
+        if (tab == std::string::npos) {
             break;
+        }
         start = tab + 1;
     }
     return fields;
 }
 
 EntryKind entry_kind_from_code(const std::string& value) {
-    if (value == "S")
+    if (value == "S") {
         return EntryKind::Subcommand;
-    if (value == "P")
+    }
+    if (value == "P") {
         return EntryKind::Positional;
+    }
     return EntryKind::Option;
 }
 
@@ -175,38 +187,50 @@ char entry_kind_code(EntryKind kind) {
 }
 
 ValueRequirement parse_requirement(const std::string& value) {
-    if (value == "required")
+    if (value == "required") {
         return ValueRequirement::Required;
-    if (value == "optional")
+    }
+    if (value == "optional") {
         return ValueRequirement::Optional;
+    }
     return ValueRequirement::None;
 }
 
 ValueType parse_value_type(const std::string& value) {
-    if (value == "text")
+    if (value == "text") {
         return ValueType::Text;
-    if (value == "file")
+    }
+    if (value == "file") {
         return ValueType::File;
-    if (value == "directory")
+    }
+    if (value == "directory") {
         return ValueType::Directory;
-    if (value == "enum")
+    }
+    if (value == "enum") {
         return ValueType::Enum;
-    if (value == "command")
+    }
+    if (value == "command") {
         return ValueType::Command;
-    if (value == "branch")
+    }
+    if (value == "branch") {
         return ValueType::Branch;
-    if (value == "process")
+    }
+    if (value == "process") {
         return ValueType::Process;
-    if (value == "custom")
+    }
+    if (value == "custom") {
         return ValueType::Custom;
+    }
     return ValueType::None;
 }
 
 ValueSeparator parse_separator(const std::string& value) {
-    if (value == "equals")
+    if (value == "equals") {
         return ValueSeparator::Equals;
-    if (value == "either")
+    }
+    if (value == "either") {
         return ValueSeparator::Either;
+    }
     return ValueSeparator::Space;
 }
 
@@ -215,13 +239,15 @@ bool parse_bool(const std::string& value) {
 }
 
 std::size_t parse_index(const std::string& value) {
-    if (value.empty())
+    if (value.empty()) {
         return 0;
+    }
     try {
         std::size_t consumed = 0;
         unsigned long parsed = std::stoul(value, &consumed, 10);
-        if (consumed != value.size())
+        if (consumed != value.size()) {
             return 0;
+        }
         return static_cast<std::size_t>(parsed);
     } catch (...) {
         return 0;
@@ -262,8 +288,9 @@ void serialize_entries(std::ostringstream& stream, const std::vector<CompletionE
 
 bool register_command_doc(const std::string& command, CommandDoc doc) {
     std::string normalized = normalize_command_name(command);
-    if (normalized.empty())
+    if (normalized.empty()) {
         return false;
+    }
     std::lock_guard<std::mutex> lock(g_provider_mutex);
     g_registered_docs[normalized] = std::move(doc);
     return true;
@@ -277,16 +304,18 @@ bool unregister_command_doc(const std::string& command) {
 std::optional<CommandDoc> lookup_registered_command_doc(const std::string& command) {
     std::lock_guard<std::mutex> lock(g_provider_mutex);
     auto it = g_registered_docs.find(normalize_command_name(command));
-    if (it == g_registered_docs.end())
+    if (it == g_registered_docs.end()) {
         return std::nullopt;
+    }
     return it->second;
 }
 
 bool register_dynamic_completion_provider(const std::string& name,
                                           DynamicCompletionProvider provider) {
     std::string normalized = normalize_provider_name(name);
-    if (normalized.empty() || !provider)
+    if (normalized.empty() || !provider) {
         return false;
+    }
     std::lock_guard<std::mutex> lock(g_provider_mutex);
     g_dynamic_providers[normalized] = std::move(provider);
     return true;
@@ -303,8 +332,9 @@ std::vector<DynamicCompletionCandidate> request_dynamic_completions(
     {
         std::lock_guard<std::mutex> lock(g_provider_mutex);
         auto it = g_dynamic_providers.find(normalize_provider_name(name));
-        if (it == g_dynamic_providers.end())
+        if (it == g_dynamic_providers.end()) {
             return {};
+        }
         provider = it->second;
     }
     try {
@@ -315,18 +345,21 @@ std::vector<DynamicCompletionCandidate> request_dynamic_completions(
 }
 
 bool entry_matches_token(const CompletionEntry& entry, const std::string& token) {
-    if (entry.text == token)
+    if (entry.text == token) {
         return true;
+    }
     return std::find(entry.aliases.begin(), entry.aliases.end(), token) != entry.aliases.end();
 }
 
 std::vector<std::string> entry_names(const CompletionEntry& entry) {
     std::vector<std::string> names;
-    if (!entry.text.empty())
+    if (!entry.text.empty()) {
         names.push_back(entry.text);
+    }
     for (const auto& alias : entry.aliases) {
-        if (!alias.empty() && std::find(names.begin(), names.end(), alias) == names.end())
+        if (!alias.empty() && std::find(names.begin(), names.end(), alias) == names.end()) {
             names.push_back(alias);
+        }
     }
     return names;
 }
@@ -411,8 +444,9 @@ std::optional<CommandDoc> parse_command_doc(const std::string& command,
                                             const std::string& contents) {
     std::istringstream stream(contents);
     std::string line;
-    if (!std::getline(stream, line) || line != std::string(kHeaderPrefix) + command)
+    if (!std::getline(stream, line) || line != std::string(kHeaderPrefix) + command) {
         return std::nullopt;
+    }
 
     CommandDoc doc;
     unsigned int format_version = 1;
@@ -423,21 +457,24 @@ std::optional<CommandDoc> parse_command_doc(const std::string& command,
     std::vector<PendingEntry> pending;
 
     while (std::getline(stream, line)) {
-        if (line.empty())
+        if (line.empty()) {
             continue;
+        }
         if (line.rfind(kFormatPrefix, 0) == 0) {
             format_version = static_cast<unsigned int>(
                 parse_index(line.substr(std::char_traits<char>::length(kFormatPrefix))));
-            if (format_version == 0 || format_version > kCompletionSpecFormatVersion)
+            if (format_version == 0 || format_version > kCompletionSpecFormatVersion) {
                 return std::nullopt;
+            }
             continue;
         }
         if (line.rfind(kSummaryPrefix, 0) == 0) {
             std::string raw = line.substr(std::char_traits<char>::length(kSummaryPrefix));
             auto value = format_version >= 2 ? decode_field(raw)
                                              : std::optional<std::string>(std::move(raw));
-            if (!value.has_value())
+            if (!value.has_value()) {
                 return std::nullopt;
+            }
             doc.summary = std::move(*value);
             doc.summary_present = true;
             continue;
@@ -446,8 +483,9 @@ std::optional<CommandDoc> parse_command_doc(const std::string& command,
             std::string raw = line.substr(std::char_traits<char>::length(kPathPrefix));
             auto value = format_version >= 2 ? decode_field(raw)
                                              : std::optional<std::string>(std::move(raw));
-            if (!value.has_value())
+            if (!value.has_value()) {
                 return std::nullopt;
+            }
             doc.executable_path = std::move(*value);
             continue;
         }
@@ -515,8 +553,9 @@ std::optional<CommandDoc> parse_command_doc(const std::string& command,
             }
             entries = &parent->children;
         }
-        if (valid_scope)
+        if (valid_scope) {
             entries->push_back(std::move(item.entry));
+        }
     }
 
     doc.summary_present = true;

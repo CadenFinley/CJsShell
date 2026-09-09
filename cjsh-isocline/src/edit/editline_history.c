@@ -62,8 +62,9 @@ static bool history_search_extract_preview_key(const char* query, char* key_buf,
         while (*cursor == ' ' || *cursor == '\t') {
             cursor++;
         }
-        if (*cursor == '\0')
+        if (*cursor == '\0') {
             break;
+        }
 
         const char* token_start = cursor;
         while (*cursor != '\0' && *cursor != ' ' && *cursor != '\t') {
@@ -71,8 +72,9 @@ static bool history_search_extract_preview_key(const char* query, char* key_buf,
         }
 
         size_t token_len = (size_t)(cursor - token_start);
-        if (token_len < 3)
+        if (token_len < 3) {
             continue;
+        }
 
         for (size_t i = 1; i + 1 < token_len; ++i) {
             if (token_start[i] == ':' && token_start[i + 1] == ':' && i + 2 == token_len) {
@@ -100,8 +102,9 @@ static bool history_search_has_valid_metadata_tag(const char* query) {
         while (*cursor == ' ' || *cursor == '\t') {
             cursor++;
         }
-        if (*cursor == '\0')
+        if (*cursor == '\0') {
             break;
+        }
 
         const char* token_start = cursor;
         while (*cursor != '\0' && *cursor != ' ' && *cursor != '\t') {
@@ -109,8 +112,9 @@ static bool history_search_has_valid_metadata_tag(const char* query) {
         }
 
         size_t token_len = (size_t)(cursor - token_start);
-        if (token_len < 3)
+        if (token_len < 3) {
             continue;
+        }
 
         for (size_t i = 1; i + 1 < token_len; ++i) {
             if (token_start[i] == ':' && token_start[i + 1] == ':') {
@@ -1338,12 +1342,14 @@ again:;
 
         for (ssize_t i = 0; i < display_count; i++) {
             ssize_t match_idx = scroll_offset + i;
-            if (match_idx >= match_count)
+            if (match_idx >= match_count) {
                 break;
+            }
 
             const history_entry_t* entry = history_snapshot_get(&snap, matches[match_idx].hidx);
-            if (entry == NULL || entry->command == NULL)
+            if (entry == NULL || entry->command == NULL) {
                 continue;
+            }
 
             history_search_build_compact_metadata_suffix(metadata_suffix_buffer, entry,
                                                          metadata_suffix_key,
@@ -1401,8 +1407,9 @@ again:;
             if (append_ellipsis && max_columns > 3) {
                 if (visible_width + 3 > max_columns) {
                     ssize_t adjusted_columns = max_columns - 3;
-                    if (adjusted_columns < 1)
+                    if (adjusted_columns < 1) {
                         adjusted_columns = 1;
+                    }
                     visible_len = edit_menu_visible_prefix(display, entry_len, adjusted_columns,
                                                            &visible_width);
                     truncated = (visible_len < entry_len) || truncated;

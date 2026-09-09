@@ -48,15 +48,18 @@ enum class QuoteMode : unsigned char {
 
 bool is_assignment(const std::string& word) {
     std::size_t equals = word.find('=');
-    if (equals == std::string::npos || equals == 0)
+    if (equals == std::string::npos || equals == 0) {
         return false;
+    }
 
-    if (!(std::isalpha(static_cast<unsigned char>(word[0])) != 0 || word[0] == '_'))
+    if (!(std::isalpha(static_cast<unsigned char>(word[0])) != 0 || word[0] == '_')) {
         return false;
+    }
     for (std::size_t index = 1; index < equals; ++index) {
         unsigned char ch = static_cast<unsigned char>(word[index]);
-        if (std::isalnum(ch) == 0 && word[index] != '_')
+        if (std::isalnum(ch) == 0 && word[index] != '_') {
             return false;
+        }
     }
     return true;
 }
@@ -66,8 +69,9 @@ bool is_control_operator(char ch) {
 }
 
 void finish_word(CommandLineContext& context, Word& word, bool& word_active, std::size_t end) {
-    if (!word_active)
+    if (!word_active) {
         return;
+    }
     word.end = end;
     word.assignment = is_assignment(word.text);
     context.words.push_back(std::move(word));
@@ -82,8 +86,9 @@ void tokenize_active_segment(const std::string& input, std::size_t cursor,
     QuoteMode quote = QuoteMode::None;
 
     auto begin_word = [&](std::size_t index) {
-        if (word_active)
+        if (word_active) {
             return;
+        }
         word_active = true;
         word = Word{};
         word.begin = index;
@@ -150,31 +155,30 @@ void tokenize_active_segment(const std::string& input, std::size_t cursor,
     }
 }
 
-bool cursor_is_in_assignment_lhs(const std::string& input,
-                                 const CommandLineContext& context) {
+bool cursor_is_in_assignment_lhs(const std::string& input, const CommandLineContext& context) {
     std::string lhs_prefix;
     if (!context.at_word_boundary) {
-        if (context.words.empty() || context.words.back().quoted)
+        if (context.words.empty() || context.words.back().quoted) {
             return false;
+        }
         lhs_prefix = context.current_raw_prefix;
     }
 
     // An equals sign before the cursor means the cursor has already reached the
     // assignment value. Completion there (for example, $VAR completion) must
     // remain available.
-    if (lhs_prefix.find('=') != std::string::npos)
+    if (lhs_prefix.find('=') != std::string::npos) {
         return false;
+    }
 
     std::size_t index = context.cursor;
     while (index < input.size()) {
         char ch = input[index];
         if (ch == '=') {
-            return looks_like_assignment(lhs_prefix + input.substr(context.cursor,
-                                                                    index - context.cursor) +
-                                         '=');
+            return looks_like_assignment(
+                lhs_prefix + input.substr(context.cursor, index - context.cursor) + '=');
         }
-        if (is_control_operator(ch) ||
-            std::isspace(static_cast<unsigned char>(ch)) != 0) {
+        if (is_control_operator(ch) || std::isspace(static_cast<unsigned char>(ch)) != 0) {
             return false;
         }
         ++index;
@@ -210,8 +214,9 @@ bool required_option_value(const std::string& token, const std::string& wrapper,
         const std::string& value_options =
             wrapper == "sudo" ? sudo_value_options : env_value_options;
         for (std::size_t index = 1; index < token.size(); ++index) {
-            if (value_options.find(token[index]) == std::string::npos)
+            if (value_options.find(token[index]) == std::string::npos) {
                 continue;
+            }
             option = std::string{"-"} + token[index];
             inline_value = index + 1 < token.size();
             break;
@@ -224,8 +229,9 @@ bool required_option_value(const std::string& token, const std::string& wrapper,
             "--prompt", "-C",     "--close-from", "-T",      "--command-timeout",
             "-r",       "--role", "-t",           "--type",  "-D",
             "--chdir",  "-R",     "--chroot",     "--host"};
-        if (required.find(option) == required.end())
+        if (required.find(option) == required.end()) {
             return false;
+        }
         return true;
     }
 
@@ -233,8 +239,9 @@ bool required_option_value(const std::string& token, const std::string& wrapper,
         bool required = option_is(option, "-u", "--unset") || option_is(option, "-C", "--chdir") ||
                         option_is(option, "-S", "--split-string") ||
                         option_is(option, "-a", "--argv0");
-        if (!required)
+        if (!required) {
             return false;
+        }
         return true;
     }
 
@@ -301,8 +308,9 @@ bool is_wrapper(const std::string& word) {
 
 void resolve_effective_command(CommandLineContext& context) {
     std::size_t index = 0;
-    while (index < context.words.size() && context.words[index].assignment)
+    while (index < context.words.size() && context.words[index].assignment) {
         ++index;
+    }
 
     if (index == context.words.size()) {
         context.cursor_in_command_position = context.words.empty() || context.at_word_boundary;
@@ -311,8 +319,9 @@ void resolve_effective_command(CommandLineContext& context) {
 
     while (index < context.words.size() && is_wrapper(context.words[index].text)) {
         // Until the wrapper token is complete, it is still the command being completed.
-        if (index + 1 == context.words.size() && !context.at_word_boundary)
+        if (index + 1 == context.words.size() && !context.at_word_boundary) {
             break;
+        }
 
         WrapperResult wrapper = consume_wrapper(context.words, index + 1, context.words[index].text,
                                                 context.at_word_boundary);
@@ -331,16 +340,18 @@ void resolve_effective_command(CommandLineContext& context) {
         }
         index = wrapper.next;
 
-        while (index < context.words.size() && context.words[index].assignment)
+        while (index < context.words.size() && context.words[index].assignment) {
             ++index;
+        }
         if (index == context.words.size()) {
             context.cursor_in_command_position = context.at_word_boundary;
             return;
         }
     }
 
-    for (std::size_t token_index = index; token_index < context.words.size(); ++token_index)
+    for (std::size_t token_index = index; token_index < context.words.size(); ++token_index) {
         context.effective_tokens.push_back(context.words[token_index].text);
+    }
 
     context.cursor_in_command_position =
         index + 1 == context.words.size() && !context.at_word_boundary;

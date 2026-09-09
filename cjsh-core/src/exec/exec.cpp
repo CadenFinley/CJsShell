@@ -1323,8 +1323,9 @@ bool Exec::requires_fork(const Command& cmd) const {
 }
 
 bool Exec::can_execute_in_process(const Command& cmd) const {
-    if (cmd.args.empty())
+    if (cmd.args.empty()) {
         return false;
+    }
 
     if (is_builtin_or_special_command(cmd.args)) {
         return !requires_fork(cmd);
@@ -2456,11 +2457,13 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
     std::string pipeline_command;
     for (size_t i = 0; i < commands.size(); ++i) {
-        if (i > 0)
+        if (i > 0) {
             pipeline_command += " | ";
+        }
         for (size_t j = 0; j < commands[i].args.size(); ++j) {
-            if (j > 0)
+            if (j > 0) {
                 pipeline_command += " ";
+            }
             pipeline_command += commands[i].args[j];
         }
     }

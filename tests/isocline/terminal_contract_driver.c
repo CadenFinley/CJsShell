@@ -51,8 +51,9 @@ static void catch_signal(int signum) {
 
 static void catch_siginfo(int signum, siginfo_t* info, void* context) {
     (void)context;
-    if (info != NULL && info->si_signo == signum)
+    if (info != NULL && info->si_signo == signum) {
         catch_signal(signum);
+    }
 }
 
 static bool matches_osc(const char* response, void* arg) {
@@ -61,8 +62,9 @@ static bool matches_osc(const char* response, void* arg) {
 }
 
 int main(int argc, char** argv) {
-    if (argc < 2)
+    if (argc < 2) {
         return 2;
+    }
     const char* scenario = argv[1];
     struct sigaction action;
     memset(&action, 0, sizeof(action));
@@ -73,15 +75,17 @@ int main(int argc, char** argv) {
         action.sa_handler = SIG_IGN;
     } else if (strcmp(scenario, "custom") == 0 || strcmp(scenario, "reset") == 0) {
         action.sa_handler = catch_signal;
-        if (strcmp(scenario, "reset") == 0)
+        if (strcmp(scenario, "reset") == 0) {
             action.sa_flags = SA_RESETHAND;
+        }
     } else if (strcmp(scenario, "siginfo") == 0) {
         action.sa_sigaction = catch_siginfo;
         action.sa_flags = SA_SIGINFO;
     }
     const int signals[] = {SIGINT, SIGTERM, SIGHUP};
-    for (size_t i = 0; i < sizeof(signals) / sizeof(signals[0]); ++i)
+    for (size_t i = 0; i < sizeof(signals) / sizeof(signals[0]); ++i) {
         (void)sigaction(signals[i], &action, NULL);
+    }
     if (strcmp(scenario, "reset") == 0) {
         struct sigaction observed;
         (void)sigaction(SIGINT, NULL, &observed);
@@ -95,15 +99,17 @@ int main(int argc, char** argv) {
 
     alloc_t memory = {malloc, realloc, free};
     tty_t* tty = tty_new(&memory, STDIN_FILENO);
-    if (tty == NULL)
+    if (tty == NULL) {
         return 3;
+    }
     // Allow the Python PTY peer to be scheduled between query and response on
     // busy CI runners. Incomplete escape sequences still time out promptly.
     tty_set_esc_delay(tty, 1000, 100);
     if (strcmp(scenario, "query") == 0 || strcmp(scenario, "osc") == 0) {
         term_t* term = term_new(&memory, tty, true, true, STDOUT_FILENO);
-        if (term == NULL)
+        if (term == NULL) {
             return 4;
+        }
         (void)tty_start_raw(tty);
         (void)write(STDERR_FILENO, "QUERY_READY\n", 12);
         ssize_t row = 0, column = 0;
@@ -111,8 +117,8 @@ int main(int argc, char** argv) {
         if (strcmp(scenario, "osc") == 0) {
             char response[128];
             (void)write(STDOUT_FILENO, "\x1b]4;0;?\x07", 8);
-            matched = tty_read_esc_response(tty, ']', true, response, sizeof(response),
-                                            matches_osc, NULL);
+            matched = tty_read_esc_response(tty, ']', true, response, sizeof(response), matches_osc,
+                                            NULL);
         } else {
             matched = term_query_cursor_pos(term, &row, &column);
         }
@@ -121,8 +127,9 @@ int main(int argc, char** argv) {
         const int length = argc > 2 ? atoi(argv[2]) : 0;
         for (int i = 0; i < length; ++i) {
             uint8_t c = 0;
-            if (!tty_readc_noblock(tty, &c, 1000))
+            if (!tty_readc_noblock(tty, &c, 1000)) {
                 return 5;
+            }
             (void)printf("%02x", (unsigned)c);
         }
         (void)printf("\nREPLAY_DONE\n");
@@ -130,17 +137,19 @@ int main(int argc, char** argv) {
     } else {
         (void)tty_start_raw(tty);
         (void)write(STDERR_FILENO, "SIGNAL_READY\n", 13);
-        while (tty_read(tty) != KEY_ENTER) {}
+        while (tty_read(tty) != KEY_ENTER) {
+        }
         (void)printf("HANDLER:%d:%d\n", (int)handled, (int)mask_ok);
     }
     tty_free(tty);
     struct sigaction restored;
     (void)sigaction(SIGINT, NULL, &restored);
-    const bool restore_ok = strcmp(scenario, "reset") == 0 ?
-        restored.sa_handler == SIG_DFL :
-        ((restored.sa_flags & SA_SIGINFO) == (action.sa_flags & SA_SIGINFO) &&
-         restored.sa_handler == action.sa_handler &&
-         sigismember(&restored.sa_mask, SIGUSR1) == 1);
+    const bool restore_ok =
+        strcmp(scenario, "reset") == 0
+            ? restored.sa_handler == SIG_DFL
+            : ((restored.sa_flags & SA_SIGINFO) == (action.sa_flags & SA_SIGINFO) &&
+               restored.sa_handler == action.sa_handler &&
+               sigismember(&restored.sa_mask, SIGUSR1) == 1);
     (void)printf("RESTORED:%d\n", restore_ok);
     return restore_ok ? 0 : 6;
 }

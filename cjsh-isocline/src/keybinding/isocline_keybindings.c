@@ -244,12 +244,14 @@ static size_t keybinding_profile_count(void) {
 
 static ic_key_binding_entry_t* key_binding_find_entry(ic_env_t* env, ic_keycode_t key,
                                                       ssize_t* index_out) {
-    if (env == NULL || env->key_bindings == NULL)
+    if (env == NULL || env->key_bindings == NULL) {
         return NULL;
+    }
     for (ssize_t i = 0; i < env->key_binding_count; ++i) {
         if (env->key_bindings[i].key == key) {
-            if (index_out != NULL)
+            if (index_out != NULL) {
                 *index_out = i;
+            }
             return &env->key_bindings[i];
         }
     }
@@ -257,16 +259,18 @@ static ic_key_binding_entry_t* key_binding_find_entry(ic_env_t* env, ic_keycode_
 }
 
 static bool key_bindings_ensure_capacity(ic_env_t* env, ssize_t needed) {
-    if (env->key_binding_capacity >= needed)
+    if (env->key_binding_capacity >= needed) {
         return true;
+    }
     ssize_t new_capacity = (env->key_binding_capacity == 0 ? 8 : env->key_binding_capacity * 2);
     while (new_capacity < needed) {
         new_capacity *= 2;
     }
     ic_key_binding_entry_t* resized =
         mem_realloc_tp(env->mem, ic_key_binding_entry_t, env->key_bindings, new_capacity);
-    if (resized == NULL)
+    if (resized == NULL) {
         return false;
+    }
     env->key_bindings = resized;
     env->key_binding_capacity = new_capacity;
     return true;
@@ -317,71 +321,88 @@ static const key_name_entry_t key_name_map[] = {
 };
 
 static const keybinding_profile_t* keybinding_profile_lookup(const char* name) {
-    if (name == NULL)
+    if (name == NULL) {
         return NULL;
+    }
     for (size_t i = 0; i < keybinding_profile_count(); ++i) {
         const keybinding_profile_t* profile = keybinding_profiles[i];
-        if (profile != NULL && ic_stricmp(name, profile->name) == 0)
+        if (profile != NULL && ic_stricmp(name, profile->name) == 0) {
             return profile;
+        }
     }
     return NULL;
 }
 
 static const char* keybinding_profile_find_spec(const keybinding_profile_t* profile,
                                                 ic_key_action_t action) {
-    if (profile == NULL)
+    if (profile == NULL) {
         return NULL;
+    }
     for (size_t i = 0; i < profile->spec_count; ++i) {
-        if (profile->specs[i].action == action)
+        if (profile->specs[i].action == action) {
             return profile->specs[i].specs;
+        }
     }
     return keybinding_profile_find_spec(profile->parent, action);
 }
 
 static bool keybinding_profile_bind_string(ic_env_t* env, ic_key_action_t action,
                                            const char* specs) {
-    if (env == NULL || specs == NULL)
+    if (env == NULL || specs == NULL) {
         return true;
+    }
     const char* p = specs;
     while (*p != '\0') {
-        while (*p == ' ' || *p == '\t' || *p == '|')
+        while (*p == ' ' || *p == '\t' || *p == '|') {
             p++;
-        if (*p == '\0')
+        }
+        if (*p == '\0') {
             break;
+        }
         const char* start = p;
-        while (*p != '\0' && *p != '|')
+        while (*p != '\0' && *p != '|') {
             p++;
+        }
         const char* end = p;
-        while (start < end && (end[-1] == ' ' || end[-1] == '\t'))
+        while (start < end && (end[-1] == ' ' || end[-1] == '\t')) {
             end--;
-        while (start < end && (*start == ' ' || *start == '\t'))
+        }
+        while (start < end && (*start == ' ' || *start == '\t')) {
             start++;
-        if (start >= end)
+        }
+        if (start >= end) {
             continue;
+        }
         size_t len = (size_t)(end - start);
-        if (len >= 64)
+        if (len >= 64) {
             return false;
+        }
         char token[64];
         memcpy(token, start, len);
         token[len] = '\0';
         ic_keycode_t key;
-        if (!ic_parse_key_spec(token, &key))
+        if (!ic_parse_key_spec(token, &key)) {
             return false;
-        if (!ic_bind_key(key, action))
+        }
+        if (!ic_bind_key(key, action)) {
             return false;
+        }
     }
     return true;
 }
 
 static bool keybinding_profile_apply_recursive(ic_env_t* env, const keybinding_profile_t* profile) {
-    if (env == NULL || profile == NULL)
+    if (env == NULL || profile == NULL) {
         return true;
-    if (!keybinding_profile_apply_recursive(env, profile->parent))
+    }
+    if (!keybinding_profile_apply_recursive(env, profile->parent)) {
         return false;
+    }
     for (size_t i = 0; i < profile->binding_count; ++i) {
         const keybinding_profile_binding_t* binding = &profile->bindings[i];
-        if (!keybinding_profile_bind_string(env, binding->action, binding->specs))
+        if (!keybinding_profile_bind_string(env, binding->action, binding->specs)) {
             return false;
+        }
     }
     return true;
 }
@@ -391,8 +412,9 @@ ic_private bool ic_keybinding_apply_profile(ic_env_t* env, const keybinding_prof
 }
 
 static void key_binding_clear_all(ic_env_t* env) {
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     env->key_binding_count = 0;
 }
 
@@ -418,8 +440,9 @@ static bool key_lookup_named(const char* token, ic_keycode_t* out_key) {
 static bool append_token(bool* first, char* buffer, size_t buflen, size_t* len, const char* token) {
     size_t token_len = strlen(token);
     size_t extra = (*first ? 0 : 1);
-    if (*len + extra + token_len + 1 > buflen)
+    if (*len + extra + token_len + 1 > buflen) {
         return false;
+    }
     if (!*first) {
         buffer[*len] = '+';
         (*len)++;
@@ -444,8 +467,9 @@ ic_private const struct ic_keybinding_profile_s* ic_keybinding_profile_default_p
 //-------------------------------------------------------------
 
 ic_public bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key) {
-    if (spec == NULL || out_key == NULL)
+    if (spec == NULL || out_key == NULL) {
         return false;
+    }
     bool ctrl = false;
     bool alt = false;
     bool shift = false;
@@ -473,8 +497,9 @@ ic_public bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key) {
                 } else if (strcmp(token, "shift") == 0) {
                     shift = true;
                 } else {
-                    if (base_set)
+                    if (base_set) {
                         return false;
+                    }
                     if (tok_len == 1) {
                         base_is_char = true;
                         base_char = token[0];
@@ -496,17 +521,20 @@ ic_public bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key) {
                 }
                 tok_len = 0;
             }
-            if (at_end)
+            if (at_end) {
                 break;
+            }
         } else {
-            if (tok_len + 1 >= sizeof(token))
+            if (tok_len + 1 >= sizeof(token)) {
                 return false;
+            }
             token[tok_len++] = ch;
         }
     }
 
-    if (!base_set)
+    if (!base_set) {
         return false;
+    }
 
     ic_keycode_t code = 0;
     if (base_is_char) {
@@ -532,32 +560,39 @@ ic_public bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key) {
         code = base_key;
     }
 
-    if (ctrl)
+    if (ctrl) {
         code = IC_KEY_WITH_CTRL(code);
-    if (alt)
+    }
+    if (alt) {
         code = IC_KEY_WITH_ALT(code);
-    if (shift)
+    }
+    if (shift) {
         code = IC_KEY_WITH_SHIFT(code);
+    }
 
     *out_key = code;
     return true;
 }
 
 ic_public bool ic_bind_key_named(const char* key_spec, const char* action_name) {
-    if (key_spec == NULL || action_name == NULL)
+    if (key_spec == NULL || action_name == NULL) {
         return false;
+    }
     ic_keycode_t key;
-    if (!ic_parse_key_spec(key_spec, &key))
+    if (!ic_parse_key_spec(key_spec, &key)) {
         return false;
+    }
     ic_key_action_t action = ic_key_action_from_name(action_name);
-    if (action == IC_KEY_ACTION__MAX)
+    if (action == IC_KEY_ACTION__MAX) {
         return false;
+    }
     return ic_bind_key(key, action);
 }
 
 ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen) {
-    if (buffer == NULL || buflen == 0)
+    if (buffer == NULL || buflen == 0) {
         return false;
+    }
     buffer[0] = '\0';
     size_t len = 0;
     bool first = true;
@@ -572,16 +607,19 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
     }
 
     if ((mods & IC_KEY_MOD_CTRL) != 0 || implicit_ctrl) {
-        if (!append_token(&first, buffer, buflen, &len, "ctrl"))
+        if (!append_token(&first, buffer, buflen, &len, "ctrl")) {
             return false;
+        }
     }
     if (mods & IC_KEY_MOD_ALT) {
-        if (!append_token(&first, buffer, buflen, &len, "alt"))
+        if (!append_token(&first, buffer, buflen, &len, "alt")) {
             return false;
+        }
     }
     if (mods & IC_KEY_MOD_SHIFT) {
-        if (!append_token(&first, buffer, buflen, &len, "shift"))
+        if (!append_token(&first, buffer, buflen, &len, "shift")) {
             return false;
+        }
     }
 
     char base_buf[16];
@@ -592,8 +630,9 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
         base_name = base_buf;
     } else if (base >= IC_KEY_F1 && base <= IC_KEY_F1 + 23) {
         unsigned number = 1U + (unsigned)(base - IC_KEY_F1);
-        if (number > 24)
+        if (number > 24) {
             return false;
+        }
         snprintf(base_buf, sizeof(base_buf), "f%u", number);
         base_name = base_buf;
     } else {
@@ -664,8 +703,9 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
     }
 
     if (base_name[0] != '\0') {
-        if (!append_token(&first, buffer, buflen, &len, base_name))
+        if (!append_token(&first, buffer, buflen, &len, base_name)) {
             return false;
+        }
     }
 
     if (first) {
@@ -676,39 +716,46 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
 }
 
 ic_public ic_key_action_t ic_key_action_from_name(const char* name) {
-    if (name == NULL)
+    if (name == NULL) {
         return IC_KEY_ACTION__MAX;
+    }
     for (size_t i = 0; i < key_action_name_count(); ++i) {
-        if (ic_stricmp(name, key_action_names[i].name) == 0)
+        if (ic_stricmp(name, key_action_names[i].name) == 0) {
             return key_action_names[i].action;
+        }
     }
     return IC_KEY_ACTION__MAX;
 }
 
 ic_public const char* ic_key_action_name(ic_key_action_t action) {
-    if (action < IC_KEY_ACTION_NONE || action >= IC_KEY_ACTION__MAX)
+    if (action < IC_KEY_ACTION_NONE || action >= IC_KEY_ACTION__MAX) {
         return NULL;
+    }
     for (size_t i = 0; i < key_action_name_count(); ++i) {
-        if (key_action_names[i].action == action)
+        if (key_action_names[i].action == action) {
             return key_action_names[i].name;
+        }
     }
     return NULL;
 }
 
 ic_public bool ic_bind_key(ic_keycode_t key, ic_key_action_t action) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
-    if (action < IC_KEY_ACTION_NONE || action >= IC_KEY_ACTION__MAX)
+    }
+    if (action < IC_KEY_ACTION_NONE || action >= IC_KEY_ACTION__MAX) {
         return false;
+    }
     ssize_t index = -1;
     ic_key_binding_entry_t* entry = key_binding_find_entry(env, key, &index);
     if (entry != NULL) {
         entry->action = action;
         return true;
     }
-    if (!key_bindings_ensure_capacity(env, env->key_binding_count + 1))
+    if (!key_bindings_ensure_capacity(env, env->key_binding_count + 1)) {
         return false;
+    }
     env->key_bindings[env->key_binding_count].key = key;
     env->key_bindings[env->key_binding_count].action = action;
     env->key_binding_count++;
@@ -717,23 +764,27 @@ ic_public bool ic_bind_key(ic_keycode_t key, ic_key_action_t action) {
 
 ic_public bool ic_clear_key_binding(ic_keycode_t key) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     ssize_t index = -1;
-    if (key_binding_find_entry(env, key, &index) == NULL)
+    if (key_binding_find_entry(env, key, &index) == NULL) {
         return false;
+    }
     for (ssize_t i = index; i < env->key_binding_count - 1; ++i) {
         env->key_bindings[i] = env->key_bindings[i + 1];
     }
-    if (env->key_binding_count > 0)
+    if (env->key_binding_count > 0) {
         env->key_binding_count--;
+    }
     return true;
 }
 
 ic_public void ic_reset_key_bindings(void) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return;
+    }
     key_binding_clear_all(env);
     if (env->key_binding_profile != NULL) {
         (void)ic_keybinding_apply_profile(env, env->key_binding_profile);
@@ -742,23 +793,28 @@ ic_public void ic_reset_key_bindings(void) {
 
 ic_public bool ic_get_key_binding(ic_keycode_t key, ic_key_action_t* out_action) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     ic_key_binding_entry_t* entry = key_binding_find_entry(env, key, NULL);
-    if (entry == NULL)
+    if (entry == NULL) {
         return false;
-    if (out_action != NULL)
+    }
+    if (out_action != NULL) {
         *out_action = entry->action;
+    }
     return true;
 }
 
 ic_public size_t ic_list_key_bindings(ic_key_binding_entry_t* buffer, size_t capacity) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return 0;
+    }
     size_t count = to_size_t(env->key_binding_count);
-    if (buffer == NULL || capacity == 0)
+    if (buffer == NULL || capacity == 0) {
         return count;
+    }
     size_t limit = (count < capacity ? count : capacity);
     for (size_t i = 0; i < limit; ++i) {
         buffer[i] = env->key_bindings[i];
@@ -768,12 +824,14 @@ ic_public size_t ic_list_key_bindings(ic_key_binding_entry_t* buffer, size_t cap
 
 ic_public bool ic_set_key_binding_profile(const char* name) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return false;
+    }
     const keybinding_profile_t* profile =
         (name == NULL ? &keybinding_profile_default : keybinding_profile_lookup(name));
-    if (profile == NULL)
+    if (profile == NULL) {
         return false;
+    }
     if (env->key_binding_profile == profile) {
         key_binding_clear_all(env);
         return ic_keybinding_apply_profile(env, profile);
@@ -802,8 +860,9 @@ ic_public const char* ic_get_key_binding_profile(void) {
 ic_public size_t ic_list_key_binding_profiles(ic_key_binding_profile_info_t* buffer,
                                               size_t capacity) {
     size_t count = keybinding_profile_count();
-    if (buffer == NULL || capacity == 0)
+    if (buffer == NULL || capacity == 0) {
         return count;
+    }
     size_t limit = (count < capacity ? count : capacity);
     for (size_t i = 0; i < limit; ++i) {
         buffer[i].name = keybinding_profiles[i]->name;
@@ -813,8 +872,9 @@ ic_public size_t ic_list_key_binding_profiles(ic_key_binding_profile_info_t* buf
 }
 
 ic_public const char* ic_key_binding_profile_default_specs(ic_key_action_t action) {
-    if (action <= IC_KEY_ACTION_NONE || action >= IC_KEY_ACTION__MAX)
+    if (action <= IC_KEY_ACTION_NONE || action >= IC_KEY_ACTION__MAX) {
         return NULL;
+    }
     ic_env_t* env = ic_get_env();
     const keybinding_profile_t* profile =
         (env != NULL && env->key_binding_profile != NULL ? env->key_binding_profile

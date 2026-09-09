@@ -2173,10 +2173,12 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
                 paren_depth--;
             } else if (paren_depth == 0 && s.substr(i, op.length()) == op) {
                 if (op.length() == 1) {
-                    if ((op == "+" || op == "-") && i > 0 && s[i - 1] == op[0])
+                    if ((op == "+" || op == "-") && i > 0 && s[i - 1] == op[0]) {
                         continue;
-                    if ((op == "+" || op == "-") && i + 1 < s.length() && s[i + 1] == op[0])
+                    }
+                    if ((op == "+" || op == "-") && i + 1 < s.length() && s[i + 1] == op[0]) {
                         continue;
+                    }
                 }
                 return i;
             }
@@ -2186,8 +2188,9 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
 
     auto parse_number = [](const std::string& s) -> long long {
         std::string clean = trim_whitespace(s);
-        if (clean.empty())
+        if (clean.empty()) {
             return 0;
+        }
         try {
             return std::stoll(clean);
         } catch (...) {
@@ -2235,12 +2238,14 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
                 case '*':
                     return left_val * right_val;
                 case '/':
-                    if (right_val == 0)
+                    if (right_val == 0) {
                         throw std::runtime_error("Division by zero");
+                    }
                     return left_val / right_val;
                 case '%':
-                    if (right_val == 0)
+                    if (right_val == 0) {
                         throw std::runtime_error("Division by zero");
+                    }
                     return left_val % right_val;
             }
         }

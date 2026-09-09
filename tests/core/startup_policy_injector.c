@@ -49,14 +49,16 @@ static gid_t injected_getegid(void) {
 }
 static const char* prepare_open_path(const char* path) {
     const char* profile = getenv("CJSH_TEST_SYSTEM_PROFILE");
-    if (profile != NULL && strcmp(path, "/etc/profile") == 0)
+    if (profile != NULL && strcmp(path, "/etc/profile") == 0) {
         path = profile;
+    }
     static int swapped = 0;
     const char* swap_path = getenv("CJSH_TEST_STARTUP_SWAP_PATH");
     if (!swapped && swap_path != NULL && strcmp(path, swap_path) == 0) {
         swapped = 1;
-        if (unlink(path) != 0 || mkfifo(path, 0600) != 0)
+        if (unlink(path) != 0 || mkfifo(path, 0600) != 0) {
             _exit(125);
+        }
     }
     return path;
 }
@@ -72,19 +74,25 @@ static int open_with_arguments(const char* path, int flags, va_list args) {
 }
 static FILE* injected_fopen(const char* path, const char* mode) {
     int flags = mode[0] == 'r' ? O_RDONLY : O_WRONLY | O_CREAT;
-    if (mode[0] == 'w')
+    if (mode[0] == 'w') {
         flags |= O_TRUNC;
-    if (mode[0] == 'a')
+    }
+    if (mode[0] == 'a') {
         flags |= O_APPEND;
-    if (strchr(mode, '+') != NULL)
+    }
+    if (strchr(mode, '+') != NULL) {
         flags = (flags & ~O_ACCMODE) | O_RDWR;
-    if (strchr(mode, 'x') != NULL)
+    }
+    if (strchr(mode, 'x') != NULL) {
         flags |= O_EXCL;
-    if (strchr(mode, 'e') != NULL)
+    }
+    if (strchr(mode, 'e') != NULL) {
         flags |= O_CLOEXEC;
+    }
     int fd = openat(AT_FDCWD, prepare_open_path(path), flags, 0666);
-    if (fd < 0)
+    if (fd < 0) {
         return NULL;
+    }
     FILE* stream = fdopen(fd, mode);
     if (stream == NULL) {
         int saved = errno;
