@@ -92,7 +92,10 @@ bool has_shell_function(const std::string& token, Shell* shell) {
     return interpreter != nullptr && interpreter->has_function(token);
 }
 
-bool should_auto_cd_token(const std::string& token, Shell* shell) {
+bool should_auto_cd_token(const std::string& token, Shell* shell, bool* directory_result) {
+    if (directory_result != nullptr) {
+        *directory_result = false;
+    }
     if (shell == nullptr || token.empty()) {
         return false;
     }
@@ -111,6 +114,9 @@ bool should_auto_cd_token(const std::string& token, Shell* shell) {
     const std::string previous_directory = shell->get_previous_directory();
     const bool is_directory =
         cjsh_filesystem::is_auto_cd_directory_token(token, cwd, previous_directory);
+    if (directory_result != nullptr) {
+        *directory_result = is_directory;
+    }
     if (!is_directory) {
         return false;
     }

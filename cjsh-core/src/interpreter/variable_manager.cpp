@@ -37,6 +37,7 @@
 
 #include "arithmetic_evaluator.h"
 #include "flags.h"
+#include "numeric_utils.h"
 #include "parameter_utils.h"
 #include "parser_utils.h"
 #include "readonly_command.h"
@@ -650,112 +651,140 @@ bool VariableManager::in_function_scope() const {
     return !local_variable_stack.empty();
 }
 
-std::string VariableManager::get_variable_value(const std::string& var_name) const {
-    std::string resolved_name = resolve_nameref_reference(var_name);
-    if (resolved_name != var_name) {
-        return get_variable_value(resolved_name);
-    }
+VariableManager::VariableLookup VariableManager::lookup_variable(const std::string& name,
+                                                                 bool include_value) const {
+    const std::string var_name = resolve_nameref_reference(name);
     ParsedArrayReference parsed;
-    if (parse_array_reference(var_name, parsed) && parsed.has_index) {
-        if (!local_array_stack.empty()) {
-            const auto& local_scalars = local_variable_stack.back();
-            auto local_scalar_it = local_scalars.find(parsed.name);
-            const IndexedArray* local_array = get_local_array(parsed.name);
-            const AssociativeArray* local_associative = get_local_associative_array(parsed.name);
+    const bool indexed = parse_array_reference(var_name, parsed) && parsed.has_index;
+    const std::string& key = indexed ? parsed.name : var_name;
+    const bool join = indexed && is_array_join_index(parsed.index);
 
-            if (local_associative != nullptr) {
-                if (is_array_join_index(parsed.index)) {
-                    return join_associative_values(*local_associative);
+    auto value_result = [include_value](const std::string* value) -> VariableLookup {
+        return {include_value && value != nullptr ? *value : std::string{}, value != nullptr};
+    };
+    auto indexed_value = [&](const IndexedArray& array) -> VariableLookup {
+        if (join) {
+            return {include_value ? join_array_values(array) : std::string{}, !array.empty()};
+        }
+        const auto index =
+            indexed ? evaluate_array_index_expression(parsed.index) : std::optional<long long>{0};
+        if (!index) {
+            return {};
+        }
+        const auto it = array.find(*index);
+        return value_result(it == array.end() ? nullptr : &it->second);
+    };
+    auto associative_value = [&](const AssociativeArray& array) -> VariableLookup {
+        if (join) {
+            return {include_value ? join_associative_values(array) : std::string{}, !array.empty()};
+        }
+        const auto it = array.find(indexed ? normalize_associative_key(parsed.index) : "0");
+        return value_result(it == array.end() ? nullptr : &it->second);
+    };
+    auto scalar_element = [&](VariableLookup result) -> VariableLookup {
+        if (!result.is_set || join) {
+            return result;
+        }
+        const auto index = evaluate_array_index_expression(parsed.index);
+        return index && *index == 0 ? result : VariableLookup{};
+    };
+
+    if (indexed) {
+        // Explicit subscripts use the same associative/indexed/scalar precedence in
+        // either scope. Presence queries avoid materializing values or array joins.
+        auto scope_value = [&](bool local) -> std::optional<VariableLookup> {
+            const auto* associative =
+                local ? get_local_associative_array(key) : get_global_associative_array(key);
+            if (associative != nullptr) {
+                return associative_value(*associative);
+            }
+            const auto* array = local ? get_local_array(key) : get_global_array(key);
+            if (array != nullptr) {
+                return indexed_value(*array);
+            }
+            if (local) {
+                const auto& scalars = local_variable_stack.back();
+                const auto it = scalars.find(key);
+                if (it != scalars.end()) {
+                    return scalar_element(value_result(&it->second));
                 }
-                auto value_it = local_associative->find(normalize_associative_key(parsed.index));
-                return value_it == local_associative->end() ? std::string{} : value_it->second;
+                return std::nullopt;
             }
-
-            if (local_array != nullptr) {
-                return get_array_element_value(*local_array, parsed.index);
-            }
-
-            if (local_scalar_it != local_scalars.end()) {
-                return get_scalar_element_value(local_scalar_it->second, parsed.index);
+            return scalar_element(lookup_global_scalar(key, include_value));
+        };
+        if (!local_variable_stack.empty()) {
+            if (auto local = scope_value(true)) {
+                return std::move(*local);
             }
         }
-
-        const IndexedArray* global_array = get_global_array(parsed.name);
-        const AssociativeArray* global_associative = get_global_associative_array(parsed.name);
-        if (global_associative != nullptr) {
-            if (is_array_join_index(parsed.index)) {
-                return join_associative_values(*global_associative);
-            }
-            auto value_it = global_associative->find(normalize_associative_key(parsed.index));
-            return value_it == global_associative->end() ? std::string{} : value_it->second;
-        }
-        if (global_array != nullptr) {
-            return get_array_element_value(*global_array, parsed.index);
-        }
-
-        if (has_global_scalar_binding(parsed.name)) {
-            return get_scalar_element_value(get_global_scalar_value(parsed.name), parsed.index);
-        }
-
-        return "";
+        return scope_value(false).value();
     }
 
     if (!local_variable_stack.empty()) {
-        const auto& current_scope = local_variable_stack.back();
-        auto scalar_it = current_scope.find(var_name);
-        if (scalar_it != current_scope.end()) {
-            return scalar_it->second;
+        const auto& scalars = local_variable_stack.back();
+        const auto it = scalars.find(key);
+        if (it != scalars.end()) {
+            return value_result(&it->second);
         }
-
-        const IndexedArray* local_array = get_local_array(var_name);
-        if (local_array != nullptr) {
-            auto zero_it = local_array->find(0);
-            if (zero_it != local_array->end()) {
-                return zero_it->second;
+        if (const auto* array = get_local_array(key)) {
+            auto result = indexed_value(*array);
+            if (result.is_set) {
+                return result;
             }
         }
-        const AssociativeArray* local_associative = get_local_associative_array(var_name);
-        if (local_associative != nullptr) {
-            auto zero_it = local_associative->find("0");
-            return zero_it == local_associative->end() ? std::string{} : zero_it->second;
+        if (const auto* array = get_local_associative_array(key)) {
+            auto result = associative_value(*array);
+            if (include_value || result.is_set) {
+                return result;
+            }
         }
     }
 
-    std::string special_var = get_special_variable(var_name);
-    if (!special_var.empty() || parameter_utils::is_named_special_parameter_name(var_name)) {
-        return special_var;
+    if (parameter_utils::is_named_special_parameter_name(key)) {
+        return {include_value ? get_special_variable(key) : std::string{}, true};
     }
 
-    std::string positional = get_positional_parameter(var_name);
-    if (!positional.empty() || (var_name.length() == 1 && isdigit(var_name[0]) != 0)) {
-        return positional;
-    }
-
-    const IndexedArray* global_array = get_global_array(var_name);
-    if (global_array != nullptr) {
-        auto zero_it = global_array->find(0);
-        if (zero_it != global_array->end()) {
-            return zero_it->second;
+    if (!key.empty() && std::all_of(key.begin(), key.end(),
+                                    [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
+        VariableLookup positional;
+        // Raw getenv here: positional parameters can be mirrored in the process environment.
+        if (const char* value = getenv(key.c_str())) {
+            positional = {include_value ? value : "", true};
+        } else {
+            int number = 0;
+            if (numeric_utils::parse_int_strict(key, number) && number > 0 &&
+                static_cast<size_t>(number - 1) < flags::get_positional_parameter_count()) {
+                positional.is_set = true;
+                if (include_value) {
+                    positional.value =
+                        flags::get_positional_parameters()[static_cast<size_t>(number - 1)];
+                }
+            }
         }
-        return "";
-    }
-    const AssociativeArray* global_associative = get_global_associative_array(var_name);
-    if (global_associative != nullptr) {
-        auto zero_it = global_associative->find("0");
-        return zero_it == global_associative->end() ? std::string{} : zero_it->second;
-    }
-
-    if (g_shell) {
-        const auto& env_vars = cjsh_env::env_vars();
-        auto it = env_vars.find(var_name);
-        if (it != env_vars.end()) {
-            return it->second;
+        if (!include_value || !positional.value.empty() || key.size() == 1) {
+            return positional;
         }
     }
 
-    // Raw getenv here: variable manager mirrors process env.
-    const char* env_val = getenv(var_name.c_str());
-    return (env_val != nullptr) ? env_val : "";
+    // A value read of a global array without element zero stays empty; the existing
+    // presence check can still fall through to an environment binding of the same name.
+    if (const auto* array = get_global_array(key)) {
+        auto result = indexed_value(*array);
+        if (include_value || result.is_set) {
+            return result;
+        }
+    }
+    if (const auto* array = get_global_associative_array(key)) {
+        auto result = associative_value(*array);
+        if (include_value || result.is_set) {
+            return result;
+        }
+    }
+    return lookup_global_scalar(key, include_value);
+}
+
+std::string VariableManager::get_variable_value(const std::string& var_name) const {
+    return lookup_variable(var_name, true).value;
 }
 
 std::string VariableManager::get_indirect_value(const std::string& var_name) const {
@@ -766,137 +795,7 @@ std::string VariableManager::get_indirect_value(const std::string& var_name) con
 }
 
 bool VariableManager::variable_is_set(const std::string& var_name) const {
-    std::string resolved_name = resolve_nameref_reference(var_name);
-    if (resolved_name != var_name) {
-        return variable_is_set(resolved_name);
-    }
-    ParsedArrayReference parsed;
-    if (parse_array_reference(var_name, parsed) && parsed.has_index) {
-        const bool is_join = is_array_join_index(parsed.index);
-
-        if (!local_variable_stack.empty()) {
-            const auto& local_scalars = local_variable_stack.back();
-            auto scalar_it = local_scalars.find(parsed.name);
-            const IndexedArray* local_array = get_local_array(parsed.name);
-            const AssociativeArray* local_associative = get_local_associative_array(parsed.name);
-
-            if (local_associative != nullptr) {
-                if (is_join) {
-                    return !local_associative->empty();
-                }
-                return local_associative->find(normalize_associative_key(parsed.index)) !=
-                       local_associative->end();
-            }
-
-            if (local_array != nullptr) {
-                if (is_join) {
-                    return !local_array->empty();
-                }
-
-                auto index = evaluate_array_index_expression(parsed.index);
-                return index.has_value() && (local_array->find(*index) != local_array->end());
-            }
-
-            if (scalar_it != local_scalars.end()) {
-                if (is_join) {
-                    return true;
-                }
-
-                auto index = evaluate_array_index_expression(parsed.index);
-                return index.has_value() && *index == 0;
-            }
-        }
-
-        const IndexedArray* global_array = get_global_array(parsed.name);
-        const AssociativeArray* global_associative = get_global_associative_array(parsed.name);
-        if (global_associative != nullptr) {
-            if (is_join) {
-                return !global_associative->empty();
-            }
-            return global_associative->find(normalize_associative_key(parsed.index)) !=
-                   global_associative->end();
-        }
-        if (global_array != nullptr) {
-            if (is_join) {
-                return !global_array->empty();
-            }
-
-            auto index = evaluate_array_index_expression(parsed.index);
-            return index.has_value() && (global_array->find(*index) != global_array->end());
-        }
-
-        if (has_global_scalar_binding(parsed.name)) {
-            if (is_join) {
-                return true;
-            }
-
-            auto index = evaluate_array_index_expression(parsed.index);
-            return index.has_value() && *index == 0;
-        }
-
-        return false;
-    }
-
-    if (!local_variable_stack.empty()) {
-        const auto& current_scope = local_variable_stack.back();
-        if (current_scope.find(var_name) != current_scope.end()) {
-            return true;
-        }
-
-        const IndexedArray* local_array = get_local_array(var_name);
-        if (local_array != nullptr && local_array->find(0) != local_array->end()) {
-            return true;
-        }
-        const AssociativeArray* local_associative = get_local_associative_array(var_name);
-        if (local_associative != nullptr &&
-            local_associative->find("0") != local_associative->end()) {
-            return true;
-        }
-    }
-
-    if (parameter_utils::is_named_special_parameter_name(var_name)) {
-        return true;
-    }
-
-    if (!var_name.empty() && std::all_of(var_name.begin(), var_name.end(),
-                                         [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
-        // Raw getenv here: positional vars stored in process env.
-        if (getenv(var_name.c_str()) != nullptr) {
-            return true;
-        }
-
-        int param_num = 0;
-        try {
-            param_num = std::stoi(var_name);
-        } catch (const std::exception&) {
-            return false;
-        }
-        if (param_num > 0) {
-            auto params = flags::get_positional_parameters();
-            return static_cast<size_t>(param_num - 1) < params.size();
-        }
-        return false;
-    }
-
-    const IndexedArray* global_array = get_global_array(var_name);
-    if (global_array != nullptr && global_array->find(0) != global_array->end()) {
-        return true;
-    }
-    const AssociativeArray* global_associative = get_global_associative_array(var_name);
-    if (global_associative != nullptr &&
-        global_associative->find("0") != global_associative->end()) {
-        return true;
-    }
-
-    if (g_shell) {
-        const auto& env_vars = cjsh_env::env_vars();
-        if (env_vars.find(var_name) != env_vars.end()) {
-            return true;
-        }
-    }
-
-    // Raw getenv here: variable manager mirrors process env.
-    return getenv(var_name.c_str()) != nullptr;
+    return lookup_variable(var_name, false).is_set;
 }
 
 std::optional<size_t> VariableManager::get_array_length(const std::string& var_name) const {
@@ -1152,31 +1051,6 @@ std::string VariableManager::join_associative_keys(const AssociativeArray& array
     return joined;
 }
 
-std::string VariableManager::get_array_element_value(const IndexedArray& array,
-                                                     const std::string& index_expr) const {
-    if (is_array_join_index(index_expr)) {
-        return join_array_values(array);
-    }
-
-    auto index = evaluate_array_index_expression(index_expr);
-    if (!index.has_value()) {
-        return "";
-    }
-
-    auto value_it = array.find(*index);
-    return value_it == array.end() ? std::string{} : value_it->second;
-}
-
-std::string VariableManager::get_scalar_element_value(const std::string& value,
-                                                      const std::string& index_expr) const {
-    if (is_array_join_index(index_expr)) {
-        return value;
-    }
-
-    auto index = evaluate_array_index_expression(index_expr);
-    return index.has_value() && *index == 0 ? value : std::string{};
-}
-
 bool VariableManager::has_local_array_binding(const std::string& name) const {
     if (local_array_stack.empty()) {
         return false;
@@ -1400,30 +1274,26 @@ bool VariableManager::assign_array_element_value(const std::string& name,
     return true;
 }
 
-bool VariableManager::has_global_scalar_binding(const std::string& name) const {
+VariableManager::VariableLookup VariableManager::lookup_global_scalar(const std::string& name,
+                                                                      bool include_value) const {
     if (g_shell) {
-        const auto& env_vars = cjsh_env::env_vars();
-        if (env_vars.find(name) != env_vars.end()) {
-            return true;
+        const auto& variables = cjsh_env::env_vars();
+        const auto it = variables.find(name);
+        if (it != variables.end()) {
+            return {include_value ? it->second : std::string{}, true};
         }
     }
-
     // Raw getenv here: variable manager mirrors process env.
-    return getenv(name.c_str()) != nullptr;
+    const char* value = getenv(name.c_str());
+    return {include_value && value != nullptr ? value : "", value != nullptr};
+}
+
+bool VariableManager::has_global_scalar_binding(const std::string& name) const {
+    return lookup_global_scalar(name, false).is_set;
 }
 
 std::string VariableManager::get_global_scalar_value(const std::string& name) const {
-    if (g_shell) {
-        const auto& env_vars = cjsh_env::env_vars();
-        auto it = env_vars.find(name);
-        if (it != env_vars.end()) {
-            return it->second;
-        }
-    }
-
-    // Raw getenv here: variable manager mirrors process env.
-    const char* value = getenv(name.c_str());
-    return (value != nullptr) ? value : "";
+    return lookup_global_scalar(name, true).value;
 }
 
 void VariableManager::remove_global_scalar_binding(const std::string& name) {
@@ -1481,29 +1351,4 @@ std::string VariableManager::resolve_nameref_reference(const std::string& refere
 
 std::string VariableManager::get_special_variable(const std::string& var_name) const {
     return parameter_utils::get_special_parameter_value(var_name);
-}
-
-std::string VariableManager::get_positional_parameter(const std::string& var_name) const {
-    if (!var_name.empty() && std::all_of(var_name.begin(), var_name.end(),
-                                         [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
-        // Raw getenv here: positional vars stored in process env.
-        const char* env_val = getenv(var_name.c_str());
-        if (env_val != nullptr) {
-            return env_val;
-        }
-
-        int param_num = 0;
-        try {
-            param_num = std::stoi(var_name);
-        } catch (const std::exception&) {
-            return "";
-        }
-        if (param_num > 0) {
-            auto params = flags::get_positional_parameters();
-            if (static_cast<size_t>(param_num - 1) < params.size()) {
-                return params[static_cast<size_t>(param_num - 1)];
-            }
-        }
-    }
-    return "";
 }

@@ -1395,36 +1395,8 @@ again:;
             }
 
             const char* display = entry->command;
-            const char* line_end = edit_menu_first_line_end(display);
-            ssize_t entry_len = line_end ? (line_end - display) : (ssize_t)strlen(display);
-            bool is_multiline = (line_end && (*line_end == '\n' || *line_end == '\r'));
-
-            ssize_t marker_columns = 4;
-            ssize_t max_columns = term_width - marker_columns - metadata_reserved_columns;
-            if (max_columns < 4) {
-                max_columns = 4;
-            }
-
-            // Limit preview width so wrapped entries do not push the prompt off-screen.
-            ssize_t visible_width = 0;
-            ssize_t visible_len =
-                edit_menu_visible_prefix(display, entry_len, max_columns, &visible_width);
-            bool truncated = (visible_len < entry_len);
-            bool append_ellipsis = (is_multiline || truncated);
-
-            if (append_ellipsis && max_columns > 3) {
-                if (visible_width + 3 > max_columns) {
-                    ssize_t adjusted_columns = max_columns - 3;
-                    if (adjusted_columns < 1) {
-                        adjusted_columns = 1;
-                    }
-                    visible_len = edit_menu_visible_prefix(display, entry_len, adjusted_columns,
-                                                           &visible_width);
-                    truncated = (visible_len < entry_len) || truncated;
-                }
-            } else if (!truncated && !is_multiline) {
-                append_ellipsis = false;
-            }
+            const edit_menu_preview_t preview =
+                edit_menu_preview(display, term_width - 4 - metadata_reserved_columns);
 
             bool is_selected = (match_idx == selected_idx);
             bool show_selected_expanded =
@@ -1455,12 +1427,12 @@ again:;
             bool highlight_match =
                 (is_filtered && !showing_all_due_to_no_matches &&
                  matches[match_idx].match_len > 0 && matches[match_idx].match_pos >= 0);
-            edit_menu_append_highlighted_prefix(eb->extra, display, visible_len, entry_len,
-                                                matches[match_idx].match_pos,
+            edit_menu_append_highlighted_prefix(eb->extra, display, preview.visible_len,
+                                                preview.entry_len, matches[match_idx].match_pos,
                                                 matches[match_idx].match_len, is_selected,
                                                 highlight_match, env, syntax_highlight_item);
 
-            if (append_ellipsis && max_columns > 3) {
+            if (preview.append_ellipsis) {
                 (void)sbuf_append(eb->extra, "...");
             }
 
@@ -1540,7 +1512,7 @@ again:;
         edit_menu_finish(env, eb, &menu_session, true, true);
         eb->modified = original_modified;
         return;
-    } else if (c == KEY_ENTER) {
+    } else if (c == KEY_ENTER || c == KEY_TAB) {
         const bool restore_live_input = (has_live_input && selected_idx < 0);
         if (match_count > 0 && selected_idx >= 0 && selected_idx < match_count) {
             const history_entry_t* selected =
@@ -1550,6 +1522,10 @@ again:;
                 sbuf_replace(eb->input, selected->command);
                 eb->pos = sbuf_len(eb->input);
                 bool expanded = edit_expand_abbreviation_if_needed(env, eb, false);
+                if (c == KEY_TAB) {
+                    ssize_t first_line_end = sbuf_find_line_end(eb->input, 0);
+                    eb->pos = (first_line_end < 0 ? 0 : first_line_end);
+                }
                 eb->modified = expanded;
                 eb->history_idx = matches[selected_idx].hidx;
             }
@@ -1561,31 +1537,8 @@ again:;
         if (restore_live_input) {
             eb->modified = original_modified;
         }
-
-        eb->request_submit = true;
-        return;
-    } else if (c == KEY_TAB) {
-        const bool restore_live_input = (has_live_input && selected_idx < 0);
-        if (match_count > 0 && selected_idx >= 0 && selected_idx < match_count) {
-            const history_entry_t* selected =
-                history_snapshot_get(&snap, matches[selected_idx].hidx);
-            if (selected != NULL && selected->command != NULL) {
-                editor_undo_forget(eb);
-                sbuf_replace(eb->input, selected->command);
-                eb->pos = sbuf_len(eb->input);
-                bool expanded = edit_expand_abbreviation_if_needed(env, eb, false);
-                ssize_t first_line_end = sbuf_find_line_end(eb->input, 0);
-                eb->pos = (first_line_end < 0 ? 0 : first_line_end);
-                eb->modified = expanded;
-                eb->history_idx = matches[selected_idx].hidx;
-            }
-        }
-        history_snapshot_free(env->history, &snap);
-        mem_free(env->mem, matches);
-        mem_free(env->mem, session_sort_key);
-        edit_menu_finish(env, eb, &menu_session, restore_live_input, true);
-        if (restore_live_input) {
-            eb->modified = original_modified;
+        if (c == KEY_ENTER) {
+            eb->request_submit = true;
         }
         return;
     }

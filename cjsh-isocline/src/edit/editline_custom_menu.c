@@ -121,26 +121,7 @@ static void custom_menu_render_item(ic_env_t* env, editor_t* eb, stringbuf_t* di
         (void)sbuf_append(eb->extra, "\n");
         return;
     }
-    const char* line_end = edit_menu_first_line_end(display);
-    ssize_t entry_len = line_end ? (line_end - display) : ic_strlen(display);
-    bool is_multiline = (line_end != NULL && (*line_end == '\n' || *line_end == '\r'));
-    ssize_t max_columns = term_get_width(env->term) - 4;
-    if (max_columns < 4) {
-        max_columns = 4;
-    }
-
-    ssize_t visible_width = 0;
-    ssize_t visible_len = edit_menu_visible_prefix(display, entry_len, max_columns, &visible_width);
-    bool truncated = (visible_len < entry_len);
-    bool append_ellipsis = (is_multiline || truncated);
-    if (append_ellipsis && max_columns > 3 && visible_width + 3 > max_columns) {
-        ssize_t adjusted_columns = max_columns - 3;
-        if (adjusted_columns < 1) {
-            adjusted_columns = 1;
-        }
-        visible_len =
-            edit_menu_visible_prefix(display, entry_len, adjusted_columns, &visible_width);
-    }
+    const edit_menu_preview_t preview = edit_menu_preview(display, term_get_width(env->term) - 4);
 
     if (is_selected) {
         (void)sbuf_append(eb->extra, "[ic-menu-selected]");
@@ -148,10 +129,10 @@ static void custom_menu_render_item(ic_env_t* env, editor_t* eb, stringbuf_t* di
     const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
     (void)sbuf_appendf(eb->extra, "[!pre]%s ", (is_selected ? arrow : " "));
     bool highlight_match = (is_filtered && match->match_len > 0 && match->match_pos >= 0);
-    edit_menu_append_highlighted_prefix(eb->extra, display, visible_len, entry_len,
+    edit_menu_append_highlighted_prefix(eb->extra, display, preview.visible_len, preview.entry_len,
                                         match->match_pos, match->match_len, is_selected,
                                         highlight_match, NULL, false);
-    if (append_ellipsis && max_columns > 3) {
+    if (preview.append_ellipsis) {
         (void)sbuf_append(eb->extra, "...");
     }
     (void)sbuf_append(eb->extra, "[/pre]");
@@ -235,6 +216,7 @@ static bool edit_custom_menu(ic_env_t* env, editor_t* eb, const char* prompt_tex
     ssize_t last_max_scroll = 0;
     ssize_t selected_preview_limit = 0;
     bool session_case_sensitive = false;
+    bool matches_dirty = true;
     ic_menu_accept_t accepted = IC_MENU_ACCEPT_NONE;
     bool accepted_with_mouse = false;
 
@@ -242,7 +224,10 @@ again:;
 
     const char* query = sbuf_string(eb->input);
     bool is_filtered = (query != NULL && query[0] != '\0');
-    match_count = custom_menu_search(items, item_count, query, session_case_sensitive, matches);
+    if (matches_dirty) {
+        match_count = custom_menu_search(items, item_count, query, session_case_sensitive, matches);
+        matches_dirty = false;
+    }
     if (selected_idx >= match_count) {
         selected_idx = (match_count > 0 ? match_count - 1 : 0);
     }
@@ -374,6 +359,7 @@ again:;
         env, eb, c, &menu_session, match_count, last_display_count, last_max_scroll, &scroll_offset,
         &selected_idx, &session_case_sensitive, false);
     if (change == EDIT_MENU_INPUT_QUERY || change == EDIT_MENU_INPUT_CASE) {
+        matches_dirty = true;
         selected_idx = 0;
         scroll_offset = 0;
     }

@@ -894,6 +894,19 @@ static bool test_history_expansion_caret_highlighting(void) {
                            "caret history expansion should be highlighted as history expansion");
 
     attrbuf_free(attrs);
+    auto original_aliases = g_shell->get_aliases();
+    auto updated_aliases = original_aliases;
+    updated_aliases[input] = "echo alias";
+    g_shell->set_aliases(updated_aliases);
+    attrs = highlight_input("  " + input, test_name);
+    g_shell->set_aliases(original_aliases);
+    if (attrs == nullptr) {
+        return false;
+    }
+    ok = expect_style_range(attrs, env->bbcode, 2, input.size(), "cjsh-builtin", test_name,
+                            "indented caret alias should retain command styling") &&
+         ok;
+    attrbuf_free(attrs);
     return ok;
 }
 

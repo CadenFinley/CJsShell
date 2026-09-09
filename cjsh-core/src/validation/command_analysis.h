@@ -55,6 +55,29 @@ bool token_has_explicit_path_hint(const std::string& token);
 std::string resolve_token_path(const std::string& token, const Shell* shell);
 bool token_is_history_expansion(const std::string& token, size_t absolute_cmd_start);
 
+enum class CommandTokenKind {
+    Empty,
+    Variable,
+    HistoryExpansion,
+    ExplicitPath,
+    Abbreviation,
+    Keyword,
+    Builtin,
+    Directory,
+    AvailableCommand,
+    External,
+    Unknown
+};
+
+struct CommandTokenClassification {
+    CommandTokenKind kind;
+    bool known;
+};
+
+CommandTokenClassification classify_command_token(
+    const std::string& token, size_t absolute_cmd_start, Shell* shell,
+    const std::unordered_set<std::string>& available_commands);
+
 bool is_known_command_token(const std::string& token, size_t absolute_cmd_start, Shell* shell,
                             const std::unordered_set<std::string>& available_commands);
 

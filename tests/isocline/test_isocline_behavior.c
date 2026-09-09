@@ -4448,6 +4448,41 @@ static bool test_term_color_bits_and_toggle_roundtrip(void) {
     return true;
 }
 
+static bool test_history_entry_decoder(void) {
+    const char* encoded = "a\\n\\t\\r\\\\\\x23\\xAf ";
+    const char expected[] = {'a', '\n', '\t', '\\', '#', (char)0xAF, ' ', '\0'};
+    char decoded[64];
+    size_t length = 99;
+    EXPECT_TRUE(
+        ic_history_decode_entry(encoded, strlen(encoded), decoded, sizeof(decoded), &length),
+        "history escapes should decode through the public API");
+    EXPECT_TRUE(length == sizeof(expected) - 1 && memcmp(decoded, expected, sizeof(expected)) == 0,
+                "decoder should preserve whitespace and non-ASCII bytes");
+    const char* invalid[] = {"\\", "\\x", "\\x1", "\\xZZ", "\\q"};
+    for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
+        length = 99;
+        EXPECT_FALSE(ic_history_decode_entry(invalid[i], strlen(invalid[i]), decoded,
+                                             sizeof(decoded), &length),
+                     "malformed escapes should be rejected");
+        EXPECT_TRUE(length == 0, "failed decode should reset the reported length");
+    }
+    char inplace[] = "a\\n\\x62";
+    EXPECT_TRUE(
+        ic_history_decode_entry(inplace, strlen(inplace), inplace, sizeof(inplace), &length),
+        "history decoding should support an overlapping input/output buffer");
+    EXPECT_STREQ(inplace, "a\nb", "in-place history decoding should retain the decoded content");
+    EXPECT_FALSE(ic_history_decode_entry("abc", 3, decoded, 3, &length),
+                 "decoder should require space for the terminating zero");
+    EXPECT_TRUE(ic_history_decode_entry("", 0, decoded, sizeof(decoded), &length),
+                "empty entries should decode successfully");
+    EXPECT_TRUE(length == 0 && decoded[0] == '\0', "empty entries should be terminated");
+    EXPECT_TRUE(ic_history_decode_entry("\\x00x", 5, decoded, sizeof(decoded), &length),
+                "decoder should accept an embedded zero byte");
+    EXPECT_TRUE(length == 2 && decoded[0] == '\0' && decoded[1] == 'x',
+                "embedded zero bytes should not truncate the decoded length");
+    return true;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -4456,6 +4491,7 @@ typedef struct test_case_s {
 } test_case_t;
 
 static const test_case_t kTests[] = {
+    {"history_entry_decoder", test_history_entry_decoder},
     {"mouse_reporting_defaults", test_mouse_reporting_defaults},
     {"readline_disposition_name_mappings", test_readline_disposition_name_mappings},
     {"multiline_toggle", test_multiline_toggle},

@@ -168,6 +168,7 @@ struct ic_env_s {
 
     ic_command_palette_entry_internal_t* command_palette_entries;
     ssize_t command_palette_entry_count;
+    size_t command_palette_generation;
     ic_command_palette_entry_handler_t* command_palette_handler;
     void* command_palette_handler_arg;
 

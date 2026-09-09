@@ -179,67 +179,15 @@ bool prepare_prefix_state(ic_completion_env_t* cenv, const char* prefix, std::st
     return true;
 }
 
-int from_hex_digit(char ch) {
-    if (ch >= '0' && ch <= '9') {
-        return ch - '0';
-    }
-    if (ch >= 'a' && ch <= 'f') {
-        return 10 + (ch - 'a');
-    }
-    if (ch >= 'A' && ch <= 'F') {
-        return 10 + (ch - 'A');
-    }
-    return -1;
-}
-
 bool decode_history_command_line(const std::string& raw, std::string& decoded) {
-    decoded.clear();
-    decoded.reserve(raw.size());
-    for (std::size_t i = 0; i < raw.size(); ++i) {
-        char ch = raw[i];
-        if (ch != '\\') {
-            decoded.push_back(ch);
-            continue;
-        }
-        if (i + 1 >= raw.size()) {
-            return false;
-        }
-        char esc = raw[++i];
-        switch (esc) {
-            case 'n':
-                decoded.push_back('\n');
-                break;
-            case 't':
-                decoded.push_back('\t');
-                break;
-            case 'r':
-                break;
-            case '\\':
-                decoded.push_back('\\');
-                break;
-            case 'x': {
-                if (i + 2 >= raw.size()) {
-                    return false;
-                }
-                char h1 = raw[i + 1];
-                char h2 = raw[i + 2];
-                if (!std::isxdigit(static_cast<unsigned char>(h1)) ||
-                    !std::isxdigit(static_cast<unsigned char>(h2))) {
-                    return false;
-                }
-                int hi = from_hex_digit(h1);
-                int lo = from_hex_digit(h2);
-                if (hi < 0 || lo < 0) {
-                    return false;
-                }
-                decoded.push_back(static_cast<char>((hi << 4) | lo));
-                i += 2;
-                break;
-            }
-            default:
-                return false;
-        }
+    decoded.resize(raw.size() + 1);
+    size_t decoded_length = 0;
+    if (!ic_history_decode_entry(raw.data(), raw.size(), decoded.data(), decoded.size(),
+                                 &decoded_length)) {
+        decoded.clear();
+        return false;
     }
+    decoded.resize(decoded_length);
     return true;
 }
 
@@ -1787,20 +1735,26 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
     }
 
+    const char* effective_prefix = (prefix != nullptr) ? prefix : "";
+    std::string completion_scope_prefix = extract_completion_scope_prefix(effective_prefix);
+    completion_context::CommandLineContext command_context;
+    bool context_reusable = false;
     long raw_cursor = 0;
     const char* raw_input = ic_completion_input(cenv, &raw_cursor);
     if (raw_input != nullptr && raw_cursor >= 0) {
-        auto raw_context =
+        command_context =
             completion_context::parse(raw_input, static_cast<std::size_t>(raw_cursor));
-        if (raw_context.cursor_in_assignment_lhs || raw_context.cursor_before_existing_word) {
+        if (command_context.cursor_in_assignment_lhs ||
+            command_context.cursor_before_existing_word) {
             return;
         }
+        context_reusable = std::string_view(raw_input).substr(0, command_context.cursor) ==
+                           completion_scope_prefix;
     }
 
-    const char* effective_prefix = (prefix != nullptr) ? prefix : "";
-    std::string completion_scope_prefix = extract_completion_scope_prefix(effective_prefix);
-    completion_context::CommandLineContext command_context =
-        completion_context::parse(completion_scope_prefix);
+    if (!context_reusable) {
+        command_context = completion_context::parse(completion_scope_prefix);
+    }
     if (cursor_is_inside_known_command(raw_input, raw_cursor, command_context)) {
         return;
     }
@@ -1927,15 +1881,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             (void)add_builtin_argument_completions(cenv, tokens, ends_with_space);
 
             if (!tokens.empty()) {
-                std::vector<std::string> args;
-                if (tokens.size() > 1) {
-                    args.assign(tokens.begin() + 1, tokens.end());
-                }
-                if (ends_with_space) {
-                    (void)args.emplace_back("");
-                }
-
-                handle_external_sub_completions(cenv, current_line_prefix);
+                handle_external_sub_completions(cenv, command_context);
             }
 
             (void)add_split_unknown_command_completions(cenv, tokens, ends_with_space, prefix_str);

@@ -187,11 +187,13 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
 
     std::string var_name = param_expr.substr(0, op_pos);
     std::string var_value = read_variable(var_name);
-    bool is_set = is_variable_set(var_name);
 
     if (op_pos == std::string::npos) {
         return var_value;
     }
+
+    const bool needs_presence = op.find_first_of("-=+?") != std::string::npos;
+    const bool is_set = needs_presence && is_variable_set(var_name);
 
     std::string operand = param_expr.substr(op_pos + op.length());
     auto expand_operand = [&]() -> std::string {
@@ -296,20 +298,15 @@ std::string ParameterExpansionEvaluator::pattern_match_prefix(const std::string&
         return value;
     }
 
-    size_t best_match = 0;
-
-    for (size_t i = 0; i <= value.length(); ++i) {
+    for (size_t step = 0; step <= value.length(); ++step) {
+        const size_t i = longest ? value.length() - step : step;
         std::string prefix = value.substr(0, i);
         if (matches_pattern(prefix, pattern)) {
-            if (longest) {
-                best_match = i;
-            } else {
-                return value.substr(i);
-            }
+            return value.substr(i);
         }
     }
 
-    return value.substr(best_match);
+    return value;
 }
 
 std::string ParameterExpansionEvaluator::pattern_match_suffix(const std::string& value,
@@ -319,20 +316,15 @@ std::string ParameterExpansionEvaluator::pattern_match_suffix(const std::string&
         return value;
     }
 
-    size_t best_match = value.length();
-
-    for (size_t i = 0; i <= value.length(); ++i) {
+    for (size_t step = 0; step <= value.length(); ++step) {
+        const size_t i = longest ? value.length() - step : step;
         std::string suffix = value.substr(value.length() - i);
         if (matches_pattern(suffix, pattern)) {
-            if (longest) {
-                best_match = value.length() - i;
-            } else {
-                return value.substr(0, value.length() - i);
-            }
+            return value.substr(0, value.length() - i);
         }
     }
 
-    return value.substr(0, best_match);
+    return value;
 }
 
 std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& value,

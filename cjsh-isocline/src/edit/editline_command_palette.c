@@ -375,15 +375,21 @@ static void edit_command_palette(ic_env_t* env, editor_t* eb) {
     ssize_t last_display_count = 0;
     ssize_t last_max_scroll = 0;
     bool session_case_sensitive = false;
+    bool matches_dirty = true;
+    bool showing_all_due_to_no_matches = false;
+    size_t palette_generation = env->command_palette_generation;
 
 again:;
 
     last_display_count = 0;
     last_max_scroll = 0;
 
-    bool showing_all_due_to_no_matches = false;
-
-    {
+    if (palette_generation != env->command_palette_generation) {
+        palette_generation = env->command_palette_generation;
+        matches_dirty = true;
+    }
+    if (matches_dirty) {
+        showing_all_due_to_no_matches = false;
         const char* query = sbuf_string(eb->input);
         match_count = command_palette_search_actions(
             env, query ? query : "", session_case_sensitive, matches, MAX_COMMAND_PALETTE_RESULTS);
@@ -393,6 +399,7 @@ again:;
                                                          MAX_COMMAND_PALETTE_RESULTS);
             showing_all_due_to_no_matches = true;
         }
+        matches_dirty = false;
     }
 
     if (selected_idx >= match_count) {
@@ -517,36 +524,10 @@ again:;
             }
 
             const char* display = linebuf;
-            const char* line_end = edit_menu_first_line_end(display);
-            ssize_t entry_len = line_end ? (line_end - display) : (ssize_t)strlen(display);
-            bool is_multiline = (line_end && (*line_end == '\n' || *line_end == '\r'));
-
-            ssize_t marker_columns = 4;
-            ssize_t tag_reserved_columns =
-                (tagbuf[0] != '\0') ? (ssize_t)(strlen(tag_prefix) + strlen(tagbuf)) : 0;
-            ssize_t max_columns = term_width - marker_columns - tag_reserved_columns;
-            if (max_columns < 4) {
-                max_columns = 4;
-            }
-
-            ssize_t visible_width = 0;
-            ssize_t visible_len =
-                edit_menu_visible_prefix(display, entry_len, max_columns, &visible_width);
-            bool truncated = (visible_len < entry_len);
-            bool append_ellipsis = (is_multiline || truncated);
-
-            if (append_ellipsis && max_columns > 3) {
-                if (visible_width + 3 > max_columns) {
-                    ssize_t adjusted_columns = max_columns - 3;
-                    if (adjusted_columns < 1) {
-                        adjusted_columns = 1;
-                    }
-                    visible_len = edit_menu_visible_prefix(display, entry_len, adjusted_columns,
-                                                           &visible_width);
-                }
-            } else if (!truncated && !is_multiline) {
-                append_ellipsis = false;
-            }
+            const ssize_t tag_reserved_columns =
+                tagbuf[0] != '\0' ? (ssize_t)(strlen(tag_prefix) + strlen(tagbuf)) : 0;
+            const edit_menu_preview_t preview =
+                edit_menu_preview(display, term_width - 4 - tag_reserved_columns);
 
             bool is_selected = (match_idx == selected_idx);
             if (is_selected) {
@@ -557,11 +538,11 @@ again:;
 
             bool highlight_match = (is_filtered && !showing_all_due_to_no_matches &&
                                     match->match_len > 0 && match->match_pos >= 0);
-            edit_menu_append_highlighted_prefix(eb->extra, display, visible_len, entry_len,
-                                                match->match_pos, match->match_len, is_selected,
-                                                highlight_match, NULL, false);
+            edit_menu_append_highlighted_prefix(
+                eb->extra, display, preview.visible_len, preview.entry_len, match->match_pos,
+                match->match_len, is_selected, highlight_match, NULL, false);
 
-            if (append_ellipsis && max_columns > 3) {
+            if (preview.append_ellipsis) {
                 (void)sbuf_append(eb->extra, "...");
             }
 
@@ -682,7 +663,9 @@ again:;
     if (change == EDIT_MENU_INPUT_QUERY) {
         selected_idx = 0;
     }
-    if (change == EDIT_MENU_INPUT_UNHANDLED) {
+    if (change == EDIT_MENU_INPUT_QUERY || change == EDIT_MENU_INPUT_CASE) {
+        matches_dirty = true;
+    } else if (change == EDIT_MENU_INPUT_UNHANDLED) {
         term_beep(env->term);
     }
     goto again;

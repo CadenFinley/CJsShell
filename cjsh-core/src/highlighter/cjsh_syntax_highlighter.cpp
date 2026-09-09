@@ -123,12 +123,6 @@ bool has_nearby_split_merge_candidate(const std::string& first_token,
     return false;
 }
 
-void highlight_command_resolution(ic_highlight_env_t* henv, size_t start, size_t length,
-                                  bool is_system_command) {
-    ic_highlight(henv, static_cast<long>(start), static_cast<long>(length),
-                 is_system_command ? "cjsh-system" : "cjsh-unknown-command");
-}
-
 void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                              const std::string& analysis, size_t cmd_start, size_t cmd_end,
                              const std::unordered_set<std::string>& comparison_ops,
@@ -152,12 +146,12 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
 
     std::string token = cmd_str.substr(first_token_start, first_token_end - first_token_start);
     bool is_sudo_command = (token == "sudo");
-    bool handled_first_token = false;
     size_t absolute_token_start = cmd_start + first_token_start;
     size_t first_token_length = first_token_end - first_token_start;
 
-    const bool first_token_unknown = !command_analysis::is_known_command_token(
+    const auto classification = command_analysis::classify_command_token(
         token, absolute_token_start, g_shell.get(), available_commands);
+    const bool first_token_unknown = !classification.known;
 
     bool highlight_split_unknown_second_token = false;
     size_t split_second_token_absolute_start = 0;
@@ -194,64 +188,41 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
         }
     }
 
+    const char* command_style = nullptr;
+    using Kind = command_analysis::CommandTokenKind;
     if (is_grouping_delimiter_token(token)) {
-        ic_highlight(henv, static_cast<long>(absolute_token_start),
-                     static_cast<long>(first_token_length), "cjsh-operator");
-        handled_first_token = true;
-    }
-
-    if (is_variable_reference(token)) {
-        highlight_variable_assignment(henv, input, absolute_token_start, token);
-        handled_first_token = true;
-    }
-
-    if (!handled_first_token && command_analysis::token_is_history_expansion(token, cmd_start)) {
-        handled_first_token = true;
-    }
-
-    if (!handled_first_token && command_analysis::token_has_explicit_path_hint(token)) {
-        highlight_command_resolution(henv, absolute_token_start, first_token_length,
-                                     !first_token_unknown);
-        handled_first_token = true;
-    }
-
-    if (!handled_first_token && g_shell != nullptr && g_shell->get_interactive_mode()) {
-        const auto& abbreviations = g_shell->get_abbreviations();
-        if (abbreviations.find(token) != abbreviations.end()) {
-            ic_highlight(henv, static_cast<long>(absolute_token_start),
-                         static_cast<long>(first_token_length), "cjsh-builtin");
-            handled_first_token = true;
+        command_style = "cjsh-operator";
+    } else {
+        switch (classification.kind) {
+            case Kind::Variable:
+                highlight_variable_assignment(henv, input, absolute_token_start, token);
+                break;
+            case Kind::Empty:
+            case Kind::HistoryExpansion:
+                break;
+            case Kind::ExplicitPath:
+            case Kind::External:
+                command_style = classification.known ? "cjsh-system" : "cjsh-unknown-command";
+                break;
+            case Kind::Abbreviation:
+            case Kind::Builtin:
+            case Kind::AvailableCommand:
+                command_style = "cjsh-builtin";
+                break;
+            case Kind::Keyword:
+                command_style = "cjsh-keyword";
+                break;
+            case Kind::Directory:
+                command_style = "cjsh-path-exists";
+                break;
+            case Kind::Unknown:
+                command_style = "cjsh-unknown-command";
+                break;
         }
     }
-
-    if (!handled_first_token && is_shell_keyword(token)) {
+    if (command_style != nullptr) {
         ic_highlight(henv, static_cast<long>(absolute_token_start),
-                     static_cast<long>(first_token_length), "cjsh-keyword");
-        handled_first_token = true;
-    } else if (!handled_first_token && is_shell_builtin(token)) {
-        ic_highlight(henv, static_cast<long>(absolute_token_start),
-                     static_cast<long>(first_token_length), "cjsh-builtin");
-        handled_first_token = true;
-    }
-
-    if (!handled_first_token && g_shell != nullptr && g_shell->get_built_ins() != nullptr) {
-        const std::string cwd = g_shell->get_built_ins()->get_current_directory();
-        const std::string previous_directory = g_shell->get_previous_directory();
-        if (cjsh_filesystem::is_auto_cd_directory_token(token, cwd, previous_directory)) {
-            ic_highlight(henv, static_cast<long>(absolute_token_start),
-                         static_cast<long>(first_token_length), "cjsh-path-exists");
-            handled_first_token = true;
-        }
-    }
-
-    if (!handled_first_token) {
-        if (available_commands.find(token) != available_commands.end()) {
-            ic_highlight(henv, static_cast<long>(absolute_token_start),
-                         static_cast<long>(first_token_length), "cjsh-builtin");
-        } else {
-            highlight_command_resolution(henv, absolute_token_start, first_token_length,
-                                         !first_token_unknown);
-        }
+                     static_cast<long>(first_token_length), command_style);
     }
 
     bool recurse_into_nested_command = (token_constants::inline_command_keywords().find(token) !=

@@ -1465,16 +1465,15 @@ CompletionCacheTargetResult regenerate_external_completion_cache_target(const st
     return result;
 }
 
-void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_path_input) {
-    if (cenv == nullptr || raw_path_input == nullptr) {
+void handle_external_sub_completions(
+    ic_completion_env_t* cenv, const completion_context::CommandLineContext& command_context) {
+    if (cenv == nullptr) {
         return;
     }
     if (ic_stop_completing(cenv)) {
         return;
     }
 
-    std::string line(raw_path_input);
-    completion_context::CommandLineContext command_context = completion_context::parse(line);
     const std::vector<std::string>& tokens = command_context.effective_tokens;
     if (tokens.empty()) {
         return;

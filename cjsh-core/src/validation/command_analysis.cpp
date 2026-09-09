@@ -91,52 +91,54 @@ bool token_is_history_expansion(const std::string& token, size_t absolute_cmd_st
     return false;
 }
 
+CommandTokenClassification classify_command_token(
+    const std::string& token, size_t absolute_cmd_start, Shell* shell,
+    const std::unordered_set<std::string>& available_commands) {
+    using namespace token_classifier;
+    using Kind = CommandTokenKind;
+    if (token.empty()) {
+        return {Kind::Empty, true};
+    }
+    if (is_variable_reference(token)) {
+        return {Kind::Variable, true};
+    }
+    if (token_is_history_expansion(token, absolute_cmd_start)) {
+        return {Kind::HistoryExpansion, true};
+    }
+    if (token_has_explicit_path_hint(token)) {
+        std::error_code ec;
+        return {Kind::ExplicitPath, std::filesystem::exists(resolve_token_path(token, shell), ec)};
+    }
+    if (shell != nullptr && shell->get_interactive_mode() &&
+        shell->get_abbreviations().count(token) != 0) {
+        return {Kind::Abbreviation, true};
+    }
+    if (command_lookup::is_shell_keyword(token)) {
+        return {Kind::Keyword, true};
+    }
+    if (command_lookup::is_shell_builtin(token, shell)) {
+        return {Kind::Builtin, true};
+    }
+
+    bool directory = false;
+    if (command_lookup::should_auto_cd_token(token, shell, &directory)) {
+        return {Kind::Directory, true};
+    }
+
+    const bool available = available_commands.count(token) != 0;
+    const bool known = available || is_external_command(token);
+    // Directories retain their path style even when an alias/function/executable takes
+    // precedence over automatic cd during command execution.
+    return {directory   ? Kind::Directory
+            : available ? Kind::AvailableCommand
+            : known     ? Kind::External
+                        : Kind::Unknown,
+            known};
+}
+
 bool is_known_command_token(const std::string& token, size_t absolute_cmd_start, Shell* shell,
                             const std::unordered_set<std::string>& available_commands) {
-    using namespace token_classifier;
-
-    if (token.empty()) {
-        return true;
-    }
-
-    if (is_variable_reference(token)) {
-        return true;
-    }
-
-    if (token_is_history_expansion(token, absolute_cmd_start)) {
-        return true;
-    }
-
-    if (token_has_explicit_path_hint(token)) {
-        std::string path_to_check = resolve_token_path(token, shell);
-        std::error_code ec;
-        return std::filesystem::exists(path_to_check, ec);
-    }
-
-    if (shell != nullptr && shell->get_interactive_mode()) {
-        const auto& abbreviations = shell->get_abbreviations();
-        if (abbreviations.find(token) != abbreviations.end()) {
-            return true;
-        }
-    }
-
-    if (command_lookup::should_auto_cd_token(token, shell)) {
-        return true;
-    }
-
-    if (command_lookup::is_shell_keyword(token) || command_lookup::is_shell_builtin(token, shell)) {
-        return true;
-    }
-
-    if (available_commands.find(token) != available_commands.end()) {
-        return true;
-    }
-
-    if (is_external_command(token)) {
-        return true;
-    }
-
-    return false;
+    return classify_command_token(token, absolute_cmd_start, shell, available_commands).known;
 }
 
 std::string sanitize_input_for_analysis(const std::string& input,

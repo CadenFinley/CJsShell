@@ -1439,52 +1439,117 @@ static bool ic_isxdigit(int c) {
     return ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || (c >= '0' && c <= '9'));
 }
 
+typedef enum history_decode_state_e {
+    HISTORY_DECODE_TEXT,
+    HISTORY_DECODE_ESCAPE,
+    HISTORY_DECODE_HEX_HIGH,
+    HISTORY_DECODE_HEX_LOW
+} history_decode_state_t;
+
+typedef struct history_decoder_s {
+    history_decode_state_t state;
+    unsigned char high;
+} history_decoder_t;
+
+// Both the streaming reader and the public buffer decoder use the same escape rules.
+static bool history_decode_byte(history_decoder_t* decoder, unsigned char byte, char* value,
+                                bool* emit) {
+    *emit = false;
+    switch (decoder->state) {
+        case HISTORY_DECODE_TEXT:
+            if (byte == '\\') {
+                decoder->state = HISTORY_DECODE_ESCAPE;
+                return true;
+            }
+            break;
+        case HISTORY_DECODE_ESCAPE:
+            decoder->state = HISTORY_DECODE_TEXT;
+            switch (byte) {
+                case 'n':
+                    byte = '\n';
+                    break;
+                case 't':
+                    byte = '\t';
+                    break;
+                case '\\':
+                    break;
+                case 'r':
+                    return true;
+                case 'x':
+                    decoder->state = HISTORY_DECODE_HEX_HIGH;
+                    return true;
+                default:
+                    return false;
+            }
+            break;
+        case HISTORY_DECODE_HEX_HIGH:
+            decoder->high = byte;
+            decoder->state = HISTORY_DECODE_HEX_LOW;
+            return true;
+        case HISTORY_DECODE_HEX_LOW:
+            if (!ic_isxdigit(decoder->high) || !ic_isxdigit(byte)) {
+                return false;
+            }
+            byte = (unsigned char)(from_xdigit(decoder->high) * 16 + from_xdigit(byte));
+            decoder->state = HISTORY_DECODE_TEXT;
+            break;
+    }
+    *value = (char)byte;
+    *emit = true;
+    return true;
+}
+
+ic_public bool ic_history_decode_entry(const char* encoded, size_t encoded_length, char* decoded,
+                                       size_t decoded_capacity, size_t* decoded_length) {
+    if (decoded_length != NULL) {
+        *decoded_length = 0;
+    }
+    if (encoded == NULL || decoded == NULL || decoded_capacity <= encoded_length) {
+        return false;
+    }
+    history_decoder_t decoder = {HISTORY_DECODE_TEXT, 0};
+    size_t length = 0;
+    for (size_t i = 0; i < encoded_length; ++i) {
+        char value = 0;
+        bool emit = false;
+        if (!history_decode_byte(&decoder, (unsigned char)encoded[i], &value, &emit)) {
+            return false;
+        }
+        if (emit) {
+            decoded[length++] = value;
+        }
+    }
+    if (decoder.state != HISTORY_DECODE_TEXT) {
+        return false;
+    }
+    decoded[length] = '\0';
+    if (decoded_length != NULL) {
+        *decoded_length = length;
+    }
+    return true;
+}
+
 static char* history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {
     sbuf_clear(sbuf);
+    history_decoder_t decoder = {HISTORY_DECODE_TEXT, 0};
     while (true) {
         int c = fgetc(f);
         if (c == EOF) {
-            if (ferror(f)) {
+            if (ferror(f) || decoder.state != HISTORY_DECODE_TEXT) {
                 return NULL;
             }
             break;
         }
-        if (c == '\n') {
+        if (c == '\n' && decoder.state == HISTORY_DECODE_TEXT) {
             break;
         }
-        if (c == '\\') {
-            int esc = fgetc(f);
-            if (esc == EOF) {
-                return NULL;
-            }
-            if (esc == 'n') {
-                (void)sbuf_append(sbuf, "\n");
-            } else if (esc == 'r') {
-                continue;
-            } else if (esc == 't') {
-                (void)sbuf_append(sbuf, "\t");
-            } else if (esc == '\\') {
-                (void)sbuf_append(sbuf, "\\");
-            } else if (esc == 'x') {
-                int c1 = fgetc(f);
-                if (c1 == EOF) {
-                    return NULL;
-                }
-                int c2 = fgetc(f);
-                if (c2 == EOF) {
-                    return NULL;
-                }
-                if (ic_isxdigit(c1) && ic_isxdigit(c2)) {
-                    char chr = from_xdigit(c1) * 16 + from_xdigit(c2);
-                    (void)sbuf_append_char(sbuf, chr);
-                } else {
-                    return NULL;
-                }
-            } else {
-                return NULL;
-            }
-        } else {
-            (void)sbuf_append_char(sbuf, (char)c);
+        char value = 0;
+        bool emit = false;
+        if (!history_decode_byte(&decoder, (unsigned char)c, &value, &emit)) {
+            return NULL;
+        }
+        if (emit) {
+            (void)sbuf_append_char(sbuf, value);
         }
     }
     if (sbuf_len(sbuf) == 0) {

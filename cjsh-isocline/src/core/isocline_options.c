@@ -76,6 +76,9 @@ static bool ic_env_ensure_abbreviation_capacity(ic_env_t* env, ssize_t needed) {
 }
 
 static void ic_env_clear_command_palette_entries(ic_env_t* env) {
+    if (env != NULL) {
+        ++env->command_palette_generation;
+    }
     if (env == NULL || env->command_palette_entries == NULL) {
         if (env != NULL) {
             env->command_palette_entry_count = 0;
@@ -192,6 +195,11 @@ ic_public bool ic_enable_multiline(bool enable) {
     bool prev = env->singleline_only;
     env->singleline_only = !enable;
     return !prev;
+}
+
+ic_public bool ic_multiline_is_enabled(void) {
+    const ic_env_t* env = ic_get_env();
+    return env != NULL && !env->singleline_only;
 }
 
 ic_public bool ic_enable_multiline_continuation_retention(bool enable) {
@@ -366,6 +374,11 @@ ic_public bool ic_enable_auto_tab(bool enable) {
     return prev;
 }
 
+ic_public bool ic_auto_tab_is_enabled(void) {
+    const ic_env_t* env = ic_get_env();
+    return env != NULL && env->complete_autotab;
+}
+
 ic_public bool ic_enable_completion_preview(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL) {
@@ -376,6 +389,11 @@ ic_public bool ic_enable_completion_preview(bool enable) {
     return !prev;
 }
 
+ic_public bool ic_completion_preview_is_enabled(void) {
+    const ic_env_t* env = ic_get_env();
+    return env != NULL && !env->complete_nopreview;
+}
+
 ic_public bool ic_enable_completion_menu_start_expanded(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL) {
@@ -384,6 +402,11 @@ ic_public bool ic_enable_completion_menu_start_expanded(bool enable) {
     bool prev = env->complete_menu_start_expanded;
     env->complete_menu_start_expanded = enable;
     return prev;
+}
+
+ic_public bool ic_completion_menu_start_expanded_is_enabled(void) {
+    const ic_env_t* env = ic_get_env();
+    return env != NULL && env->complete_menu_start_expanded;
 }
 
 ic_public bool ic_enable_completion_click_accept(bool enable) {
@@ -442,6 +465,11 @@ ic_public bool ic_enable_multiline_indent(bool enable) {
     bool prev = env->no_multiline_indent;
     env->no_multiline_indent = !enable;
     return !prev;
+}
+
+ic_public bool ic_multiline_indent_is_enabled(void) {
+    const ic_env_t* env = ic_get_env();
+    return env != NULL && !env->no_multiline_indent;
 }
 
 ic_public size_t ic_set_multiline_start_line_count(size_t line_count) {
@@ -651,6 +679,11 @@ ic_public bool ic_enable_visible_whitespace(bool enable) {
     return prev;
 }
 
+ic_public bool ic_visible_whitespace_is_enabled(void) {
+    const ic_env_t* env = ic_get_env();
+    return env != NULL && env->show_whitespace_characters;
+}
+
 ic_public void ic_set_whitespace_marker(const char* marker) {
     ic_env_t* env = ic_get_env();
     if (env == NULL) {
@@ -679,6 +712,11 @@ ic_public bool ic_enable_hint(bool enable) {
     bool prev = env->no_hint;
     env->no_hint = !enable;
     return !prev;
+}
+
+ic_public bool ic_hint_is_enabled(void) {
+    const ic_env_t* env = ic_get_env();
+    return env != NULL && !env->no_hint;
 }
 
 ic_public bool ic_enable_spell_correct(bool enable) {
@@ -761,6 +799,11 @@ ic_public bool ic_enable_inline_help(bool enable) {
     bool prev = env->no_help;
     env->no_help = !enable;
     return !prev;
+}
+
+ic_public bool ic_inline_help_is_enabled(void) {
+    const ic_env_t* env = ic_get_env();
+    return env != NULL && !env->no_help;
 }
 
 ic_public ic_status_hint_mode_t ic_set_status_hint_mode(ic_status_hint_mode_t mode) {
@@ -848,6 +891,11 @@ ic_public bool ic_enable_mouse_reporting_status_line(bool enable) {
     bool prev = env->mouse_reporting_status_line_enabled;
     env->mouse_reporting_status_line_enabled = enable;
     return prev;
+}
+
+ic_public bool ic_mouse_reporting_status_line_is_enabled(void) {
+    const ic_env_t* env = ic_get_env();
+    return env != NULL && env->mouse_reporting_status_line_enabled;
 }
 
 ic_public bool ic_enable_inline_right_prompt_cursor_follow(bool enable) {

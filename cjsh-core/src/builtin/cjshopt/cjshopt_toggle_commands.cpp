@@ -1112,11 +1112,7 @@ int completion_preview_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "completion-preview",
         usage_lines,
-        []() {
-            bool current_status = ic_enable_completion_preview(true);
-            (void)ic_enable_completion_preview(current_status);
-            return current_status;
-        },
+        []() { return ic_completion_preview_is_enabled(); },
         [](bool enable) { (void)ic_enable_completion_preview(enable); },
         "Completion preview",
         false,
@@ -1137,11 +1133,7 @@ int completion_menu_expanded_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "completion-menu-expanded",
         usage_lines,
-        []() {
-            bool current_status = ic_enable_completion_menu_start_expanded(true);
-            (void)ic_enable_completion_menu_start_expanded(current_status);
-            return current_status;
-        },
+        []() { return ic_completion_menu_start_expanded_is_enabled(); },
         [](bool enable) { (void)ic_enable_completion_menu_start_expanded(enable); },
         "Completion menu default expansion",
         false,
@@ -1247,11 +1239,7 @@ int visible_whitespace_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "visible-whitespace",
         usage_lines,
-        []() {
-            bool current_status = ic_enable_visible_whitespace(true);
-            (void)ic_enable_visible_whitespace(current_status);
-            return current_status;
-        },
+        []() { return ic_visible_whitespace_is_enabled(); },
         [](bool enable) { (void)ic_enable_visible_whitespace(enable); },
         "Visible whitespace characters",
         true,
@@ -1270,11 +1258,7 @@ int hint_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "hint",
         usage_lines,
-        []() {
-            bool current_status = ic_enable_hint(true);
-            (void)ic_enable_hint(current_status);
-            return current_status;
-        },
+        []() { return ic_hint_is_enabled(); },
         [](bool enable) { (void)ic_enable_hint(enable); },
         "Inline hints",
         true,
@@ -1295,11 +1279,7 @@ int multiline_indent_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "multiline-indent",
         usage_lines,
-        []() {
-            bool current_status = ic_enable_multiline_indent(true);
-            (void)ic_enable_multiline_indent(current_status);
-            return current_status;
-        },
+        []() { return ic_multiline_indent_is_enabled(); },
         [](bool enable) { (void)ic_enable_multiline_indent(enable); },
         "Multiline auto-indent",
         false,
@@ -1320,11 +1300,7 @@ int multiline_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "multiline",
         usage_lines,
-        []() {
-            bool current_status = ic_enable_multiline(true);
-            (void)ic_enable_multiline(current_status);
-            return current_status;
-        },
+        []() { return ic_multiline_is_enabled(); },
         [](bool enable) { (void)ic_enable_multiline(enable); },
         "Multiline input",
         false,
@@ -1345,11 +1321,7 @@ int inline_help_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "inline-help",
         usage_lines,
-        []() {
-            bool current_status = ic_enable_inline_help(true);
-            (void)ic_enable_inline_help(current_status);
-            return current_status;
-        },
+        []() { return ic_inline_help_is_enabled(); },
         [](bool enable) { (void)ic_enable_inline_help(enable); },
         "Inline help messages",
         true,
@@ -1761,11 +1733,7 @@ int mouse_clicking_status_line_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "mouse-clicking-status-line",
         usage_lines,
-        []() {
-            bool current_status = ic_enable_mouse_reporting_status_line(true);
-            (void)ic_enable_mouse_reporting_status_line(current_status);
-            return current_status;
-        },
+        []() { return ic_mouse_reporting_status_line_is_enabled(); },
         [](bool enable) { (void)ic_enable_mouse_reporting_status_line(enable); },
         "Mouse clicking status indicator",
         false,
@@ -1786,11 +1754,7 @@ int auto_tab_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "auto-tab",
         usage_lines,
-        []() {
-            bool current_status = ic_enable_auto_tab(true);
-            (void)ic_enable_auto_tab(current_status);
-            return current_status;
-        },
+        []() { return ic_auto_tab_is_enabled(); },
         [](bool enable) { (void)ic_enable_auto_tab(enable); },
         "Automatic tab completion",
         false,

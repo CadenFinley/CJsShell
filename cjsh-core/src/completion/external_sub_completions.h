@@ -32,10 +32,12 @@
 #include <string>
 #include <vector>
 
+#include "completion_context.h"
 #include "completion_spec.h"
 #include "isocline.h"
 
-void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_path_input);
+void handle_external_sub_completions(ic_completion_env_t* cenv,
+                                     const completion_context::CommandLineContext& command_context);
 completion_specs::CommandDoc parse_man_page_completion_spec(const std::string& command,
                                                             const std::string& man_text);
 std::string get_command_summary(const std::string& command, bool allow_fetch = true);

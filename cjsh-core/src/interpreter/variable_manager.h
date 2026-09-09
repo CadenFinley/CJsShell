@@ -94,6 +94,13 @@ class VariableManager {
     std::vector<std::string> get_variable_names() const;
 
    private:
+    struct VariableLookup {
+        std::string value;
+        bool is_set = false;
+    };
+    VariableLookup lookup_variable(const std::string& name, bool include_value) const;
+    VariableLookup lookup_global_scalar(const std::string& name, bool include_value) const;
+
     bool assign_array_literal_impl(const std::string& name, const std::vector<std::string>& words,
                                    bool append, bool force_global);
     bool assign_associative_literal_impl(const std::string& name,
@@ -123,10 +130,6 @@ class VariableManager {
     std::string join_array_keys(const IndexedArray& array) const;
     std::string join_associative_values(const AssociativeArray& array) const;
     std::string join_associative_keys(const AssociativeArray& array) const;
-    std::string get_array_element_value(const IndexedArray& array,
-                                        const std::string& index_expr) const;
-    std::string get_scalar_element_value(const std::string& value,
-                                         const std::string& index_expr) const;
 
     bool has_local_array_binding(const std::string& name) const;
     bool has_local_associative_array_binding(const std::string& name) const;
@@ -158,5 +161,4 @@ class VariableManager {
     void remove_global_scalar_binding(const std::string& name);
 
     std::string get_special_variable(const std::string& var_name) const;
-    std::string get_positional_parameter(const std::string& var_name) const;
 };

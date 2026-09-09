@@ -531,6 +531,13 @@ void ic_history_add(const char* entry);
 /// Force save in-memory history to the history file.
 void ic_history_save(void);
 
+/// Decode one persisted history entry without trimming it. The output buffer must have
+/// room for encoded_length + 1 bytes and may be the same buffer as encoded.
+/// Return false for malformed escapes or insufficient capacity; decoded_length excludes
+/// the terminating zero and is set to zero on failure.
+bool ic_history_decode_entry(const char* encoded, size_t encoded_length, char* decoded,
+                             size_t decoded_capacity, size_t* decoded_length);
+
 /// \}
 
 //--------------------------------------------------------------
@@ -775,6 +782,8 @@ const char* ic_get_command_palette_prompt(void);
 /// Disable or enable multi-line input (enabled by default).
 /// Returns the previous setting.
 bool ic_enable_multiline(bool enable);
+/// Return the current setting without changing it.
+bool ic_multiline_is_enabled(void);
 
 /// Configure whether Enter retains the trailing continuation character when it starts a new
 /// multiline input row. When disabled (default), the continuation character is replaced by the
@@ -838,16 +847,22 @@ ic_history_search_sort_t ic_get_history_search_sort(const char** metadata_key);
 /// to expand as far as possible if the completions are unique. (disabled by
 /// default). Returns the previous setting.
 bool ic_enable_auto_tab(bool enable);
+/// Return the current setting without changing it.
+bool ic_auto_tab_is_enabled(void);
 
 /// Disable or enable preview of a completion selection (enabled by default)
 /// Returns the previous setting.
 bool ic_enable_completion_preview(bool enable);
+/// Return the current setting without changing it.
+bool ic_completion_preview_is_enabled(void);
 
 /// Configure whether completion menus open in expanded mode by default (disabled by default).
 /// When enabled, the first completion menu view uses the full single-column layout without
 /// requiring PgDn/ctrl-j to expand.
 /// Returns the previous setting.
 bool ic_enable_completion_menu_start_expanded(bool enable);
+/// Return the current setting without changing it.
+bool ic_completion_menu_start_expanded_is_enabled(void);
 
 /// Enable or disable click-to-accept for completion candidates (disabled by default).
 /// Returns the previous setting.
@@ -879,6 +894,8 @@ ic_menu_highlight_mode_t ic_get_menu_highlight_mode(void);
 /// automatic continuation. (enabled by default)
 /// Returns the previous setting.
 bool ic_enable_multiline_indent(bool enable);
+/// Return the current setting without changing it.
+bool ic_multiline_indent_is_enabled(void);
 
 /// Configure how many lines the editor should preallocate when multiline editing is enabled.
 /// The default is 1, which means the cursor starts on the first prompt line. Larger values
@@ -972,6 +989,8 @@ bool ic_current_line_number_highlight_is_enabled(void);
 /// default). When enabled, every space is rendered using the whitespace marker returned by
 /// `ic_get_whitespace_marker()`. Returns the previous state.
 bool ic_enable_visible_whitespace(bool enable);
+/// Return the current setting without changing it.
+bool ic_visible_whitespace_is_enabled(void);
 
 /// Set the marker string used when visualizing spaces. The string is copied so the caller retains
 /// ownership. Passing NULL or an empty string restores the default middle-dot marker.
@@ -984,6 +1003,8 @@ const char* ic_get_whitespace_marker(void);
 /// (full help is always dispayed when pressing F1 regardless of this setting)
 /// @returns the previous setting.
 bool ic_enable_inline_help(bool enable);
+/// Return the current setting without changing it.
+bool ic_inline_help_is_enabled(void);
 
 /// Enable or disable cursor-tracking for the inline right prompt (RPS1).
 /// When enabled, the right-aligned prompt is re-rendered on the same terminal row as the cursor
@@ -1003,11 +1024,15 @@ bool ic_enable_mouse_clicking(bool enable);
 /// Disabling this hides the indicator text but does not disable mouse clicking support itself.
 /// Returns the previous setting.
 bool ic_enable_mouse_reporting_status_line(bool enable);
+/// Return the current setting without changing it.
+bool ic_mouse_reporting_status_line_is_enabled(void);
 
 /// Disable or enable hinting (enabled by default)
 /// Shows a hint inline when there is a single possible completion.
 /// @returns the previous setting.
 bool ic_enable_hint(bool enable);
+/// Return the current setting without changing it.
+bool ic_hint_is_enabled(void);
 
 /// Disable or enable spell correction in completion (enabled by default).
 /// When enabled and no completion matches, tab will try to correct the

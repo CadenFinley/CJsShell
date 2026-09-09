@@ -1114,6 +1114,29 @@ static ssize_t edit_menu_visible_prefix(const char* s, ssize_t len, ssize_t max_
     return pos;
 }
 
+typedef struct edit_menu_preview_s {
+    ssize_t entry_len;
+    ssize_t visible_len;
+    bool append_ellipsis;
+} edit_menu_preview_t;
+
+static edit_menu_preview_t edit_menu_preview(const char* display, ssize_t max_columns) {
+    const char* line_end = edit_menu_first_line_end(display);
+    const ssize_t entry_len = line_end ? line_end - display : ic_strlen(display);
+    const bool multiline = line_end != NULL && (*line_end == '\n' || *line_end == '\r');
+    if (max_columns < 4) {
+        max_columns = 4;
+    }
+
+    ssize_t width = 0;
+    ssize_t visible_len = edit_menu_visible_prefix(display, entry_len, max_columns, &width);
+    const bool ellipsis = multiline || visible_len < entry_len;
+    if (ellipsis && width + 3 > max_columns) {
+        visible_len = edit_menu_visible_prefix(display, entry_len, max_columns - 3, NULL);
+    }
+    return (edit_menu_preview_t){entry_len, visible_len, ellipsis};
+}
+
 static void edit_menu_append_highlighted_prefix(stringbuf_t* sb, const char* display,
                                                 ssize_t visible_len, ssize_t entry_len,
                                                 ssize_t match_pos, ssize_t match_len, bool selected,
