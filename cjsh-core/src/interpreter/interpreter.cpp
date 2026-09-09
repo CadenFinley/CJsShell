@@ -1855,12 +1855,14 @@ bool ShellScriptInterpreter::should_interpret_as_cjsh_script(const std::string& 
     }
 
     std::ifstream f(path);
-    if (!f) {
+    // Most explicit paths name binaries. Check the shebang before reading a line,
+    // which may otherwise consume an entire binary with no newline.
+    if (!f || f.get() != '#' || f.get() != '!') {
         return false;
     }
     std::string first_line;
     (void)std::getline(f, first_line);
-    return first_line.rfind("#!", 0) == 0 && first_line.find("cjsh") != std::string::npos;
+    return first_line.find("cjsh") != std::string::npos;
 }
 
 int ShellScriptInterpreter::evaluate_logical_condition_internal(

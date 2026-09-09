@@ -392,6 +392,38 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertFalse(any(line.startswith("PATH=") for line in r.stdout.splitlines()))
 
+    def test_inherited_identity_still_initializes_shell_defaults(self):
+        for user, logname in (("caller-user", "caller-logname"), ("", "")):
+            with self.subTest(user=user, logname=logname):
+                self.env.update(USER=user, LOGNAME=logname, SHLVL="6", IFS="bad")
+                for name in ("HOSTNAME", "PS1", "PS2", "PS4", "CJSH_VERSION"):
+                    self.env.pop(name, None)
+                result = self.run_shell(
+                    "--no-config", "-c",
+                    'printf "%s|%s|%s|%s\\n" "$USER" "$LOGNAME" "$HOME" "$SHLVL"; '
+                    'printf "IFS<%s>\\n" "$IFS"; '
+                    'test -n "$HOSTNAME" && test -n "$PS1" && test -n "$PS2" && '
+                    'test "$PS4" = "+ " && test -n "$CJSH_VERSION"')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, f"{user}|{logname}|{self.home}|7\nIFS< \t\n>\n")
+
+    def test_account_defaults_for_individually_missing_identity_fields(self):
+        account = pwd.getpwuid(os.getuid())
+        for missing in ("USER", "LOGNAME", "HOME", "empty-HOME"):
+            with self.subTest(missing=missing):
+                self.env.update(USER="caller-user", LOGNAME="caller-logname", HOME=str(self.home))
+                if missing == "empty-HOME":
+                    self.env["HOME"] = ""
+                else:
+                    self.env.pop(missing)
+                result = self.run_shell(
+                    "--no-config", "-c", 'printf "%s|%s|%s\\n" "$USER" "$LOGNAME" "$HOME"')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                user = account.pw_name if missing == "USER" else "caller-user"
+                logname = account.pw_name if missing == "LOGNAME" else "caller-logname"
+                home = account.pw_dir if missing in ("HOME", "empty-HOME") else str(self.home)
+                self.assertEqual(result.stdout, f"{user}|{logname}|{home}\n")
+
     def test_default_system_paths(self):
         for value in ("/batch2/supplied:/batch2/supplied/bin:/batch2/supplied", "", None):
             for manpath in ("/batch2/man", "", None):

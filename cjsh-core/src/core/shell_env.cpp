@@ -205,10 +205,14 @@ void setup_environment_variables(const char* argv0) {
     (void)setenv("SHELL", shell_value.c_str(), 1);
     (void)setenv("_", shell_value.c_str(), 1);
 
-    uid_t uid = getuid();
-    struct passwd* pw = getpwuid(uid);
+    // Account lookup only supplies missing identity fields. Inherited empty user
+    // labels are intentional, while an empty HOME still needs the account default.
+    const char* inherited_home = getenv("HOME");
+    const bool needs_account = getenv("USER") == nullptr || getenv("LOGNAME") == nullptr ||
+                               inherited_home == nullptr || inherited_home[0] == '\0';
+    const struct passwd* pw = needs_account ? getpwuid(getuid()) : nullptr;
 
-    if (pw != nullptr) {
+    if (!needs_account || pw != nullptr) {
         auto env_vars = setup_user_system_vars(
             pw, g_shell ? g_shell->get_built_ins()->get_current_directory() : std::string{});
 
@@ -409,10 +413,10 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(
 
     // Preserve caller identity labels, even when explicitly empty. Only fill
     // absent labels from the real user's account database.
-    if (getenv("USER") == nullptr) {
+    if (getenv("USER") == nullptr && pw != nullptr) {
         (void)env_vars.emplace_back("USER", std::string(pw->pw_name));
     }
-    if (getenv("LOGNAME") == nullptr) {
+    if (getenv("LOGNAME") == nullptr && pw != nullptr) {
         (void)env_vars.emplace_back("LOGNAME", std::string(pw->pw_name));
     }
 
@@ -421,7 +425,7 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(
     if (const char* current_home = getenv("HOME");
         current_home != nullptr && current_home[0] != '\0') {
         home_value = current_home;
-    } else {
+    } else if (pw != nullptr) {
         home_value = std::string(pw->pw_dir);
         (void)setenv("HOME", home_value.c_str(), 1);
     }

@@ -578,18 +578,13 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             }
         }
 
-        {
-            auto declaration_tokens =
-                tokenize_shell_segment(line_without_comments, 0, line_without_comments.size());
-            collect_declaration_definitions(declaration_tokens, original_line, display_line,
-                                            defined_vars);
-        }
+        const auto tokens =
+            tokenize_shell_segment(line_without_comments, 0, line_without_comments.size());
+        collect_declaration_definitions(tokens, original_line, display_line, defined_vars);
 
         detect_keyword_assignments(line_without_comments, trimmed_line, original_line, display_line,
                                    defined_vars);
 
-        auto tokens =
-            tokenize_shell_segment(line_without_comments, 0, line_without_comments.size());
         collect_read_variable_definitions(tokens, original_line, display_line, defined_vars);
 
         size_t eq_pos = line_without_comments.find('=');

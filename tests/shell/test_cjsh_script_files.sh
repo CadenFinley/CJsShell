@@ -124,5 +124,45 @@ else
     exit 1
 fi
 
+# The shebang probe must preserve short/empty and long-first-line behavior.
+for CONTENT in '' '#' '#!' 'x' '#! /bin/sh' 'x#!cjsh'; do
+    printf '%s' "$CONTENT" > "$TMP_DIR/short_probe"
+    "$CJSH_PATH" --no-config -c "\"$TMP_DIR/short_probe\"" >/dev/null 2>&1
+    STATUS=$?
+    if [ "$STATUS" -ne 126 ]; then
+        echo "FAIL: non-cjsh short file should remain non-executable (status=$STATUS)"
+        exit 1
+    fi
+done
+echo "PASS: empty and short files retain external dispatch"
+
+printf '#! /usr/bin/env cjsh' > "$TMP_DIR/shebang_only"
+"$CJSH_PATH" --no-config -c "\"$TMP_DIR/shebang_only\"" >/dev/null 2>&1
+if [ "$?" -ne 0 ]; then
+    echo "FAIL: cjsh shebang without a final newline"
+    exit 1
+fi
+echo "PASS: cjsh shebang without a final newline"
+
+{
+    printf '#!'
+    awk 'BEGIN { for (i = 0; i < 20000; ++i) printf " "; print "cjsh" }'
+    printf 'echo long-shebang-ok\n'
+} > "$TMP_DIR/long_shebang"
+OUT=$("$CJSH_PATH" --no-config -c "\"$TMP_DIR/long_shebang\"" 2>&1)
+if [ "$OUT" != "long-shebang-ok" ]; then
+    echo "FAIL: long cjsh shebang retains internal dispatch (got '$OUT')"
+    exit 1
+fi
+echo "PASS: long cjsh shebang retains internal dispatch"
+
+awk 'BEGIN { for (i = 0; i < 100000; ++i) printf "x"; printf "cjsh" }' > "$TMP_DIR/long_plain"
+"$CJSH_PATH" --no-config -c "\"$TMP_DIR/long_plain\"" >/dev/null 2>&1
+if [ "$?" -ne 126 ]; then
+    echo "FAIL: long plain file must not be interpreted as cjsh"
+    exit 1
+fi
+echo "PASS: long non-shebang file retains external dispatch"
+
 echo "PASS"
 exit 0

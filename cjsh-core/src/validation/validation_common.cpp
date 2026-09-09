@@ -36,8 +36,9 @@
 
 #include <algorithm>
 #include <cctype>
-#include <sstream>
+#include <locale>
 #include <string>
+#include <utility>
 
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
@@ -464,10 +465,20 @@ bool extract_trimmed_line(const std::string& line, std::string& trimmed_line,
 
 std::vector<std::string> tokenize_whitespace(const std::string& input) {
     std::vector<std::string> tokens;
-    std::stringstream ss(input);
-    std::string token;
-    while (ss >> token) {
-        tokens.push_back(token);
+    // Match formatted stream extraction's locale without constructing a stream
+    // or copying each token through an intermediate string.
+    const std::locale locale;
+    const auto& ctype = std::use_facet<std::ctype<char>>(locale);
+    const char* current = input.data();
+    const char* end = current + input.size();
+    while (current != end) {
+        current = ctype.scan_not(std::ctype_base::space, current, end);
+        if (current == end) {
+            break;
+        }
+        const char* token_end = ctype.scan_is(std::ctype_base::space, current, end);
+        tokens.emplace_back(current, static_cast<size_t>(token_end - current));
+        current = token_end;
     }
     return tokens;
 }
@@ -501,7 +512,7 @@ std::pair<std::vector<std::string>, std::string> tokenize_and_get_first(
     const std::string& trimmed_line) {
     std::vector<std::string> tokens = tokenize_whitespace(trimmed_line);
     std::string first_token = tokens.empty() ? "" : tokens[0];
-    return {tokens, first_token};
+    return {std::move(tokens), std::move(first_token)};
 }
 
 void append_function_name_errors(std::vector<SyntaxError>& errors, size_t display_line,
