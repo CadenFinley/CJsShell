@@ -30,6 +30,8 @@
 
 #include "builtin_help.h"
 
+#include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <optional>

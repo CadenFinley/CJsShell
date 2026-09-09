@@ -29,12 +29,17 @@
 #include "job_control_commands.h"
 
 #include <fcntl.h>
+#include <signal.h>
+#include <sys/types.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <unistd.h>
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <cerrno>
 #include <csignal>
+#include <cstddef>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -42,6 +47,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include "builtin_help.h"
 #include "builtin_option_parser.h"
@@ -50,6 +56,7 @@
 #include "job_control.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "signal_handler.h"
 #include "string_utils.h"
 #include "wait_status_utils.h"
 
@@ -404,8 +411,8 @@ int jobs_command(const std::vector<std::string>& args) {
 
     for (const auto& job : jobs) {
         const JobState state = job->state.load(std::memory_order_relaxed);
-        if ((running_only || stopped_only) && !((running_only && state == JobState::RUNNING) ||
-                                                (stopped_only && state == JobState::STOPPED))) {
+        if ((running_only || stopped_only) && (!running_only || state != JobState::RUNNING) &&
+            (!stopped_only || state != JobState::STOPPED)) {
             continue;
         }
 

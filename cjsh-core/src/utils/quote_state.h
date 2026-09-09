@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_QUOTE_STATE_H
+#define CJSH_CORE_SRC_UTILS_QUOTE_STATE_H
 
 #include <algorithm>
 #include <cstdint>
@@ -118,3 +119,5 @@ inline bool is_inside_quotes_at(std::string_view text, size_t pos) {
 }
 
 }  // namespace utils
+
+#endif  // CJSH_CORE_SRC_UTILS_QUOTE_STATE_H

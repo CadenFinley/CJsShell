@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -52,7 +53,7 @@ bool is_assignment(const std::string& word) {
         return false;
     }
 
-    if (!(std::isalpha(static_cast<unsigned char>(word[0])) != 0 || word[0] == '_')) {
+    if (std::isalpha(static_cast<unsigned char>(word[0])) == 0 && word[0] != '_') {
         return false;
     }
     for (std::size_t index = 1; index < equals; ++index) {
@@ -229,20 +230,14 @@ bool required_option_value(const std::string& token, const std::string& wrapper,
             "--prompt", "-C",     "--close-from", "-T",      "--command-timeout",
             "-r",       "--role", "-t",           "--type",  "-D",
             "--chdir",  "-R",     "--chroot",     "--host"};
-        if (required.find(option) == required.end()) {
-            return false;
-        }
-        return true;
+        return required.find(option) != required.end();
     }
 
     if (wrapper == "env") {
         bool required = option_is(option, "-u", "--unset") || option_is(option, "-C", "--chdir") ||
                         option_is(option, "-S", "--split-string") ||
                         option_is(option, "-a", "--argv0");
-        if (!required) {
-            return false;
-        }
-        return true;
+        return required;
     }
 
     return false;

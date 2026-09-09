@@ -28,7 +28,12 @@
 
 #include "builtin_help.h"
 
+#include <cstddef>
+#include <initializer_list>
 #include <iostream>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include "shell_env.h"
 

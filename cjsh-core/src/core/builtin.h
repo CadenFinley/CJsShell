@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_BUILTIN_H
+#define CJSH_CORE_SRC_CORE_BUILTIN_H
 
 #include <limits.h>
 #include <unistd.h>
@@ -65,3 +66,5 @@ class Built_ins {
     std::unordered_map<std::string, std::string> aliases;
     std::unordered_map<std::string, std::string> env_vars;
 };
+
+#endif  // CJSH_CORE_SRC_CORE_BUILTIN_H

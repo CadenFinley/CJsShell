@@ -32,7 +32,8 @@
 
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include <string>
+#include <vector>
 
 #include "alias_abbr_commands.h"
 #include "approot_command.h"

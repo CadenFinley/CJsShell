@@ -32,12 +32,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "common.h"
-#include "completions.h"
-#include "env.h"
-#include "isocline.h"
-#include "stringbuf.h"
 
 //-------------------------------------------------------------
 // edit state

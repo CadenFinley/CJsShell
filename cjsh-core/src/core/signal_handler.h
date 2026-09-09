@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_SIGNAL_HANDLER_H
+#define CJSH_CORE_SRC_CORE_SIGNAL_HANDLER_H
 
 #include <signal.h>
 
@@ -183,3 +184,5 @@ class ExecSignalGuard {
     std::vector<std::pair<int, struct sigaction>> actions;
     sigset_t mask{};
 };
+
+#endif  // CJSH_CORE_SRC_CORE_SIGNAL_HANDLER_H

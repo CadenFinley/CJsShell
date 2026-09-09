@@ -43,8 +43,10 @@
 #include <limits>
 #include <mutex>
 #include <sstream>
+#include <string>
 #include <thread>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #ifndef _WIN32
@@ -638,7 +640,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                 CompletionWorkItem item;
                 {
                     std::unique_lock<std::mutex> lock(work_mutex);
-                    work_available.wait(lock, [&]() {
+                    work_available.wait(lock, [&] {
                         return cancel_requested.load() || work_complete || !pending_work.empty();
                     });
                     if (cancel_requested.load() || work_complete)

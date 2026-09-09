@@ -27,12 +27,17 @@
 */
 
 #include "approot_command.h"
+#include <utility>
 
 #include "builtin_help.h"
 
+#include <cstddef>
+#include <filesystem>
 #include <iostream>
 #include <optional>
+#include <string>
 #include <system_error>
+#include <vector>
 
 #include "cd_command.h"
 #include "cjsh_filesystem.h"
@@ -59,7 +64,7 @@ std::filesystem::path normalize_target_path(std::filesystem::path path) {
     if (!path.is_absolute()) {
         auto absolute_path = std::filesystem::absolute(path, abs_ec);
         if (!abs_ec) {
-            path = absolute_path;
+            path = std::move(absolute_path);
         }
     }
     return path.lexically_normal();

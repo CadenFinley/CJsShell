@@ -31,12 +31,14 @@
 #include "builtin_help.h"
 
 #include <filesystem>
+#include <memory>
+#include <string>
+#include <system_error>
+#include <vector>
 
 #include "error_out.h"
 #include "shell.h"
 #include "shell_env.h"
-
-extern std::unique_ptr<Shell> g_shell;
 
 int source_command(const std::vector<std::string>& args) {
     const bool invoked_as_source = !args.empty() && args[0] == "source";

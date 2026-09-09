@@ -442,8 +442,8 @@ static ssize_t edit_completion_menu_header_rows(ic_env_t* env, editor_t* eb, ssi
     }
 
     char header[384];
-    snprintf(header, sizeof(header), "[ic-info]Showing %zd-%zd of %zd completions%s%s[/]", count,
-             count, count, hint_suffix, (mouse_suffix != NULL ? mouse_suffix : ""));
+    (void)snprintf(header, sizeof(header), "[ic-info]Showing %zd-%zd of %zd completions%s%s[/]",
+                   count, count, count, hint_suffix, (mouse_suffix != NULL ? mouse_suffix : ""));
     return edit_menu_rendered_rows(env, eb, header);
 }
 
@@ -733,12 +733,13 @@ again:
     }
 
     if (visible_start > 0 && visible_end >= visible_start) {
-        snprintf(header, sizeof(header), "[ic-info]Showing %zd-%zd of %zd completions%s%s[/]\n",
-                 visible_start, visible_end, count, hint_suffix, mouse_suffix);
+        (void)snprintf(header, sizeof(header),
+                       "[ic-info]Showing %zd-%zd of %zd completions%s%s[/]\n", visible_start,
+                       visible_end, count, hint_suffix, mouse_suffix);
     } else {
-        snprintf(header, sizeof(header), "[ic-info]Showing %zd of %zd completions%s%s[/]\n",
-                 (visible_count > 0 ? visible_count : count_displayed), count, hint_suffix,
-                 mouse_suffix);
+        (void)snprintf(header, sizeof(header), "[ic-info]Showing %zd of %zd completions%s%s[/]\n",
+                       (visible_count > 0 ? visible_count : count_displayed), count, hint_suffix,
+                       mouse_suffix);
     }
     (void)sbuf_insert_at(eb->extra, header, 0);
     last_header_rows = edit_menu_rendered_rows(env, eb, header) + hint_help_rows;
@@ -1092,7 +1093,6 @@ cleanup:
     if (c != 0) {
         tty_code_pushback(env->tty, c);
     }
-    return;
 }
 
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab) {
@@ -1118,11 +1118,10 @@ static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab)
     }
     if (count <= 0) {
         // no completions
-        if (!autotab) {
-            if (!edit_try_spell_correct(env, eb)) {
-                term_beep(env->term);
-            }
+        if ((!autotab) && (!edit_try_spell_correct(env, eb))) {
+            term_beep(env->term);
         }
+
     } else if (count == 1) {
         // complete if only one match
         if (edit_complete(env, eb, 0 /*idx*/) && env->complete_autotab) {

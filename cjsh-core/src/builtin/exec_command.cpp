@@ -27,16 +27,20 @@
 */
 
 #include "exec_command.h"
+#include <sys/types.h>
+#include <cstdint>
 
 #include "builtin_help.h"
 
 #include <fcntl.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <cctype>
 #include <cerrno>
 #include <cstring>
+#include <exception>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"
@@ -46,7 +50,7 @@
 
 namespace {
 
-enum class FdOpOutcome {
+enum class FdOpOutcome : std::uint8_t {
     kNotHandled,
     kApplied,
     kError,

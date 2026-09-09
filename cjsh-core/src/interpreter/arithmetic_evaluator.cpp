@@ -35,8 +35,10 @@
 #include <limits>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -826,21 +828,20 @@ void ArithmeticEvaluator::handle_assignment_operators(std::vector<Token>& tokens
 
 void ArithmeticEvaluator::handle_increment_operators(std::vector<Token>& tokens) {
     for (size_t i = 0; i < tokens.size(); ++i) {
-        if (tokens[i].type == TokenType::OPERATOR &&
-            (tokens[i].op == "pre++" || tokens[i].op == "pre--")) {
-            if (i + 1 < tokens.size() && tokens[i + 1].type == TokenType::VARIABLE) {
-                std::string var_name = tokens[i + 1].str_value;
-                long long current_val = read_variable(var_name);
-                long long new_val =
-                    (tokens[i].op == "pre++") ? wrap_add(current_val, 1) : wrap_sub(current_val, 1);
-                write_variable(var_name, new_val);
+        if ((tokens[i].type == TokenType::OPERATOR &&
+             (tokens[i].op == "pre++" || tokens[i].op == "pre--")) &&
+            (i + 1 < tokens.size() && tokens[i + 1].type == TokenType::VARIABLE)) {
+            std::string var_name = tokens[i + 1].str_value;
+            long long current_val = read_variable(var_name);
+            long long new_val =
+                (tokens[i].op == "pre++") ? wrap_add(current_val, 1) : wrap_sub(current_val, 1);
+            write_variable(var_name, new_val);
 
-                using Difference = std::vector<Token>::difference_type;
+            using Difference = std::vector<Token>::difference_type;
 
-                tokens[i] = {TokenType::NUMBER, new_val, "", ""};
-                Difference index = static_cast<Difference>(i);
-                (void)tokens.erase(tokens.begin() + index + 1);
-            }
+            tokens[i] = {TokenType::NUMBER, new_val, "", ""};
+            Difference index = static_cast<Difference>(i);
+            (void)tokens.erase(tokens.begin() + index + 1);
         }
     }
 }
@@ -915,7 +916,7 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::infix_to_postfix(
 long long ArithmeticEvaluator::evaluate_postfix(const std::vector<Token>& postfix) {
     std::vector<long long> eval_stack;
     eval_stack.reserve(postfix.size() / 2 + 1);
-    const auto apply_ternary = [&eval_stack]() {
+    const auto apply_ternary = [&eval_stack] {
         if (eval_stack.size() < 3) {
             return;
         }

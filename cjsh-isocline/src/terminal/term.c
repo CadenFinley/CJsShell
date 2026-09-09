@@ -29,14 +29,17 @@
 */
 
 #include "term.h"
+#include <sys/types.h>
 
+#include <assert.h>
 #include <inttypes.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 
+#include "attr.h"
 #include "common.h"
 #include "stringbuf.h"
 #include "tty.h"
@@ -709,12 +712,11 @@ static void term_append_buf(term_t* term, const char* s, ssize_t len) {
                 if (track_output) {
                     term->cursor_at_line_start = true;
                 }
-            } else if (c == '\t') {
-                if (track_output) {
-                    term->line_has_visible = true;
-                    term->cursor_at_line_start = false;
-                }
+            } else if ((c == '\t') && track_output) {
+                term->line_has_visible = true;
+                term->cursor_at_line_start = false;
             }
+
             (void)sbuf_append_n(term->buf, s + pos, next);
         }
         pos += next;
@@ -1281,10 +1283,8 @@ static bool color_response_matches(const char* buf, void* arg) {
             return false;
         }
         rgb += digits;
-        if (i < 2) {
-            if (*rgb++ != '/') {
-                return false;
-            }
+        if ((i < 2) && (*rgb++ != '/')) {
+            return false;
         }
     }
     return *rgb == 0;
@@ -1294,8 +1294,8 @@ static bool term_esc_query_color_raw(term_t* term, ssize_t color_idx, uint32_t* 
     char query[64];
     char prefix[64];
     char buf[128];
-    snprintf(query, sizeof(query), "\x1B]4;%zd;?\x1B\\", color_idx);
-    snprintf(prefix, sizeof(prefix), "4;%zd;rgb:", color_idx);
+    (void)snprintf(query, sizeof(query), "\x1B]4;%zd;?\x1B\\", color_idx);
+    (void)snprintf(prefix, sizeof(prefix), "4;%zd;rgb:", color_idx);
     if (!term_esc_query_raw(term, query, buf, sizeof(buf), color_response_matches, prefix)) {
         return false;
     }

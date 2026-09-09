@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_STRING_UTILS_H
+#define CJSH_CORE_SRC_UTILS_STRING_UTILS_H
 
 #include <algorithm>
 #include <cctype>
@@ -123,3 +124,5 @@ inline std::string join_strings(const std::vector<std::string>& values, std::str
 }
 
 }  // namespace string_utils
+
+#endif  // CJSH_CORE_SRC_UTILS_STRING_UTILS_H

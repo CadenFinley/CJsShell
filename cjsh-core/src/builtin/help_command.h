@@ -26,9 +26,12 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_HELP_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_HELP_COMMAND_H
 
 #include <string>
 
 std::string get_help();
 int help_command();
+
+#endif  // CJSH_CORE_SRC_BUILTIN_HELP_COMMAND_H

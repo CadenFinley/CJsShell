@@ -26,9 +26,11 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_VALIDATION_COMMAND_ANALYSIS_H
+#define CJSH_CORE_SRC_VALIDATION_COMMAND_ANALYSIS_H
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <unordered_set>
@@ -55,7 +57,7 @@ bool token_has_explicit_path_hint(const std::string& token);
 std::string resolve_token_path(const std::string& token, const Shell* shell);
 bool token_is_history_expansion(const std::string& token, size_t absolute_cmd_start);
 
-enum class CommandTokenKind {
+enum class CommandTokenKind : std::uint8_t {
     Empty,
     Variable,
     HistoryExpansion,
@@ -95,3 +97,5 @@ bool visit_command_ranges(
         nullptr);
 
 }  // namespace command_analysis
+
+#endif  // CJSH_CORE_SRC_VALIDATION_COMMAND_ANALYSIS_H

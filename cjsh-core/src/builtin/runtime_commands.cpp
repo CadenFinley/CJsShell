@@ -27,6 +27,9 @@
 */
 
 #include "runtime_commands.h"
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include "double_bracket_command.h"
 #include "internal_subshell_command.h"

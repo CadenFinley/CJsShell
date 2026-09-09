@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_INTERNAL_KEYBINDING_H
 #define IC_INTERNAL_KEYBINDING_H
 

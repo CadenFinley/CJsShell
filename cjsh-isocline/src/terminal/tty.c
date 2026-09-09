@@ -33,6 +33,11 @@
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
 #endif
+#include <assert.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include "common.h"
+#include "keycodes.h"
 
 #include "tty.h"
 
@@ -56,7 +61,8 @@ WINBASEAPI ULONGLONG WINAPI GetTickCount64(VOID);
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/ioctl.h>
-#include <sys/select.h>
+#include <sys/select.h>  // IWYU pragma: keep
+#include <sys/time.h>    // IWYU pragma: keep
 #include <termios.h>
 #include <unistd.h>
 #endif
@@ -248,18 +254,12 @@ static code_t tty_read_utf8(tty_t* tty, uint8_t c0) {
 
     buf[0] = c0;
     ssize_t count = 1;
-    if (c0 > 0x7F) {
-        if (tty_readc_noblock(tty, buf + count, tty->esc_timeout)) {
+    if ((c0 > 0x7F) && tty_readc_noblock(tty, buf + count, tty->esc_timeout)) {
+        count++;
+        if ((c0 > 0xDF) && tty_readc_noblock(tty, buf + count, tty->esc_timeout)) {
             count++;
-            if (c0 > 0xDF) {
-                if (tty_readc_noblock(tty, buf + count, tty->esc_timeout)) {
-                    count++;
-                    if (c0 > 0xEF) {
-                        if (tty_readc_noblock(tty, buf + count, tty->esc_timeout)) {
-                            count++;
-                        }
-                    }
-                }
+            if ((c0 > 0xEF) && tty_readc_noblock(tty, buf + count, tty->esc_timeout)) {
+                count++;
             }
         }
     }
@@ -608,7 +608,7 @@ static void tty_cpush(tty_t* tty, const char* s) {
         return;
     }
     for (ssize_t i = 0; i < len; i++) {
-        tty->cpushbuf[tty->cpush_count + i] = (uint8_t)(s[len - i - 1]);
+        tty->cpushbuf[tty->cpush_count + i] = (uint8_t)s[len - i - 1];
     }
     tty->cpush_count += len;
 }
@@ -734,7 +734,7 @@ ic_private bool tty_is_utf8(const tty_t* tty) {
     if (tty == NULL) {
         return true;
     }
-    return (tty->is_utf8);
+    return tty->is_utf8;
 }
 
 ic_private bool tty_is_raw_enabled(const tty_t* tty) {
@@ -1103,17 +1103,18 @@ ic_private bool tty_async_stop(const tty_t* tty) {
 static tty_t* sig_tty;
 
 typedef struct signal_handler_s {
-    int signum;
     union {
         int _avoid_warning;
         struct sigaction previous;
     } action;
+    int signum;
     bool installed;
 } signal_handler_t;
 
 static signal_handler_t sighandlers[] = {
-    {SIGWINCH, {0}}, {SIGTERM, {0}}, {SIGINT, {0}},  {SIGQUIT, {0}}, {SIGHUP, {0}},  {SIGSEGV, {0}},
-    {SIGTRAP, {0}},  {SIGBUS, {0}},  {SIGTSTP, {0}}, {SIGTTIN, {0}}, {SIGTTOU, {0}}, {0, {0}}};
+    {.signum = SIGWINCH}, {.signum = SIGTERM}, {.signum = SIGINT},  {.signum = SIGQUIT},
+    {.signum = SIGHUP},   {.signum = SIGSEGV}, {.signum = SIGTRAP}, {.signum = SIGBUS},
+    {.signum = SIGTSTP},  {.signum = SIGTTIN}, {.signum = SIGTTOU}, {.signum = 0}};
 
 static void sig_handler(int signum, siginfo_t* siginfo, void* uap);
 
@@ -1144,28 +1145,27 @@ static void sig_handler(int signum, siginfo_t* siginfo, void* uap) {
     while (sh->signum != 0 && sh->signum != signum) {
         sh++;
     }
-    if (sh->signum == signum) {
-        // Let the kernel apply the saved disposition and mask. This also honors
-        // SA_RESETHAND on platforms that report it through sigaction. A default
-        // termination never returns; a caught signal or a stop followed by
-        // SIGCONT can.
-        if (sigaction(signum, &sh->action.previous, NULL) == 0) {
-            sigset_t blocked, unblocked;
-            (void)sigprocmask(SIG_SETMASK, NULL, &blocked);
-            unblocked = blocked;
-            sigdelset(&unblocked, signum);
-            (void)sigprocmask(SIG_SETMASK, &unblocked, NULL);
-            (void)raise(signum);
-            (void)sigprocmask(SIG_SETMASK, &blocked, NULL);
-            if (sig_tty == tty && sigaction(signum, NULL, &sh->action.previous) == 0) {
-                if (sh->action.previous.sa_handler == SIG_IGN) {
-                    sh->installed = false;
-                } else {
-                    (void)signal_install_wrapper(sh);
-                }
+    // Let the kernel apply the saved disposition and mask. This also honors
+    // SA_RESETHAND on platforms that report it through sigaction. A default
+    // termination never returns; a caught signal or a stop followed by SIGCONT can.
+    // The zero entry terminates the table and must never be treated as a signal.
+    if (signum > 0 && sh->signum == signum && sigaction(signum, &sh->action.previous, NULL) == 0) {
+        sigset_t blocked, unblocked;
+        (void)sigprocmask(SIG_SETMASK, NULL, &blocked);
+        unblocked = blocked;
+        sigdelset(&unblocked, signum);
+        (void)sigprocmask(SIG_SETMASK, &unblocked, NULL);
+        (void)raise(signum);
+        (void)sigprocmask(SIG_SETMASK, &blocked, NULL);
+        if (sig_tty == tty && sigaction(signum, NULL, &sh->action.previous) == 0) {
+            if (sh->action.previous.sa_handler == SIG_IGN) {
+                sh->installed = false;
+            } else {
+                (void)signal_install_wrapper(sh);
             }
         }
     }
+
     if (resume_raw && sig_tty == tty) {
         (void)tty_start_raw(tty);
     }

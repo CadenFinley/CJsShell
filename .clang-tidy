@@ -25,11 +25,18 @@
 # SOFTWARE.
 
 ---
-Checks:          'clang-diagnostic-*,clang-analyzer-*,-clang-analyzer-valist.Uninitialized,cert-*,performance-*,portability-*,-modernize-use-auto,modernize-loop-convert,modernize-use-bool-literals,modernize-use-using,hicpp-uppercase-literal-suffix,readability-make-member-function-const,readability-redundant-string-init,readability-inconsistent-declaration-parameter-name,readability-redundant-access-specifiers,-performance-noexcept-move-constructor,-cert-dcl21-cpp,-cert-dcl37-c,-cert-dcl50-cpp,-cert-dcl51-cpp,-cert-str34-c,-cert-env33-c,misc-include-cleaner,misc-static-assert,readability-use-anyofallof,readability-simplify-*,readability-redundant-*,modernize-redundant-void-arg,modernize-make-shared,modernize-make-unique,modernize-loop-convert,'
+# Annex K replacements (memcpy_s, snprintf_s, etc.) are unavailable on our POSIX targets.
+# Keep the analyzer's bounds, overflow, and unbounded strcpy checks enabled.
+Checks:          'clang-diagnostic-*,clang-analyzer-*,-clang-analyzer-valist.Uninitialized,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,cert-*,performance-*,portability-*,-modernize-use-auto,modernize-loop-convert,modernize-use-bool-literals,modernize-use-using,hicpp-uppercase-literal-suffix,readability-make-member-function-const,readability-redundant-string-init,readability-inconsistent-declaration-parameter-name,readability-redundant-access-specifiers,-performance-noexcept-move-constructor,-cert-dcl21-cpp,-cert-dcl37-c,-cert-dcl50-cpp,-cert-dcl51-cpp,-cert-str34-c,-cert-env33-c,misc-include-cleaner,misc-static-assert,readability-use-anyofallof,readability-simplify-*,readability-redundant-*,modernize-redundant-void-arg,modernize-make-shared,modernize-make-unique,modernize-loop-convert,'
 WarningsAsErrors: ''
-HeaderFilterRegex: ''
+HeaderFilterRegex: '(cjsh-core|cjsh-isocline|tests)/'
 FormatStyle:     File
 CheckOptions:
+  # Apple's public C/POSIX headers re-export these SDK implementation headers.
+  # Include their portable public counterparts instead of SDK-private paths.
+  # Keep sys/types.h too: its types are defined in the ignored _types headers.
+  - key:             misc-include-cleaner.IgnoreHeaders
+    value:           'MacOSX[^/]*\.sdk/usr/include/(_(stdio|stdlib|time)\.h|machine/limits\.h|sys/(_[^/]*\.h|_types/[^/]*\.h|dirent\.h|errno\.h|fcntl\.h|poll\.h|signal\.h|ttycom\.h|types\.h|unistd\.h))'
   - key:             cert-dcl16-c.NewSuffixes
     value:           'L;LL;LU;LLU'
   - key:             cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField

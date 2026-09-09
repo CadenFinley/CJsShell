@@ -28,12 +28,15 @@
 
 #include "variable_manager.h"
 
-#include <unistd.h>
-
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <exception>
+#include <optional>
+#include <string>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "arithmetic_evaluator.h"
 #include "flags.h"

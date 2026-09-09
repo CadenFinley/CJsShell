@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_VARIABLE_MANAGER_H
+#define CJSH_CORE_SRC_INTERPRETER_VARIABLE_MANAGER_H
 
 #include <map>
 #include <optional>
@@ -162,3 +163,5 @@ class VariableManager {
 
     std::string get_special_variable(const std::string& var_name) const;
 };
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_VARIABLE_MANAGER_H

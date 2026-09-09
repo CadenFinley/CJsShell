@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_LOOP_CONTROL_COMMANDS_H
+#define CJSH_CORE_SRC_BUILTIN_LOOP_CONTROL_COMMANDS_H
 
 #include <string>
 #include <vector>
@@ -34,3 +35,5 @@
 int break_command(const std::vector<std::string>& args);
 int continue_command(const std::vector<std::string>& args);
 int return_command(const std::vector<std::string>& args);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_LOOP_CONTROL_COMMANDS_H

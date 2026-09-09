@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_FUNCTION_EVALUATOR_H
+#define CJSH_CORE_SRC_INTERPRETER_FUNCTION_EVALUATOR_H
 
 #include <functional>
 #include <optional>
@@ -78,3 +79,5 @@ void set_local_variable(
 bool is_local_variable(const LocalVariableStack& stack, const std::string& name);
 
 }  // namespace function_evaluator
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_FUNCTION_EVALUATOR_H

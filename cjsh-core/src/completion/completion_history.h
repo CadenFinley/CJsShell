@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_COMPLETION_COMPLETION_HISTORY_H
+#define CJSH_CORE_SRC_COMPLETION_COMPLETION_HISTORY_H
 
 #include <string>
 
@@ -40,3 +41,5 @@ bool enforce_history_limit(std::string* error_message = nullptr);
 void apply_pending_history_limit();
 
 }  // namespace completion_history
+
+#endif  // CJSH_CORE_SRC_COMPLETION_COMPLETION_HISTORY_H

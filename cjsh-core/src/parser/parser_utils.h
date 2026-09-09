@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_PARSER_PARSER_UTILS_H
+#define CJSH_CORE_SRC_PARSER_PARSER_UTILS_H
 
 #include <cstdint>
 #include <optional>
@@ -68,7 +69,7 @@ const std::string& noenv_start_plain();
 const std::string& noenv_end_plain();
 const std::string& substitution_placeholder();
 
-std::string trim_trailing_whitespace(std::string s);
+std::string trim_trailing_whitespace(const std::string& s);
 std::string trim_leading_whitespace(const std::string& s);
 std::string trim_whitespace(const std::string& s);
 bool is_valid_identifier_start(char c);
@@ -150,3 +151,5 @@ bool parser_contains_arithmetic_command_form(std::string_view text);
 
 size_t find_matching_paren(const std::string& text, size_t start_pos);
 size_t find_matching_brace(const std::string& text, size_t start_pos);
+
+#endif  // CJSH_CORE_SRC_PARSER_PARSER_UTILS_H

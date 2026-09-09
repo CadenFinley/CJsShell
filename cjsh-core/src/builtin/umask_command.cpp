@@ -31,11 +31,14 @@
 #include "builtin_option_parser.h"
 
 #include <sys/stat.h>
+#include <sys/types.h>
 
+#include <cstddef>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "error_out.h"
 

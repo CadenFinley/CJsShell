@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_PARSER_TOKENIZER_H
+#define CJSH_CORE_SRC_PARSER_TOKENIZER_H
 
 #include <string>
 #include <vector>
@@ -44,3 +45,5 @@ class Tokenizer {
    private:
     static bool looks_like_assignment(const std::string& input);
 };
+
+#endif  // CJSH_CORE_SRC_PARSER_TOKENIZER_H

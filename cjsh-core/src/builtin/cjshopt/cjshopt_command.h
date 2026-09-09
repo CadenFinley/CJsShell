@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_CJSHOPT_CJSHOPT_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_CJSHOPT_CJSHOPT_COMMAND_H
 
 #include <cstdint>
 #include <string>
@@ -106,3 +107,5 @@ void clear_custom_palette_command(const std::string& id);
 void clear_all_custom_palette_commands();
 std::vector<std::pair<std::string, custom_command_binding_t>> list_custom_palette_commands();
 std::uint64_t custom_command_bindings_revision();
+
+#endif  // CJSH_CORE_SRC_BUILTIN_CJSHOPT_CJSHOPT_COMMAND_H

@@ -33,6 +33,8 @@
 #include <unistd.h>
 #include <cerrno>
 #include <cstring>
+#include <string>
+#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"

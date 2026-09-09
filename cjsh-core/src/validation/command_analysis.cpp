@@ -29,8 +29,13 @@
 #include "command_analysis.h"
 
 #include <cctype>
+#include <cstddef>
 #include <filesystem>
+#include <functional>
+#include <string>
 #include <system_error>
+#include <unordered_set>
+#include <vector>
 
 #include "builtin.h"
 #include "cjsh_filesystem.h"

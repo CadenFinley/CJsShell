@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_COMMAND_LOOKUP_H
+#define CJSH_CORE_SRC_UTILS_COMMAND_LOOKUP_H
 
 #include <cstdint>
 #include <string>
@@ -65,9 +66,11 @@ bool is_shell_builtin(const std::string& token, Shell* shell);
 bool token_allows_split_command_merge(const std::string& token);
 bool lookup_shell_alias(const std::string& token, Shell* shell, std::string& alias_value);
 bool has_shell_function(const std::string& token, Shell* shell);
-bool should_auto_cd_token(const std::string& token, Shell* shell, bool* is_directory = nullptr);
+bool should_auto_cd_token(const std::string& token, Shell* shell, bool* directory_result = nullptr);
 CommandResolution resolve_command(const std::string& token, Shell* shell, bool include_path = true);
 std::vector<CommandResolutionEntry> list_resolution_entries(const std::string& token, Shell* shell,
                                                             bool include_path = true);
 
 }  // namespace command_lookup
+
+#endif  // CJSH_CORE_SRC_UTILS_COMMAND_LOOKUP_H

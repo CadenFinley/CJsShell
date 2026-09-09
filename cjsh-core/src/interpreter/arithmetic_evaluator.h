@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_ARITHMETIC_EVALUATOR_H
+#define CJSH_CORE_SRC_INTERPRETER_ARITHMETIC_EVALUATOR_H
 
 #include <cstdint>
 #include <functional>
@@ -115,3 +116,5 @@ class ArithmeticEvaluator {
 
     static bool is_space(char c);
 };
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_ARITHMETIC_EVALUATOR_H

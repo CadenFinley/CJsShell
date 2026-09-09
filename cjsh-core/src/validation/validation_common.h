@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_VALIDATION_VALIDATION_COMMON_H
+#define CJSH_CORE_SRC_VALIDATION_VALIDATION_COMMON_H
 
 #include "interpreter.h"
 
@@ -342,3 +343,5 @@ std::vector<SyntaxError> validate_tokenized_with_first_token_context(
 }
 
 }  // namespace shell_validation::internal
+
+#endif  // CJSH_CORE_SRC_VALIDATION_VALIDATION_COMMON_H

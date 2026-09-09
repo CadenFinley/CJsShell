@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_COMMAND_LINE_UTILS_H
+#define CJSH_CORE_SRC_UTILS_COMMAND_LINE_UTILS_H
 
 #include "quote_state.h"
 
@@ -87,3 +88,5 @@ inline std::vector<std::string> tokenize_shell_words(const std::string& command,
 }
 
 }  // namespace command_line_utils
+
+#endif  // CJSH_CORE_SRC_UTILS_COMMAND_LINE_UTILS_H

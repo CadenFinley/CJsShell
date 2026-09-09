@@ -26,8 +26,10 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_PARSER_PARSER_H
+#define CJSH_CORE_SRC_PARSER_PARSER_H
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
@@ -40,7 +42,7 @@ class Shell;
 #include "tokenizer.h"
 #include "variable_expander.h"
 
-enum class CommandRedirectionType {
+enum class CommandRedirectionType : std::uint8_t {
     Input,
     Output,
     Append,
@@ -170,3 +172,5 @@ class Parser {
     std::unique_ptr<VariableExpander> variableExpander;
     std::unique_ptr<ExpansionEngine> expansionEngine;
 };
+
+#endif  // CJSH_CORE_SRC_PARSER_PARSER_H

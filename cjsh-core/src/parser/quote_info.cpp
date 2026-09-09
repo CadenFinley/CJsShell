@@ -29,6 +29,9 @@
 #include "quote_info.h"
 
 #include <cstdlib>
+#include <filesystem>
+#include <string>
+#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "quote_state.h"

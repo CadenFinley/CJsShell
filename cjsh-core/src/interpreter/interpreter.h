@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_INTERPRETER_H
+#define CJSH_CORE_SRC_INTERPRETER_INTERPRETER_H
 
 #include <cstdint>
 #include <optional>
@@ -217,3 +218,5 @@ class ShellScriptInterpreter {
 
     int loop_depth = 0;
 };
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_INTERPRETER_H

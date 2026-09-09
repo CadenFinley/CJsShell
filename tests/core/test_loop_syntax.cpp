@@ -49,7 +49,7 @@ void expect(bool condition, const std::string& message) {
     ++checks;
     if (!condition) {
         ++failures;
-        std::fprintf(stderr, "FAIL: %s\n", message.c_str());
+        (void)std::fprintf(stderr, "FAIL: %s\n", message.c_str());
     }
 }
 

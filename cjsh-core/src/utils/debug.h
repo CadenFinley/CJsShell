@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_DEBUG_H
+#define CJSH_CORE_SRC_UTILS_DEBUG_H
 
 #ifdef CJSH_ENABLE_DEBUG
 
@@ -44,27 +45,27 @@ inline std::once_flag g_log_init_flag;
 inline FILE* g_log_file = nullptr;
 }  // namespace cjsh_debug_detail
 
-static inline int cjsh_debug_enabled(void) {
+static inline int cjsh_debug_enabled() {
     // Raw getenv here: debug toggles should reflect process env.
     const char* value = getenv("CJSH_DEBUG");
     return value != NULL && value[0] == '1' && value[1] == '\0';
 }
 
-static inline int cjsh_debug_file_enabled(void) {
+static inline int cjsh_debug_file_enabled() {
     // Raw getenv here: debug toggles should reflect process env.
     const char* value = getenv("CJSH_DEBUG_FILE");
     return value != NULL && value[0] == '1' && value[1] == '\0';
 }
 
-static inline void close_debug_log_file(void) {
+static inline void close_debug_log_file() {
     if (cjsh_debug_detail::g_log_file != nullptr) {
         (void)fclose(cjsh_debug_detail::g_log_file);
         cjsh_debug_detail::g_log_file = nullptr;
     }
 }
 
-static inline FILE* cjsh_get_debug_log_file(void) {
-    std::call_once(cjsh_debug_detail::g_log_init_flag, []() {
+static inline FILE* cjsh_get_debug_log_file() {
+    std::call_once(cjsh_debug_detail::g_log_init_flag, [] {
         if (!cjsh_filesystem::initialize_cjsh_directories()) {
             return;
         }
@@ -145,11 +146,11 @@ class PerformanceTracker {
 
 #else
 
-static inline int cjsh_debug_enabled(void) {
+static inline int cjsh_debug_enabled() {
     return 0;
 }
 
-static inline int cjsh_debug_file_enabled(void) {
+static inline int cjsh_debug_file_enabled() {
     return 0;
 }
 
@@ -166,3 +167,5 @@ class PerformanceTracker {
 };
 
 #endif
+
+#endif  // CJSH_CORE_SRC_UTILS_DEBUG_H

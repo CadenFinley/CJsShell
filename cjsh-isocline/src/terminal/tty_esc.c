@@ -28,8 +28,12 @@
   SOFTWARE.
 */
 
+#include <stdint.h>
 #include <string.h>
+#include <sys/types.h>
 
+#include "common.h"
+#include "keycodes.h"
 #include "tty.h"
 
 /*-------------------------------------------------------------

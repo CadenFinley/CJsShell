@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_PARAMETER_EXPANSION_EVALUATOR_H
+#define CJSH_CORE_SRC_INTERPRETER_PARAMETER_EXPANSION_EVALUATOR_H
 
 #include <functional>
 #include <optional>
@@ -71,3 +72,5 @@ class ParameterExpansionEvaluator {
                              bool all_chars);
     bool try_evaluate_substring(const std::string& param_expr, std::string& result);
 };
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_PARAMETER_EXPANSION_EVALUATOR_H

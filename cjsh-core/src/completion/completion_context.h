@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_COMPLETION_COMPLETION_CONTEXT_H
+#define CJSH_CORE_SRC_COMPLETION_COMPLETION_CONTEXT_H
 
 #include <cstddef>
 #include <string>
@@ -65,3 +66,5 @@ struct CommandLineContext {
 CommandLineContext parse(const std::string& input, std::size_t cursor = std::string::npos);
 
 }  // namespace completion_context
+
+#endif  // CJSH_CORE_SRC_COMPLETION_COMPLETION_CONTEXT_H

@@ -31,9 +31,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cctype>
 #include <csignal>
+#include <cstddef>
 #include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 

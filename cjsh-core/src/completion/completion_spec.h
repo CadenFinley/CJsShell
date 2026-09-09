@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_COMPLETION_COMPLETION_SPEC_H
+#define CJSH_CORE_SRC_COMPLETION_COMPLETION_SPEC_H
 
 #include <cstddef>
 #include <cstdint>
@@ -147,3 +148,5 @@ const char* value_type_name(ValueType type);
 const char* value_separator_name(ValueSeparator separator);
 
 }  // namespace completion_specs
+
+#endif  // CJSH_CORE_SRC_COMPLETION_COMPLETION_SPEC_H

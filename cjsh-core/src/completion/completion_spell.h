@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_COMPLETION_COMPLETION_SPELL_H
+#define CJSH_CORE_SRC_COMPLETION_COMPLETION_SPELL_H
 
 #include <algorithm>
 #include <functional>
@@ -117,3 +118,5 @@ std::vector<SpellCorrectionMatch> order_spell_correction_matches(
     const std::unordered_map<std::string, SpellCorrectionMatch>& matches);
 
 }  // namespace completion_spell
+
+#endif  // CJSH_CORE_SRC_COMPLETION_COMPLETION_SPELL_H

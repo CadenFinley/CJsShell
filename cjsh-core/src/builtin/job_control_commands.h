@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_JOB_CONTROL_COMMANDS_H
+#define CJSH_CORE_SRC_BUILTIN_JOB_CONTROL_COMMANDS_H
 
 #include <string>
 #include <vector>
@@ -39,3 +40,5 @@ int jobname_command(const std::vector<std::string>& args);
 int jobs_command(const std::vector<std::string>& args);
 int kill_command(const std::vector<std::string>& args);
 int wait_command(const std::vector<std::string>& args);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_JOB_CONTROL_COMMANDS_H

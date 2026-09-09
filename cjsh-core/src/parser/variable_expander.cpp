@@ -30,7 +30,13 @@
 
 #include <unistd.h>
 #include <cctype>
+#include <cstddef>
 #include <filesystem>
+#include <functional>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "cjsh_filesystem.h"
 #include "exec.h"
@@ -66,16 +72,14 @@ std::string VariableExpander::get_variable_value(const std::string& var_name) {
 }
 
 std::string VariableExpander::get_exported_variable_value(const std::string& var_name) {
-    if (parameter_utils::is_named_special_parameter_name(var_name)) {
-        if ((shell != nullptr) && (shell->get_shell_script_interpreter() != nullptr)) {
-            return shell->get_shell_script_interpreter()->get_variable_value(var_name);
-        }
+    if (parameter_utils::is_named_special_parameter_name(var_name) &&
+        ((shell != nullptr) && (shell->get_shell_script_interpreter() != nullptr))) {
+        return shell->get_shell_script_interpreter()->get_variable_value(var_name);
     }
 
-    if (var_name.length() == 1 && (isdigit(var_name[0]) != 0)) {
-        if ((shell != nullptr) && (shell->get_shell_script_interpreter() != nullptr)) {
-            return shell->get_shell_script_interpreter()->get_variable_value(var_name);
-        }
+    if ((var_name.length() == 1 && (isdigit(var_name[0]) != 0)) &&
+        ((shell != nullptr) && (shell->get_shell_script_interpreter() != nullptr))) {
+        return shell->get_shell_script_interpreter()->get_variable_value(var_name);
     }
 
     return cjsh_env::get_shell_variable_value(var_name);
@@ -491,7 +495,7 @@ bool VariableExpander::try_append_arithmetic_expansion(
     }
 
     if (default_zero_on_empty && arith_result.empty()) {
-        result += "0";
+        result += '0';
     } else {
         result += arith_result;
     }

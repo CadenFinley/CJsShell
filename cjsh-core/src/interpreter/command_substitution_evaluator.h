@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_COMMAND_SUBSTITUTION_EVALUATOR_H
+#define CJSH_CORE_SRC_INTERPRETER_COMMAND_SUBSTITUTION_EVALUATOR_H
 
 #include <functional>
 #include <optional>
@@ -80,3 +81,5 @@ class CommandSubstitutionEvaluator {
 
     CommandExecutor command_executor_;
 };
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_COMMAND_SUBSTITUTION_EVALUATOR_H

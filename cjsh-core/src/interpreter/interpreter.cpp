@@ -29,6 +29,7 @@
 #include "interpreter.h"
 
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -38,11 +39,13 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <new>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -50,6 +53,7 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include "arithmetic_evaluator.h"
 #include "builtin.h"
@@ -61,6 +65,7 @@
 #include "exec.h"
 #include "flags.h"
 #include "function_evaluator.h"
+#include "function_ref.h"
 #include "interpreter_utils.h"
 #include "job_control.h"
 #include "loop_evaluator.h"
@@ -78,6 +83,7 @@
 #include "string_utils.h"
 #include "suggestion_utils.h"
 #include "tokenizer.h"
+#include "variable_manager.h"
 #include "wait_status_utils.h"
 
 using shell_script_interpreter::detail::contains_token;
@@ -113,11 +119,10 @@ std::optional<int> collect_pending_signal_exit_code() {
 
 bool is_terminating_signal_exit_code(int exit_code) {
 #ifdef SIGINT
-    if (exit_code == 128 + SIGINT) {
-        return true;
-    }
-#endif
+    return exit_code == 128 + SIGINT;
+#else
     return false;
+#endif
 }
 
 std::runtime_error make_signal_exit_exception(int exit_code) {
@@ -394,7 +399,7 @@ int handle_runtime_exception(const std::string& text, const std::runtime_error& 
 
     std::string message = strip_cjsh_prefix(raw_message);
     std::vector<std::string> suggestions;
-    auto add_context = [&]() { append_context_hint(suggestions, text, line_number); };
+    auto add_context = [&] { append_context_hint(suggestions, text, line_number); };
 
     const std::string needle = "command not found: ";
     size_t pos = raw_message.find(needle);
@@ -573,15 +578,13 @@ int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>
         exit_code = execute_block(function_definition.body_lines);
     }
 
-    if (exit_code == exit_return) {
-        if (cjsh_env::shell_variable_is_set("CJSH_RETURN_CODE")) {
-            std::string return_code_env = cjsh_env::get_shell_variable_value("CJSH_RETURN_CODE");
-            try {
-                exit_code = std::stoi(return_code_env);
-                (void)cjsh_env::unset_shell_variable_value("CJSH_RETURN_CODE");
-            } catch (const std::exception&) {
-                exit_code = 0;
-            }
+    if ((exit_code == exit_return) && cjsh_env::shell_variable_is_set("CJSH_RETURN_CODE")) {
+        std::string return_code_env = cjsh_env::get_shell_variable_value("CJSH_RETURN_CODE");
+        try {
+            exit_code = std::stoi(return_code_env);
+            (void)cjsh_env::unset_shell_variable_value("CJSH_RETURN_CODE");
+        } catch (const std::exception&) {
+            exit_code = 0;
         }
     }
 
@@ -614,7 +617,7 @@ int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>
         return -1;
     }
 
-    auto assignment_success_status = [this]() {
+    auto assignment_success_status = [this] {
         int status =
             pending_assignment_exit_status.value_or(last_substitution_exit_status.value_or(0));
         last_substitution_exit_status.reset();
@@ -622,7 +625,7 @@ int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>
         return status;
     };
 
-    auto clear_assignment_status = [this]() {
+    auto clear_assignment_status = [this] {
         last_substitution_exit_status.reset();
         pending_assignment_exit_status.reset();
     };
@@ -1049,7 +1052,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                 std::vector<Command> control_cmds =
                                     shell_parser->parse_pipeline_with_preprocessing(text);
                                 if (!control_cmds.empty()) {
-                                    Command control_cmd = control_cmds[0];
+                                    const Command& control_cmd = control_cmds[0];
                                     std::string command_name =
                                         control_cmd.args.empty() ? prog : control_cmd.args[0];
                                     bool action_invoked = false;
@@ -1219,7 +1222,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         return collect_pending_signal_exit_code();
     };
 
-    auto should_abort_for_parameter_expansion = []() { return g_parameter_expansion_fatal_error; };
+    auto should_abort_for_parameter_expansion = [] { return g_parameter_expansion_fatal_error; };
 
     int last_code = 0;
 
@@ -2305,7 +2308,7 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                                                 expanded_expr += std::to_string(
                                                     evaluate_arithmetic_expression(nested_expr));
                                             } catch (...) {
-                                                expanded_expr += "0";
+                                                expanded_expr += '0';
                                             }
                                             k = nested_end + 1;
                                             break;

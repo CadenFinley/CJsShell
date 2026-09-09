@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_STATUS_LINE_H
+#define CJSH_CORE_SRC_CORE_STATUS_LINE_H
 
 #include <string>
 
@@ -43,3 +44,5 @@ void clear_user_status_callback_function();
 std::string get_user_status_callback_function();
 
 }  // namespace status_line
+
+#endif  // CJSH_CORE_SRC_CORE_STATUS_LINE_H

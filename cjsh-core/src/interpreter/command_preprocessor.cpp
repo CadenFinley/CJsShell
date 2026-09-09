@@ -28,7 +28,11 @@
 
 #include "command_preprocessor.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <map>
+#include <string>
 
 #include "parser_utils.h"
 #include "string_utils.h"
@@ -114,7 +118,6 @@ std::string CommandPreprocessor::process_here_documents(
         first_content_line = false;
 
         if (!has_newline) {
-            scan_pos = result.size();
             break;
         }
         scan_pos = line_end + 1;

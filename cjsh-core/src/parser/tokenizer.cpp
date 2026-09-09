@@ -28,9 +28,13 @@
 
 #include "tokenizer.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "parser_utils.h"
 #include "quote_info.h"
@@ -62,7 +66,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
 
     const size_t cmdline_len = cmdline.length();
 
-    auto flush_current_token = [&]() {
+    auto flush_current_token = [&] {
         if (!current_token.empty() || token_saw_single || token_saw_double) {
             if (token_saw_single || token_saw_double) {
                 char quote_type = token_saw_double ? QUOTE_DOUBLE : QUOTE_SINGLE;

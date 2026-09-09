@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <iomanip>
 #include <iostream>
 #include <string>

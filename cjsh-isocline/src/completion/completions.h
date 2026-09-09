@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_COMPLETIONS_H
 #define IC_COMPLETIONS_H
 

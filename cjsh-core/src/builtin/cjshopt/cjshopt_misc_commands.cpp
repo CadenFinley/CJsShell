@@ -27,6 +27,7 @@
 */
 
 #include "cjshopt_command.h"
+#include "isocline.h"
 
 #include <algorithm>
 #include <functional>
@@ -35,10 +36,9 @@
 #include <string>
 #include <vector>
 
-#include "builtin_help.h"
 #include "cjsh_completions.h"
 #include "error_out.h"
-#include "isocline.h"
+#include "isocline/isocline.h"
 #include "shell_env.h"
 #include "string_utils.h"
 #include "token_constants.h"
@@ -176,7 +176,8 @@ void print_style_preview() {
     for (const auto& token_type : token_types) {
         std::string style_name = resolve_style_registry_name(token_type);
         std::string sample = style_preview_sample(token_type);
-        std::string line = token_type + ": [" + style_name + "]" + sample + "[/]";
+        std::string line = token_type;
+        line.append(": [").append(style_name).append("]").append(sample).append("[/]");
         ic_println(line.c_str());
     }
     ic_println("Use: cjshopt style_def <token_type> \"<style>\"");
@@ -375,7 +376,7 @@ int set_history_max_command(const std::vector<std::string>& args) {
         &usage_lines,
         get_history_default_history_limit(),
         get_history_min_history_limit(),
-        []() { return get_history_max_entries(); },
+        [] { return get_history_max_entries(); },
         [](long value, std::string* error) { return set_history_max_entries(value, error); },
         [](long current_limit) {
             if (current_limit <= 0) {
@@ -411,7 +412,7 @@ int set_completion_max_command(const std::vector<std::string>& args) {
         &usage_lines,
         get_completion_default_max_results(),
         get_completion_min_allowed_results(),
-        []() { return get_completion_max_results(); },
+        [] { return get_completion_max_results(); },
         [](long value, std::string* error) { return set_completion_max_results(value, error); },
         [](long current_limit) {
             std::cout << "Completion menu currently shows up to " << current_limit << " entries.\n";

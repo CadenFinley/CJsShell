@@ -30,6 +30,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <string>
 
 #include "version_command.h"
 

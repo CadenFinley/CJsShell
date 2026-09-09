@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_JOB_CONTROL_H
+#define CJSH_CORE_SRC_CORE_JOB_CONTROL_H
 
 #include <sys/types.h>
 #include <termios.h>
@@ -207,3 +208,5 @@ bool command_consumes_terminal_stdin(const Command& cmd);
 bool pipeline_consumes_terminal_stdin(const std::vector<Command>& commands);
 
 }  // namespace job_utils
+
+#endif  // CJSH_CORE_SRC_CORE_JOB_CONTROL_H

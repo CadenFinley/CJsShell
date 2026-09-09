@@ -32,11 +32,14 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "agent_mode.h"
 #include "cjshopt_command.h"
 #include "isocline.h"
+#include "keybindings.h"
+#include "keycodes.h"
 #include "shell.h"
 #include "shell_env.h"
 
@@ -393,13 +396,13 @@ int main() {
     size_t failed = 0;
     for (const auto& [name, test] : tests) {
         if (!test()) {
-            std::fprintf(stderr, "[FAIL] agent mode: %s\n", name);
+            (void)std::fprintf(stderr, "[FAIL] agent mode: %s\n", name);
             ++failed;
         }
     }
     const size_t test_count = tests.size();
     if (failed != 0) {
-        std::fprintf(stderr, "%zu/%zu agent-mode tests failed\n", failed, test_count);
+        (void)std::fprintf(stderr, "%zu/%zu agent-mode tests failed\n", failed, test_count);
         return 1;
     }
     std::printf("All %zu agent-mode tests passed\n", test_count);

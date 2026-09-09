@@ -26,9 +26,12 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_USAGE_H
+#define CJSH_CORE_SRC_CORE_USAGE_H
 
 #include <string>
 
 std::string get_usage();
 int print_usage(bool print_version = true, bool print_hook = true, bool print_footer = true);
+
+#endif  // CJSH_CORE_SRC_CORE_USAGE_H

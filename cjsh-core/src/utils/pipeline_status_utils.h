@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_PIPELINE_STATUS_UTILS_H
+#define CJSH_CORE_SRC_UTILS_PIPELINE_STATUS_UTILS_H
 
 #include <functional>
 #include <string>
@@ -47,3 +48,5 @@ void apply_pipeline_status_env(Exec* exec_ptr,
                                const std::function<void()>& on_unset_callback = {});
 
 }  // namespace pipeline_status_utils
+
+#endif  // CJSH_CORE_SRC_UTILS_PIPELINE_STATUS_UTILS_H

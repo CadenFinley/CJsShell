@@ -26,9 +26,11 @@
   SOFTWARE.
 */
 
+#include <signal.h>
 #include <unistd.h>
 
 #include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -97,7 +99,7 @@ void cleanup_resources() {
                            : numeric_utils::parse_exit_status_or(
                                  cjsh_env::get_shell_variable_value("?"), 0, false);
     // Each exit handler starts with the original status and a cleared exit request.
-    const auto prepare_handler = [status]() {
+    const auto prepare_handler = [status] {
         cjsh_env::clear_exit_request();
         pipeline_status_utils::set_last_status_env(status);
     };

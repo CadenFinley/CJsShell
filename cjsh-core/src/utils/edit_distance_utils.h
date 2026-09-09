@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_EDIT_DISTANCE_UTILS_H
+#define CJSH_CORE_SRC_UTILS_EDIT_DISTANCE_UTILS_H
 
 #include <algorithm>
 #include <cmath>
@@ -83,3 +84,5 @@ inline int levenshtein_distance(const std::string& source, const std::string& ta
 }
 
 }  // namespace edit_distance_utils
+
+#endif  // CJSH_CORE_SRC_UTILS_EDIT_DISTANCE_UTILS_H

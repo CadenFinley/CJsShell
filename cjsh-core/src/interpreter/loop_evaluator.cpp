@@ -33,12 +33,16 @@
 #include <cctype>
 #include <csignal>
 #include <cstdlib>
+#include <exception>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "error_out.h"
 #include "exec.h"
@@ -318,9 +322,7 @@ bool split_c_style_for_components(const std::string& text, std::array<std::strin
     bool in_double = false;
     bool escaped = false;
 
-    for (size_t i = 0; i < text.size(); ++i) {
-        char ch = text[i];
-
+    for (char ch : text) {
         if (escaped) {
             current += ch;
             escaped = false;
@@ -630,20 +632,12 @@ bool trailing_contains_block_closer_segment(const std::string& trailing_commands
         segments.push_back(trailing_commands);
     }
 
-    for (const auto& segment : segments) {
+    return std::any_of(segments.begin(), segments.end(), [](const auto& segment) {
         std::string trimmed_segment = trim(strip_inline_comment(segment));
-        if (trimmed_segment.empty()) {
-            continue;
-        }
-
-        if (matches_keyword_only(trimmed_segment, "done") ||
-            matches_keyword_only(trimmed_segment, "fi") ||
-            matches_keyword_only(trimmed_segment, "esac")) {
-            return true;
-        }
-    }
-
-    return false;
+        return matches_keyword_only(trimmed_segment, "done") ||
+               matches_keyword_only(trimmed_segment, "fi") ||
+               matches_keyword_only(trimmed_segment, "esac");
+    });
 }
 
 int execute_loop_trailing_commands(
@@ -682,7 +676,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
         return 1;
     }
 
-    auto abort_pending = [&]() {
+    auto abort_pending = [&] {
         return cjsh_env::exit_requested() || (should_abort_execution && should_abort_execution());
     };
 
@@ -744,7 +738,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             }
             if (!cur.empty()) {
                 if (!cond.empty()) {
-                    cond += " ";
+                    cond += ' ';
                 }
                 cond += cur;
             }
@@ -917,7 +911,7 @@ int handle_for_block(
     std::string var;
     std::vector<std::string> items;
     CStyleForHeader c_style_header;
-    auto abort_pending = [&]() {
+    auto abort_pending = [&] {
         return cjsh_env::exit_requested() || (should_abort_execution && should_abort_execution());
     };
 
@@ -1025,12 +1019,11 @@ int handle_for_block(
                 }
 
                 long long condition_value = 1;
-                if (!c_style_header.condition_expression.empty()) {
-                    if (!evaluate_arithmetic_or_fail(c_style_header.condition_expression,
-                                                     condition_value)) {
-                        on_early_return();
-                        return finalize_with_trailing_commands(rc, trailing_commands);
-                    }
+                if ((!c_style_header.condition_expression.empty()) &&
+                    (!evaluate_arithmetic_or_fail(c_style_header.condition_expression,
+                                                  condition_value))) {
+                    on_early_return();
+                    return finalize_with_trailing_commands(rc, trailing_commands);
                 }
 
                 if (condition_value == 0) {
@@ -1103,8 +1096,8 @@ int handle_for_block(
                     bool action_invoked = false;
                     int exit_code = g_shell->shell_exec->run_with_command_redirections(
                         redir_cmds[0],
-                        [&]() { return execute_for_iterations(run_cached_body, "", []() {}); },
-                        "for", false, &action_invoked);
+                        [&] { return execute_for_iterations(run_cached_body, "", [] {}); }, "for",
+                        false, &action_invoked);
                     if (!action_invoked) {
                         return exit_code;
                     }
@@ -1116,7 +1109,7 @@ int handle_for_block(
             }
         }
 
-        return execute_for_iterations(run_cached_body, parsed_loop.trailing_commands, []() {});
+        return execute_for_iterations(run_cached_body, parsed_loop.trailing_commands, [] {});
     }
 
     if (!parse_multiline_loop_block(src_lines, idx, first, shell_parser, parsed_loop)) {
@@ -1138,7 +1131,7 @@ int handle_for_block(
     };
 
     int rc = execute_for_iterations(run_body_and_handle_result, parsed_loop.trailing_commands,
-                                    [&]() { idx = parsed_loop.end_index; });
+                                    [&] { idx = parsed_loop.end_index; });
     idx = parsed_loop.end_index;
     return rc;
 }
@@ -1154,7 +1147,7 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
 
     std::string var;
     std::vector<std::string> items;
-    auto abort_pending = [&]() {
+    auto abort_pending = [&] {
         return cjsh_env::exit_requested() || (should_abort_execution && should_abort_execution());
     };
 

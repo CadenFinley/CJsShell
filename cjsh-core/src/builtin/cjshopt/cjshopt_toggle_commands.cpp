@@ -27,12 +27,14 @@
 */
 
 #include "cjshopt_command.h"
+#include "isocline.h"
 
 #include "builtin_help.h"
 
 #include <algorithm>
 #include <cctype>
 #include <climits>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <initializer_list>
@@ -44,7 +46,7 @@
 #include "cjsh_completions.h"
 #include "error_out.h"
 #include "interpreter.h"
-#include "isocline.h"
+#include "isocline/isocline.h"
 #include "numeric_utils.h"
 #include "parser_utils.h"
 #include "shell.h"
@@ -303,7 +305,7 @@ int current_line_number_highlight_command(const std::vector<std::string>& args) 
     static const ToggleCommandConfig config{
         "current-line-number-highlight",
         usage_lines,
-        []() { return ic_current_line_number_highlight_is_enabled(); },
+        [] { return ic_current_line_number_highlight_is_enabled(); },
         [](bool enable) { (void)ic_enable_current_line_number_highlight(enable); },
         "Current line number highlighting",
         false,
@@ -324,7 +326,7 @@ int completion_case_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "completion-case",
         usage_lines,
-        []() { return is_completion_case_sensitive(); },
+        [] { return is_completion_case_sensitive(); },
         [](bool enable) { set_completion_case_sensitive(enable); },
         "Completion case sensitivity",
         false,
@@ -345,7 +347,7 @@ int history_search_case_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "history-search-case",
         usage_lines,
-        []() { return ic_history_fuzzy_search_is_case_sensitive(); },
+        [] { return ic_history_fuzzy_search_is_case_sensitive(); },
         [](bool enable) { (void)ic_enable_history_fuzzy_case_sensitive(enable); },
         "History search case sensitivity",
         false,
@@ -366,7 +368,7 @@ int completion_spell_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "completion-spell",
         usage_lines,
-        []() { return is_completion_spell_correction_enabled(); },
+        [] { return is_completion_spell_correction_enabled(); },
         [](bool enable) { set_completion_spell_correction_enabled(enable); },
         "Completion spell correction",
         false,
@@ -387,7 +389,7 @@ int completion_spell_enter_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "completion-spell-enter",
         usage_lines,
-        []() { return is_completion_spell_correction_on_enter_enabled(); },
+        [] { return is_completion_spell_correction_on_enter_enabled(); },
         [](bool enable) { set_completion_spell_correction_on_enter_enabled(enable); },
         "Enter spell correction",
         false,
@@ -408,7 +410,7 @@ int completion_learning_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "completion-learning",
         usage_lines,
-        []() { return config::completion_learning_enabled; },
+        [] { return config::completion_learning_enabled; },
         [](bool enable) { config::completion_learning_enabled = enable; },
         "Completion learning",
         false,
@@ -530,7 +532,7 @@ int smart_cd_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "smart-cd",
         usage_lines,
-        []() { return config::smart_cd_enabled; },
+        [] { return config::smart_cd_enabled; },
         [](bool enable) { config::smart_cd_enabled = enable; },
         "Smart cd",
         false,
@@ -551,7 +553,7 @@ int extglob_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "extglob",
         usage_lines,
-        []() { return config::extglob_enabled; },
+        [] { return config::extglob_enabled; },
         [](bool enable) { config::extglob_enabled = enable && !config::posix_mode; },
         "Extended glob patterns",
         true,
@@ -580,7 +582,7 @@ int script_extension_interpreter_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "script-extension-interpreter",
         usage_lines,
-        []() { return config::script_extension_interpreter_enabled; },
+        [] { return config::script_extension_interpreter_enabled; },
         [](bool enable) { config::script_extension_interpreter_enabled = enable; },
         "Script extension interpreter",
         false,
@@ -600,7 +602,7 @@ int line_numbers_command(const std::vector<std::string>& args) {
         "  line-numbers off       Disable line numbers in multiline input",
         "  line-numbers status    Show the current setting"};
 
-    const auto describe_status = []() {
+    const auto describe_status = [] {
         if (!ic_line_numbers_are_enabled()) {
             return std::string("Line numbers are currently disabled.");
         }
@@ -717,7 +719,7 @@ int line_numbers_continuation_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "line-numbers-continuation",
         usage_lines,
-        []() { return ic_line_numbers_with_continuation_prompt_are_enabled(); },
+        [] { return ic_line_numbers_with_continuation_prompt_are_enabled(); },
         [](bool enable) { (void)ic_enable_line_numbers_with_continuation_prompt(enable); },
         "Line numbers with continuation prompts",
         false,
@@ -738,7 +740,7 @@ int line_numbers_replace_prompt_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "line-numbers-replace-prompt",
         usage_lines,
-        []() { return ic_line_number_prompt_replacement_is_enabled(); },
+        [] { return ic_line_number_prompt_replacement_is_enabled(); },
         [](bool enable) { (void)ic_enable_line_number_prompt_replacement(enable); },
         "Line number prompt replacement",
         false,
@@ -1112,7 +1114,7 @@ int completion_preview_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "completion-preview",
         usage_lines,
-        []() { return ic_completion_preview_is_enabled(); },
+        [] { return ic_completion_preview_is_enabled(); },
         [](bool enable) { (void)ic_enable_completion_preview(enable); },
         "Completion preview",
         false,
@@ -1133,7 +1135,7 @@ int completion_menu_expanded_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "completion-menu-expanded",
         usage_lines,
-        []() { return ic_completion_menu_start_expanded_is_enabled(); },
+        [] { return ic_completion_menu_start_expanded_is_enabled(); },
         [](bool enable) { (void)ic_enable_completion_menu_start_expanded(enable); },
         "Completion menu default expansion",
         false,
@@ -1154,7 +1156,7 @@ int completion_click_accept_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "completion-click-accept",
         usage_lines,
-        []() { return ic_completion_click_accept_is_enabled(); },
+        [] { return ic_completion_click_accept_is_enabled(); },
         [](bool enable) { (void)ic_enable_completion_click_accept(enable); },
         "Completion click-to-accept",
         false,
@@ -1239,7 +1241,7 @@ int visible_whitespace_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "visible-whitespace",
         usage_lines,
-        []() { return ic_visible_whitespace_is_enabled(); },
+        [] { return ic_visible_whitespace_is_enabled(); },
         [](bool enable) { (void)ic_enable_visible_whitespace(enable); },
         "Visible whitespace characters",
         true,
@@ -1258,7 +1260,7 @@ int hint_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "hint",
         usage_lines,
-        []() { return ic_hint_is_enabled(); },
+        [] { return ic_hint_is_enabled(); },
         [](bool enable) { (void)ic_enable_hint(enable); },
         "Inline hints",
         true,
@@ -1279,7 +1281,7 @@ int multiline_indent_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "multiline-indent",
         usage_lines,
-        []() { return ic_multiline_indent_is_enabled(); },
+        [] { return ic_multiline_indent_is_enabled(); },
         [](bool enable) { (void)ic_enable_multiline_indent(enable); },
         "Multiline auto-indent",
         false,
@@ -1300,7 +1302,7 @@ int multiline_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "multiline",
         usage_lines,
-        []() { return ic_multiline_is_enabled(); },
+        [] { return ic_multiline_is_enabled(); },
         [](bool enable) { (void)ic_enable_multiline(enable); },
         "Multiline input",
         false,
@@ -1321,7 +1323,7 @@ int inline_help_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "inline-help",
         usage_lines,
-        []() { return ic_inline_help_is_enabled(); },
+        [] { return ic_inline_help_is_enabled(); },
         [](bool enable) { (void)ic_enable_inline_help(enable); },
         "Inline help messages",
         true,
@@ -1471,7 +1473,7 @@ int status_line_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "status-line",
         usage_lines,
-        []() { return config::status_line_enabled; },
+        [] { return config::status_line_enabled; },
         [](bool enable) {
             config::status_line_enabled = enable;
             apply_effective_status_hint_mode();
@@ -1495,7 +1497,7 @@ int status_reporting_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig command_config{
         "status-reporting",
         usage_lines,
-        []() { return config::status_reporting_enabled; },
+        [] { return config::status_reporting_enabled; },
         [](bool enable) { config::status_reporting_enabled = enable; },
         "Status reporting",
         false,
@@ -1514,7 +1516,7 @@ int status_line_callback_command(const std::vector<std::string>& args) {
         "  status-line-callback off               Disable custom status-line callback output",
         "  status-line-callback status            Show the current callback setting"};
 
-    auto print_current_state = []() {
+    auto print_current_state = [] {
         const std::string current_callback = status_line::get_user_status_callback_function();
         if (current_callback.empty()) {
             std::cout << "Status-line callback is currently disabled.\n";
@@ -1733,7 +1735,7 @@ int mouse_clicking_status_line_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "mouse-clicking-status-line",
         usage_lines,
-        []() { return ic_mouse_reporting_status_line_is_enabled(); },
+        [] { return ic_mouse_reporting_status_line_is_enabled(); },
         [](bool enable) { (void)ic_enable_mouse_reporting_status_line(enable); },
         "Mouse clicking status indicator",
         false,
@@ -1754,7 +1756,7 @@ int auto_tab_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "auto-tab",
         usage_lines,
-        []() { return ic_auto_tab_is_enabled(); },
+        [] { return ic_auto_tab_is_enabled(); },
         [](bool enable) { (void)ic_enable_auto_tab(enable); },
         "Automatic tab completion",
         false,
@@ -1775,7 +1777,7 @@ int prompt_newline_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "prompt-newline",
         usage_lines,
-        []() { return config::newline_after_execution; },
+        [] { return config::newline_after_execution; },
         [](bool enable) { config::newline_after_execution = enable; },
         "Post-execution newline",
         false,
@@ -1796,7 +1798,7 @@ int right_prompt_follow_cursor_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "right-prompt-follow-cursor",
         usage_lines,
-        []() { return ic_inline_right_prompt_follows_cursor(); },
+        [] { return ic_inline_right_prompt_follows_cursor(); },
         [](bool enable) { (void)ic_enable_inline_right_prompt_cursor_follow(enable); },
         "Right prompt cursor tracking",
         false,

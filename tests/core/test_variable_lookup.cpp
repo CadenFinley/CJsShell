@@ -31,6 +31,8 @@
 #include <cstdlib>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "flags.h"
 #include "interpreter.h"
@@ -45,7 +47,7 @@ std::unique_ptr<Shell> g_shell;
 namespace {
 bool expect(bool condition, const char* message) {
     if (!condition) {
-        std::fprintf(stderr, "[FAIL] %s\n", message);
+        (void)std::fprintf(stderr, "[FAIL] %s\n", message);
     }
     return condition;
 }

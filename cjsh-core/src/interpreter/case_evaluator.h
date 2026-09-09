@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_CASE_EVALUATOR_H
+#define CJSH_CORE_SRC_INTERPRETER_CASE_EVALUATOR_H
 
 #include <cstdint>
 #include <functional>
@@ -84,3 +85,5 @@ std::optional<int> handle_inline_case(
         command_substitution_expander);
 
 }  // namespace case_evaluator
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_CASE_EVALUATOR_H

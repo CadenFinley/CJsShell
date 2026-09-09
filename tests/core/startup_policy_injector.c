@@ -114,7 +114,7 @@ static int injected_open(const char* path, int flags, ...) {
         const void* a;                                                        \
         const void* b;                                                        \
     } interpose_##replacee __attribute__((section("__DATA,__interpose"))) = { \
-        (const void*)(unsigned long)&replacement, (const void*)(unsigned long)&replacee};
+        (const void*)&replacement, (const void*)&replacee};
 INTERPOSE(injected_geteuid, geteuid)
 INTERPOSE(injected_getegid, getegid)
 INTERPOSE(injected_fopen, fopen)

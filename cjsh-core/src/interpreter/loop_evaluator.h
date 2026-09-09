@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_LOOP_EVALUATOR_H
+#define CJSH_CORE_SRC_INTERPRETER_LOOP_EVALUATOR_H
 
 #include <cstddef>
 #include <cstdint>
@@ -84,3 +85,5 @@ std::optional<int> try_execute_inline_do_block(
     const std::function<int(const std::vector<std::string>&, size_t&)>& handler);
 
 }  // namespace loop_evaluator
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_LOOP_EVALUATOR_H

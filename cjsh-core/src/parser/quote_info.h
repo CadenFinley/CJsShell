@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_PARSER_QUOTE_INFO_H
+#define CJSH_CORE_SRC_PARSER_QUOTE_INFO_H
 
 #include <string>
 #include <vector>
@@ -55,3 +56,5 @@ struct QuoteInfo {
 };
 
 std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tokens);
+
+#endif  // CJSH_CORE_SRC_PARSER_QUOTE_INFO_H

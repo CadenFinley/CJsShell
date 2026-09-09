@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_SCRIPT_DISPATCH_H
+#define CJSH_CORE_SRC_INTERPRETER_SCRIPT_DISPATCH_H
 
 #include <optional>
 #include <string>
@@ -38,3 +39,5 @@ std::optional<std::vector<std::string>> build_extension_interpreter_args(
     const std::vector<std::string>& args, const char* cached_path);
 
 }  // namespace script_dispatch
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_SCRIPT_DISPATCH_H

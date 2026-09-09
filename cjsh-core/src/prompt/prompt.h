@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_PROMPT_PROMPT_H
+#define CJSH_CORE_SRC_PROMPT_PROMPT_H
 
 #include <string>
 
@@ -69,3 +70,5 @@ bool handle_async_prompt_refresh();
 void set_prompt_refresh_allowed(bool allowed);
 
 }  // namespace prompt
+
+#endif  // CJSH_CORE_SRC_PROMPT_PROMPT_H

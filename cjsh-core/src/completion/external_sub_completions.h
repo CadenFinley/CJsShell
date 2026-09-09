@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_COMPLETION_EXTERNAL_SUB_COMPLETIONS_H
+#define CJSH_CORE_SRC_COMPLETION_EXTERNAL_SUB_COMPLETIONS_H
 
 #include <functional>
 #include <string>
@@ -55,5 +56,7 @@ CompletionCacheTargetResult regenerate_external_completion_cache_target(
 
 bool regenerate_external_completion_cache(
     const std::string& command, bool force_refresh = true, bool include_subcommands = false,
-    CompletionCacheProgressCallback progress_callback = CompletionCacheProgressCallback{},
-    CompletionCacheCancelCallback cancel_callback = CompletionCacheCancelCallback{});
+    const CompletionCacheProgressCallback& progress_callback = CompletionCacheProgressCallback{},
+    const CompletionCacheCancelCallback& cancel_callback = CompletionCacheCancelCallback{});
+
+#endif  // CJSH_CORE_SRC_COMPLETION_EXTERNAL_SUB_COMPLETIONS_H

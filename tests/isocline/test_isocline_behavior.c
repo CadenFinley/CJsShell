@@ -30,24 +30,33 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
+#include "attr.h"
+#include "bbcode.h"
+#include "common.h"
 #include "completions.h"
 #include "editline_viewport.h"
 #include "env.h"
 #include "history.h"
 #include "isocline.h"
 #include "isocline_typeahead.h"
+#include "keybindings.h"
+#include "keycodes.h"
 #include "prompt_line_replacement.h"
 #include "stringbuf.h"
+#include "term.h"
+#include "tty.h"
 #include "unicode.h"
 
 static void expect_safe_log(const char* format, ...) {
     va_list args;
     va_start(args, format);
     char buffer[512];
-    vsnprintf(buffer, sizeof(buffer), format, args);
+    (void)vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
     (void)fputs(buffer, stderr);
     (void)fflush(stderr);
@@ -169,6 +178,8 @@ static bool test_readline_disposition_name_mappings(void) {
                  "idle disposition name mismatch");
     EXPECT_STREQ(ic_readline_disposition_name(IC_READLINE_DISPOSITION_ERROR), "error",
                  "error disposition name mismatch");
+    // Exercise the public API's fallback for an invalid enum value.
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     EXPECT_STREQ(ic_readline_disposition_name((ic_readline_disposition_t)999), "error",
                  "unknown disposition should map to error");
     return true;
@@ -1002,8 +1013,9 @@ static bool test_history_dedup_order_and_metadata(void) {
     FILE* file = fopen(history_path, "w");
     EXPECT_TRUE(file != NULL, "history fixture should open");
     for (int i = 0; i < 600; i++) {
-        fprintf(file, "# code=%d frequency=%d timestamp=%d\ncommand_%03d\n", i, i + 1, 1000 + i,
-                i % 97);
+        int written = fprintf(file, "# code=%d frequency=%d timestamp=%d\ncommand_%03d\n", i, i + 1,
+                              1000 + i, i % 97);
+        EXPECT_TRUE(written >= 0, "history fixture should write");
     }
     EXPECT_TRUE(fclose(file) == 0, "history fixture should close");
 
@@ -1021,10 +1033,10 @@ static bool test_history_dedup_order_and_metadata(void) {
     for (int i = 0; i < 97; i++) {
         const int original_index = 599 - i;
         char command[32], code[32], frequency[32], timestamp[32];
-        snprintf(command, sizeof(command), "command_%03d", original_index % 97);
-        snprintf(code, sizeof(code), "%d", original_index);
-        snprintf(frequency, sizeof(frequency), "%d", original_index + 1);
-        snprintf(timestamp, sizeof(timestamp), "%d", 1000 + original_index);
+        (void)snprintf(command, sizeof(command), "command_%03d", original_index % 97);
+        (void)snprintf(code, sizeof(code), "%d", original_index);
+        (void)snprintf(frequency, sizeof(frequency), "%d", original_index + 1);
+        (void)snprintf(timestamp, sizeof(timestamp), "%d", 1000 + original_index);
         const history_entry_t* entry = history_snapshot_get(&snap, i);
         EXPECT_TRUE(entry != NULL, "surviving history entry should exist");
         EXPECT_STREQ(entry->command, command, "deduplication should preserve recency order");
@@ -2250,6 +2262,8 @@ static bool test_status_hint_mode_validation(void) {
     }
 
     env->status_hint_mode = IC_STATUS_HINT_PERSISTENT;
+    // Verify normalization of invalid values at the public C API boundary.
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     ic_status_hint_mode_t prev = ic_set_status_hint_mode((ic_status_hint_mode_t)99);
     EXPECT_TRUE(prev == IC_STATUS_HINT_PERSISTENT,
                 "invalid status hint mode should report previous configured mode");
@@ -2960,6 +2974,27 @@ static bool test_key_action_name_mappings(void) {
     EXPECT_TRUE(ic_key_action_name(IC_KEY_ACTION__MAX) == NULL,
                 "invalid action enum should not produce a name");
 
+    return true;
+}
+
+static bool test_string_copy_bounds(void) {
+    struct {
+        char text[4];
+        char guard;
+    } buffer = {{'?', '?', '?', '\0'}, '#'};
+
+    EXPECT_TRUE(ic_strcpy(buffer.text, sizeof(buffer.text), "abc"),
+                "an exact-fit string should include its terminator");
+    EXPECT_STREQ(buffer.text, "abc", "exact-fit copy should preserve the text");
+    EXPECT_TRUE(buffer.guard == '#', "copy should leave the next byte untouched");
+
+    EXPECT_TRUE(!ic_strcpy(buffer.text, sizeof(buffer.text), "abcd"),
+                "an oversized string should be rejected");
+    EXPECT_STREQ(buffer.text, "abc", "a rejected copy should leave the destination unchanged");
+    EXPECT_TRUE(!ic_strcpy(buffer.text, 0, ""), "a zero-capacity destination should be rejected");
+    EXPECT_TRUE(ic_strcpy(buffer.text, sizeof(buffer.text), ""), "an empty string should fit");
+    EXPECT_TRUE(buffer.text[0] == '\0' && buffer.text[1] == 'b' && buffer.guard == '#',
+                "an empty copy should write only its terminator");
     return true;
 }
 
@@ -4652,6 +4687,7 @@ static const test_case_t kTests[] = {
     {"key_binding_profile_specs_register_all_bindings",
      test_key_binding_profile_specs_register_all_bindings},
     {"key_action_name_mappings", test_key_action_name_mappings},
+    {"string_copy_bounds", test_string_copy_bounds},
     {"string_matching_and_token_helpers", test_string_matching_and_token_helpers},
     {"prev_next_char_utf8_helpers", test_prev_next_char_utf8_helpers},
     {"term_visibility_tracking_with_escape_and_control_bytes",

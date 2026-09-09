@@ -30,15 +30,19 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "common.h"
+#include "keybindings.h"
+#include "keycodes.h"
 
 #if !defined(_WIN32)
 #include <errno.h>
-#include <pthread.h>
-#include <sys/select.h>
+#include <sys/select.h>  // IWYU pragma: keep
+#include <sys/time.h>    // IWYU pragma: keep
 #include <unistd.h>
 #endif
 

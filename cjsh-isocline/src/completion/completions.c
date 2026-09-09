@@ -30,10 +30,12 @@
 
 #include "completions.h"
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "common.h"
 #include "env.h"
@@ -661,10 +663,8 @@ ic_private ssize_t completions_apply_longest_prefix(completions_t* cms, stringbu
 ic_public bool ic_add_completions(ic_completion_env_t* cenv, const char* prefix,
                                   const char** completions) {
     for (const char** pc = completions; *pc != NULL; pc++) {
-        if (ic_istarts_with(*pc, prefix)) {
-            if (!ic_add_completion_ex(cenv, *pc, NULL, NULL)) {
-                return false;
-            }
+        if (ic_istarts_with(*pc, prefix) && (!ic_add_completion_ex(cenv, *pc, NULL, NULL))) {
+            return false;
         }
     }
     return true;

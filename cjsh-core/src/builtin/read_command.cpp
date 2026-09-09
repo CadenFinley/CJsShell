@@ -33,16 +33,21 @@
 
 #include <fcntl.h>
 #include <poll.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <algorithm>
 
 #include <cerrno>
 #include <chrono>
+#include <csignal>
+#include <cstdint>
 #include <cstdio>
 #include <exception>
 #include <iostream>
 #include <limits>
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "error_out.h"
 #include "numeric_utils.h"
@@ -313,12 +318,8 @@ std::string process_backslash_escapes(const std::string& input) {
 }
 
 bool is_all_whitespace_ifs(const std::string& ifs) {
-    for (char c : ifs) {
-        if (c != ' ' && c != '\t' && c != '\n') {
-            return false;
-        }
-    }
-    return true;
+    return std::all_of(ifs.begin(), ifs.end(),
+                       [](char c) { return c == ' ' || c == '\t' || c == '\n'; });
 }
 
 std::vector<std::string> split_with_whitespace_ifs(const std::string& input,
@@ -408,7 +409,7 @@ std::string join_remaining_fields(const std::vector<std::string>& fields, size_t
     std::string joined;
     for (size_t i = start_index; i < fields.size(); ++i) {
         if (i > start_index) {
-            joined += " ";
+            joined += ' ';
         }
         joined += fields[i];
     }

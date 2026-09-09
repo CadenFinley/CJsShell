@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_HISTORY_FILE_UTILS_H
+#define CJSH_CORE_SRC_UTILS_HISTORY_FILE_UTILS_H
 
 #include <string>
 #include <vector>
@@ -37,3 +38,5 @@ std::vector<std::string> parse_history_entries(const std::string& history_conten
 std::vector<std::string> read_history_entries(const std::string& history_path);
 
 }  // namespace history_file_utils
+
+#endif  // CJSH_CORE_SRC_UTILS_HISTORY_FILE_UTILS_H

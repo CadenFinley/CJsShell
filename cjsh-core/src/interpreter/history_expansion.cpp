@@ -29,6 +29,9 @@
 #include "history_expansion.h"
 
 #include <cctype>
+#include <cstddef>
+#include <string>
+#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "command_line_utils.h"
@@ -366,7 +369,7 @@ bool HistoryExpansion::expand_word_designator(const std::string& command, size_t
         }
         for (size_t i = 1; i < words.size(); ++i) {
             if (i > 1) {
-                result += " ";
+                result += ' ';
             }
             result += words[i];
         }

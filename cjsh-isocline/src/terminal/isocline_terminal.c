@@ -33,12 +33,20 @@
 -----------------------------------------------------------------------------*/
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
+#include "bbcode.h"
 #include "common.h"
 #include "env.h"
 #include "env_internal.h"
+#include "isocline.h"
+#include "keycodes.h"
+#include "stringbuf.h"
+#include "term.h"
+#include "tty.h"
 
 typedef enum ic_terminal_region_state_e {
     IC_TERMINAL_REGION_NONE = 0,

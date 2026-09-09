@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_TYPE_WHICH_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_TYPE_WHICH_COMMAND_H
 
 #include <string>
 #include <vector>
@@ -35,3 +36,5 @@ class Shell;
 
 int type_command(const std::vector<std::string>& args, Shell* shell);
 int which_command(const std::vector<std::string>& args, Shell* shell);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_TYPE_WHICH_COMMAND_H

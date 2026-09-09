@@ -32,7 +32,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
+#include <sys/types.h>
+#include "env.h"
 
 // Ensure we have the stat macros defined
 #ifndef S_IFMT
@@ -52,7 +53,6 @@
 
 #include "common.h"
 #include "completions.h"
-#include "env.h"
 #include "isocline.h"
 #include "stringbuf.h"
 
@@ -72,7 +72,7 @@ typedef struct word_closure_s {
 static bool token_add_completion_ex(ic_env_t* env, void* closure, const char* replacement,
                                     const char* display, const char* help, long delete_before,
                                     long delete_after) {
-    word_closure_t* wenv = (word_closure_t*)(closure);
+    word_closure_t* wenv = (word_closure_t*)closure;
     const long delete_after_adjust = (long)ic_count_end_overlap(replacement, wenv->postfix);
     // call the previous completer with an adjusted delete-before
     return (*wenv->prev_complete)(env, wenv->prev_env, replacement, display, help,
@@ -143,7 +143,7 @@ typedef struct qword_closure_s {
 static bool qword_add_completion_ex(ic_env_t* env, void* closure, const char* replacement,
                                     const char* display, const char* help, long delete_before,
                                     long delete_after) {
-    qword_closure_t* wenv = (qword_closure_t*)(closure);
+    qword_closure_t* wenv = (qword_closure_t*)closure;
     sbuf_replace(wenv->sbuf, replacement);
     if (wenv->quote != 0) {
         // add end quote
@@ -553,7 +553,6 @@ ic_private char ic_dirsep(void) {
 #include <dirent.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 
 static bool os_is_dir(const char* cpath) {
     struct stat st;
@@ -568,7 +567,7 @@ static file_type_t os_get_filetype(const char* cpath) {
     if (lstat(cpath, &st) != 0) {
         return FT_DEFAULT;  // Error with lstat, return default file type
     }
-    switch ((st.st_mode) & S_IFMT) {
+    switch (st.st_mode & S_IFMT) {
         case S_IFSOCK:
             return FT_SOCK;
         case S_IFLNK: {

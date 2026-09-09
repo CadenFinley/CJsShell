@@ -27,6 +27,8 @@
 */
 
 #include "eval_command.h"
+#include <string>
+#include <vector>
 
 #include "builtin_help.h"
 

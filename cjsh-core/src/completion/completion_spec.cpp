@@ -30,11 +30,16 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <iomanip>
+#include <ios>
 #include <mutex>
+#include <optional>
 #include <sstream>
+#include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace completion_specs {
 namespace {

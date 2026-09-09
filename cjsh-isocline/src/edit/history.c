@@ -31,6 +31,9 @@
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
 #endif
+#include <stdint.h>
+#include <sys/types.h>
+#include "isocline.h"
 
 #include "history.h"
 
@@ -44,7 +47,7 @@
 #include <time.h>
 #ifndef _WIN32
 #include <fcntl.h>
-#include <sys/file.h>
+#include <sys/file.h>  // IWYU pragma: keep
 #include <unistd.h>
 #else
 #include <windows.h>
@@ -1659,7 +1662,7 @@ static char* history_metadata_decode_escaped(history_t* h, const char* encoded) 
     if (h == NULL || encoded == NULL) {
         return NULL;
     }
-    ssize_t len = ic_strlen(encoded);
+    ssize_t len = (ssize_t)strlen(encoded);
     char* out = mem_malloc_tp_n(h->mem, char, len + 1);
     if (out == NULL) {
         return NULL;
@@ -1973,8 +1976,9 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
 
 static void history_persistence_error(history_t* h) {
     if (!h->persistence_failed) {
-        fprintf(stderr, "cjsh: history: persistence unavailable; disabling history storage: %s\n",
-                h->fname == NULL ? "(unset)" : h->fname);
+        (void)fputs("cjsh: history: persistence unavailable; disabling history storage: ", stderr);
+        (void)fputs(h->fname == NULL ? "(unset)" : h->fname, stderr);
+        (void)fputc('\n', stderr);
         h->persistence_failed = true;
     }
 }
@@ -1991,7 +1995,11 @@ static int history_lock(history_t* h) {
     if (path == NULL) {
         return -1;
     }
-    snprintf(path, len, "%s.lock", h->fname);
+    const int written = snprintf(path, len, "%s.lock", h->fname);
+    if (written < 0 || (size_t)written >= len) {
+        mem_free(h->mem, path);
+        return -1;
+    }
     const int fd = open(path, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600);
     mem_free(h->mem, path);
     if (fd >= 0) {
@@ -2033,7 +2041,11 @@ static bool history_write_all(const history_t* h, const history_list_t* list) {
     if (temporary == NULL) {
         return false;
     }
-    snprintf(temporary, len, "%s.tmp.XXXXXX", h->fname);
+    const int written = snprintf(temporary, len, "%s.tmp.XXXXXX", h->fname);
+    if (written < 0 || (size_t)written >= len) {
+        mem_free(h->mem, temporary);
+        return false;
+    }
 #ifndef _WIN32
     int fd = mkstemp(temporary);
     FILE* f = fd < 0 ? NULL : fdopen(fd, "w");

@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_TYPEAHEAD_H
 #define IC_TYPEAHEAD_H
 

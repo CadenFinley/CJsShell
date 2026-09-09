@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_COPROC_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_COPROC_COMMAND_H
 
 #include <string>
 #include <vector>
@@ -35,3 +36,5 @@ class Shell;
 
 int coproc_command(const std::vector<std::string>& args, Shell* shell);
 int coproc_script_command(const std::string& command_text, Shell* shell);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_COPROC_COMMAND_H

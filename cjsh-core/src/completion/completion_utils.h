@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_COMPLETION_COMPLETION_UTILS_H
+#define CJSH_CORE_SRC_COMPLETION_COMPLETION_UTILS_H
 
 #include <string>
 #include <vector>
@@ -47,3 +48,5 @@ bool equals_completion_token(const std::string& value, const std::string& target
 std::string sanitize_job_command_summary(const std::string& command);
 
 }  // namespace completion_utils
+
+#endif  // CJSH_CORE_SRC_COMPLETION_COMPLETION_UTILS_H

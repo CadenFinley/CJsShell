@@ -26,14 +26,16 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_BUILTIN_HELP_H
+#define CJSH_CORE_SRC_BUILTIN_BUILTIN_HELP_H
 
+#include <cstdint>
 #include <initializer_list>
 #include <string>
 #include <string_view>
 #include <vector>
 
-enum class BuiltinHelpScanMode {
+enum class BuiltinHelpScanMode : std::uint8_t {
     FirstArgument,
     AnyArgument
 };
@@ -54,3 +56,5 @@ bool builtin_handle_help_with_startup_guard(
 bool builtin_handle_help_with_startup_guard(
     const std::vector<std::string>& args, std::initializer_list<std::string_view> help_lines,
     BuiltinHelpScanMode scan_mode = BuiltinHelpScanMode::FirstArgument);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_BUILTIN_HELP_H

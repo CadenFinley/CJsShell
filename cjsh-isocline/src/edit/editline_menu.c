@@ -238,7 +238,7 @@ static bool edit_menu_append_color_property(stringbuf_t* sb, bool* first, const 
     if (ansi_index >= 0) {
         (void)sbuf_appendf(sb, "%s=%d", ansi_name, ansi_index);
     } else {
-        (void)sbuf_appendf(sb, "%s=#%06x", rgb_name, (unsigned int)(color & 0xFFFFFFu));
+        (void)sbuf_appendf(sb, "%s=#%06x", rgb_name, (color & 0xFFFFFFu));
     }
     return true;
 }

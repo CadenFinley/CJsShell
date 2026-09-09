@@ -29,10 +29,12 @@
 */
 
 #include <string.h>
+#include <sys/types.h>
 
 #include "attr.h"
 #include "bbcode.h"
 #include "common.h"
+#include "isocline.h"
 #include "stringbuf.h"
 
 //-------------------------------------------------------------

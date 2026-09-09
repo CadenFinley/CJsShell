@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_COMPLETION_SUGGESTION_UTILS_H
+#define CJSH_CORE_SRC_COMPLETION_SUGGESTION_UTILS_H
 
 #include <filesystem>
 #include <string>
@@ -59,3 +60,5 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
                                               int max_suggestions = 5);
 
 }  // namespace suggestion_utils
+
+#endif  // CJSH_CORE_SRC_COMPLETION_SUGGESTION_UTILS_H

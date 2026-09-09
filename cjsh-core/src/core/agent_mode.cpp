@@ -40,10 +40,14 @@
 #include <iterator>
 #include <optional>
 #include <sstream>
+#include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
+#include <vector>
 
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
 #include <unistd.h>
 
@@ -53,6 +57,8 @@
 #include "exec.h"
 #include "help_command.h"
 #include "isocline.h"
+#include "keybindings.h"
+#include "keycodes.h"
 #include "prompt.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -827,8 +833,8 @@ bool run_agent(bool require_prefix) {
     {
         ScopedWaitingStatus waiting_status;
         output = exec_utils::execute_command_vector_for_output_with_progress(
-            executor_args, [&waiting_status]() { waiting_status.advance(); }, 250,
-            [&request_cancelled]() {
+            executor_args, [&waiting_status] { waiting_status.advance(); }, 250,
+            [&request_cancelled] {
                 if (!request_cancelled) {
                     request_cancelled = agent_interrupt_requested();
                 }

@@ -31,6 +31,9 @@
 #include "fuzzy_match.h"
 
 #include <ctype.h>
+#include <stddef.h>
+#include <sys/types.h>
+#include "common.h"
 
 ic_private bool ic_fuzzy_char_equals(char left, char right, bool case_sensitive) {
     if (case_sensitive) {

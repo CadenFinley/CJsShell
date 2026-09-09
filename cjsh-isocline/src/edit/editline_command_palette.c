@@ -491,17 +491,17 @@ again:;
             if (entry_is_custom) {
                 if (entry_description[0] == '\0') {
                     written = snprintf(linebuf, sizeof(linebuf), "%s", entry_name);
-                    snprintf(tag_prefix, sizeof(tag_prefix), " ");
-                    snprintf(tagbuf, sizeof(tagbuf), "(custom)");
+                    (void)snprintf(tag_prefix, sizeof(tag_prefix), " ");
+                    (void)snprintf(tagbuf, sizeof(tagbuf), "(custom)");
                 } else if (strstr(entry_description, "(custom)") != NULL) {
                     written = snprintf(linebuf, sizeof(linebuf), "%s", entry_name);
-                    snprintf(tag_prefix, sizeof(tag_prefix), " - ");
-                    snprintf(tagbuf, sizeof(tagbuf), "%s", entry_description);
+                    (void)snprintf(tag_prefix, sizeof(tag_prefix), " - ");
+                    (void)snprintf(tagbuf, sizeof(tagbuf), "%s", entry_description);
                 } else {
                     written = snprintf(linebuf, sizeof(linebuf), "%s - %s", entry_name,
                                        entry_description);
-                    snprintf(tag_prefix, sizeof(tag_prefix), " ");
-                    snprintf(tagbuf, sizeof(tagbuf), "(custom)");
+                    (void)snprintf(tag_prefix, sizeof(tag_prefix), " ");
+                    (void)snprintf(tagbuf, sizeof(tagbuf), "(custom)");
                 }
             } else {
                 char binding_keys[64];
@@ -513,8 +513,8 @@ again:;
                     written = snprintf(linebuf, sizeof(linebuf), "%s - %s", entry_name,
                                        entry_description);
                 }
-                snprintf(tag_prefix, sizeof(tag_prefix), " ");
-                snprintf(tagbuf, sizeof(tagbuf), "[%s]", binding_keys);
+                (void)snprintf(tag_prefix, sizeof(tag_prefix), " ");
+                (void)snprintf(tagbuf, sizeof(tagbuf), "[%s]", binding_keys);
             }
             if (written < 0) {
                 continue;
@@ -586,7 +586,6 @@ again:;
                                             1, &selected_idx, &accept_selection)) {
             if (accept_selection) {
                 c = KEY_ENTER;
-                key_no_mods = KEY_ENTER;
             } else {
                 goto again;
             }

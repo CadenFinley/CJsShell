@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_ERROR_OUT_H
+#define CJSH_CORE_SRC_CORE_ERROR_OUT_H
 
 #include <string>
 #include <vector>
@@ -71,3 +72,5 @@ struct ErrorInfo {
 
 void print_error(const ErrorInfo& error);
 void print_error_errno(const ErrorInfo& error);
+
+#endif  // CJSH_CORE_SRC_CORE_ERROR_OUT_H

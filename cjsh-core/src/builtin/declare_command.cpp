@@ -27,10 +27,12 @@
 */
 
 #include "declare_command.h"
+#include <cstdint>
 
 #include "builtin_help.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -205,17 +207,15 @@ bool parse_declare_options(const std::vector<std::string>& args, const std::stri
         return false;
     }
 
-    if (opts.function_mode) {
-        if (opts.array_action == AttributeAction::Set ||
-            opts.associative_action == AttributeAction::Set ||
-            opts.nameref_action == AttributeAction::Set || opts.global_scope ||
-            opts.export_action != AttributeAction::NoChange) {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         command_name,
-                         "incompatible option combination for function mode",
-                         {"Use -f/-F with optional -r or -p"}});
-            return false;
-        }
+    if (opts.function_mode && (opts.array_action == AttributeAction::Set ||
+                               opts.associative_action == AttributeAction::Set ||
+                               opts.nameref_action == AttributeAction::Set || opts.global_scope ||
+                               opts.export_action != AttributeAction::NoChange)) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     command_name,
+                     "incompatible option combination for function mode",
+                     {"Use -f/-F with optional -r or -p"}});
+        return false;
     }
 
     return true;
@@ -406,7 +406,7 @@ int handle_print_mode(const std::vector<std::string>& args, size_t operand_start
     }
 
     for (size_t i = operand_start; i < args.size(); ++i) {
-        std::string name = args[i];
+        const std::string& name = args[i];
         if (!is_valid_identifier(name)) {
             print_error(
                 {ErrorType::INVALID_ARGUMENT, command_name, "invalid variable name: " + name, {}});
@@ -465,7 +465,7 @@ void apply_export_attribute(const std::string& name, AttributeAction action, boo
     }
 }
 
-enum class ArrayLiteralKind {
+enum class ArrayLiteralKind : std::uint8_t {
     Indexed,
     Associative
 };

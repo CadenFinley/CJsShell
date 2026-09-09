@@ -26,6 +26,8 @@
   SOFTWARE.
 */
 
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,10 +37,24 @@ int main(int argc, char** argv) {
     if (argc != 6) {
         return 2;
     }
-    ic_set_history(argv[1], strtol(argv[2], NULL, 10));
-    for (int i = 0; i < atoi(argv[4]); ++i) {
+    char* end = NULL;
+    errno = 0;
+    const long history_limit = strtol(argv[2], &end, 10);
+    if (errno != 0 || end == argv[2] || *end != '\0') {
+        return 2;
+    }
+    errno = 0;
+    const long iterations = strtol(argv[4], &end, 10);
+    if (errno != 0 || end == argv[4] || *end != '\0' || iterations < 0 || iterations > INT_MAX) {
+        return 2;
+    }
+    ic_set_history(argv[1], history_limit);
+    for (int i = 0; i < iterations; ++i) {
         char command[128];
-        snprintf(command, sizeof(command), "%s-%d", argv[3], i);
+        const int written = snprintf(command, sizeof(command), "%s-%d", argv[3], i);
+        if (written < 0 || (size_t)written >= sizeof(command)) {
+            return 2;
+        }
         const ic_history_metadata_t metadata[] = {{"frequency", "0"}, {"worker", argv[3]}};
         ic_history_add_with_metadata(strcmp(argv[5], "shared") == 0 ? "shared" : command, metadata,
                                      2);

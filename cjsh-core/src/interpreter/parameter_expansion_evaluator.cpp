@@ -32,6 +32,8 @@
 #include <cstdlib>
 #include <optional>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 namespace {
 bool is_literal_pattern(const std::string& pattern) {

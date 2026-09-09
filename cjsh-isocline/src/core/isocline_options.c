@@ -35,9 +35,14 @@
 #include "common.h"
 #include "env.h"
 #include "env_internal.h"
+#include "history.h"
+#include "isocline.h"
+#include "term.h"
+#include "tty.h"
 
 #include <ctype.h>
 #include <string.h>
+#include <sys/types.h>
 
 static ic_abbreviation_entry_t* ic_env_find_abbreviation(ic_env_t* env, const char* trigger,
                                                          ssize_t trigger_len, ssize_t* out_index) {

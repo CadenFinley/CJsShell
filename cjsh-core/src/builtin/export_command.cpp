@@ -27,6 +27,7 @@
 */
 
 #include "export_command.h"
+#include <stdlib.h>
 
 #include "builtin_help.h"
 #include "builtin_option_parser.h"
@@ -34,6 +35,8 @@
 #include <cerrno>
 #include <cstring>
 #include <iostream>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "error_out.h"
@@ -117,13 +120,8 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
     size_t start_index = 1;
-    const bool options_ok =
-        builtin_parse_short_options(args, start_index, "export", [&](char option) {
-            if (option == 'p') {
-                return true;
-            }
-            return false;
-        });
+    const bool options_ok = builtin_parse_short_options(args, start_index, "export",
+                                                        [&](char option) { return option == 'p'; });
     if (!options_ok) {
         return 2;
     }

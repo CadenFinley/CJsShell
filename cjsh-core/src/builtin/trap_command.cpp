@@ -27,13 +27,17 @@
 */
 
 #include "trap_command.h"
+#include <signal.h>
 
 #include "builtin_help.h"
 
-#include <algorithm>
 #include <csignal>
+#include <cstddef>
 #include <iostream>
+#include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 #include "error_out.h"
 #include "shell.h"
 #include "signal_handler.h"

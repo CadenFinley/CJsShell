@@ -31,6 +31,7 @@
 #include <fnmatch.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -194,6 +195,8 @@ std::vector<size_t> match_alternatives(const std::vector<std::vector<PatternNode
 std::vector<size_t> repeat_group(const PatternNode& node, const std::string& text,
                                  const std::vector<size_t>& initial) {
     std::vector<size_t> endpoints = initial;
+    // This worklist grows while matching; iterators would be invalidated by append_unique.
+    // NOLINTNEXTLINE(modernize-loop-convert)
     for (size_t cursor = 0; cursor < endpoints.size(); ++cursor) {
         size_t begin = endpoints[cursor];
         for (size_t endpoint : match_alternatives(node.alternatives, text, begin)) {

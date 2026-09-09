@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_HIGHLIGHT_H
 #define IC_HIGHLIGHT_H
 

@@ -28,19 +28,31 @@
 
 #include "shell.h"
 #include <fcntl.h>
-
 #include <sys/types.h>
+
+#include <signal.h>
+#include <termios.h>
 #include <unistd.h>
+#include <array>
+#include <atomic>
 #include <cctype>
 #include <cerrno>
 #include <csignal>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <optional>
 #include <sstream>
+#include <string>
 #include <system_error>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "builtin.h"
 #include "command_lookup.h"
@@ -51,9 +63,11 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "numeric_utils.h"
+#include "parser.h"
 #include "pipeline_status_utils.h"
 #include "prompt.h"
 #include "shell_env.h"
+#include "signal_handler.h"
 #include "string_utils.h"
 #include "trap_command.h"
 
@@ -437,10 +451,8 @@ void Shell::setup_interactive_handlers() {
 }
 
 void Shell::save_terminal_state() {
-    if (interactive_job_control_available) {
-        if (tcgetattr(shell_terminal, &shell_tmodes) == 0) {
-            terminal_state_saved = true;
-        }
+    if (interactive_job_control_available && (tcgetattr(shell_terminal, &shell_tmodes) == 0)) {
+        terminal_state_saved = true;
     }
 }
 
@@ -544,21 +556,19 @@ void Shell::setup_job_control() {
 
     shell_pgid = getpid();
 
-    if (setpgid(shell_pgid, shell_pgid) < 0) {
-        // A session leader is already the leader of its process group and setpgid then reports
-        // EPERM. Treat that as success only when the desired group is actually in place.
-        if (getpgrp() != shell_pgid) {
-            const auto error_text = std::system_category().message(errno);
-            print_error({ErrorType::RUNTIME_ERROR,
-                         ErrorSeverity::WARNING,
-                         "setpgid",
-                         "couldn't put the shell in its own process group: " + error_text,
-                         {"Job control will remain disabled."}});
-            job_control_enabled = false;
-            shell_options[to_index(ShellOption::Monitor)] = false;
-            interactive_job_control_available = false;
-            return;
-        }
+    // A session leader is already the leader of its process group and setpgid then reports
+    // EPERM. Treat that as success only when the desired group is actually in place.
+    if (setpgid(shell_pgid, shell_pgid) < 0 && getpgrp() != shell_pgid) {
+        const auto error_text = std::system_category().message(errno);
+        print_error({ErrorType::RUNTIME_ERROR,
+                     ErrorSeverity::WARNING,
+                     "setpgid",
+                     "couldn't put the shell in its own process group: " + error_text,
+                     {"Job control will remain disabled."}});
+        job_control_enabled = false;
+        shell_options[to_index(ShellOption::Monitor)] = false;
+        interactive_job_control_available = false;
+        return;
     }
 
     sigset_t sigttou_mask{};
@@ -614,7 +624,7 @@ void Shell::recover_prompt_terminal() {
     ic_recover_terminal();
 }
 
-bool Shell::reclaim_terminal() {
+bool Shell::reclaim_terminal() const {
     // Only the interactive shell that completed the startup foreground handshake may
     // reclaim this terminal. Forked subshells must not take it from their parent.
     // This remains necessary when the user disables monitor mode with `set +m`.
@@ -655,7 +665,7 @@ bool Shell::is_job_control_enabled() const {
     return job_control_enabled;
 }
 
-bool Shell::suspend() {
+bool Shell::suspend() const {
     if (!manages_terminal()) {
         return false;
     }

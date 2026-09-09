@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_REDIRECTION_UTILS_H
+#define CJSH_CORE_SRC_UTILS_REDIRECTION_UTILS_H
 
 #include <cstddef>
 #include <optional>
@@ -66,3 +67,5 @@ const char* operator_spelling(RedirectionOperator op);
 const std::vector<std::string_view>& canonical_operator_spellings();
 
 }  // namespace redirection_utils
+
+#endif  // CJSH_CORE_SRC_UTILS_REDIRECTION_UTILS_H

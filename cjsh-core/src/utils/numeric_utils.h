@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_NUMERIC_UTILS_H
+#define CJSH_CORE_SRC_UTILS_NUMERIC_UTILS_H
 
 #include <string>
 #include <string_view>
@@ -39,3 +40,5 @@ bool parse_int_in_range(std::string_view text, int min_value, int max_value, int
 int parse_exit_status_or(std::string_view text, int fallback, bool mask_to_byte);
 
 }  // namespace numeric_utils
+
+#endif  // CJSH_CORE_SRC_UTILS_NUMERIC_UTILS_H

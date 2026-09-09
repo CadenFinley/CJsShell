@@ -26,9 +26,12 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_HASH_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_HASH_COMMAND_H
 
 #include <string>
 #include <vector>
 
 int hash_command(const std::vector<std::string>& args);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_HASH_COMMAND_H

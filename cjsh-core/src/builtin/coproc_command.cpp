@@ -27,9 +27,12 @@
 */
 
 #include "coproc_command.h"
+#include <algorithm>
+#include <iterator>
 
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <cctype>
@@ -37,7 +40,10 @@
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "builtin_help.h"
 #include "error_out.h"
@@ -109,12 +115,8 @@ bool starts_compound_command(const std::string& text) {
     }
     static constexpr std::string_view compound_words[] = {"if",    "for",  "select",  "while",
                                                           "until", "case", "function"};
-    for (std::string_view word : compound_words) {
-        if (starts_with_word(trimmed, word)) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(std::begin(compound_words), std::end(compound_words),
+                       [&](std::string_view word) { return starts_with_word(trimmed, word); });
 }
 
 int launch_coprocess(const std::string& variable_name, const std::string& command_display,
@@ -215,7 +217,7 @@ int coproc_command(const std::vector<std::string>& args, Shell* shell) {
 
     std::vector<std::string> command(args.begin() + 1, args.end());
     return launch_coprocess("COPROC", display_command(command), shell,
-                            [shell, command]() { return shell->execute_command(command); });
+                            [shell, command] { return shell->execute_command(command); });
 }
 
 int coproc_script_command(const std::string& command_text, Shell* shell) {
@@ -254,7 +256,7 @@ int coproc_script_command(const std::string& command_text, Shell* shell) {
         }
     }
 
-    return launch_coprocess(variable_name, "coproc " + remainder, shell, [shell, script]() {
+    return launch_coprocess(variable_name, "coproc " + remainder, shell, [shell, script] {
         return shell->get_shell_script_interpreter()->execute_block({script});
     });
 }

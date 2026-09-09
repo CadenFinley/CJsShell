@@ -30,9 +30,9 @@
 
 #include <atomic>
 #include <cctype>
+#include <cstddef>
 #include <limits>
 #include <string>
-#include <utility>
 
 #include "isocline.h"
 #include "string_utils.h"
@@ -66,7 +66,7 @@ size_t tracker_entry_cap() {
     return cap > 0 ? cap : std::numeric_limits<size_t>::max();
 }
 
-std::string canonicalize_final_result(std::string result) {
+std::string canonicalize_final_result(const std::string& result) {
     return string_utils::trim_right_ascii_whitespace_copy(result);
 }
 
@@ -103,7 +103,7 @@ bool CompletionTracker::would_create_duplicate(const char* completion_text, long
     }
 
     std::string final_result = calculate_final_result(completion_text, delete_before);
-    std::string canonical_result = canonicalize_final_result(std::move(final_result));
+    std::string canonical_result = canonicalize_final_result(final_result);
     return added_completions.find(canonical_result) != added_completions.end();
 }
 
@@ -119,7 +119,7 @@ bool CompletionTracker::add_completion_prim_with_source_if_unique(
     }
 
     std::string final_result = calculate_final_result(completion_text, delete_before);
-    (void)added_completions.insert(canonicalize_final_result(std::move(final_result)));
+    (void)added_completions.insert(canonicalize_final_result(final_result));
     total_completions_added++;
     return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source,
                                               delete_before, delete_after);

@@ -30,8 +30,10 @@
 #include "builtin_help.h"
 #include "shell_env.h"
 
+#include <cstddef>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "parser_utils.h"
 

@@ -35,12 +35,16 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "bbcode.h"
 #include "common.h"
+#include "completions.h"
 #include "env.h"
 #include "env_internal.h"
 #include "isocline.h"
 #include "isocline_typeahead.h"
 #include "stringbuf.h"
+#include "term.h"
+#include "tty.h"
 
 //-------------------------------------------------------------
 // Global variables
@@ -313,7 +317,7 @@ ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
     while (true) {
         // Build prompt with line number for heredoc lines
         char prompt[32];
-        snprintf(prompt, sizeof(prompt), "%3zu > ", line_number);
+        (void)snprintf(prompt, sizeof(prompt), "%3zu > ", line_number);
 
         char* line = ic_readline(prompt, NULL, NULL);
 

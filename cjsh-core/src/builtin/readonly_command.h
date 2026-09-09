@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_READONLY_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_READONLY_COMMAND_H
 
 #include <string>
 #include <vector>
@@ -48,3 +49,5 @@ bool readonly_function_manager_is(const std::string& name);
 std::vector<std::string> readonly_function_manager_list();
 
 int readonly_command(const std::vector<std::string>& args);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_READONLY_COMMAND_H

@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_TTY_H
 #define IC_TTY_H
 

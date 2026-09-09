@@ -29,11 +29,16 @@
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
 #endif
+#include <errno.h>
+#include <limits.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
+#include "common.h"
 
 #include "term.h"
 #include "tty.h"
@@ -124,7 +129,15 @@ int main(int argc, char** argv) {
         }
         (void)printf("QUERY:%d:%zd:%zd\n", matched, row, column);
         (void)fflush(stdout);
-        const int length = argc > 2 ? atoi(argv[2]) : 0;
+        long length = 0;
+        if (argc > 2) {
+            char* end = NULL;
+            errno = 0;
+            length = strtol(argv[2], &end, 10);
+            if (errno != 0 || end == argv[2] || *end != '\0' || length < 0 || length > INT_MAX) {
+                return 2;
+            }
+        }
         for (int i = 0; i < length; ++i) {
             uint8_t c = 0;
             if (!tty_readc_noblock(tty, &c, 1000)) {

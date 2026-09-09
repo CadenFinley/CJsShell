@@ -28,7 +28,13 @@
 
 #include "case_evaluator.h"
 
+#include <cstddef>
+#include <functional>
+#include <optional>
 #include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "interpreter_utils.h"
 #include "parser.h"
@@ -317,7 +323,7 @@ std::optional<int> handle_inline_case(
     std::string case_value;
     std::string raw_case_value;
 
-    auto extract_case_value = [&]() {
+    auto extract_case_value = [&] {
         size_t space_pos = processed_case_part.find(' ');
         if (space_pos != std::string::npos && processed_case_part.substr(0, space_pos) == "case") {
             return trim(processed_case_part.substr(space_pos + 1));

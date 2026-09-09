@@ -31,6 +31,7 @@
 #include "builtin_help.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <optional>

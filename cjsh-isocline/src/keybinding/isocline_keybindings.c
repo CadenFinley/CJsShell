@@ -37,11 +37,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "common.h"
 #include "env.h"
 #include "keybinding_internal.h"
 #include "keybinding_specs.h"
+#include "keybindings.h"
+#include "keycodes.h"
 
 //-------------------------------------------------------------
 // Key binding helpers
@@ -606,11 +609,11 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
         implicit_ctrl = true;
     }
 
-    if ((mods & IC_KEY_MOD_CTRL) != 0 || implicit_ctrl) {
-        if (!append_token(&first, buffer, buflen, &len, "ctrl")) {
-            return false;
-        }
+    if (((mods & IC_KEY_MOD_CTRL) != 0 || implicit_ctrl) &&
+        (!append_token(&first, buffer, buflen, &len, "ctrl"))) {
+        return false;
     }
+
     if (mods & IC_KEY_MOD_ALT) {
         if (!append_token(&first, buffer, buflen, &len, "alt")) {
             return false;
@@ -629,11 +632,11 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
         base_buf[1] = '\0';
         base_name = base_buf;
     } else if (base >= IC_KEY_F1 && base <= IC_KEY_F1 + 23) {
-        unsigned number = 1U + (unsigned)(base - IC_KEY_F1);
+        unsigned number = 1U + (base - IC_KEY_F1);
         if (number > 24) {
             return false;
         }
-        snprintf(base_buf, sizeof(base_buf), "f%u", number);
+        (void)snprintf(base_buf, sizeof(base_buf), "f%u", number);
         base_name = base_buf;
     } else {
         switch (base) {
@@ -702,10 +705,8 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
         }
     }
 
-    if (base_name[0] != '\0') {
-        if (!append_token(&first, buffer, buflen, &len, base_name)) {
-            return false;
-        }
+    if ((base_name[0] != '\0') && (!append_token(&first, buffer, buflen, &len, base_name))) {
+        return false;
     }
 
     if (first) {

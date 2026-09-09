@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_VERSION_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_VERSION_COMMAND_H
 
 #include <string>
 #include <vector>
@@ -34,3 +35,5 @@
 int version_command(const std::vector<std::string>& args);
 std::string get_version();
 std::string get_version_message();
+
+#endif  // CJSH_CORE_SRC_BUILTIN_VERSION_COMMAND_H

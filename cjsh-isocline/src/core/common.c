@@ -30,10 +30,13 @@
 
 #include "common.h"
 
+#include <assert.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 //-------------------------------------------------------------
 // String wrappers for ssize_t
@@ -72,14 +75,14 @@ ic_private void ic_memset(void* dest, uint8_t value, ssize_t n) {
 
 ic_private bool ic_strcpy(char* dest, ssize_t dest_size /* including 0 */, const char* src) {
     assert(dest != NULL && src != NULL);
-    if (dest == NULL || dest_size <= 0) {
+    if (dest == NULL || src == NULL || dest_size <= 0) {
         return false;
     }
     ssize_t slen = ic_strlen(src);
     if (slen >= dest_size) {
         return false;
     }
-    strcpy(dest, src);
+    memcpy(dest, src, to_size_t(slen + 1));
     assert(dest[slen] == 0);
     return true;
 }
@@ -190,7 +193,7 @@ ic_private int ic_stricmp(const char* s1, const char* s2) {
     if (len1 > len2) {
         return 1;
     }
-    return (ic_strnicmp(s1, s2, (len1 >= len2 ? len1 : len2)));
+    return ic_strnicmp(s1, s2, (len1 >= len2 ? len1 : len2));
 }
 
 static const char* ic_stristr(const char* s, const char* pat) {
@@ -311,12 +314,12 @@ ic_private unicode_t unicode_from_qutf8(const uint8_t* s, ssize_t len, ssize_t* 
         return (((c0 & 0x0F) << 12) | ((unicode_t)(s[1] & 0x3F) << 6) | (s[2] & 0x3F));
     }
     // 4 bytes: reject overlong
-    else if (len >= 4 && (((c0 == 0xF0 && s[1] >= 0x90 && s[1] <= 0xBF && utf8_is_cont(s[2]) &&
-                            utf8_is_cont(s[3])) ||
-                           (c0 >= 0xF1 && c0 <= 0xF3 && utf8_is_cont(s[1]) && utf8_is_cont(s[2]) &&
-                            utf8_is_cont(s[3])) ||
-                           (c0 == 0xF4 && s[1] >= 0x80 && s[1] <= 0x8F && utf8_is_cont(s[2]) &&
-                            utf8_is_cont(s[3]))))) {
+    else if (len >= 4 && ((c0 == 0xF0 && s[1] >= 0x90 && s[1] <= 0xBF && utf8_is_cont(s[2]) &&
+                           utf8_is_cont(s[3])) ||
+                          (c0 >= 0xF1 && c0 <= 0xF3 && utf8_is_cont(s[1]) && utf8_is_cont(s[2]) &&
+                           utf8_is_cont(s[3])) ||
+                          (c0 == 0xF4 && s[1] >= 0x80 && s[1] <= 0x8F && utf8_is_cont(s[2]) &&
+                           utf8_is_cont(s[3])))) {
         if (count != NULL) {
             *count = 4;
         }
@@ -345,7 +348,7 @@ ic_private void debug_msg(const char* fmt, ...) {
     if (getenv("ISOCLINE_DEBUG")) {
         va_list args;
         va_start(args, fmt);
-        vfprintf(stderr, fmt, args);
+        (void)vfprintf(stderr, fmt, args);
         va_end(args);
     }
 }

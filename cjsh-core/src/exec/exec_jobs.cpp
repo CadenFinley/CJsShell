@@ -26,18 +26,27 @@
   SOFTWARE.
 */
 
+#include <utility>
+#include "error_out.h"
 #include "exec.h"
 
+#include <signal.h>
+#include <sys/types.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <csignal>
 #include <cstring>
 #include <iostream>
+#include <iterator>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -370,7 +379,7 @@ void Exec::wait_for_job(int job_id) {
     if (it != jobs.end()) {
         Job& job = it->second;
         if (!pipeline_statuses.empty()) {
-            job.pipeline_statuses = pipeline_statuses;
+            job.pipeline_statuses = std::move(pipeline_statuses);
         }
 
         if (job_stopped) {

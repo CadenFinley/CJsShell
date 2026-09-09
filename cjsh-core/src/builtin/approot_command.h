@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_APPROOT_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_APPROOT_COMMAND_H
 
 #include <string>
 #include <vector>
@@ -35,3 +36,5 @@ class Shell;
 
 int approot_command(const std::vector<std::string>& args, std::string& current_directory,
                     std::string& previous_directory, Shell* shell = nullptr);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_APPROOT_COMMAND_H

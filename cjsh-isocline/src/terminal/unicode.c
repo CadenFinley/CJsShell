@@ -34,6 +34,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/types.h>
 
 // Combining characters table adapted from Markus Kuhn's mk_wcwidth implementation
 typedef struct {

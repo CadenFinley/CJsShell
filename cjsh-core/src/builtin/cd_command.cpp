@@ -28,11 +28,15 @@
 
 #include "cd_command.h"
 
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include <cstdlib>
+#include <exception>
+#include <filesystem>
 #include <optional>
+#include <string>
+#include <system_error>
+#include <vector>
 
 #include "builtin_help.h"
 #include "cjsh_filesystem.h"
@@ -176,12 +180,10 @@ int change_directory(const std::string& dir, std::string& current_directory,
         requested_dir = "~";
     }
 
-    if (target_dir == "-") {
-        if (previous_directory.empty()) {
-            ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", "No previous directory", {}};
-            print_error(error);
-            return 1;
-        }
+    if ((target_dir == "-") && previous_directory.empty()) {
+        ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", "No previous directory", {}};
+        print_error(error);
+        return 1;
     }
 
     if (target_dir.rfind("-/", 0) == 0 && previous_directory.empty()) {

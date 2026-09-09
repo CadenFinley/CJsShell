@@ -31,6 +31,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "builtin_help.h"
@@ -49,7 +50,7 @@ void expect(bool condition, const char* message) {
     ++checks;
     if (!condition) {
         ++failures;
-        std::fprintf(stderr, "[FAIL] %s\n", message);
+        (void)std::fprintf(stderr, "[FAIL] %s\n", message);
     }
 }
 
@@ -215,7 +216,7 @@ int main() {
     test_execution();
     g_shell.reset();
     if (failures != 0) {
-        std::fprintf(stderr, "%zu/%zu parser dispatch tests failed\n", failures, checks);
+        (void)std::fprintf(stderr, "%zu/%zu parser dispatch tests failed\n", failures, checks);
         return 1;
     }
     std::printf("All %zu parser dispatch tests passed\n", checks);

@@ -27,13 +27,14 @@
 */
 
 #include "main_loop.h"
+#include <sys/types.h>
 
 #include <signal.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <cctype>
 #include <cerrno>
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -41,7 +42,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
+#include "isocline/isocline.h"
+#include "keybindings.h"
+#include "signal_handler.h"
 
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
@@ -513,8 +518,8 @@ void refresh_command_palette_entries() {
         (void)ids.emplace_back(std::string("ext-cmd:") + id);
         (void)names.emplace_back(title);
         (void)descriptions.emplace_back("");
-        (void)keywords.emplace_back(std::string("palette snippet custom command ") + id + " " +
-                                    title + " " + command_preview);
+        keywords.emplace_back("palette snippet custom command ");
+        keywords.back().append(id).append(" ").append(title).append(" ").append(command_preview);
     }
 
     if (ids.empty()) {

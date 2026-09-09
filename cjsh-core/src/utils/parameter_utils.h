@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_PARAMETER_UTILS_H
+#define CJSH_CORE_SRC_UTILS_PARAMETER_UTILS_H
 
 #include <string>
 
@@ -44,3 +45,5 @@ std::string get_special_parameter_value(const std::string& var_name,
                                         const std::string& pid_string = "");
 
 }  // namespace parameter_utils
+
+#endif  // CJSH_CORE_SRC_UTILS_PARAMETER_UTILS_H

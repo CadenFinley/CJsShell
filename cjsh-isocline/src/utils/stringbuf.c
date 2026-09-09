@@ -28,14 +28,19 @@
   SOFTWARE.
 */
 
+#include "isocline.h"
 #include "unicode.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "common.h"
 #include "stringbuf.h"
@@ -1024,7 +1029,7 @@ ic_public long ic_prev_char(const char* s, long pos) {
     if (ofs <= 0) {
         return -1;
     }
-    return (long)(pos - ofs);
+    return (pos - ofs);
 }
 
 ic_public long ic_next_char(const char* s, long pos) {
@@ -1036,7 +1041,7 @@ ic_public long ic_next_char(const char* s, long pos) {
     if (ofs <= 0) {
         return -1;
     }
-    return (long)(pos + ofs);
+    return (pos + ofs);
 }
 
 // Convenience: character class for whitespace `[ \t\r\n]`.
@@ -1203,7 +1208,7 @@ ic_public long ic_is_token(const char* s, long pos, ic_is_char_class_fun_t* is_t
         }
         i += next;
     }
-    return (long)(i - pos);
+    return (i - pos);
 }
 
 static int ic_strncmp(const char* s1, const char* s2, ssize_t n) {

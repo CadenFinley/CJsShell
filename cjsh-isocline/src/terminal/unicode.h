@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_UNICODE_H
 #define IC_UNICODE_H
 

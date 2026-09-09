@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_AGENT_MODE_H
+#define CJSH_CORE_SRC_CORE_AGENT_MODE_H
 
 #include <cstddef>
 #include <optional>
@@ -74,3 +75,5 @@ bool palette_entry_enabled();
 std::optional<std::size_t> matching_trigger_prefix_length(std::string_view buffer);
 
 }  // namespace agent_mode
+
+#endif  // CJSH_CORE_SRC_CORE_AGENT_MODE_H

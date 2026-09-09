@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_FLAGS_H
+#define CJSH_CORE_SRC_CORE_FLAGS_H
 
 #include <string>
 #include <vector>
@@ -52,3 +53,5 @@ std::vector<std::string> get_positional_parameters();
 size_t get_positional_parameter_count();
 
 }  // namespace flags
+
+#endif  // CJSH_CORE_SRC_CORE_FLAGS_H

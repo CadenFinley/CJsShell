@@ -1194,7 +1194,7 @@ again:;
     }
     char metadata_preview_key[64];
     metadata_preview_key[0] = '\0';
-    const char* metadata_suffix_key = k_history_search_timestamp_key;
+    const char* metadata_suffix_key;
     bool metadata_suffix_use_default_tag = true;
 
     {

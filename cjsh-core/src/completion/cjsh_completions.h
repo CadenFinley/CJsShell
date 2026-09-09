@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_COMPLETION_CJSH_COMPLETIONS_H
+#define CJSH_CORE_SRC_COMPLETION_CJSH_COMPLETIONS_H
 
 #include <string>
 
@@ -51,3 +52,5 @@ bool set_history_max_entries(long max_entries, std::string* error_message = null
 long get_history_max_entries();
 long get_history_default_history_limit();
 long get_history_min_history_limit();
+
+#endif  // CJSH_CORE_SRC_COMPLETION_CJSH_COMPLETIONS_H

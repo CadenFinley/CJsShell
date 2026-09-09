@@ -26,7 +26,10 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_BOOLEAN_COMMANDS_H
+#define CJSH_CORE_SRC_BUILTIN_BOOLEAN_COMMANDS_H
 
 int true_command();
 int false_command();
+
+#endif  // CJSH_CORE_SRC_BUILTIN_BOOLEAN_COMMANDS_H

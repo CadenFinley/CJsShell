@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_PATTERN_MATCHER_H
+#define CJSH_CORE_SRC_INTERPRETER_PATTERN_MATCHER_H
 
 #include <string>
 
@@ -43,3 +44,5 @@ class PatternMatcher {
     bool matches_pattern(const std::string& text, const std::string& pattern,
                          bool top_level_alternatives = false) const;
 };
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_PATTERN_MATCHER_H

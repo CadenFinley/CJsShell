@@ -47,6 +47,7 @@ You will need:
 - Ninja
 - Python 3 for parts of the test suite
 - `clang-format` 15 or newer for formatting C and C++ sources
+- `clang-tidy` for the checks configured in `.clang-tidy` (validated with LLVM 23)
 
 ## Build
 
@@ -106,6 +107,27 @@ instead of a preset, replacing `build` with that directory. CTest selects its bu
 `cjsh` binary automatically.
 
 ## Code Style
+
+Check all C/C++ sources and headers, including tests, from the repository root:
+
+```bash
+cmake --preset release
+python3 tools/lint.py
+```
+
+The script checks formatting and analyzes every compilation unit, its project
+headers, and standalone headers, treating lint warnings as failures. It supplies
+the macOS SDK paths when using Homebrew LLVM. Use `--build-dir build/debug` to analyze
+the debug configuration, and `--jobs 4` to limit parallel workers. `--clang-format`
+and `--clang-tidy` select specific tool executables. Other file types currently have
+no configured lint rules.
+
+Keep exceptions specific and documented. C API tests deliberately exercise invalid
+enum values. The Annex K replacement recommendation is disabled because the
+supported POSIX libraries do not provide those optional APIs; buffer-bounds and
+unbounded-copy checks remain enabled.
+The include cleaner ignores private Apple SDK headers in favor of their public
+C/POSIX counterparts; it still checks project and standard C++ includes.
 
 - C sources must remain compatible with ISO C11.
 - C++ sources must remain compatible with ISO C++17.

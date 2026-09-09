@@ -33,7 +33,8 @@
   Keeping these in a dedicated header keeps the public API surface of
   `isocline.h` lighter for callers that don't need key binding metadata.
 -----------------------------------------------------------------------------*/
-#pragma once
+#ifndef CJSH_ISOCLINE_SRC_KEYBINDING_KEYBINDINGS_H
+#define CJSH_ISOCLINE_SRC_KEYBINDING_KEYBINDINGS_H
 #ifdef __cplusplus
 #include <cstdint>
 #else
@@ -113,3 +114,5 @@ typedef struct ic_key_binding_profile_info_s {
 #endif
 
 #endif  // IC_KEYBINDINGS_H
+
+#endif  // CJSH_ISOCLINE_SRC_KEYBINDING_KEYBINDINGS_H

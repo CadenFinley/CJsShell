@@ -62,7 +62,7 @@ static bool expect_streq(const std::string& actual, const std::string& expected,
     return false;
 }
 
-static bool test_substring_search_skips_staged_entry(void) {
+static bool test_substring_search_skips_staged_entry() {
     const char* test_name = "substring_search_skips_staged_entry";
     const std::vector<std::string> history = {"echo alpha", "git status", "!?status?"};
 
@@ -74,7 +74,7 @@ static bool test_substring_search_skips_staged_entry(void) {
                         "substring search should use the previous matching command");
 }
 
-static bool test_quick_substitution_skips_staged_entry(void) {
+static bool test_quick_substitution_skips_staged_entry() {
     const char* test_name = "quick_substitution_skips_staged_entry";
     const std::vector<std::string> history = {"echo alpha beta", "^beta^gamma"};
 
@@ -86,7 +86,7 @@ static bool test_quick_substitution_skips_staged_entry(void) {
                         "quick substitution should target the previous command");
 }
 
-static bool test_previous_command_word_designators_expand(void) {
+static bool test_previous_command_word_designators_expand() {
     const char* test_name = "previous_command_word_designators_expand";
     const std::vector<std::string> history = {"cp source.txt dest.txt", "!$"};
 
@@ -113,7 +113,7 @@ static bool test_previous_command_word_designators_expand(void) {
                         "!* should expand to all previous command arguments");
 }
 
-static bool test_double_bang_replays_last_expanded_command(void) {
+static bool test_double_bang_replays_last_expanded_command() {
     const char* test_name = "double_bang_replays_last_expanded_command";
     const std::vector<std::string> history = {"echo alpha", "echo alpha", "!!"};
 
@@ -125,10 +125,10 @@ static bool test_double_bang_replays_last_expanded_command(void) {
                         "double bang should replay the previous expanded command");
 }
 
-int main(void) {
+int main() {
     struct TestCase {
         const char* name;
-        bool (*func)(void);
+        bool (*func)();
     };
 
     const TestCase tests[] = {

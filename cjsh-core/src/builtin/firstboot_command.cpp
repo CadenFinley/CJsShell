@@ -34,7 +34,9 @@
 #include <unistd.h>
 #include <cerrno>
 #include <filesystem>
+#include <string>
 #include <system_error>
+#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"

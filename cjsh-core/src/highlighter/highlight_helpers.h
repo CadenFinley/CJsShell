@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_HIGHLIGHTER_HIGHLIGHT_HELPERS_H
+#define CJSH_CORE_SRC_HIGHLIGHTER_HIGHLIGHT_HELPERS_H
 
 #include <string>
 
@@ -45,3 +46,5 @@ void highlight_compound_redirections(ic_highlight_env_t* henv, const char* input
                                      size_t length);
 
 }  // namespace highlight_helpers
+
+#endif  // CJSH_CORE_SRC_HIGHLIGHTER_HIGHLIGHT_HELPERS_H

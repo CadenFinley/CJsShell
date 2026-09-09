@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_HIGHLIGHTER_TOKEN_CONSTANTS_H
+#define CJSH_CORE_SRC_HIGHLIGHTER_TOKEN_CONSTANTS_H
 
 #include <string>
 #include <unordered_map>
@@ -44,3 +45,5 @@ const std::unordered_set<std::string>& loop_keywords();
 const std::unordered_set<std::string>& redirection_operators();
 const std::unordered_map<std::string, std::string>& default_styles();
 }  // namespace token_constants
+
+#endif  // CJSH_CORE_SRC_HIGHLIGHTER_TOKEN_CONSTANTS_H

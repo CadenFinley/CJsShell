@@ -27,13 +27,12 @@
 */
 
 #include "prompt.h"
+#include <sys/types.h>
 
 #include <pwd.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <cctype>
 #include <chrono>
 #include <condition_variable>
@@ -50,6 +49,7 @@
 #include <system_error>
 #include <thread>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "cjsh_filesystem.h"
@@ -59,6 +59,7 @@
 #include "job_control.h"
 #include "keycodes.h"
 #include "numeric_utils.h"
+#include "parser.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "string_utils.h"
@@ -507,7 +508,7 @@ std::optional<GitRepositoryContext> detect_git_context() {
         return std::nullopt;
     }
     GitRepositoryContext context;
-    context.workdir = cwd;
+    context.workdir = std::move(cwd);
     context.root = git_info->root;
     context.git_dir = git_info->git_dir;
     return context;
@@ -707,7 +708,7 @@ void AsyncGitPromptManager::start_worker_locked(size_t request_id,
                                                 const GitRepositoryContext& context) {
     worker_running_ = true;
     worker_request_id_ = request_id;
-    std::thread worker([this, request_id, context]() {
+    std::thread worker([this, request_id, context] {
         bool dirty = git_has_changes(context.workdir);
         GitStatusSnapshot snapshot = capture_git_status_snapshot(context);
         git_prompt_cache().store_status_result(context, dirty, snapshot,

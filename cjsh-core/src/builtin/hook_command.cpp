@@ -31,6 +31,8 @@
 #include <cstdint>
 #include <iostream>
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "builtin_help.h"
 #include "error_out.h"

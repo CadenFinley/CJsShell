@@ -321,7 +321,6 @@ again:;
             if (accept_selection) {
                 accepted_with_mouse = true;
                 c = KEY_ENTER;
-                key_no_mods = KEY_ENTER;
             } else {
                 goto again;
             }

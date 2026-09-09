@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_INTERPRETER_UTILS_H
+#define CJSH_CORE_SRC_INTERPRETER_INTERPRETER_UTILS_H
 
 #include <string>
 #include <vector>
@@ -50,3 +51,5 @@ bool should_skip_line(const std::string& line);
 bool contains_token(const std::string& text, const std::string& token);
 
 }  // namespace shell_script_interpreter::detail
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_INTERPRETER_UTILS_H

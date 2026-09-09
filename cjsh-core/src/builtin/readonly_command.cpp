@@ -36,7 +36,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <string>
 #include <unordered_set>
+#include <vector>
 #include "error_out.h"
 #include "interpreter.h"
 #include "parameter_utils.h"
@@ -233,12 +235,11 @@ int readonly_command(const std::vector<std::string>& args) {
                     {ErrorType::INVALID_ARGUMENT, "readonly", "invalid name: " + operand.name, {}});
                 return 1;
             }
-            if (!cjsh_env::shell_variable_is_set(operand.name)) {
-                if (!cjsh_env::set_shell_variable_value(operand.name, "")) {
-                    print_error(
-                        {ErrorType::FATAL_ERROR, "readonly", "shell not initialized properly", {}});
-                    return 1;
-                }
+            if ((!cjsh_env::shell_variable_is_set(operand.name)) &&
+                (!cjsh_env::set_shell_variable_value(operand.name, ""))) {
+                print_error(
+                    {ErrorType::FATAL_ERROR, "readonly", "shell not initialized properly", {}});
+                return 1;
             }
 
             readonly_manager_set(operand.name);

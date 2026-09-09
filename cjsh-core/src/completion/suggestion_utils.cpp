@@ -30,11 +30,15 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <filesystem>
 #include <functional>
+#include <memory>
+#include <string>
 #include <system_error>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 #include "builtin.h"
 #include "cjsh_filesystem.h"
@@ -46,7 +50,6 @@
 #include "shell_env.h"
 #include "string_utils.h"
 
-extern std::unique_ptr<Shell> g_shell;
 namespace suggestion_utils {
 
 CdLookupContext build_cd_lookup_context(const std::string& target_dir,
@@ -74,7 +77,7 @@ CdLookupContext build_cd_lookup_context(const std::string& target_dir,
             }
 
             if (std::filesystem::exists(parent, ec)) {
-                context.base_path = parent;
+                context.base_path = std::move(parent);
                 context.lookup_fragment = resolved.filename().string();
                 if (context.lookup_fragment.empty()) {
                     context.lookup_fragment = context.target_path.filename().string();

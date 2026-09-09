@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_COMMAND_PREPROCESSOR_H
+#define CJSH_CORE_SRC_INTERPRETER_COMMAND_PREPROCESSOR_H
 
 #include <cstdint>
 #include <map>
@@ -51,3 +52,5 @@ class CommandPreprocessor {
 
     static std::uint32_t next_placeholder_id();
 };
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_COMMAND_PREPROCESSOR_H

@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_KEYCODES_H
 #define IC_KEYCODES_H
 

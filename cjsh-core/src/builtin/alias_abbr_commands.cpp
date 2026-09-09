@@ -27,9 +27,12 @@
 */
 
 #include "alias_abbr_commands.h"
+#include <algorithm>
 
 #include <cctype>
+#include <cstddef>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #include "builtin_help.h"
@@ -249,14 +252,13 @@ int abbr_command(const std::vector<std::string>& args, Shell* shell) {
                 return false;
             }
 
-            for (char ch : name) {
-                if (std::isspace(static_cast<unsigned char>(ch)) != 0) {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 command_name,
-                                 "abbreviation name cannot contain whitespace",
-                                 {}});
-                    return false;
-                }
+            if (std::any_of(name.begin(), name.end(),
+                            [](unsigned char ch) { return std::isspace(ch) != 0; })) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             command_name,
+                             "abbreviation name cannot contain whitespace",
+                             {}});
+                return false;
             }
 
             return true;

@@ -26,6 +26,9 @@
   SOFTWARE.
 */
 
+#include <algorithm>
+#include <iterator>
+#include "error_out.h"
 #include "interpreter.h"
 
 #include "interpreter_utils.h"
@@ -199,12 +202,8 @@ bool is_command_separator_token(const std::string& token) {
         SeparatorToken::Do,           SeparatorToken::Then,
         SeparatorToken::Elif,         SeparatorToken::Fi,
         SeparatorToken::Done};
-    for (const auto sep : separators) {
-        if (token == separator_token_text(sep)) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(std::begin(separators), std::end(separators),
+                       [&](const auto sep) { return token == separator_token_text(sep); });
 }
 
 bool is_special_shell_variable(const std::string& name) {
@@ -700,14 +699,13 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         const bool defined_in_script = defined_vars.find(var_name) != defined_vars.end();
         const bool known_to_environment = variable_is_set(var_name);
 
-        if (!defined_in_script && !known_to_environment) {
-            if ((std::isdigit(static_cast<unsigned char>(var_name[0])) == 0)) {
-                for (size_t line : usage_lines) {
-                    errors.push_back(SyntaxError(
-                        {line, 0, 0, 0}, ErrorSeverity::WARNING, ErrorCategory::VARIABLES, "VAR002",
-                        "Variable '" + var_name + "' used but not defined in this script", "",
-                        "Define the variable before use: " + var_name + "=value"));
-                }
+        if ((!defined_in_script && !known_to_environment) &&
+            (std::isdigit(static_cast<unsigned char>(var_name[0])) == 0)) {
+            for (size_t line : usage_lines) {
+                errors.push_back(SyntaxError(
+                    {line, 0, 0, 0}, ErrorSeverity::WARNING, ErrorCategory::VARIABLES, "VAR002",
+                    "Variable '" + var_name + "' used but not defined in this script", "",
+                    "Define the variable before use: " + var_name + "=value"));
             }
         }
     }

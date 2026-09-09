@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -230,10 +231,8 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
                 return 1;
             }
 
-            if (!arg.empty() && (arg[0] == '-' || arg[0] == '+')) {
-                if (arg.size() == 1) {
-                    parsing_options = false;
-                } else if (arg[1] == 'o') {
+            if (arg.size() > 1 && (arg[0] == '-' || arg[0] == '+')) {
+                if (arg[1] == 'o') {
                     bool enable_option = arg[0] == '-';
                     std::string option_name;
 

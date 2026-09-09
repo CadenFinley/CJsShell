@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_PARSER_EXPANSION_ENGINE_H
+#define CJSH_CORE_SRC_PARSER_EXPANSION_ENGINE_H
 
 #include <string>
 #include <vector>
@@ -50,3 +51,5 @@ class ExpansionEngine {
     void expand_range(T start, T end, const std::string& prefix, const std::string& suffix,
                       std::vector<std::string>& result, T stride = 1, size_t numeric_width = 0);
 };
+
+#endif  // CJSH_CORE_SRC_PARSER_EXPANSION_ENGINE_H

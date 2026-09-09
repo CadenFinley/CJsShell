@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_UMASK_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_UMASK_COMMAND_H
 
 #include <string>
 #include <vector>
@@ -34,3 +35,5 @@
 #include <sys/types.h>
 
 int umask_command(const std::vector<std::string>& args);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_UMASK_COMMAND_H

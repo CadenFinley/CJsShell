@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_SHELL_ENV_H
+#define CJSH_CORE_SRC_CORE_SHELL_ENV_H
 
 #include <cstdint>
 #include <optional>
@@ -173,3 +174,5 @@ class ReplacementShellLevel {
 }  // namespace cjsh_env
 
 int handle_non_interactive_mode(const std::string& script_file);
+
+#endif  // CJSH_CORE_SRC_CORE_SHELL_ENV_H

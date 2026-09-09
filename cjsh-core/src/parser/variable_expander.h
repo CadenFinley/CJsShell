@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_PARSER_VARIABLE_EXPANDER_H
+#define CJSH_CORE_SRC_PARSER_VARIABLE_EXPANDER_H
 
 #include <functional>
 #include <string>
@@ -54,10 +55,8 @@ class VariableExpander {
     bool get_use_exported_vars_only() const;
 
     template <typename ExpandFunc, typename EvalFunc>
-    static std::pair<bool, std::string> try_expand_arithmetic_expression(const std::string& arg,
-                                                                         size_t& i,
-                                                                         ExpandFunc expand_func,
-                                                                         EvalFunc eval_func);
+    static std::pair<bool, std::string> try_expand_arithmetic_expression(
+        const std::string& arg, size_t& i, const ExpandFunc& expand_func, EvalFunc eval_func);
 
     template <typename GetVarFunc, typename ExpandFunc>
     static std::string expand_parameter_with_default(const std::string& param_expr,
@@ -74,7 +73,7 @@ class VariableExpander {
 
 template <typename ExpandFunc, typename EvalFunc>
 std::pair<bool, std::string> VariableExpander::try_expand_arithmetic_expression(
-    const std::string& arg, size_t& i, ExpandFunc expand_func, EvalFunc eval_func) {
+    const std::string& arg, size_t& i, const ExpandFunc& expand_func, EvalFunc eval_func) {
     if (arg[i] != '$' || i + 2 >= arg.length() || arg[i + 1] != '(' || arg[i + 2] != '(') {
         return {false, ""};
     }
@@ -147,3 +146,5 @@ std::string VariableExpander::expand_parameter_with_default(const std::string& p
 
     return get_var(param_expr);
 }
+
+#endif  // CJSH_CORE_SRC_PARSER_VARIABLE_EXPANDER_H

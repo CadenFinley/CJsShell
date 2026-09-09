@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_PROMPT_LINE_REPLACEMENT_H
 #define IC_PROMPT_LINE_REPLACEMENT_H
 

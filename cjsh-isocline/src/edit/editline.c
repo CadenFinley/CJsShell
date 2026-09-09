@@ -32,12 +32,20 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
+#include <assert.h>
 #include <ctype.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <time.h>
+#include "attr.h"
+#include "bbcode.h"
+#include "fuzzy_match.h"  // IWYU pragma: keep
+#include "keybindings.h"
+#include "keycodes.h"
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -50,7 +58,6 @@
 #include "editline_viewport.h"
 #include "env.h"
 #include "env_internal.h"
-#include "fuzzy_match.h"
 #include "highlight.h"
 #include "history.h"
 #include "isocline.h"
@@ -1320,18 +1327,18 @@ static void format_line_number_prompt(char* buffer, size_t buffer_size, ssize_t 
     }
     if (relative) {
         if (cursor_row < 0) {
-            snprintf(buffer, buffer_size, "%zd| ", row + 1);
+            (void)snprintf(buffer, buffer_size, "%zd| ", row + 1);
             return;
         }
         ssize_t diff = (row >= cursor_row ? row - cursor_row : cursor_row - row);
         if (diff == 0) {
             // current line number
-            snprintf(buffer, buffer_size, "%zd| ", row + 1);
+            (void)snprintf(buffer, buffer_size, "%zd| ", row + 1);
         } else {
-            snprintf(buffer, buffer_size, "%zd| ", diff);
+            (void)snprintf(buffer, buffer_size, "%zd| ", diff);
         }
     } else {
-        snprintf(buffer, buffer_size, "%zd| ", row + 1);
+        (void)snprintf(buffer, buffer_size, "%zd| ", row + 1);
     }
 }
 
@@ -1508,13 +1515,13 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
         bool is_hint = attr_is_eq(attr, hint_attr);
 
         if (code == ' ' && !is_hint) {
-            if (has_whitespace_style) {
-                if (!whitespace_active || !attr_is_eq(whitespace_base_attr, base_attr)) {
-                    term_set_attr(env->term, attr_update_with(base_attr, whitespace_attr));
-                    whitespace_active = true;
-                    whitespace_base_attr = base_attr;
-                }
+            if (has_whitespace_style &&
+                (!whitespace_active || !attr_is_eq(whitespace_base_attr, base_attr))) {
+                term_set_attr(env->term, attr_update_with(base_attr, whitespace_attr));
+                whitespace_active = true;
+                whitespace_base_attr = base_attr;
             }
+
             term_write_n(env->term, marker, marker_len);
         } else {
             if (has_whitespace_style && whitespace_active) {
@@ -1632,7 +1639,7 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
                                    ssize_t startw, bool is_wrap, const void* arg, void* res) {
     ic_unused(res);
     ic_unused(startw);
-    refresh_info_t* info = (refresh_info_t*)(arg);
+    refresh_info_t* info = (refresh_info_t*)arg;
     term_t* term = info->env->term;
 
     // debug_msg("edit: line refresh: row %zd, len: %zd\n", row, row_len);
@@ -2946,15 +2953,13 @@ static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool bound
 
     if (!boundary_char_present) {
         ssize_t len = sbuf_len(eb->input);
-        if (eb->pos < len && !ic_char_is_white(buffer + eb->pos, 1)) {
-            if (eb->pos == 0 || ic_char_is_white(buffer + eb->pos - 1, 1)) {
-                ssize_t word_end = sbuf_find_ws_word_end(eb->input, eb->pos);
-                if (word_end > eb->pos) {
-                    if (edit_expand_abbreviation_for_range(env, eb, buffer, eb->pos, word_end, 0,
-                                                           modification_started)) {
-                        return true;
-                    }
-                }
+        if ((eb->pos < len && !ic_char_is_white(buffer + eb->pos, 1)) &&
+            (eb->pos == 0 || ic_char_is_white(buffer + eb->pos - 1, 1))) {
+            ssize_t word_end = sbuf_find_ws_word_end(eb->input, eb->pos);
+            if ((word_end > eb->pos) &&
+                edit_expand_abbreviation_for_range(env, eb, buffer, eb->pos, word_end, 0,
+                                                   modification_started)) {
+                return true;
             }
         }
     }
@@ -2976,10 +2981,9 @@ static bool edit_expand_abbreviation_if_needed(ic_env_t* env, editor_t* eb,
         return false;
     }
 
-    if (ic_char_is_white(buffer + eb->pos - 1, 1)) {
-        if (edit_try_expand_abbreviation(env, eb, true, modification_started)) {
-            return true;
-        }
+    if (ic_char_is_white(buffer + eb->pos - 1, 1) &&
+        edit_try_expand_abbreviation(env, eb, true, modification_started)) {
+        return true;
     }
 
     return edit_try_expand_abbreviation(env, eb, false, modification_started);
@@ -3151,11 +3155,10 @@ static void edit_format_mouse_enabled_status_hint(ic_env_t* env, bool include_di
         char mouse_toggle_keys[EDIT_STATUS_HINT_KEYS_LEN];
         format_binding_keys(env, IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING, NULL, mouse_toggle_keys,
                             sizeof(mouse_toggle_keys), true);
-        if (mouse_toggle_keys[0] != '\0' && strcmp(mouse_toggle_keys, "(unbound)") != 0) {
-            if (snprintf(buffer, buflen, "Mouse clicking is enabled (press %s to disable)",
-                         mouse_toggle_keys) >= 0) {
-                return;
-            }
+        if (mouse_toggle_keys[0] != '\0' && strcmp(mouse_toggle_keys, "(unbound)") != 0 &&
+            snprintf(buffer, buflen, "Mouse clicking is enabled (press %s to disable)",
+                     mouse_toggle_keys) >= 0) {
+            return;
         }
     }
 
@@ -4568,7 +4571,6 @@ edit_loop_entry:
             if (request_submit || eb.request_submit) {
                 bool should_submit = edit_should_submit_current_buffer(env, &eb);
                 if (!should_submit && !env->singleline_only) {
-                    request_submit = false;
                     eb.request_submit = false;
                     edit_insert_auto_indented_linefeed(env, &eb);
                     continue;
@@ -4576,7 +4578,6 @@ edit_loop_entry:
                 if (should_submit && edit_try_spell_correct_on_enter(env, &eb)) {
                     should_submit = edit_should_submit_current_buffer(env, &eb);
                     if (!should_submit && !env->singleline_only) {
-                        request_submit = false;
                         eb.request_submit = false;
                         edit_insert_auto_indented_linefeed(env, &eb);
                         continue;

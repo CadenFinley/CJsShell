@@ -27,8 +27,14 @@
 */
 
 #include "builtin_option_parser.h"
+#include <algorithm>
 
+#include <cstddef>
+#include <functional>
+#include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "error_out.h"
 
@@ -121,7 +127,7 @@ bool builtin_parse_short_options(const std::vector<std::string>& args, size_t& s
         return false;
     }
 
-    for (const auto& option : parsed_options) {
+    return std::all_of(parsed_options.begin(), parsed_options.end(), [&](const auto& option) {
         if (!handle_option(option.option)) {
             print_error({ErrorType::INVALID_ARGUMENT,
                          command_name,
@@ -129,7 +135,6 @@ bool builtin_parse_short_options(const std::vector<std::string>& args, size_t& s
                          {}});
             return false;
         }
-    }
-
-    return true;
+        return true;
+    });
 }

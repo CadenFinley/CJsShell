@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_ALIAS_ABBR_COMMANDS_H
+#define CJSH_CORE_SRC_BUILTIN_ALIAS_ABBR_COMMANDS_H
 
 #include <string>
 #include <vector>
@@ -37,3 +38,5 @@ int alias_command(const std::vector<std::string>& args, Shell* shell);
 int unalias_command(const std::vector<std::string>& args, Shell* shell);
 int abbr_command(const std::vector<std::string>& args, Shell* shell);
 int unabbr_command(const std::vector<std::string>& args, Shell* shell);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_ALIAS_ABBR_COMMANDS_H

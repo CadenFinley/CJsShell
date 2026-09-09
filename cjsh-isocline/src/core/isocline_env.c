@@ -32,12 +32,21 @@
     Environment lifecycle management extracted from the original isocline.c.
 -----------------------------------------------------------------------------*/
 
+#include <assert.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
+#include "bbcode.h"
 #include "common.h"
+#include "completions.h"
 #include "env.h"
 #include "env_internal.h"
+#include "history.h"
+#include "isocline.h"
 #include "keybinding_internal.h"
+#include "stringbuf.h"
+#include "term.h"
+#include "tty.h"
 
 //-------------------------------------------------------------
 // Prompt helpers shared with other modules

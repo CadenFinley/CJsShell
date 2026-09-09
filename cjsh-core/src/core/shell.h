@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_SHELL_H
+#define CJSH_CORE_SRC_CORE_SHELL_H
 
 #include <array>
 #include <atomic>
@@ -118,12 +119,12 @@ class Shell {
     void save_terminal_state();
     void restore_terminal_state();
     void setup_job_control();
-    bool reclaim_terminal();
+    bool reclaim_terminal() const;
     void mark_terminal_dirty() {
         prompt_terminal_dirty.store(true, std::memory_order_relaxed);
     }
     void recover_prompt_terminal();
-    bool suspend();
+    bool suspend() const;
     bool manages_terminal() const;
     bool is_job_control_enabled() const;
     bool set_job_control_enabled(bool enabled);
@@ -200,3 +201,5 @@ class Shell {
 extern std::unique_ptr<Shell> g_shell;
 
 int read_exit_code_or(int fallback);
+
+#endif  // CJSH_CORE_SRC_CORE_SHELL_H

@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_DIRECTORY_STACK_COMMANDS_H
+#define CJSH_CORE_SRC_BUILTIN_DIRECTORY_STACK_COMMANDS_H
 
 #include <string>
 #include <vector>
@@ -39,3 +40,5 @@ int pushd_command(const std::vector<std::string>& args, std::string& current_dir
                   std::string& previous_directory, Shell* shell = nullptr);
 int popd_command(const std::vector<std::string>& args, std::string& current_directory,
                  std::string& previous_directory, Shell* shell = nullptr);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_DIRECTORY_STACK_COMMANDS_H

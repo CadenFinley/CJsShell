@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_TEST_EXPRESSION_UTILS_H
+#define CJSH_CORE_SRC_BUILTIN_TEST_EXPRESSION_UTILS_H
 
 #include <optional>
 #include <string>
@@ -41,3 +42,5 @@ std::optional<bool> evaluate_numeric_comparison(const std::string& left, const s
                                                 const std::string& right);
 
 }  // namespace test_expression_utils
+
+#endif  // CJSH_CORE_SRC_BUILTIN_TEST_EXPRESSION_UTILS_H

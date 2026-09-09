@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_BUILTIN_OPTION_PARSER_H
+#define CJSH_CORE_SRC_BUILTIN_BUILTIN_OPTION_PARSER_H
 
 #include <functional>
 #include <optional>
@@ -55,3 +56,5 @@ bool builtin_parse_short_options(const std::vector<std::string>& args, size_t& s
                                  const std::string& command_name,
                                  const std::function<bool(char)>& handle_option,
                                  bool require_option_character = true);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_BUILTIN_OPTION_PARSER_H

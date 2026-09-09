@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_RUNTIME_COMMANDS_H
+#define CJSH_CORE_SRC_BUILTIN_RUNTIME_COMMANDS_H
 
 #include <string>
 #include <string_view>
@@ -40,3 +41,5 @@ bool is_runtime_command_name(std::string_view command_name);
 int execute_runtime_command(const std::vector<std::string>& command_args, Shell* shell);
 
 }  // namespace runtime_commands
+
+#endif  // CJSH_CORE_SRC_BUILTIN_RUNTIME_COMMANDS_H

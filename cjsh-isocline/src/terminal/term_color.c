@@ -284,21 +284,22 @@ static int color_to_ansi8(ic_color_t color) {
 static void fmt_color_ansi8(char* buf, ssize_t len, ic_color_t color, bool bg) {
     int c = color_to_ansi8(color) + (bg ? 10 : 0);
     if (c >= 90) {
-        snprintf(buf, to_size_t(len), IC_CSI "1;%dm", c - 60);
+        (void)snprintf(buf, to_size_t(len), IC_CSI "1;%dm", c - 60);
     } else {
-        snprintf(buf, to_size_t(len), IC_CSI "22;%dm", c);
+        (void)snprintf(buf, to_size_t(len), IC_CSI "22;%dm", c);
     }
 }
 
 static void fmt_color_ansi16(char* buf, ssize_t len, ic_color_t color, bool bg) {
-    snprintf(buf, to_size_t(len), IC_CSI "%dm", color_to_ansi16(color) + (bg ? 10 : 0));
+    (void)snprintf(buf, to_size_t(len), IC_CSI "%dm", color_to_ansi16(color) + (bg ? 10 : 0));
 }
 
 static void fmt_color_ansi256(char* buf, ssize_t len, ic_color_t color, bool bg) {
     if (!color_is_rgb(color)) {
         fmt_color_ansi16(buf, len, color, bg);
     } else {
-        snprintf(buf, to_size_t(len), IC_CSI "%d;5;%dm", (bg ? 48 : 38), rgb_to_ansi256(color));
+        (void)snprintf(buf, to_size_t(len), IC_CSI "%d;5;%dm", (bg ? 48 : 38),
+                       rgb_to_ansi256(color));
     }
 }
 
@@ -308,7 +309,7 @@ static void fmt_color_rgb(char* buf, ssize_t len, ic_color_t color, bool bg) {
     } else {
         int r, g, b;
         color_to_rgb(color, &r, &g, &b);
-        snprintf(buf, to_size_t(len), IC_CSI "%d;2;%d;%d;%dm", (bg ? 48 : 38), r, g, b);
+        (void)snprintf(buf, to_size_t(len), IC_CSI "%d;2;%d;%d;%dm", (bg ? 48 : 38), r, g, b);
     }
 }
 

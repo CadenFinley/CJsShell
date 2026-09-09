@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_INTERNAL_ENV_H
 #define IC_INTERNAL_ENV_H
 

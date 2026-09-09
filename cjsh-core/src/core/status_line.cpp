@@ -32,10 +32,8 @@
 #include <cctype>
 #include <cstdlib>
 #include <exception>
-#include <filesystem>
 #include <optional>
 #include <string>
-#include <system_error>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -214,7 +212,7 @@ std::string sanitize_status_callback_output(const std::string& raw_output) {
     current_line.reserve(128);
     size_t emitted_lines = 0;
 
-    auto emit_line = [&]() {
+    auto emit_line = [&] {
         if (emitted_lines >= kStatusCallbackMaxLines ||
             sanitized.size() >= kStatusCallbackMaxBytes) {
             current_line.clear();

@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_PARSER_DELIMITER_STATE_H
+#define CJSH_CORE_SRC_PARSER_DELIMITER_STATE_H
 
 struct DelimiterState {
     bool in_quotes = false;
@@ -39,3 +40,5 @@ struct DelimiterState {
     bool update_quote(char c);
     void reset();
 };
+
+#endif  // CJSH_CORE_SRC_PARSER_DELIMITER_STATE_H

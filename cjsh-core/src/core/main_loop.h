@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_MAIN_LOOP_H
+#define CJSH_CORE_SRC_CORE_MAIN_LOOP_H
 
 #include <chrono>
 
@@ -34,3 +35,5 @@ void initialize_isocline();
 void main_process_loop();
 void start_interactive_process();
 std::chrono::steady_clock::time_point& startup_begin_time();
+
+#endif  // CJSH_CORE_SRC_CORE_MAIN_LOOP_H

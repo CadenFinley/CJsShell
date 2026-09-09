@@ -29,6 +29,7 @@
 */
 
 #include "prompt_line_replacement.h"
+#include "common.h"
 
 ic_private bool ic_prompt_line_replacement_should_activate(
     const ic_prompt_line_replacement_state_t* state) {

@@ -27,6 +27,11 @@
 */
 
 #include "token_constants.h"
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include "redirection_utils.h"
 
@@ -72,7 +77,7 @@ const std::unordered_set<std::string>& loop_keywords() {
 }
 
 const std::unordered_set<std::string>& redirection_operators() {
-    static const std::unordered_set<std::string> kRedirectionOperators = []() {
+    static const std::unordered_set<std::string> kRedirectionOperators = [] {
         std::unordered_set<std::string> operators;
         for (std::string_view op : redirection_utils::canonical_operator_spellings()) {
             (void)operators.emplace(op);

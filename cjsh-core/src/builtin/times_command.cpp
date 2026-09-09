@@ -33,9 +33,12 @@
 #include <sys/times.h>
 #include <unistd.h>
 #include <cerrno>
+#include <ctime>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "error_out.h"
 

@@ -30,10 +30,13 @@
 
 #include <fcntl.h>
 #include <poll.h>
+#include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <sysexits.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -46,9 +49,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <sstream>
@@ -56,6 +62,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "builtin.h"
@@ -176,7 +183,7 @@ std::shared_ptr<OutputRelayState> start_output_relay(int master_fd, bool forward
     relay->forward.store(forward);
 
     try {
-        std::thread t([relay]() {
+        std::thread t([relay] {
             char buffer[4096];
             while (true) {
                 ssize_t bytes_read = read(relay->master_fd, buffer, sizeof(buffer));
@@ -532,7 +539,7 @@ bool strip_temporary_env_assignments(
     return has_temporary_env;
 }
 
-using TemporaryEnvAssignmentScope = cjsh_env::TemporaryEnvAssignmentScope;
+using cjsh_env::TemporaryEnvAssignmentScope;
 
 ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
     ProcessSubstitutionResources resources;
@@ -737,12 +744,11 @@ bool apply_fd_operations(const Command& cmd, FailureHandler&& on_failure) {
         const std::string& spec = fd_redir.second;
         RedirectSpecInfo info = parse_fd_redirect_spec(fd_num, spec);
 
-        if ((info.flags & O_WRONLY) != 0 && (info.flags & O_TRUNC) != 0) {
-            if (cjsh_filesystem::should_noclobber_prevent_overwrite(info.file)) {
-                on_failure(FdOperationError{FdOperationErrorType::Redirect, fd_num, -1, spec,
-                                            "cannot overwrite existing file (noclobber is set)"});
-                return false;
-            }
+        if (((info.flags & O_WRONLY) != 0 && (info.flags & O_TRUNC) != 0) &&
+            cjsh_filesystem::should_noclobber_prevent_overwrite(info.file)) {
+            on_failure(FdOperationError{FdOperationErrorType::Redirect, fd_num, -1, spec,
+                                        "cannot overwrite existing file (noclobber is set)"});
+            return false;
         }
 
         auto redirect_result = cjsh_filesystem::redirect_fd(info.file, fd_num, info.flags);
@@ -1656,7 +1662,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         ShellScriptInterpreter* interpreter =
             g_shell ? g_shell->get_shell_script_interpreter() : nullptr;
         if (interpreter && !cmd.args.empty() && interpreter->has_function(cmd.args[0])) {
-            auto invoke_function = [&]() { return interpreter->invoke_function(cmd.args); };
+            auto invoke_function = [&] { return interpreter->invoke_function(cmd.args); };
             int function_exit = 0;
             if (requires_fork(cmd)) {
                 bool action_invoked = false;
@@ -1909,7 +1915,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     make_single_process_job(pid, cmd.args[0], false, cmd.auto_background_on_stop,
                                             cmd.auto_background_on_stop_silent, false));
             }
-            const auto process_wait_signals = [&]() {
+            const auto process_wait_signals = [&] {
                 if (g_shell) {
                     (void)g_shell->process_pending_signals(false);
                 } else if (auto* signal_handler = SignalHandler::instance()) {
@@ -1917,7 +1923,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
             };
             process_wait_signals();
-            const auto interrupted_exit = [&]() {
+            const auto interrupted_exit = [&] {
                 cleanup_process_substitutions(proc_resources, false);
                 const int code = SignalHandler::termination_signal() != 0
                                      ? 128 + SignalHandler::termination_signal()
@@ -1992,10 +1998,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
         put_job_in_foreground(job_id, false);
 
-        if (!cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty()) {
-            if (cjsh_env::shell_variable_is_set("CJSH_FORCE_SYNC")) {
-                sync();
-            }
+        if ((!cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty()) &&
+            cjsh_env::shell_variable_is_set("CJSH_FORCE_SYNC")) {
+            sync();
         }
 
         int raw_exit = last_exit_code;
@@ -2022,7 +2027,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
     std::optional<PtyPair> output_pty;
     std::shared_ptr<OutputRelayState> output_relay;
-    auto close_output_pty = [&]() {
+    auto close_output_pty = [&] {
         if (output_pty.has_value()) {
             cjsh_filesystem::safe_close(output_pty->master_fd);
             cjsh_filesystem::safe_close(output_pty->slave_fd);
@@ -2187,14 +2192,13 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     }
                 }
 
-                if (output_pty.has_value() && i == commands.size() - 1 &&
-                    !command_has_stdout_redirection(cmd)) {
-                    if (dup2(output_pty->slave_fd, STDOUT_FILENO) == -1) {
-                        const int saved_errno = errno;
-                        child_error(ErrorType::RUNTIME_ERROR,
-                                    std::string("dup2 output relay stdout failed: ") +
-                                        strerror(saved_errno));
-                    }
+                if ((output_pty.has_value() && i == commands.size() - 1 &&
+                     !command_has_stdout_redirection(cmd)) &&
+                    (dup2(output_pty->slave_fd, STDOUT_FILENO) == -1)) {
+                    const int saved_errno = errno;
+                    child_error(
+                        ErrorType::RUNTIME_ERROR,
+                        std::string("dup2 output relay stdout failed: ") + strerror(saved_errno));
                 }
 
                 if (i == commands.size() - 1) {
@@ -2240,13 +2244,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     }
                 }
 
-                if (output_pty.has_value() && !command_has_stderr_redirection(cmd)) {
-                    if (dup2(output_pty->slave_fd, STDERR_FILENO) == -1) {
-                        const int saved_errno = errno;
-                        child_error(ErrorType::RUNTIME_ERROR,
-                                    std::string("dup2 output relay stderr failed: ") +
-                                        strerror(saved_errno));
-                    }
+                if ((output_pty.has_value() && !command_has_stderr_redirection(cmd)) &&
+                    (dup2(output_pty->slave_fd, STDERR_FILENO) == -1)) {
+                    const int saved_errno = errno;
+                    child_error(
+                        ErrorType::RUNTIME_ERROR,
+                        std::string("dup2 output relay stderr failed: ") + strerror(saved_errno));
                 }
 
                 if (!cmd.redirection_order.empty()) {
@@ -2376,7 +2379,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
         for (size_t j = 0; j < commands[i].args.size(); ++j) {
             if (j > 0) {
-                pipeline_command += " ";
+                pipeline_command += ' ';
             }
             pipeline_command += commands[i].args[j];
         }
@@ -2469,12 +2472,11 @@ int Exec::run_with_command_redirections(Command cmd, const std::function<int()>&
         if (dup_fd == -1) {
             dup_fd = fcntl(fd, F_DUPFD, min_fd);
         }
-        if (dup_fd != -1) {
-            if (fcntl(dup_fd, F_SETFD, FD_CLOEXEC) == -1) {
-                cjsh_filesystem::safe_close(dup_fd);
-                return -1;
-            }
+        if ((dup_fd != -1) && (fcntl(dup_fd, F_SETFD, FD_CLOEXEC) == -1)) {
+            cjsh_filesystem::safe_close(dup_fd);
+            return -1;
         }
+
         return dup_fd;
     };
 
@@ -2498,7 +2500,7 @@ int Exec::run_with_command_redirections(Command cmd, const std::function<int()>&
         int flags;
     };
     std::vector<SavedDescriptor> saved_descriptors;
-    auto close_backups = [&]() {
+    auto close_backups = [&] {
         for (const auto& saved : saved_descriptors) {
             cjsh_filesystem::safe_close(saved.backup);
         }
@@ -2564,11 +2566,10 @@ int Exec::run_with_command_redirections(Command cmd, const std::function<int()>&
             } else {
                 auto newline_result =
                     cjsh_filesystem::write_all(here_pipe[1], std::string_view("\n", 1));
-                if (newline_result.is_error()) {
-                    if (newline_result.error().find("Broken pipe") == std::string::npos &&
-                        newline_result.error().find("EPIPE") == std::string::npos) {
-                        error = newline_result.error();
-                    }
+                if (newline_result.is_error() &&
+                    (newline_result.error().find("Broken pipe") == std::string::npos &&
+                     newline_result.error().find("EPIPE") == std::string::npos)) {
+                    error = newline_result.error();
                 }
             }
 

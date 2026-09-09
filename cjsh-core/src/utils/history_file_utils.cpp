@@ -29,6 +29,8 @@
 #include "history_file_utils.h"
 
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "cjsh_filesystem.h"
 

@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_CONDITIONAL_EVALUATOR_H
+#define CJSH_CORE_SRC_INTERPRETER_CONDITIONAL_EVALUATOR_H
 
 #include <functional>
 #include <string>
@@ -50,3 +51,5 @@ int evaluate_logical_condition(const std::string& condition,
                                const std::function<int(const std::string&)>& executor);
 
 }  // namespace conditional_evaluator
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_CONDITIONAL_EVALUATOR_H

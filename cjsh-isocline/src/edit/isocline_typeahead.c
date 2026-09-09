@@ -35,7 +35,9 @@
 #include "isocline_typeahead.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "common.h"
 #include "env.h"

@@ -33,14 +33,17 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
+#include <iterator>
 #include <map>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -173,7 +176,7 @@ bool is_simple_command_candidate(std::string_view cmdline) {
 
     for (char c : cmdline) {
         unsigned char uc = static_cast<unsigned char>(c);
-        if ((std::isspace(uc)) == 0) {
+        if (std::isspace(uc) == 0) {
             seen_non_space = true;
         }
         if (kSpecialChars.find(c) != std::string_view::npos) {
@@ -216,7 +219,7 @@ bool parse_simple_dollar_parameter(std::string_view token, std::string& paramete
     }
 
     unsigned char first = static_cast<unsigned char>(token[1]);
-    if ((std::isdigit(first)) != 0) {
+    if (std::isdigit(first) != 0) {
         if (token.size() == 2) {
             (void)parameter_name_out.assign(1, token[1]);
             return true;
@@ -780,7 +783,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
         }
     };
 
-    auto reset_here_doc_state = [&]() {
+    auto reset_here_doc_state = [&] {
         here_doc_operator_pos = std::string::npos;
         here_doc_operator_len = 0;
         here_doc_delim_end_pos = std::string::npos;
@@ -806,7 +809,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                     start = i + 1;
                 } else {
                     if (!here_doc_content.empty()) {
-                        here_doc_content += "\n";
+                        here_doc_content += '\n';
                     }
 
                     std::string line_to_add = current_here_doc_line;
@@ -1261,7 +1264,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             std::string name_part = value.substr(0, eq_pos);
             std::string value_part = value.substr(eq_pos + 1);
             std::string expanded_value = expand_env_value(value_part);
-            std::string recombined = name_part + "=" + expanded_value;
+            std::string recombined = name_part;
+            recombined.append("=").append(expanded_value);
             raw_arg = qi.is_double ? create_quote_tag(QUOTE_DOUBLE, recombined) : recombined;
             continue;
         }
@@ -1377,7 +1381,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 size_t after_bang = 1;
                 bool has_whitespace_after_bang =
                     (leading_trimmed.size() == 1) ||
-                    ((std::isspace(static_cast<unsigned char>(leading_trimmed[after_bang])) != 0));
+                    (std::isspace(static_cast<unsigned char>(leading_trimmed[after_bang])) != 0);
 
                 if (has_whitespace_after_bang) {
                     pipeline_negated = true;
@@ -2101,17 +2105,15 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
                                           control_depth);
 
         if (!scan_state.in_quotes && scan_state.paren_depth == 0 && scan_state.brace_depth == 0) {
-            if (split_on_newlines && command[i] == '\n' && control_depth == 0) {
-                if (!is_newline_split_point.empty()) {
-                    is_newline_split_point[i] = true;
-                }
+            if ((split_on_newlines && command[i] == '\n' && control_depth == 0) &&
+                (!is_newline_split_point.empty())) {
+                is_newline_split_point[i] = true;
             }
 
-            if (command[i] == ';' && control_depth == 0) {
-                // only split at top level so semicolons inside if/then/fi headers stay intact
-                if (!is_char_escaped(command, i)) {
-                    is_semicolon_split_point[i] = true;
-                }
+            if ((command[i] == ';' && control_depth == 0) && (!is_char_escaped(command, i)))
+            // only split at top level so semicolons inside if/then/fi headers stay intact
+            {
+                is_semicolon_split_point[i] = true;
             }
         }
     }

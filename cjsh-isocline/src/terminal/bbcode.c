@@ -30,14 +30,19 @@
 
 #include "bbcode.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "attr.h"
 #include "common.h"
+#include "isocline.h"
+#include "stringbuf.h"
 #include "term.h"
 
 //-------------------------------------------------------------
@@ -45,6 +50,7 @@
 //-------------------------------------------------------------
 
 #include "bbcode_colors.c"
+#include "tty.h"
 
 //-------------------------------------------------------------
 // Types

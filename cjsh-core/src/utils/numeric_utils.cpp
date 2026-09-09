@@ -31,6 +31,8 @@
 #include <cerrno>
 #include <climits>
 #include <cstdlib>
+#include <string>
+#include <string_view>
 
 namespace numeric_utils {
 

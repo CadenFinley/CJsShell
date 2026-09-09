@@ -28,7 +28,6 @@
 
 /* Shared fuzzy matching helpers for isocline menus. */
 
-#pragma once
 #ifndef IC_FUZZY_MATCH_H
 #define IC_FUZZY_MATCH_H
 

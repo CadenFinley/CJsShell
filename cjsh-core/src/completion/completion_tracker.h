@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_COMPLETION_COMPLETION_TRACKER_H
+#define CJSH_CORE_SRC_COMPLETION_COMPLETION_TRACKER_H
 
 #include <string>
 #include <unordered_set>
@@ -69,3 +70,5 @@ long get_completion_default_max_results();
 long get_completion_min_allowed_results();
 
 }  // namespace completion_tracker
+
+#endif  // CJSH_CORE_SRC_COMPLETION_COMPLETION_TRACKER_H

@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_BBCODE_H
 #define IC_BBCODE_H
 

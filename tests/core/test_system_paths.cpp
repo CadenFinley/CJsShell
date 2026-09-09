@@ -64,7 +64,7 @@ int main() {
     const std::filesystem::path root(temporary);
     const std::string file = (root / "paths").string();
     const std::string directory = (root / "paths.d").string();
-    auto setup = [&]() { cjsh_env::setup_path_variables(file, directory); };
+    auto setup = [&] { cjsh_env::setup_path_variables(file, directory); };
     bool ok = true;
 
     (void)unsetenv("PATH");

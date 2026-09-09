@@ -34,12 +34,11 @@
 #include "shell_env.h"
 #include "test_expression_utils.h"
 
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <cstdlib>
 #include <cstring>
 #include <regex>
+#include <string>
+#include <vector>
 
 namespace {
 
@@ -195,10 +194,8 @@ int double_bracket_command(const std::vector<std::string>& args) {
                 result = evaluate_expression(expressions[i + 1]);
             }
 
-        } else if (operators[i] == "||") {
-            if (result != 0) {
-                result = evaluate_expression(expressions[i + 1]);
-            }
+        } else if ((operators[i] == "||") && (result != 0)) {
+            result = evaluate_expression(expressions[i + 1]);
         }
     }
 

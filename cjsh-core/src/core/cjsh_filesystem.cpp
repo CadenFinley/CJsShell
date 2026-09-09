@@ -30,15 +30,20 @@
 
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <array>
 #include <cerrno>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
+#include <ctime>
+#include <filesystem>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <system_error>
 #include <unordered_map>
@@ -63,7 +68,7 @@ std::string resolve_command_with_cache(const std::string& name, CacheUsage usage
 }  // namespace
 
 const std::filesystem::path& g_user_home_path() {
-    static const std::filesystem::path path = []() {
+    static const std::filesystem::path path = [] {
         std::string home = cjsh_env::get_shell_variable_value("HOME");
         if (home.empty()) {
             print_error({ErrorType::UNKNOWN_ERROR,
@@ -170,7 +175,7 @@ std::filesystem::path normalize_override_path(std::string_view raw_value) {
     if (!candidate.is_absolute()) {
         auto absolute_candidate = std::filesystem::absolute(candidate, abs_ec);
         if (!abs_ec) {
-            candidate = absolute_candidate;
+            candidate = std::move(absolute_candidate);
         }
     }
 
@@ -354,7 +359,7 @@ std::optional<std::filesystem::path> resolve_executable_token(const std::string&
             std::error_code ec;
             std::filesystem::path absolute_candidate = std::filesystem::absolute(candidate, ec);
             if (!ec) {
-                candidate = absolute_candidate;
+                candidate = std::move(absolute_candidate);
             }
         } else {
             std::string resolved = find_executable_in_path(cleaned);
@@ -834,12 +839,10 @@ Result<void> write_content_with_permissions(const std::string& path, std::string
 
     ScopedFd fd(open_result.value());
 
-    if (enforce_secure_permissions) {
-        if (::fchmod(fd.get(), S_IRUSR | S_IWUSR) == -1) {
-            std::string error_message =
-                "Failed to set secure permissions on '" + path + "': " + describe_errno(errno);
-            return Result<void>::error(error_message);
-        }
+    if (enforce_secure_permissions && (::fchmod(fd.get(), S_IRUSR | S_IWUSR) == -1)) {
+        std::string error_message =
+            "Failed to set secure permissions on '" + path + "': " + describe_errno(errno);
+        return Result<void>::error(error_message);
     }
 
     auto write_result = write_all(fd.get(), content);

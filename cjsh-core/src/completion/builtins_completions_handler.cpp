@@ -27,10 +27,15 @@
 */
 
 #include "builtins_completions_handler.h"
+#include <sys/types.h>
 
+#include <cstddef>
+#include <memory>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "completion_utils.h"
@@ -229,7 +234,7 @@ const CommandDoc* lookup_dynamic_builtin_doc(const std::string& doc_target) {
 }
 
 const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
-    static const std::unordered_map<std::string, CommandDoc> docs = []() {
+    static const std::unordered_map<std::string, CommandDoc> docs = [] {
         std::unordered_map<std::string, CommandDoc> map;
 
         auto add_doc = [&](std::string key, std::string summary,

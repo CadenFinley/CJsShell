@@ -30,6 +30,10 @@
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
+#include <string>
+#include <system_error>
+#include <vector>
 
 #include "string_utils.h"
 

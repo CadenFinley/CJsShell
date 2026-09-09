@@ -32,10 +32,12 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "builtin_help.h"
 #include "error_out.h"
 #include "isocline.h"
+#include "keybindings.h"
 
 namespace {
 

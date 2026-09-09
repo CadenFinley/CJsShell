@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_CD_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_CD_COMMAND_H
 
 #include <string>
 #include <vector>
@@ -39,3 +40,5 @@ int cd_command(const std::vector<std::string>& args, std::string& current_direct
 int change_directory(const std::string& dir, std::string& current_directory,
                      std::string& previous_directory, Shell* shell = nullptr,
                      bool logical_mode = true);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_CD_COMMAND_H

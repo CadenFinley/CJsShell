@@ -27,15 +27,21 @@
 */
 
 #include "cjsh_completions.h"
+#include <iterator>
+#include "isocline.h"
 
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <ios>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -57,7 +63,7 @@
 #include "error_out.h"
 #include "external_sub_completions.h"
 #include "interpreter.h"
-#include "isocline.h"
+#include "isocline/isocline.h"
 #include "job_control.h"
 #include "parser_utils.h"
 #include "quote_state.h"
@@ -259,7 +265,7 @@ struct CompletionEntry {
     }
 };
 
-enum class CompletionInspection {
+enum class CompletionInspection : std::uint8_t {
     TypeOnly,
     Runnable,
     Source,
@@ -406,12 +412,7 @@ bool iterate_directory_entries(ic_completion_env_t* cenv, const std::filesystem:
                   return lhs.sort_key == rhs.sort_key ? lhs.filename < rhs.filename
                                                       : lhs.sort_key < rhs.sort_key;
               });
-    for (const auto& entry : deferred_entries) {
-        if (!emit_completion(entry)) {
-            return false;
-        }
-    }
-    return true;
+    return std::all_of(deferred_entries.begin(), deferred_entries.end(), emit_completion);
 }
 
 bool is_interactive_builtin(const std::string& cmd) {
@@ -709,15 +710,11 @@ bool add_split_unknown_command_completions(ic_completion_env_t* cenv,
 }
 
 bool is_valid_variable_completion_prefix(const std::string& prefix) {
-    for (char ch : prefix) {
+    return std::all_of(prefix.begin(), prefix.end(), [](char ch) {
         unsigned char uch = static_cast<unsigned char>(ch);
-        if (std::isalnum(uch) != 0 || ch == '_' || ch == '?' || ch == '$' || ch == '#' ||
-            ch == '*' || ch == '@' || ch == '!') {
-            continue;
-        }
-        return false;
-    }
-    return true;
+        return std::isalnum(uch) != 0 || ch == '_' || ch == '?' || ch == '$' || ch == '#' ||
+               ch == '*' || ch == '@' || ch == '!';
+    });
 }
 
 bool find_last_expandable_dollar(const std::string& token, bool& braced, size_t& var_start) {
@@ -830,7 +827,7 @@ bool add_variable_completions(ic_completion_env_t* cenv, const std::string& pref
 
         std::string completion_text = name;
         if (braced) {
-            completion_text += "}";
+            completion_text += '}';
         }
 
         if (!completion_tracker::safe_add_completion_prim_with_source(
@@ -1183,23 +1180,20 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
         }
     }
 
-    if (matches_command("cjshopt")) {
-        if (tokens.size() >= 2 &&
-            completion_utils::equals_completion_token(tokens[1], "style_def") &&
-            context.argument_index == 2 &&
-            (context.current_prefix.empty() || context.current_prefix[0] != '-')) {
-            const auto& styles = token_constants::default_styles();
-            std::vector<std::string> style_tokens;
-            style_tokens.reserve(styles.size() + 1);
-            style_tokens.push_back("preview");
-            for (const auto& entry : styles) {
-                style_tokens.push_back(entry.first);
-            }
-            process_command_candidates(cenv, style_tokens, context.current_prefix, prefix_len,
-                                       "style token",
-                                       [](const std::string& value) { return value; });
-            return ic_has_completions(cenv);
+    if (matches_command("cjshopt") &&
+        (tokens.size() >= 2 && completion_utils::equals_completion_token(tokens[1], "style_def") &&
+         context.argument_index == 2 &&
+         (context.current_prefix.empty() || context.current_prefix[0] != '-'))) {
+        const auto& styles = token_constants::default_styles();
+        std::vector<std::string> style_tokens;
+        style_tokens.reserve(styles.size() + 1);
+        style_tokens.push_back("preview");
+        for (const auto& entry : styles) {
+            style_tokens.push_back(entry.first);
         }
+        process_command_candidates(cenv, style_tokens, context.current_prefix, prefix_len,
+                                   "style token", [](const std::string& value) { return value; });
+        return ic_has_completions(cenv);
     }
 
     return false;
@@ -1596,11 +1590,11 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         determine_directory_target(dir_to_complete, treat_as_directory, dir_path, match_prefix);
 
         try {
-            if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, false)) {
-                    return false;
-                }
+            if ((fs::exists(dir_path) && fs::is_directory(dir_path)) &&
+                (!iterate_directory_entries(cenv, dir_path, match_prefix, false, false))) {
+                return false;
             }
+
         } catch (const std::exception&) {
             // Best-effort completion: ignore filesystem errors.
         }
@@ -1668,12 +1662,11 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     return;
                 }
 
-                if (directories_only && !ic_has_completions(cenv) && !had_completions_before) {
-                    if (!iterate_directory_entries(cenv, dir_path, "", false, false,
-                                                   restrict_to_executables,
-                                                   restrict_to_executables)) {
-                        return;
-                    }
+                if ((directories_only && !ic_has_completions(cenv) && !had_completions_before) &&
+                    (!iterate_directory_entries(cenv, dir_path, "", false, false,
+                                                restrict_to_executables,
+                                                restrict_to_executables))) {
+                    return;
                 }
             }
         } catch (const std::exception& e) {
@@ -1699,13 +1692,14 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     return;
                 }
 
-                if (!ic_has_completions(cenv) && !had_completions_before && match_prefix.empty()) {
-                    if (!iterate_directory_entries(cenv, dir_path, "", false, true,
-                                                   restrict_to_executables,
-                                                   restrict_to_executables)) {
-                        return;
-                    }
+                if ((!ic_has_completions(cenv) && !had_completions_before &&
+                     match_prefix.empty()) &&
+                    (!iterate_directory_entries(cenv, dir_path, "", false, true,
+                                                restrict_to_executables,
+                                                restrict_to_executables))) {
+                    return;
                 }
+
             } else {
                 if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, true,
                                                restrict_to_executables, restrict_to_executables)) {

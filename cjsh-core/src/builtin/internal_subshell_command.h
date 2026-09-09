@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_INTERNAL_SUBSHELL_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_INTERNAL_SUBSHELL_COMMAND_H
 
 #include <string>
 #include <vector>
@@ -35,3 +36,5 @@ class Shell;
 
 int internal_subshell_command(const std::vector<std::string>& args, Shell* shell);
 int internal_brace_group_command(const std::vector<std::string>& args, Shell* shell);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_INTERNAL_SUBSHELL_COMMAND_H

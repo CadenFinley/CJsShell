@@ -30,15 +30,13 @@
 
 #include <getopt.h>
 #include <unistd.h>
-#include <array>
-#include <cstdint>
 #include <cstdlib>
 #include <iostream>
-#include <optional>
+#include <string>
+#include <vector>
 
 #include "agent_mode.h"
 #include "error_out.h"
-#include "shell.h"
 #include "shell_env.h"
 #include "usage.h"
 

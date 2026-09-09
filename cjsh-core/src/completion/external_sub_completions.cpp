@@ -30,12 +30,12 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <functional>
+#include <iterator>
 #include <mutex>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <system_error>
 #include <unordered_map>
@@ -50,6 +50,7 @@
 #include "completion_tracker.h"
 #include "completion_utils.h"
 #include "exec.h"
+#include "isocline.h"
 #include "shell_env.h"
 #include "string_utils.h"
 
@@ -822,10 +823,9 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
             }
         }
 
-        if (section == Section::Options && option_state.active) {
-            if (append_description_continuation(option_state.description, left_trimmed)) {
-                continue;
-            }
+        if ((section == Section::Options && option_state.active) &&
+            append_description_continuation(option_state.description, left_trimmed)) {
+            continue;
         }
 
         if (section == Section::Commands) {
@@ -1102,11 +1102,11 @@ CommandDoc load_entries_for_target(const std::string& doc_target, bool allow_fet
         cached_doc_opt.has_value()) {
         CommandDoc cached_doc = std::move(*cached_doc_opt);
         cached_doc.summary_present = true;
-        if (attach_executable_path && cached_doc.executable_path.empty()) {
-            if (attach_executable_path_if_missing(cached_doc, doc_target)) {
-                write_cache_entries(cache_path, doc_target, cached_doc);
-            }
+        if ((attach_executable_path && cached_doc.executable_path.empty()) &&
+            attach_executable_path_if_missing(cached_doc, doc_target)) {
+            write_cache_entries(cache_path, doc_target, cached_doc);
         }
+
         update_cache_maps(cached_doc, update_memory_cache);
         return cached_doc;
     }
@@ -1149,12 +1149,10 @@ const CompletionEntry* find_entry(const std::vector<CompletionEntry>& entries, E
         if (entry.kind != kind) {
             return false;
         }
-        for (const auto& name : completion_specs::entry_names(entry)) {
-            if (completion_utils::equals_completion_token(name, token)) {
-                return true;
-            }
-        }
-        return false;
+        const auto names = completion_specs::entry_names(entry);
+        return std::any_of(names.begin(), names.end(), [&](const auto& name) {
+            return completion_utils::equals_completion_token(name, token);
+        });
     });
     return it == entries.end() ? nullptr : &*it;
 }
@@ -1269,12 +1267,10 @@ bool entry_is_available(const CompletionEntry& entry, const ResolvedCompletionCo
             return false;
         }
     }
-    for (const auto& dependency : entry.dependencies) {
-        if (!constraint_is_satisfied(context.used_names, dependency)) {
-            return false;
-        }
-    }
-    return true;
+    return std::all_of(entry.dependencies.begin(), entry.dependencies.end(),
+                       [&](const auto& dependency) {
+                           return constraint_is_satisfied(context.used_names, dependency);
+                       });
 }
 
 const CompletionEntry* positional_entry_for_index(const std::vector<CompletionEntry>& entries,
@@ -1367,10 +1363,10 @@ std::string get_command_summary(const std::string& command, bool allow_fetch) {
     return summary;
 }
 
-bool regenerate_external_completion_cache(const std::string& command, bool force_refresh,
-                                          bool include_subcommands,
-                                          ::CompletionCacheProgressCallback progress_callback,
-                                          ::CompletionCacheCancelCallback cancel_callback) {
+bool regenerate_external_completion_cache(
+    const std::string& command, bool force_refresh, bool include_subcommands,
+    const ::CompletionCacheProgressCallback& progress_callback,
+    const ::CompletionCacheCancelCallback& cancel_callback) {
     if (command.empty()) {
         return false;
     }
@@ -1459,7 +1455,7 @@ CompletionCacheTargetResult regenerate_external_completion_cache_target(const st
             continue;
         }
 
-        result.discovered_targets.push_back(target + "-" + subcommand);
+        result.discovered_targets.push_back(std::string(target).append("-").append(subcommand));
     }
 
     return result;
@@ -1526,7 +1522,7 @@ void handle_external_sub_completions(
                     ? (!entry.description.empty() ? entry.description : entry.value.name)
                     : candidate.description;
             if (entry.deprecated) {
-                source = "deprecated · " + source;
+                source.insert(0, "deprecated · ");
             }
             if (!completion_tracker::safe_add_completion_prim_with_source(
                     cenv, insert_text.c_str(), nullptr, nullptr, source.c_str(), delete_before,
@@ -1613,7 +1609,7 @@ void handle_external_sub_completions(
                     ? (entry.kind == EntryKind::Subcommand ? "subcommand" : "option")
                     : entry.description;
             if (entry.deprecated) {
-                source = "deprecated · " + source;
+                source.insert(0, "deprecated · ");
             }
 
             if (!completion_tracker::safe_add_completion_prim_with_source(

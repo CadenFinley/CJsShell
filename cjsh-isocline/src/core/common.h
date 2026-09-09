@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_COMMON_H
 #define IC_COMMON_H
 

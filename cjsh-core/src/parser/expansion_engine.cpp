@@ -33,12 +33,18 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <iomanip>
+#include <iterator>
 #include <sstream>
+#include <string>
 #include <system_error>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "pattern_matcher.h"
 #include "shell.h"
@@ -155,10 +161,9 @@ void append_match(const std::filesystem::path& path, bool absolute,
                   std::vector<std::string>& matches) {
     std::string formatted = format_match_path(path, absolute);
 
-    if (path_is_directory(path)) {
-        if (formatted != "/" && (formatted.empty() || formatted.back() != '/')) {
-            formatted.push_back('/');
-        }
+    if (path_is_directory(path) &&
+        (formatted != "/" && (formatted.empty() || formatted.back() != '/'))) {
+        formatted.push_back('/');
     }
 
     matches.push_back(std::move(formatted));

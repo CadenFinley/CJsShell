@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_COMPLETION_BUILTINS_COMPLETIONS_HANDLER_H
+#define CJSH_CORE_SRC_COMPLETION_BUILTINS_COMPLETIONS_HANDLER_H
 
 #include <string>
 
@@ -46,3 +47,5 @@ const CommandDoc* lookup_builtin_command_doc(const std::string& doc_target);
 std::string get_builtin_summary(const std::string& command);
 
 }  // namespace builtin_completions
+
+#endif  // CJSH_CORE_SRC_COMPLETION_BUILTINS_COMPLETIONS_HANDLER_H

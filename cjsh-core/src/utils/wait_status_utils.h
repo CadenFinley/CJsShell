@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_WAIT_STATUS_UTILS_H
+#define CJSH_CORE_SRC_UTILS_WAIT_STATUS_UTILS_H
 
 #include <optional>
 
@@ -50,3 +51,5 @@ int to_exit_code(int status, int fallback = 1);
 std::optional<int> to_exit_code_optional(int status);
 
 }  // namespace wait_status_utils
+
+#endif  // CJSH_CORE_SRC_UTILS_WAIT_STATUS_UTILS_H

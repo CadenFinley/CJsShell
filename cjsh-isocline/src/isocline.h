@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_ISOCLINE_H
 #define IC_ISOCLINE_H
 

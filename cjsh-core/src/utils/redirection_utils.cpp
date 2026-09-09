@@ -28,6 +28,9 @@
 
 #include "redirection_utils.h"
 
+#include <cstddef>
+#include <optional>
+#include <string_view>
 #include <vector>
 
 namespace redirection_utils {

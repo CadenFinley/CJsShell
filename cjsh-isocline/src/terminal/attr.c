@@ -30,7 +30,9 @@
 
 #include "attr.h"
 
+#include <assert.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "common.h"
 #include "stringbuf.h"

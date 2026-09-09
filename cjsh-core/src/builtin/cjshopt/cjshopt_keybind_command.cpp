@@ -29,6 +29,7 @@
 #include "cjshopt_command.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
@@ -43,6 +44,7 @@
 #include "agent_mode.h"
 #include "error_out.h"
 #include "isocline.h"
+#include "keybindings.h"
 #include "shell_env.h"
 #include "string_utils.h"
 
@@ -539,12 +541,10 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
 
     std::vector<std::pair<ic_keycode_t, std::string>> default_keys;
     std::vector<std::pair<ic_keycode_t, std::string>> keys_to_suppress;
-    if (replace_existing) {
-        if (parse_default_action_keys(action, &default_keys)) {
-            for (const auto& def : default_keys) {
-                if (new_keys.find(def.first) == new_keys.end()) {
-                    keys_to_suppress.push_back(def);
-                }
+    if (replace_existing && parse_default_action_keys(action, &default_keys)) {
+        for (const auto& def : default_keys) {
+            if (new_keys.find(def.first) == new_keys.end()) {
+                keys_to_suppress.push_back(def);
             }
         }
     }
@@ -552,11 +552,9 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
     std::vector<std::pair<std::string, std::string>> conflicts;
     for (const auto& entry : parsed) {
         ic_key_action_t existing_action;
-        if (ic_get_key_binding(entry.first, &existing_action)) {
-            if (existing_action != action) {
-                std::string existing_action_name = canonical_action_name(existing_action);
-                conflicts.push_back({entry.second, existing_action_name});
-            }
+        if (ic_get_key_binding(entry.first, &existing_action) && (existing_action != action)) {
+            std::string existing_action_name = canonical_action_name(existing_action);
+            conflicts.push_back({entry.second, existing_action_name});
         }
     }
 

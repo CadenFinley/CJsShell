@@ -26,6 +26,7 @@
   SOFTWARE.
 */
 
+#include <algorithm>
 #include "interpreter.h"
 #include "interpreter_utils.h"
 #include "shell_env.h"
@@ -265,12 +266,9 @@ void emit_validation_errors(const std::vector<SyntaxError>& errors, const std::s
 }
 
 bool message_contains_any(const std::string& haystack, std::initializer_list<const char*> needles) {
-    for (const char* needle : needles) {
-        if (needle != nullptr && *needle != '\0' && haystack.find(needle) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(needles.begin(), needles.end(), [&](const char* needle) {
+        return needle != nullptr && *needle != '\0' && haystack.find(needle) != std::string::npos;
+    });
 }
 
 bool syntax_error_indicates_incomplete(const SyntaxError& error) {
@@ -301,13 +299,8 @@ bool syntax_error_indicates_incomplete(const SyntaxError& error) {
 }
 
 bool has_incomplete_construct_errors(const std::vector<SyntaxError>& errors) {
-    for (const auto& error : errors) {
-        // only continuation-worthy errors should keep readline in multiline mode
-        if (syntax_error_indicates_incomplete(error)) {
-            return true;
-        }
-    }
-    return false;
+    // Only continuation-worthy errors should keep readline in multiline mode.
+    return std::any_of(errors.begin(), errors.end(), syntax_error_indicates_incomplete);
 }
 
 bool has_inline_terminator(const std::string& text, const std::string& terminator) {
@@ -543,11 +536,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         if (expected_close == ControlToken::Done) {
             msg += "closing '";
             msg += control_token_name(expected_close);
-            msg += "'";
+            msg += '\'';
         } else {
-            msg += "'";
+            msg += '\'';
             msg += control_token_name(expected_close);
-            msg += "'";
+            msg += '\'';
         }
         SyntaxError syn_err(opening_line, msg, "");
 
@@ -1018,11 +1011,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                     }
                     control_stack.push_back(
                         {ControlToken::BraceOpen, ControlToken::BraceOpen, display_line});
-                } else if (first_control == ControlToken::BraceClose) {
-                    if (require_top({ControlToken::BraceOpen, ControlToken::Function},
-                                    "Unmatched closing brace '}'")) {
-                        control_stack.pop_back();
-                    }
+                } else if ((first_control == ControlToken::BraceClose) &&
+                           require_top({ControlToken::BraceOpen, ControlToken::Function},
+                                       "Unmatched closing brace '}'")) {
+                    control_stack.pop_back();
                 }
             }
         }
@@ -1069,7 +1061,7 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
         // available through comprehensive validation and direct validation calls.
         append_errors(validate_variable_usage(lines, false));
 
-        const bool enforce_inline_completion = [&]() {
+        const bool enforce_inline_completion = [&] {
             size_t non_empty = 0;
             for (const auto& line : lines) {
                 if (!trim(line).empty()) {

@@ -26,6 +26,7 @@
   SOFTWARE.
 */
 
+#include "error_out.h"
 #include "interpreter.h"
 
 #include "interpreter_utils.h"
@@ -34,7 +35,7 @@
 
 #include <algorithm>
 #include <cctype>
-#include <iterator>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -96,12 +97,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             }
 
             size_t paren_pos = trimmed_line.find("()");
-            if (paren_pos != std::string::npos && paren_pos > 0 && !has_function_keyword) {
-                if (trimmed_line.find('{', paren_pos) != std::string::npos) {
-                    std::string potential_func = trim(trimmed_line.substr(0, paren_pos));
-                    append_function_name_errors(line_errors, display_line, line, potential_func,
-                                                "Add function name before parentheses");
-                }
+            if ((paren_pos != std::string::npos && paren_pos > 0 && !has_function_keyword) &&
+                (trimmed_line.find('{', paren_pos) != std::string::npos)) {
+                std::string potential_func = trim(trimmed_line.substr(0, paren_pos));
+                append_function_name_errors(line_errors, display_line, line, potential_func,
+                                            "Add function name before parentheses");
             }
         });
 }
@@ -173,14 +173,13 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                                   ErrorCategory::CONTROL_FLOW, "SYN002",
                                                   "'select' statement missing 'do' keyword", line,
                                                   "Add 'do' keyword: select var in list; do"));
-            } else if (has_do) {
-                if (inline_loop_body_missing_done(trimmed_line)) {
-                    line_errors.push_back(SyntaxError(
-                        {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
-                        "SYN002", "'select' loop missing closing 'done' after inline body", line,
-                        "End inline select bodies with 'done' or move the body to a new line"));
-                }
+            } else if (has_do && inline_loop_body_missing_done(trimmed_line)) {
+                line_errors.push_back(SyntaxError(
+                    {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
+                    "SYN002", "'select' loop missing closing 'done' after inline body", line,
+                    "End inline select bodies with 'done' or move the body to a new line"));
             }
+
         } else if (first_token == "while" || first_token == "until") {
             auto loop_check = analyze_while_until_syntax(first_token, trimmed_line, tokens);
             const bool missing_condition = loop_check.missing_condition;

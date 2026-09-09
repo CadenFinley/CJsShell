@@ -28,7 +28,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_ISOCLINE_SRC_TERMINAL_TERM_H
+#define CJSH_ISOCLINE_SRC_TERMINAL_TERM_H
 #ifdef __cplusplus
 #include <cstdint>
 #else
@@ -130,3 +131,5 @@ ic_private void term_write_formatted_n(term_t* term, const char* s, const attr_t
 ic_private ic_color_t color_from_ansi256(ssize_t i);
 
 #endif  // IC_TERM_H
+
+#endif  // CJSH_ISOCLINE_SRC_TERMINAL_TERM_H

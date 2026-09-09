@@ -28,14 +28,21 @@
 
 #include "signal_handler.h"
 
+#include <signal.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <cerrno>
 #include <csignal>
 #include <cstdio>
 #include <cstring>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "error_out.h"
 #include "exec.h"
@@ -621,12 +628,11 @@ void SignalHandler::signal_handler(int signum) {
             note_startup_interrupt();
             ic_notify_readline();
 
-            if (!is_observed) {
-                if (!config::interactive_mode) {
-                    cjsh_env::request_exit();
-                    _exit(128 + SIGINT);
-                }
+            if ((!is_observed) && (!config::interactive_mode)) {
+                cjsh_env::request_exit();
+                _exit(128 + SIGINT);
             }
+
             should_mark_pending = true;
             break;
         }
@@ -656,11 +662,10 @@ void SignalHandler::signal_handler(int signum) {
         case SIGQUIT: {
             s_sigquit_received = 1;
 
-            if (!is_observed) {
-                if (!config::interactive_mode) {
-                    _exit(128 + SIGQUIT);
-                }
+            if ((!is_observed) && (!config::interactive_mode)) {
+                _exit(128 + SIGQUIT);
             }
+
             break;
         }
 

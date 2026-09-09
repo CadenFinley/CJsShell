@@ -31,8 +31,10 @@
 #include <locale>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "error_out.h"
 #include "interpreter.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -44,7 +46,7 @@ namespace {
 
 bool expect(bool condition, const char* message) {
     if (!condition) {
-        std::fprintf(stderr, "[FAIL] %s\n", message);
+        (void)std::fprintf(stderr, "[FAIL] %s\n", message);
     }
     return condition;
 }
@@ -225,7 +227,7 @@ int main() {
         std::puts("All 4 validation token tests passed");
         return 0;
     }
-    std::fprintf(stderr, "%d/4 validation token tests failed\n",
-                 !tokens_ok + !diagnostics_ok + !execution_ok + !control_ok);
+    (void)std::fprintf(stderr, "%d/4 validation token tests failed\n",
+                       !tokens_ok + !diagnostics_ok + !execution_ok + !control_ok);
     return 1;
 }

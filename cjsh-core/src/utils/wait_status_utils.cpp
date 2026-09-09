@@ -29,6 +29,7 @@
 #include "wait_status_utils.h"
 
 #include <sys/wait.h>
+#include <optional>
 
 namespace wait_status_utils {
 

@@ -32,6 +32,7 @@
 
 #include <cctype>
 #include <cerrno>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -603,11 +604,10 @@ static int print_formatted(const char* format, int argc, char** argv) {
                     }
                     ++ac.f;
                 }
-                if (ac.f > width_start) {
-                    if (width_overflow || literal_width > kMaxPrintfFieldWidth) {
-                        report_format_error("field width too large");
-                        return -1;
-                    }
+                if ((ac.f > width_start) &&
+                    (width_overflow || literal_width > kMaxPrintfFieldWidth)) {
+                    report_format_error("field width too large");
+                    return -1;
                 }
             }
 
@@ -649,11 +649,10 @@ static int print_formatted(const char* format, int argc, char** argv) {
                         }
                         ++ac.f;
                     }
-                    if (ac.f > precision_start) {
-                        if (precision_overflow || literal_precision > kMaxPrintfPrecision) {
-                            report_format_error("precision too large");
-                            return -1;
-                        }
+                    if ((ac.f > precision_start) &&
+                        (precision_overflow || literal_precision > kMaxPrintfPrecision)) {
+                        report_format_error("precision too large");
+                        return -1;
                     }
                 }
             }

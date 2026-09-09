@@ -29,6 +29,7 @@
 #include "command_substitution_evaluator.h"
 
 #include "exec.h"
+#include "function_ref.h"
 #include "parser_utils.h"
 #include "shell.h"
 #include "string_utils.h"

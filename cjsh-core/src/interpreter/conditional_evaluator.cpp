@@ -30,9 +30,14 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
+#include <exception>
+#include <functional>
 #include <iterator>
 #include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "exec.h"
 #include "interpreter_utils.h"
@@ -125,7 +130,7 @@ std::vector<std::string> split_top_level_semicolons(const std::string& text) {
     int brace_depth = 0;
     int bracket_depth = 0;
 
-    auto flush_segment = [&]() {
+    auto flush_segment = [&] {
         std::string trimmed = trim(current);
         if (!trimmed.empty()) {
             segments.push_back(trimmed);
@@ -479,7 +484,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             }
             if (p != std::string::npos) {
                 if (!cond_accum.empty()) {
-                    cond_accum += " ";
+                    cond_accum += ' ';
                 }
                 cond_accum += cur.substr(0, p);
                 then_found = true;
@@ -487,7 +492,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             }
             if (!cur.empty()) {
                 if (!cond_accum.empty()) {
-                    cond_accum += " ";
+                    cond_accum += ' ';
                 }
                 cond_accum += cur;
             }
@@ -801,16 +806,14 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 std::string commands = trim(remaining.substr(branch_pos, next_pos - branch_pos));
 
                 if (elif_pos != std::string::npos && next_pos == elif_pos) {
-                    if (branch_pos == 0) {
-                        if (cond_result == 0 && !condition_met) {
-                            if (auto result = execute_semicolon_control_flow_commands(
-                                    shell_parser, commands, execute_simple_or_pipeline)) {
-                                idx = 0;
-                                return *result;
-                            }
+                    if ((branch_pos == 0) && (cond_result == 0 && !condition_met)) {
+                        if (auto result = execute_semicolon_control_flow_commands(
+                                shell_parser, commands, execute_simple_or_pipeline)) {
                             idx = 0;
-                            return 0;
+                            return *result;
                         }
+                        idx = 0;
+                        return 0;
                     }
 
                     size_t skip_len = 7;
@@ -987,13 +990,11 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             else_lines.clear();
             k++;
             continue;
-        } else if (depth == 1 && cur == "then") {
-            if (in_elif) {
-                in_elif = false;
-                in_elif_body = true;
-                k++;
-                continue;
-            }
+        } else if ((depth == 1 && cur == "then") && in_elif) {
+            in_elif = false;
+            in_elif_body = true;
+            k++;
+            continue;
         }
 
         if (depth > 0) {
@@ -1029,7 +1030,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             std::string elif_cond_str;
             for (const auto& line : elif_branch.first) {
                 if (!elif_cond_str.empty()) {
-                    elif_cond_str += " ";
+                    elif_cond_str += ' ';
                 }
                 elif_cond_str += trim(strip_inline_comment(line));
             }
@@ -1147,15 +1148,14 @@ std::string simplify_parentheses_in_condition(
                         start = i;
                     }
                     depth++;
-                } else if (c == ')') {
-                    if (depth > 0) {
-                        depth--;
-                        if (depth == 0 && start != std::string::npos) {
-                            end = i;
-                            break;
-                        }
+                } else if ((c == ')') && (depth > 0)) {
+                    depth--;
+                    if (depth == 0 && start != std::string::npos) {
+                        end = i;
+                        break;
                     }
                 }
+
             } else {
                 if (c == quote_char) {
                     in_quotes = false;
@@ -1229,12 +1229,11 @@ int evaluate_logical_condition(const std::string& condition,
         update_group_depths(cond, i, bracket_depth, paren_depth, brace_depth,
                             parameter_brace_depth);
 
-        if (!in_quotes && bracket_depth == 0 && paren_depth == 0 && brace_depth == 0 &&
-            parameter_brace_depth == 0) {
-            if ((cond[i] == '&' && cond[i + 1] == '&') || (cond[i] == '|' && cond[i + 1] == '|')) {
-                has_logical_ops = true;
-                break;
-            }
+        if ((!in_quotes && bracket_depth == 0 && paren_depth == 0 && brace_depth == 0 &&
+             parameter_brace_depth == 0) &&
+            ((cond[i] == '&' && cond[i + 1] == '&') || (cond[i] == '|' && cond[i + 1] == '|'))) {
+            has_logical_ops = true;
+            break;
         }
     }
 
@@ -1313,10 +1312,8 @@ int evaluate_logical_condition(const std::string& condition,
             if (result != 0) {
                 break;
             }
-        } else if (op == "||") {
-            if (result == 0) {
-                break;
-            }
+        } else if ((op == "||") && (result == 0)) {
+            break;
         }
 
         result = executor(cond_part);

@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_HISTORY_H
 #define IC_HISTORY_H
 

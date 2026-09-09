@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_INTERPRETER_HISTORY_EXPANSION_H
+#define CJSH_CORE_SRC_INTERPRETER_HISTORY_EXPANSION_H
 
 #include <string>
 #include <vector>
@@ -78,3 +79,5 @@ class HistoryExpansion {
     static std::string get_word_from_command(const std::string& command, int word_index);
     static std::string get_words_range(const std::string& command, int start, int end);
 };
+
+#endif  // CJSH_CORE_SRC_INTERPRETER_HISTORY_EXPANSION_H

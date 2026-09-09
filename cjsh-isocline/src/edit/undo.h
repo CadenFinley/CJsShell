@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef IC_UNDO_H
 #define IC_UNDO_H
 

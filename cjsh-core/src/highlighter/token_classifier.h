@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_HIGHLIGHTER_TOKEN_CLASSIFIER_H
+#define CJSH_CORE_SRC_HIGHLIGHTER_TOKEN_CLASSIFIER_H
 
 #include <string>
 
@@ -45,3 +46,5 @@ bool is_function_definition(const std::string& input, size_t& func_name_start,
                             size_t& func_name_end);
 
 }  // namespace token_classifier
+
+#endif  // CJSH_CORE_SRC_HIGHLIGHTER_TOKEN_CLASSIFIER_H

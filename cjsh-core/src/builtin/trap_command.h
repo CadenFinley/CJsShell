@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_TRAP_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_TRAP_COMMAND_H
 
 #include <string>
 #include <vector>
@@ -55,3 +56,5 @@ int signal_name_to_number(const std::string& signal_name);
 std::string signal_number_to_name(int signal_number);
 
 int trap_command(const std::vector<std::string>& args);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_TRAP_COMMAND_H

@@ -27,12 +27,18 @@
 */
 
 #include "shell_env.h"
+#include <sys/types.h>
 
 #include <pwd.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
+#include <csignal>
+#include <cstddef>
+#include <cstdint>
+#include <system_error>
+#include <unordered_map>
+#include <utility>
 #if defined(__APPLE__)
 #include <crt_externs.h>
 #endif
@@ -48,7 +54,6 @@ extern "C" char** environ;
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -313,11 +318,10 @@ void mirror_unset_from_process_env(const std::string& name) {
 bool set_shell_or_local_variable_value(Shell* shell, const std::string& name,
                                        const std::string& value) {
     if (shell != nullptr) {
-        if (auto* interpreter = shell->get_shell_script_interpreter()) {
-            if (interpreter->is_local_variable(name)) {
-                interpreter->set_local_variable(name, value);
-                return true;
-            }
+        if (auto* interpreter = shell->get_shell_script_interpreter();
+            interpreter && interpreter->is_local_variable(name)) {
+            interpreter->set_local_variable(name, value);
+            return true;
         }
     }
 
@@ -326,11 +330,10 @@ bool set_shell_or_local_variable_value(Shell* shell, const std::string& name,
 
 bool unset_shell_or_local_variable_value(Shell* shell, const std::string& name) {
     if (shell != nullptr) {
-        if (auto* interpreter = shell->get_shell_script_interpreter()) {
-            if (interpreter->is_local_variable(name)) {
-                (void)interpreter->unset_local_variable(name);
-                return true;
-            }
+        if (auto* interpreter = shell->get_shell_script_interpreter();
+            interpreter && interpreter->is_local_variable(name)) {
+            (void)interpreter->unset_local_variable(name);
+            return true;
         }
     }
 

@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_BUILTIN_READ_COMMAND_H
+#define CJSH_CORE_SRC_BUILTIN_READ_COMMAND_H
 
 #include <string>
 #include <vector>
@@ -34,3 +35,5 @@
 class Shell;
 
 int read_command(const std::vector<std::string>& args, Shell* shell);
+
+#endif  // CJSH_CORE_SRC_BUILTIN_READ_COMMAND_H

@@ -29,8 +29,10 @@
 #include "completion_spell.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "completion_tracker.h"
 #include "edit_distance_utils.h"

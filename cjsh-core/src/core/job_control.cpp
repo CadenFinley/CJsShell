@@ -39,6 +39,8 @@
 #include "suggestion_utils.h"
 #include "wait_status_utils.h"
 
+#include <signal.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>
@@ -46,12 +48,16 @@
 #include <cerrno>
 #include <chrono>
 #include <csignal>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <memory>
 #include <optional>
 #include <sstream>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "error_out.h"
 
@@ -150,7 +156,7 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
         return fallback;
     }
 
-    const std::string original_spec = args[1];
+    const std::string& original_spec = args[1];
     std::string job_spec = string_utils::trim_ascii_whitespace_copy(original_spec);
 
     if (job_spec.empty()) {
@@ -817,7 +823,8 @@ void JobManager::handle_child_status(pid_t pid, int status) {
         clear_stdin_signal(job->pgid);
         return;
     }
-    if (!WIFEXITED(status) && !WIFSIGNALED(status)) {
+    const bool process_finished = WIFEXITED(status) || WIFSIGNALED(status);
+    if (!process_finished) {
         return;
     }
 

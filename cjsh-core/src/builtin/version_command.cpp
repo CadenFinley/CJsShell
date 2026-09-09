@@ -34,6 +34,7 @@
 
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #ifndef CJSH_PRE_RELEASE
 #define CJSH_PRE_RELEASE 0

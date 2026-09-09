@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_UTILS_FUNCTION_REF_H
+#define CJSH_CORE_SRC_UTILS_FUNCTION_REF_H
 
 #include <memory>
 #include <type_traits>
@@ -65,3 +66,5 @@ class FunctionRef<R(Args...)> {
 };
 
 }  // namespace cjsh
+
+#endif  // CJSH_CORE_SRC_UTILS_FUNCTION_REF_H

@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_HIGHLIGHTER_CJSH_SYNTAX_HIGHLIGHTER_H
+#define CJSH_CORE_SRC_HIGHLIGHTER_CJSH_SYNTAX_HIGHLIGHTER_H
 
 #include "isocline.h"
 
@@ -35,3 +36,5 @@ class SyntaxHighlighter {
     static void highlight(ic_highlight_env_t* henv, const char* input, void* arg);
     static void initialize_syntax_highlighting();
 };
+
+#endif  // CJSH_CORE_SRC_HIGHLIGHTER_CJSH_SYNTAX_HIGHLIGHTER_H

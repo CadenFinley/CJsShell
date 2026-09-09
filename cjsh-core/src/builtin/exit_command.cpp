@@ -33,9 +33,10 @@
 #include "job_control.h"
 
 #include <algorithm>
+#include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "flags.h"
@@ -182,7 +183,7 @@ int exit_command(const std::vector<std::string>& args) {
                     suggestions.push_back("Run `exit --force` to exit immediately.");
                 }
                 print_error({ErrorType::RUNTIME_ERROR, ErrorSeverity::WARNING, "exit", warning,
-                             std::move(suggestions)});
+                             suggestions});
                 return 1;
             }
         }

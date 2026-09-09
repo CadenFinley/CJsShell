@@ -27,12 +27,15 @@
 */
 
 #include "cjsh_syntax_highlighter.h"
+#include <algorithm>
+#include <cstdint>
 
 #include <cctype>
 #include <cstring>
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <unordered_set>
 #include <vector>
 
@@ -42,6 +45,7 @@
 #include "command_analysis.h"
 #include "command_lookup.h"
 #include "highlight_helpers.h"
+#include "isocline.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "token_classifier.h"
@@ -57,7 +61,7 @@ bool is_opening_grouping_delimiter_token(const std::string& token) {
     return token == "(" || token == "{";
 }
 
-enum class ExistingPathType {
+enum class ExistingPathType : std::uint8_t {
     None,
     RegularFile,
     Other
@@ -135,13 +139,8 @@ bool has_nearby_split_merge_candidate(const std::string& first_token,
         }
     }
 
-    for (const auto& candidate : paths.executables_in_path()) {
-        if (matches_candidate(candidate)) {
-            return true;
-        }
-    }
-
-    return false;
+    const auto& executables = paths.executables_in_path();
+    return std::any_of(executables.begin(), executables.end(), matches_candidate);
 }
 
 void highlight_command_range(ic_highlight_env_t* henv, const char* input,
@@ -468,11 +467,9 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
             return true;
         },
         [&](size_t separator_start, const command_analysis::CommandSeparator& separator) {
-            if (separator.length > 0) {
-                if (separator.is_operator) {
-                    ic_highlight(henv, static_cast<long>(separator_start),
-                                 static_cast<long>(separator.length), "cjsh-operator");
-                }
+            if ((separator.length > 0) && separator.is_operator) {
+                ic_highlight(henv, static_cast<long>(separator_start),
+                             static_cast<long>(separator.length), "cjsh-operator");
             }
         });
 

@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_EXEC_EXEC_H
+#define CJSH_CORE_SRC_EXEC_EXEC_H
 
 #include <atomic>
 #include <csignal>
@@ -173,3 +174,5 @@ CommandOutput execute_command_vector_for_output_with_progress(
     const std::function<bool()>& cancellation_callback = {});
 
 }  // namespace exec_utils
+
+#endif  // CJSH_CORE_SRC_EXEC_EXEC_H

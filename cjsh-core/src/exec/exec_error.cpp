@@ -26,8 +26,10 @@
   SOFTWARE.
 */
 
+#include "error_out.h"
 #include "exec.h"
 
+#include <mutex>
 #include <string>
 #include <vector>
 

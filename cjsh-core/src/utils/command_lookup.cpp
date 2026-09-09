@@ -27,6 +27,8 @@
 */
 
 #include "command_lookup.h"
+#include <string>
+#include <vector>
 
 #include "builtin.h"
 #include "cjsh_filesystem.h"

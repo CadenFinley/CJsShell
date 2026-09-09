@@ -35,6 +35,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include "bbcode.h"
 #include "common.h"
 #include "env.h"
 

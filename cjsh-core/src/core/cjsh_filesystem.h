@@ -26,7 +26,8 @@
   SOFTWARE.
 */
 
-#pragma once
+#ifndef CJSH_CORE_SRC_CORE_CJSH_FILESYSTEM_H
+#define CJSH_CORE_SRC_CORE_CJSH_FILESYSTEM_H
 
 #include <sys/types.h>
 
@@ -234,3 +235,5 @@ void process_posix_env_file();
 void process_logout_file();
 void process_source_files();
 }  // namespace cjsh_filesystem
+
+#endif  // CJSH_CORE_SRC_CORE_CJSH_FILESYSTEM_H

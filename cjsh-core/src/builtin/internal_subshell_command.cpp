@@ -28,10 +28,13 @@
 
 #include "internal_subshell_command.h"
 
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <cerrno>
+#include <string>
+#include <vector>
 
 #include "error_out.h"
 #include "shell.h"

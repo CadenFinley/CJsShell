@@ -36,6 +36,7 @@
 #include "validation_common.h"
 
 #include <cctype>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -183,16 +184,14 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
                                 "File descriptor redirection requires digit, variable, or '-'",
                                 line, "Use format like 2>&1, 2>&$fd, or 2>&-"));
                         }
-                    } else if (redir_op_kind == redirection_utils::RedirectionOperator::HereDoc ||
-                               redir_op_kind ==
-                                   redirection_utils::RedirectionOperator::HereDocStrip) {
-                        if (target.empty()) {
-                            line_errors.push_back(
-                                SyntaxError({display_line, target_start, target_end, 0},
-                                            ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
-                                            "RED003", "Here document missing delimiter", line,
-                                            "Provide delimiter like: << EOF"));
-                        }
+                    } else if ((redir_op_kind == redirection_utils::RedirectionOperator::HereDoc ||
+                                redir_op_kind ==
+                                    redirection_utils::RedirectionOperator::HereDocStrip) &&
+                               target.empty()) {
+                        line_errors.push_back(SyntaxError(
+                            {display_line, target_start, target_end, 0}, ErrorSeverity::ERROR,
+                            ErrorCategory::REDIRECTION, "RED003", "Here document missing delimiter",
+                            line, "Provide delimiter like: << EOF"));
                     }
 
                     next_index = target_end - 1;
@@ -261,12 +260,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                     "Invalid pipeline syntax", line, "Check pipe operator usage"));
                             }
                             next_index = i + 1;
-                        } else if (line[i + 1] != '|') {
-                            if (check_pipe_missing_command(line, i)) {
-                                line_errors.push_back(create_pipe_error(
-                                    display_line, i, i + 1, line, "Pipe missing command after '|'",
-                                    "Add command after pipe"));
-                            }
+                        } else if ((line[i + 1] != '|') && check_pipe_missing_command(line, i)) {
+                            line_errors.push_back(create_pipe_error(
+                                display_line, i, i + 1, line, "Pipe missing command after '|'",
+                                "Add command after pipe"));
                         }
                     }
 

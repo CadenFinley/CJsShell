@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -66,7 +67,7 @@ std::string quote_path_if_needed(const std::string& path) {
         }
         result += c;
     }
-    result += "\"";
+    result += '\"';
 
     return result;
 }

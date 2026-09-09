@@ -30,6 +30,8 @@
 
 #include <sys/stat.h>
 #include <unistd.h>
+#include <optional>
+#include <string>
 
 namespace test_expression_utils {
 

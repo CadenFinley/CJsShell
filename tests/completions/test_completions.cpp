@@ -26,6 +26,7 @@
   SOFTWARE.
 */
 
+#include <sys/types.h>
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
@@ -34,6 +35,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <limits>
 #include <string>
 #include <system_error>
@@ -51,22 +53,27 @@
 #include "completion_tracker.h"
 #include "completion_utils.h"
 #include "external_sub_completions.h"
+#include "isocline/isocline.h"
 #include "shell_env.h"
 extern "C" {
+#include "common.h"
 #include "completions.h"
 #include "env.h"
+#include "stringbuf.h"
+#include "tty.h"
 }
 
 static void log_failure(const char* test_name, const char* message) {
     (void)std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
 }
 
-#define EXPECT_TRUE(condition, test_name, message) \
-    do {                                           \
-        if (!(condition)) {                        \
-            log_failure(test_name, message);       \
-            return false;                          \
-        }                                          \
+#define EXPECT_TRUE(condition, test_name, message)    \
+    do {                                              \
+        const bool cjsh_test_condition = (condition); \
+        if (!cjsh_test_condition) {                   \
+            log_failure(test_name, message);          \
+            return false;                             \
+        }                                             \
     } while (0)
 
 #define EXPECT_FALSE(condition, test_name, message) EXPECT_TRUE(!(condition), test_name, message)
@@ -224,7 +231,7 @@ static ssize_t generated_completion_index_with_source(const char* source) {
     return -1;
 }
 
-static void clear_generated_completions(void) {
+static void clear_generated_completions() {
     ic_env_t* env = ic_get_env();
     if (env == nullptr || env->completions == nullptr) {
         return;
@@ -260,7 +267,7 @@ static bool apply_single_generated_completion(const char* input, ssize_t cursor,
     return new_pos >= 0;
 }
 
-static bool test_quote_and_unquote_paths(void) {
+static bool test_quote_and_unquote_paths() {
     const char* test_name = "quote_and_unquote_paths";
 
     std::string plain = "simple";
@@ -299,17 +306,14 @@ static bool test_quote_and_unquote_paths(void) {
     return true;
 }
 
-static bool test_quote_path_special_characters(void) {
+static bool test_quote_path_special_characters() {
     const char* test_name = "quote_path_special_characters";
     std::string path = "one&two";
-    if (!expect_streq(completion_utils::quote_path_if_needed(path), "\"one&two\"", test_name,
-                      "paths with special characters should be quoted")) {
-        return false;
-    }
-    return true;
+    return expect_streq(completion_utils::quote_path_if_needed(path), "\"one&two\"", test_name,
+                        "paths with special characters should be quoted");
 }
 
-static bool test_quote_path_empty_and_dollar(void) {
+static bool test_quote_path_empty_and_dollar() {
     const char* test_name = "quote_path_empty_and_dollar";
     if (!expect_streq(completion_utils::quote_path_if_needed(""), "", test_name,
                       "empty path should remain empty")) {
@@ -317,34 +321,24 @@ static bool test_quote_path_empty_and_dollar(void) {
     }
 
     std::string path = "cost$1";
-    if (!expect_streq(completion_utils::quote_path_if_needed(path), "\"cost$1\"", test_name,
-                      "paths containing shell metacharacters should be quoted")) {
-        return false;
-    }
-
-    return true;
+    return expect_streq(completion_utils::quote_path_if_needed(path), "\"cost$1\"", test_name,
+                        "paths containing shell metacharacters should be quoted");
 }
 
-static bool test_unquote_path_with_escaped_quote(void) {
+static bool test_unquote_path_with_escaped_quote() {
     const char* test_name = "unquote_path_with_escaped_quote";
-    if (!expect_streq(completion_utils::unquote_path("\"a\\\"b\""), "a\"b", test_name,
-                      "escaped quotes should be unescaped")) {
-        return false;
-    }
-    return true;
+    return expect_streq(completion_utils::unquote_path("\"a\\\"b\""), "a\"b", test_name,
+                        "escaped quotes should be unescaped");
 }
 
-static bool test_unquote_path_with_mixed_quote_segments(void) {
+static bool test_unquote_path_with_mixed_quote_segments() {
     const char* test_name = "unquote_path_with_mixed_quote_segments";
-    if (!expect_streq(completion_utils::unquote_path("'left'\"right\"\\ middle"),
-                      "leftright middle", test_name,
-                      "single quotes, double quotes, and escaped spaces should combine")) {
-        return false;
-    }
-    return true;
+    return expect_streq(completion_utils::unquote_path("'left'\"right\"\\ middle"),
+                        "leftright middle", test_name,
+                        "single quotes, double quotes, and escaped spaces should combine");
 }
 
-static bool test_tokenize_command_line(void) {
+static bool test_tokenize_command_line() {
     const char* test_name = "tokenize_command_line";
     std::string line = "cmd \"arg with space\" 'single quoted' plain\\ space";
     auto tokens = completion_utils::tokenize_command_line(line);
@@ -359,7 +353,7 @@ static bool test_tokenize_command_line(void) {
     return true;
 }
 
-static bool test_tokenize_command_line_escaped_quotes(void) {
+static bool test_tokenize_command_line_escaped_quotes() {
     const char* test_name = "tokenize_command_line_escaped_quotes";
     std::string line = "cmd \"a\\\"b\" tail";
     auto tokens = completion_utils::tokenize_command_line(line);
@@ -371,7 +365,7 @@ static bool test_tokenize_command_line_escaped_quotes(void) {
     return true;
 }
 
-static bool test_tokenize_command_line_unterminated_quote(void) {
+static bool test_tokenize_command_line_unterminated_quote() {
     const char* test_name = "tokenize_command_line_unterminated_quote";
     std::string line = "cmd \"unterminated quote tail";
     auto tokens = completion_utils::tokenize_command_line(line);
@@ -384,7 +378,7 @@ static bool test_tokenize_command_line_unterminated_quote(void) {
     return true;
 }
 
-static bool test_completion_context_shell_state(void) {
+static bool test_completion_context_shell_state() {
     const char* test_name = "completion_context_shell_state";
     const std::string input =
         "printf 'left|right' | FOO=bar sudo -u root env -C /tmp BAR=\"x y\" command -- "
@@ -405,7 +399,7 @@ static bool test_completion_context_shell_state(void) {
     return true;
 }
 
-static bool test_completion_context_cursor_and_quotes(void) {
+static bool test_completion_context_cursor_and_quotes() {
     const char* test_name = "completion_context_cursor_and_quotes";
     const std::string input = "echo ignored | git checkout \"feature branch\" trailing";
     const std::size_t cursor = input.find(" trailing");
@@ -423,7 +417,7 @@ static bool test_completion_context_cursor_and_quotes(void) {
     return true;
 }
 
-static bool test_completion_context_wrapper_value_state(void) {
+static bool test_completion_context_wrapper_value_state() {
     const char* test_name = "completion_context_wrapper_value_state";
 
     auto value_context = completion_context::parse("sudo -u ro");
@@ -442,7 +436,7 @@ static bool test_completion_context_wrapper_value_state(void) {
     return true;
 }
 
-static bool test_completion_context_assignment_lhs_at_cursor(void) {
+static bool test_completion_context_assignment_lhs_at_cursor() {
     const char* test_name = "completion_context_assignment_lhs_at_cursor";
 
     auto assignment_context = completion_context::parse("i=$((i+1))", 1);
@@ -478,7 +472,7 @@ static bool test_completion_context_assignment_lhs_at_cursor(void) {
     return true;
 }
 
-static bool test_completion_context_before_existing_word(void) {
+static bool test_completion_context_before_existing_word() {
     const char* test_name = "completion_context_before_existing_word";
     const std::string multiline = "while true; do\n    echo hello\ndone";
     const std::size_t done_start = multiline.rfind("done");
@@ -501,7 +495,7 @@ static bool test_completion_context_before_existing_word(void) {
     return true;
 }
 
-static bool test_tokenize_shell_words_preserve_literals(void) {
+static bool test_tokenize_shell_words_preserve_literals() {
     const char* test_name = "tokenize_shell_words_preserve_literals";
     std::string line = "cmd \"arg with space\" plain\\ space 'single quoted'";
     auto tokens = command_line_utils::tokenize_shell_words(line, true);
@@ -517,7 +511,7 @@ static bool test_tokenize_shell_words_preserve_literals(void) {
     return true;
 }
 
-static bool test_history_completer_exit_code_ordering(void) {
+static bool test_history_completer_exit_code_ordering() {
     const char* test_name = "history_completer_exit_code_ordering";
 
     namespace fs = std::filesystem;
@@ -604,7 +598,7 @@ static bool test_history_completer_exit_code_ordering(void) {
     return true;
 }
 
-static bool test_history_prefix_metadata_isolation(void) {
+static bool test_history_prefix_metadata_isolation() {
     const char* test_name = "history_prefix_metadata_isolation";
     EXPECT_TRUE(write_completion_history("# code=127\nunmatched command\n"
                                          "audit after_unmatched\n"
@@ -634,7 +628,7 @@ static bool test_history_prefix_metadata_isolation(void) {
     return true;
 }
 
-static bool test_empty_prompt_history_ranking(void) {
+static bool test_empty_prompt_history_ranking() {
     const char* test_name = "empty_prompt_history_ranking";
     EXPECT_TRUE(
         write_completion_history("# timestamp=100 frequency=900 code=0\necho old\n"
@@ -666,7 +660,7 @@ static bool test_empty_prompt_history_ranking(void) {
     return true;
 }
 
-static bool test_empty_prompt_history_limits(void) {
+static bool test_empty_prompt_history_limits() {
     const char* test_name = "empty_prompt_history_limits";
     std::string history;
     for (int i = 0; i < 60; ++i) {
@@ -706,7 +700,7 @@ static bool test_empty_prompt_history_limits(void) {
     return true;
 }
 
-static bool test_empty_prompt_legacy_history(void) {
+static bool test_empty_prompt_legacy_history() {
     const char* test_name = "empty_prompt_legacy_history";
     EXPECT_TRUE(write_completion_history(
                     "echo legacy_old\n"
@@ -731,7 +725,7 @@ static bool test_empty_prompt_legacy_history(void) {
     return true;
 }
 
-static bool test_empty_prompt_without_history(void) {
+static bool test_empty_prompt_without_history() {
     const char* test_name = "empty_prompt_without_history";
     EXPECT_TRUE(write_completion_history("# timestamp=100 frequency=1 code=0\necho saved\n"),
                 test_name, "history fixture should be written");
@@ -754,7 +748,7 @@ static bool test_empty_prompt_without_history(void) {
     return true;
 }
 
-static bool test_default_completer_command_in_command_substitution(void) {
+static bool test_default_completer_command_in_command_substitution() {
     const char* test_name = "default_completer_command_in_command_substitution";
     ssize_t count = run_completion_generation("$(ech", &cjsh_default_completer, 256);
 
@@ -768,7 +762,7 @@ static bool test_default_completer_command_in_command_substitution(void) {
     return true;
 }
 
-static bool test_default_completer_nested_command_substitution_scope(void) {
+static bool test_default_completer_nested_command_substitution_scope() {
     const char* test_name = "default_completer_nested_command_substitution_scope";
     ssize_t count =
         run_completion_generation("echo $(printf '%s' $(ech", &cjsh_default_completer, 256);
@@ -783,7 +777,7 @@ static bool test_default_completer_nested_command_substitution_scope(void) {
     return true;
 }
 
-static bool test_default_completer_split_unknown_command_merge(void) {
+static bool test_default_completer_split_unknown_command_merge() {
     const char* test_name = "default_completer_split_unknown_command_merge";
     ssize_t count = run_completion_generation("pri ntf", &cjsh_default_completer, 256);
     bool has_command = generated_completions_include_replacement("printf ") ||
@@ -797,7 +791,7 @@ static bool test_default_completer_split_unknown_command_merge(void) {
     return true;
 }
 
-static bool test_default_completer_spell_follows_command_cursor(void) {
+static bool test_default_completer_spell_follows_command_cursor() {
     const char* test_name = "default_completer_spell_follows_command_cursor";
     const bool original_spell_setting = is_completion_spell_correction_enabled();
     set_completion_spell_correction_enabled(true);
@@ -824,7 +818,7 @@ static bool test_default_completer_spell_follows_command_cursor(void) {
     return true;
 }
 
-static bool test_default_completer_does_not_spell_correct_assignments(void) {
+static bool test_default_completer_does_not_spell_correct_assignments() {
     const char* test_name = "default_completer_does_not_spell_correct_assignments";
     const bool original_spell_setting = is_completion_spell_correction_enabled();
     set_completion_spell_correction_enabled(true);
@@ -846,7 +840,7 @@ static bool test_default_completer_does_not_spell_correct_assignments(void) {
     return true;
 }
 
-static bool test_default_completer_suppresses_assignment_lhs_midline(void) {
+static bool test_default_completer_suppresses_assignment_lhs_midline() {
     const char* test_name = "default_completer_suppresses_assignment_lhs_midline";
     const std::string input =
         "MAX=1000000\n"
@@ -879,7 +873,7 @@ static bool test_default_completer_suppresses_assignment_lhs_midline(void) {
     return true;
 }
 
-static bool test_default_completer_suppresses_before_existing_word(void) {
+static bool test_default_completer_suppresses_before_existing_word() {
     const char* test_name = "default_completer_suppresses_before_existing_word";
     const std::string input =
         "MAX=1000000\n"
@@ -906,7 +900,7 @@ static bool test_default_completer_suppresses_before_existing_word(void) {
     return true;
 }
 
-static bool test_default_completer_suppresses_inside_known_command(void) {
+static bool test_default_completer_suppresses_inside_known_command() {
     const char* test_name = "default_completer_suppresses_inside_known_command";
     const std::string input =
         "MAX=1000000\n"
@@ -968,7 +962,7 @@ static bool test_default_completer_suppresses_inside_known_command(void) {
     return true;
 }
 
-static bool test_default_completer_keeps_unfinished_command_completions(void) {
+static bool test_default_completer_keeps_unfinished_command_completions() {
     const char* test_name = "default_completer_keeps_unfinished_command_completions";
     const std::vector<std::pair<std::string, ssize_t>> unfinished_commands = {
         {"ech", 2},
@@ -990,7 +984,7 @@ static bool test_default_completer_keeps_unfinished_command_completions(void) {
     return true;
 }
 
-static bool test_find_last_unquoted_space(void) {
+static bool test_find_last_unquoted_space() {
     const char* test_name = "find_last_unquoted_space";
     std::string line = "echo \"a b\" c";
     size_t pos = completion_utils::find_last_unquoted_space(line);
@@ -1000,7 +994,7 @@ static bool test_find_last_unquoted_space(void) {
     return true;
 }
 
-static bool test_find_last_unquoted_space_with_tabs(void) {
+static bool test_find_last_unquoted_space_with_tabs() {
     const char* test_name = "find_last_unquoted_space_with_tabs";
     std::string line = "cmd\targ";
     size_t pos = completion_utils::find_last_unquoted_space(line);
@@ -1008,7 +1002,7 @@ static bool test_find_last_unquoted_space_with_tabs(void) {
     return true;
 }
 
-static bool test_find_last_unquoted_space_with_escaped_space(void) {
+static bool test_find_last_unquoted_space_with_escaped_space() {
     const char* test_name = "find_last_unquoted_space_with_escaped_space";
     std::string escaped_only = "escaped\\ space";
     EXPECT_TRUE(completion_utils::find_last_unquoted_space(escaped_only) == std::string::npos,
@@ -1023,7 +1017,7 @@ static bool test_find_last_unquoted_space_with_escaped_space(void) {
     return true;
 }
 
-static bool test_find_last_unquoted_space_with_unterminated_quote(void) {
+static bool test_find_last_unquoted_space_with_unterminated_quote() {
     const char* test_name = "find_last_unquoted_space_with_unterminated_quote";
     std::string line = "cmd \"quoted words remain quoted";
     size_t pos = completion_utils::find_last_unquoted_space(line);
@@ -1032,7 +1026,7 @@ static bool test_find_last_unquoted_space_with_unterminated_quote(void) {
     return true;
 }
 
-static bool test_case_sensitivity_helpers(void) {
+static bool test_case_sensitivity_helpers() {
     const char* test_name = "case_sensitivity_helpers";
     const bool original_setting = is_completion_case_sensitive();
     set_completion_case_sensitive(false);
@@ -1051,7 +1045,7 @@ static bool test_case_sensitivity_helpers(void) {
     return true;
 }
 
-static bool test_normalize_for_comparison(void) {
+static bool test_normalize_for_comparison() {
     const char* test_name = "normalize_for_comparison";
     const bool original_setting = is_completion_case_sensitive();
     set_completion_case_sensitive(false);
@@ -1072,7 +1066,7 @@ static bool test_normalize_for_comparison(void) {
     return true;
 }
 
-static bool test_starts_with_helpers(void) {
+static bool test_starts_with_helpers() {
     const char* test_name = "starts_with_helpers";
     EXPECT_TRUE(completion_utils::starts_with_case_insensitive("Hello", "he"), test_name,
                 "case-insensitive helper should match");
@@ -1090,17 +1084,14 @@ static bool test_starts_with_helpers(void) {
     return true;
 }
 
-static bool test_sanitize_job_summary(void) {
+static bool test_sanitize_job_summary() {
     const char* test_name = "sanitize_job_summary";
     std::string raw = "  ls\t -la \n \x01";
-    if (!expect_streq(completion_utils::sanitize_job_command_summary(raw), "ls -la", test_name,
-                      "summary should normalize whitespace and strip control chars")) {
-        return false;
-    }
-    return true;
+    return expect_streq(completion_utils::sanitize_job_command_summary(raw), "ls -la", test_name,
+                        "summary should normalize whitespace and strip control chars");
 }
 
-static bool test_sanitize_job_summary_truncates(void) {
+static bool test_sanitize_job_summary_truncates() {
     const char* test_name = "sanitize_job_summary_truncates";
     std::string long_cmd(120, 'a');
     std::string summary = completion_utils::sanitize_job_command_summary(long_cmd);
@@ -1108,17 +1099,14 @@ static bool test_sanitize_job_summary_truncates(void) {
     return true;
 }
 
-static bool test_sanitize_job_summary_whitespace_only(void) {
+static bool test_sanitize_job_summary_whitespace_only() {
     const char* test_name = "sanitize_job_summary_whitespace_only";
     std::string raw = " \t \n \r\x01\x02";
-    if (!expect_streq(completion_utils::sanitize_job_command_summary(raw), "", test_name,
-                      "all whitespace/control input should sanitize to empty string")) {
-        return false;
-    }
-    return true;
+    return expect_streq(completion_utils::sanitize_job_command_summary(raw), "", test_name,
+                        "all whitespace/control input should sanitize to empty string");
 }
 
-static bool test_spell_transposition_and_distance(void) {
+static bool test_spell_transposition_and_distance() {
     const char* test_name = "spell_transposition_and_distance";
     EXPECT_TRUE(completion_spell::is_adjacent_transposition("abcd", "abdc"), test_name,
                 "adjacent transposition should be detected");
@@ -1137,7 +1125,7 @@ static bool test_spell_transposition_and_distance(void) {
     return true;
 }
 
-static bool test_spell_distance_negative_limit(void) {
+static bool test_spell_distance_negative_limit() {
     const char* test_name = "spell_distance_negative_limit";
     int distance = completion_spell::compute_edit_distance_with_limit("abc", "xyz", -1);
     EXPECT_TRUE(distance == std::numeric_limits<int>::max(), test_name,
@@ -1145,7 +1133,7 @@ static bool test_spell_distance_negative_limit(void) {
     return true;
 }
 
-static bool test_spell_match_ordering(void) {
+static bool test_spell_match_ordering() {
     const char* test_name = "spell_match_ordering";
     std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> matches;
     matches["alpha"] = {"alpha", 2, false, 2};
@@ -1166,7 +1154,7 @@ static bool test_spell_match_ordering(void) {
     return true;
 }
 
-static bool test_spell_match_add_limit(void) {
+static bool test_spell_match_add_limit() {
     const char* test_name = "spell_match_add_limit";
     std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> matches;
     for (int i = 0; i < 20; ++i) {
@@ -1184,7 +1172,7 @@ static bool test_spell_match_add_limit(void) {
     return true;
 }
 
-static bool test_collect_spell_candidates_filter_and_case_normalization(void) {
+static bool test_collect_spell_candidates_filter_and_case_normalization() {
     const char* test_name = "collect_spell_candidates_filter_and_case_normalization";
     const bool original_setting = is_completion_case_sensitive();
     set_completion_case_sensitive(false);
@@ -1224,7 +1212,7 @@ static bool test_collect_spell_candidates_filter_and_case_normalization(void) {
     return ok;
 }
 
-static bool test_collect_spell_candidates_distance_thresholds(void) {
+static bool test_collect_spell_candidates_distance_thresholds() {
     const char* test_name = "collect_spell_candidates_distance_thresholds";
     std::vector<std::string> candidates = {"abcxxx", "abxxxx", "abxyz"};
 
@@ -1248,7 +1236,7 @@ static bool test_collect_spell_candidates_distance_thresholds(void) {
     return true;
 }
 
-static bool test_collect_spell_candidates_without_filter(void) {
+static bool test_collect_spell_candidates_without_filter() {
     const char* test_name = "collect_spell_candidates_without_filter";
     std::vector<std::string> candidates = {"gti"};
     std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> matches;
@@ -1262,7 +1250,7 @@ static bool test_collect_spell_candidates_without_filter(void) {
     return true;
 }
 
-static bool test_completion_tracker_deduplication(void) {
+static bool test_completion_tracker_deduplication() {
     const char* test_name = "completion_tracker_deduplication";
     g_completion_actions = {
         {"d", 1, 0, "test"},
@@ -1275,7 +1263,7 @@ static bool test_completion_tracker_deduplication(void) {
     return true;
 }
 
-static bool test_completion_tracker_trims_trailing_spaces(void) {
+static bool test_completion_tracker_trims_trailing_spaces() {
     const char* test_name = "completion_tracker_trims_trailing_spaces";
     g_completion_actions = {
         {"arg ", 0, 0, "test"},
@@ -1288,7 +1276,7 @@ static bool test_completion_tracker_trims_trailing_spaces(void) {
     return true;
 }
 
-static bool test_completion_tracker_max_results(void) {
+static bool test_completion_tracker_max_results() {
     const char* test_name = "completion_tracker_max_results";
     std::string error;
     EXPECT_FALSE(completion_tracker::set_completion_max_results(0, &error), test_name,
@@ -1316,7 +1304,7 @@ static bool test_completion_tracker_max_results(void) {
     return true;
 }
 
-static bool test_completion_tracker_delete_before_bounds(void) {
+static bool test_completion_tracker_delete_before_bounds() {
     const char* test_name = "completion_tracker_delete_before_bounds";
     completion_tracker::CompletionTracker tracker(nullptr, "abc");
 
@@ -1339,7 +1327,7 @@ static bool test_completion_tracker_delete_before_bounds(void) {
     return true;
 }
 
-static bool test_completion_apply_consumes_quoted_suffix(void) {
+static bool test_completion_apply_consumes_quoted_suffix() {
     const char* test_name = "completion_apply_consumes_quoted_suffix";
     const char* input = "tectonic \"reversi_rl_agent_paper.tex\"";
     ssize_t cursor = static_cast<ssize_t>(std::strlen("tectonic \"re"));
@@ -1358,7 +1346,7 @@ static bool test_completion_apply_consumes_quoted_suffix(void) {
     return true;
 }
 
-static bool test_completion_apply_moves_over_existing_suffix(void) {
+static bool test_completion_apply_moves_over_existing_suffix() {
     const char* test_name = "completion_apply_moves_over_existing_suffix";
     const char* input = "cmd foobar";
     ssize_t cursor = static_cast<ssize_t>(std::strlen("cmd foo"));
@@ -1377,7 +1365,7 @@ static bool test_completion_apply_moves_over_existing_suffix(void) {
     return true;
 }
 
-static bool test_completion_hint_suppresses_existing_multiline_suffix(void) {
+static bool test_completion_hint_suppresses_existing_multiline_suffix() {
     const char* test_name = "completion_hint_suppresses_existing_multiline_suffix";
     std::string first_line = "tectonic \"reversi_rl_agent_paper.tex\"";
     std::string second_line =
@@ -1405,7 +1393,7 @@ static bool test_completion_hint_suppresses_existing_multiline_suffix(void) {
     return true;
 }
 
-static bool test_completion_apply_consumes_existing_multiline_suffix(void) {
+static bool test_completion_apply_consumes_existing_multiline_suffix() {
     const char* test_name = "completion_apply_consumes_existing_multiline_suffix";
     std::string first_line = "tectonic \"reversi_rl_agent_paper.tex\"";
     std::string second_line =
@@ -1433,12 +1421,8 @@ static bool has_entry(const builtin_completions::CommandDoc* doc, const std::str
     if (doc == nullptr) {
         return false;
     }
-    for (const auto& entry : doc->entries) {
-        if (entry.text == text && entry.kind == kind) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(doc->entries.begin(), doc->entries.end(),
+                       [&](const auto& entry) { return entry.text == text && entry.kind == kind; });
 }
 
 static const completion_specs::CompletionEntry* find_spec_entry(
@@ -1452,7 +1436,7 @@ static const completion_specs::CompletionEntry* find_spec_entry(
     return nullptr;
 }
 
-static bool test_completion_spec_round_trip(void) {
+static bool test_completion_spec_round_trip() {
     const char* test_name = "completion_spec_round_trip";
     using namespace completion_specs;
 
@@ -1533,7 +1517,7 @@ static bool test_completion_spec_round_trip(void) {
     return true;
 }
 
-static bool test_completion_spec_legacy_compatibility(void) {
+static bool test_completion_spec_legacy_compatibility() {
     const char* test_name = "completion_spec_legacy_compatibility";
     const std::string legacy =
         "generated by cjsh from man page for legacy\n"
@@ -1554,7 +1538,7 @@ static bool test_completion_spec_legacy_compatibility(void) {
     return true;
 }
 
-static bool test_man_page_value_metadata(void) {
+static bool test_man_page_value_metadata() {
     const char* test_name = "man_page_value_metadata";
     const std::string man_text =
         "NAME\n"
@@ -1591,7 +1575,7 @@ static bool test_man_page_value_metadata(void) {
     return true;
 }
 
-static bool test_rich_completion_runtime(void) {
+static bool test_rich_completion_runtime() {
     const char* test_name = "rich_completion_runtime";
     using namespace completion_specs;
 
@@ -1713,7 +1697,7 @@ static bool test_rich_completion_runtime(void) {
     return true;
 }
 
-static bool test_command_context_completion_runtime(void) {
+static bool test_command_context_completion_runtime() {
     const char* test_name = "command_context_completion_runtime";
     using namespace completion_specs;
 
@@ -1788,7 +1772,7 @@ static bool test_command_context_completion_runtime(void) {
     return true;
 }
 
-static bool test_builtin_docs(void) {
+static bool test_builtin_docs() {
     const char* test_name = "builtin_docs";
 
     const auto* cjsh_doc = builtin_completions::lookup_builtin_command_doc("cjsh");
@@ -2114,12 +2098,12 @@ static bool test_builtin_docs(void) {
     return true;
 }
 
-typedef bool (*test_fn_t)(void);
+using test_fn_t = bool (*)();
 
-typedef struct test_case_s {
+using test_case_t = struct test_case_s {
     const char* name;
     test_fn_t fn;
-} test_case_t;
+};
 
 static const test_case_t kTests[] = {
     {"history_completer_exit_code_ordering", test_history_completer_exit_code_ordering},
@@ -2201,7 +2185,7 @@ static const test_case_t kTests[] = {
     {"builtin_docs", test_builtin_docs},
 };
 
-int main(void) {
+int main() {
     // The history path is cached on first use; give all completion tests one isolated location.
     namespace fs = std::filesystem;
     const auto unique_suffix = std::chrono::steady_clock::now().time_since_epoch().count();
@@ -2218,9 +2202,9 @@ int main(void) {
     size_t failures = 0;
     const size_t test_count = sizeof(kTests) / sizeof(kTests[0]);
 
-    for (size_t i = 0; i < test_count; ++i) {
-        if (!kTests[i].fn()) {
-            (void)std::fprintf(stderr, "Test '%s' failed\n", kTests[i].name);
+    for (auto kTest : kTests) {
+        if (!kTest.fn()) {
+            (void)std::fprintf(stderr, "Test '%s' failed\n", kTest.name);
             failures += 1;
         }
     }

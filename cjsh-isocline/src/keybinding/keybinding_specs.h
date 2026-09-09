@@ -28,7 +28,6 @@
   SOFTWARE.
 */
 
-#pragma once
 #ifndef CJSH_KEYBINDING_SPECS_H
 #define CJSH_KEYBINDING_SPECS_H
 

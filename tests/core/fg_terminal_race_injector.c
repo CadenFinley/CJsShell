@@ -190,7 +190,7 @@ static pid_t injected_waitpid(pid_t pid, int* status, int options) {
         const void* replacement;                                               \
         const void* replacee;                                                  \
     } _interpose_##replacee __attribute__((section("__DATA,__interpose"))) = { \
-        (const void*)(unsigned long)&replacement, (const void*)(unsigned long)&replacee};
+        (const void*)&replacement, (const void*)&replacee};
 
 DYLD_INTERPOSE(injected_tcsetpgrp, tcsetpgrp)
 DYLD_INTERPOSE(injected_waitpid, waitpid)

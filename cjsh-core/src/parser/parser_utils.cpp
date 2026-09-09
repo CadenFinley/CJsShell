@@ -32,6 +32,12 @@
 #include "string_utils.h"
 
 #include <cctype>
+#include <cstddef>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 const std::string& subst_literal_start() {
     static const std::string kValue = "\x1E__SUBST_LITERAL_START__\x1E";
@@ -491,7 +497,7 @@ bool parser_contains_arithmetic_command_form(std::string_view text) {
     return false;
 }
 
-std::string trim_trailing_whitespace(std::string s) {
+std::string trim_trailing_whitespace(const std::string& s) {
     return string_utils::trim_right_ascii_whitespace_copy(s);
 }
 
@@ -534,7 +540,7 @@ NamedLoopHeader parse_named_loop_header(std::string header, std::string_view key
     }
 
     size_t pos = keyword.size();
-    auto next_word = [&]() {
+    auto next_word = [&] {
         while (pos < header.size() && std::isspace(static_cast<unsigned char>(header[pos]))) {
             ++pos;
         }
@@ -571,20 +577,16 @@ NamedLoopHeader parse_named_loop_header(std::string header, std::string_view key
     return result;
 }
 
-bool split_on_first_equals(const std::string& value, std::string& left, std::string& right,
-                           bool require_nonempty_left);
-
 bool parse_assignment(const std::string& arg, std::string& name, std::string& value,
                       bool strip_surrounding_quotes) {
     if (!split_on_first_equals(arg, name, value, true)) {
         return false;
     }
 
-    if (strip_surrounding_quotes && value.size() >= 2) {
-        if ((value.front() == '"' && value.back() == '"') ||
-            (value.front() == '\'' && value.back() == '\'')) {
-            value = value.substr(1, value.size() - 2);
-        }
+    if ((strip_surrounding_quotes && value.size() >= 2) &&
+        ((value.front() == '"' && value.back() == '"') ||
+         (value.front() == '\'' && value.back() == '\''))) {
+        value = value.substr(1, value.size() - 2);
     }
 
     return true;
@@ -666,12 +668,12 @@ size_t find_token_end_with_quotes(const std::string& text, size_t start, size_t 
             continue;
         }
         (void)quote_state.consume_forward(ch);
-        if (!quote_state.inside_quotes()) {
-            if ((stop_on_whitespace && (std::isspace(static_cast<unsigned char>(ch)) != 0)) ||
-                (!delimiter_chars.empty() && delimiter_chars.find(ch) != std::string::npos)) {
-                break;
-            }
+        if ((!quote_state.inside_quotes()) &&
+            ((stop_on_whitespace && (std::isspace(static_cast<unsigned char>(ch)) != 0)) ||
+             (!delimiter_chars.empty() && delimiter_chars.find(ch) != std::string::npos))) {
+            break;
         }
+
         ++i;
     }
 
