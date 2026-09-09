@@ -276,8 +276,8 @@ int run_cjsh(int argc, char* argv[]) {
                      "startup",
                      "refusing startup with mismatched real and effective IDs",
                      {}});
+        return 1;
     }
-    return 1;
 
     initialize_shell(argc, argv, parse_result);
     process_startup_files();
