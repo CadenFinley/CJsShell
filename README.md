@@ -99,6 +99,18 @@ cmake --install build/release --prefix ~/.local
 
 List all configured presets with `cmake --list-presets`.
 
+### Test
+
+Run all automated tests through CTest from the repository root:
+
+```bash
+ctest --preset release --parallel 4
+```
+
+CTest runs the shell files and focused C, C++, and Python suites, then reports
+combined individual-test counts. See [Local Verification](CONTRIBUTING.md#local-verification)
+for filtering, serial runs, and repeating failures.
+
 ## Documentation
 
 Project documentation is published at [cadenfinley.github.io/CJsShell](https://cadenfinley.github.io/CJsShell/).

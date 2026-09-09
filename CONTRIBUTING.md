@@ -70,7 +70,7 @@ List presets with `cmake --list-presets`.
 
 ## Local Verification
 
-Before opening a pull request, run the checks that match the scope of your change. For most code changes, that means:
+Use CTest for all automated tests. Before opening a pull request, run the checks that match the scope of your change. For most code changes, that means:
 
 ```bash
 ctest --preset release --parallel 4
@@ -97,9 +97,13 @@ Interactive suites create their own pseudoterminals.
 Use `ctest --preset release --parallel 4 -L shell` for just the shell files, or
 `ctest --preset release --parallel 4 -LE shell` for just the focused suites.
 `ctest --preset release --rerun-failed --output-on-failure` repeats failed suites.
-The serial harness remains available as `./tests/run_shell_tests.sh build/release/cjsh`
-when you want its combined individual-test counts. To run one shell file with
-that harness, append `--test test_alias` (using the filename without `.sh`).
+To run one shell file, use `ctest --preset release -R '^shell\.test_alias$'`
+(using the filename without `.sh`). CTest also prints combined individual-test
+counts after its suite summary.
+
+If you configured a custom build directory, use `ctest --test-dir build --parallel 4 --output-on-failure`
+instead of a preset, replacing `build` with that directory. CTest selects its built
+`cjsh` binary automatically.
 
 ## Code Style
 

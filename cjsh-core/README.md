@@ -58,11 +58,15 @@ cmake --build --preset release --parallel
 
 ## Testing
 
-Run shell tests from the repository root:
+Run all automated tests through CTest from the repository root:
 
 ```bash
-./tests/run_shell_tests.sh
+ctest --preset release --parallel 4
 ```
+
+This includes the shell files and focused C, C++, and Python suites. See
+[Local Verification](../CONTRIBUTING.md#local-verification) for selecting suites
+and repeating failures.
 
 ## License
 

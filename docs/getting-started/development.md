@@ -62,7 +62,8 @@ Useful presets:
 
 ## Test
 
-Run all shell files and focused C, C++, and Python suites with four workers:
+Use CTest for all automated tests. Run all shell files and focused C, C++, and
+Python suites with four workers from the repository root:
 
 ```bash
 ctest --preset release --parallel 4
@@ -78,12 +79,16 @@ with passed, failed, and skipped counts. Scripts that exercise one continuous
 integration scenario count as one test. Suites that stop before reporting results
 are listed separately when their individual counts are unavailable.
 
-The serial shell and integration harness also remains available, with combined
-individual-test counts:
+Run one shell file by its CTest name, using the filename without `.sh`:
 
 ```bash
-./tests/run_shell_tests.sh "build/release/cjsh"
+ctest --preset release -R '^shell\.test_alias$'
 ```
+
+Repeat failed suites with `ctest --preset release --rerun-failed --output-on-failure`.
+For a custom build directory, use `ctest --test-dir build --parallel 4 --output-on-failure`,
+replacing `build` with your configured directory. CTest selects its built `cjsh`
+binary automatically.
 
 If you are changing parser behavior, runtime execution, job control, or interactive input handling, also build and test the `debug` preset.
 

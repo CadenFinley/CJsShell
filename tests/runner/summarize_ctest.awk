@@ -24,8 +24,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# Aggregate each suite's reported results once, without counting its diagnostic
-# PASS/FAIL lines again. Parse only test output, never echoed command arguments.
+# Count shell PASS/FAIL lines and aggregate focused suites' reported summaries.
+# Parse only test output, never echoed command arguments.
 
 function finish_suite() {
     if (name == "") return
@@ -82,15 +82,21 @@ BEGIN {
 
 {
     gsub(ansi, "")
-    # The shell harness emits exactly one summary for its selected file.
-    if ($0 ~ /^[[:space:]]*test_[[:alnum:]_]+:[[:space:]]+(PASS|FAIL) \([0-9]+\/[0-9]+/) {
-        line = $0
-        sub(/^.*\(/, "", line)
-        split(line, fields, /[\/,)]/)
-        count = fields[2] + 0
-        failures = count - fields[1]
-        known = 1
-    } else if ($0 ~ /^All [0-9]+ .*tests passed/) {
+    if (name ~ /^shell\./) {
+        # Shell files report individual results in several formats, including
+        # "PASS: description", "[PASS] description", and "description: PASS".
+        if ($0 ~ /(^|[^A-Za-z0-9_])PASS([^A-Za-z0-9_]|$)/) {
+            count++
+            known = 1
+        }
+        if ($0 ~ /(^|[^A-Za-z0-9_])FAIL([^A-Za-z0-9_]|$)/) {
+            count++
+            failures++
+            known = 1
+        }
+        next
+    }
+    if ($0 ~ /^All [0-9]+ .*tests passed/) {
         count = $2 + 0
         failures = 0
         known = 1

@@ -35,6 +35,7 @@ This guide gets you running cjsh, a POSIX-based interactive shell with integrate
 - A C compiler and C++ compiler (for example GCC or clang)
 - CMake 3.25 or newer
 - Ninja (the configured CMake presets use the Ninja generator)
+- Python 3 to include the Python test suites when building from source
 
 cjsh vendors its line editor dependency (`cjsh-isocline`) in this repository, so you do not need to install a separate shell framework or plugin stack.
 
@@ -89,7 +90,17 @@ cjsh is still in active, rapid development so even the latest release can still 
     cmake --build --preset release --parallel
 ```
 
-After building, the `cjsh` executable will be in `build/release/`. You can run it directly with `./build/release/cjsh`
+After building, the `cjsh` executable will be in `build/release/`. You can run it directly with `./build/release/cjsh`.
+
+Run the automated tests through CTest from the repository root:
+
+```bash
+ctest --preset release --parallel 4
+```
+
+See the [development testing guide](development.md#test) for selecting suites,
+serial runs, and individual-test counts.
+
 ## Build info
 
 By default the commands above produce an optimized Release build.

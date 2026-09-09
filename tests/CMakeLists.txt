@@ -62,12 +62,14 @@ foreach(test_script IN LISTS CJSH_SHELL_TEST_SCRIPTS)
     file(MAKE_DIRECTORY "${test_work_dir}")
     cjsh_add_test(
         NAME "shell.${test_name}"
-        COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/run_shell_tests.sh"
-                $<TARGET_FILE:cjsh> --test "${test_name}"
+        COMMAND sh "${test_script}" $<TARGET_FILE:cjsh>
     )
     set_tests_properties(
         "shell.${test_name}"
-        PROPERTIES LABELS "shell" WORKING_DIRECTORY "${test_work_dir}"
+        PROPERTIES
+            LABELS "shell"
+            WORKING_DIRECTORY "${test_work_dir}"
+            ENVIRONMENT "CJSH=$<TARGET_FILE:cjsh>;CJSH_PATH=$<TARGET_FILE:cjsh>;SHELL_TO_TEST=$<TARGET_FILE:cjsh>"
     )
 
     # Timing checks need an idle runner. Process-count checks observe all system

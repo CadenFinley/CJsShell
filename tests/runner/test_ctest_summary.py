@@ -85,7 +85,11 @@ class CTestSummaryTests(unittest.TestCase):
         )
 
     def test_combines_formats_without_counting_diagnostics_twice(self):
-        self.add_suite("shell.test_demo", "  test_demo: \033[32mPASS\033[0m (3/3)")
+        self.add_suite(
+            "shell.test_demo",
+            "\033[32mPASS\033[0m: first\n  [PASS] second\nthird: PASS\n"
+            "BYPASS FAILURE PASS_suffix NOT_PASS\nPassed: 3\nFailed: 0",
+        )
         self.add_suite(
             "native", "1/1 Testing: diagnostic text\nPASS: example\nAll 7 native tests passed"
         )
@@ -99,7 +103,9 @@ class CTestSummaryTests(unittest.TestCase):
         self.assertIn("100% individual tests passed out of 187 executed", output)
 
     def test_failed_and_unreported_suites(self):
-        self.add_suite("shell.test_demo", "test_demo: FAIL (2/3, 1 failed)\nFAIL detail", 1)
+        self.add_suite(
+            "shell.test_demo", "PASS: first\nPASS: second\nFAIL: third\nPassed: 2\nFailed: 1", 1
+        )
         self.add_suite("native", "1/7 native tests failed", 1)
         self.add_suite(
             "python", "Ran 5 tests in 0.1s\nFAILED (failures=1, errors=1, skipped=1)", 1
@@ -132,6 +138,14 @@ class CTestSummaryTests(unittest.TestCase):
         )
         output = self.run_ctest(status=8)
         self.assertIn("Suites without complete individual results: 1", output)
+        self.assertNotIn("100% individual tests passed", output)
+
+    def test_shell_failure_after_passing_checks_has_incomplete_results(self):
+        self.add_suite("shell.test_crash", "PASS: first\nPASS: second\nterminated", 1)
+        self.add_suite("shell.test_empty", "no individual results", 1)
+        output = self.run_ctest(status=8)
+        self.assert_counts(output, 2, 2, 0, 0)
+        self.assertIn("Suites without complete individual results: 2", output)
         self.assertNotIn("100% individual tests passed", output)
 
     def test_unittest_expected_failures_and_unexpected_successes(self):
