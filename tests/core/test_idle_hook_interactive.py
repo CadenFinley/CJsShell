@@ -162,6 +162,18 @@ class IdleHookSession:
             f"missing {needle!r} in PTY output: {bytes(self.output[start:])!r}"
         )
 
+    def wait_for_normalized(self, needle: bytes, start: int = 0, timeout_s: float = 4.0) -> None:
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            self.pump()
+            output = normalize_terminal_output(bytes(self.output[start:]))
+            if needle in output:
+                return
+        raise AssertionError(
+            f"missing {needle!r} in normalized PTY output: "
+            f"{normalize_terminal_output(bytes(self.output[start:]))!r}"
+        )
+
     def wait_for_prompt(self, start: int, command_completed: bool = False) -> int:
         search_from = start
         if command_completed:

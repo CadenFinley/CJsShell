@@ -47,23 +47,25 @@ class InteractiveTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.home = Path(directory.name)
 
-    def session(self, history=False):
+    def session(self, history=False, *, terminal_size=None):
         args = [self.binary, "--no-config", "--no-titleline", "--no-prompt-vars",
                 "--no-completions", "--no-syntax-highlighting"]
         if not history:
             args.append("--no-history")
-        s = IdleHookSession(self.binary, str(self.home), argv=args)
+        s = IdleHookSession(self.binary, str(self.home), argv=args, terminal_size=terminal_size)
         self.addCleanup(s.close)
         s.wait_for_prompt(0)
         return s
 
     def test_palette_tracks_binding_changes_between_prompts(self):
-        session = self.session()
+        # Keep the custom entry below the initial viewport so the search must find it.
+        session = self.session(terminal_size=(24, 80))
 
         def search(expected):
             start = len(session.output)
             session.write(b"\x1bpzzpalettefixture")
-            session.wait_for(expected, start)
+            # Underlining the search match inserts ANSI codes inside the title.
+            session.wait_for_normalized(expected, start)
             end = len(session.output)
             session.write(b"\x03")
             session.wait_for_prompt(end)
