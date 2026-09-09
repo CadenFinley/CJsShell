@@ -1176,7 +1176,7 @@ necessary.</p>
 <li><strong>Right-prompt cursor tracking</strong> – <code>cjshopt right-prompt-follow-cursor</code> lets the inline right
   prompt move with the active cursor row, something stock POSIX shells do not support.</li>
 <li><strong>Dynamic title line</strong> – The introductory banner and title-line management (enabled by default)
-  can be disabled with <code>--no-titleline</code> or <code>cjshopt login-startup-arg --no-titleline</code>.</li>
+  can be disabled with <code>--no-titleline</code>.</li>
 </ul>
 <p>See <a href="../../themes/thedetails/">Prompt Markup and Styling</a> for the full markup reference.</p>
 <h2 id="interactive-editing-extensions">Interactive Editing Extensions</h2>
@@ -1256,10 +1256,9 @@ differences from Bash and Zsh.</p>
 <ul>
 <li><strong>History expansion</strong> – Interactive history expansion supports <code>!!</code>, <code>!prefix</code>, <code>!?text?</code>, <code>!$</code>,
   <code>!^</code>, <code>!*</code>, and <code>^foo^bar</code>. It automatically disables in script mode, <code>cjsh -c</code>, or when stdin
-  is not a tty. Use <code>--no-history-expansion</code> or <code>cjshopt login-startup-arg --no-history-expansion</code>
-  to turn it off.</li>
+  is not a tty. Use <code>--no-history-expansion</code> to turn it off.</li>
 <li><strong>History recording</strong> – Disable persistence entirely with <code>--no-history</code> (also disables history
-  expansion) or <code>cjshopt login-startup-arg --no-history</code>.</li>
+  expansion).</li>
 <li><strong>Persistent exit codes</strong> – Each history entry records the command's exit status to enrich
   completions and prompts.</li>
 <li><strong>Fuzzy history case sensitivity</strong> – <code>cjshopt history-search-case</code> toggles whether the search menu
@@ -1293,7 +1292,7 @@ time banner, error suggestions, and prompt vars) and add <code>--secure</code> i
 login/logout dotfiles:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cjsh<span class="w"> </span>--minimal<span class="w"> </span>--secure
 </span></code></pre></div>
-<p>Or persist equivalent flags through <code>cjshopt login-startup-arg</code> in <code>~/.cjprofile</code>.</p>
+<p>For repeatable launches, include equivalent flags in your launcher/alias.</p>
 <h2 id="summary">Summary</h2>
 <ul>
 <li>Prompt markup, layout toggles, and syntax styling provide rich visual customization beyond POSIX.</li>

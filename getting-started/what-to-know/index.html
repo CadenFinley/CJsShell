@@ -927,17 +927,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#persisting-startup-flags" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Persisting Startup Flags
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#posix-bash-compatibility" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1551,7 +1540,7 @@
 <h3 id="true-color-support">True Color Support</h3>
 <p><strong>Status:</strong> Enabled when the terminal advertises 24-bit color.<br>
 <strong>Configure:</strong> Automatically detected; adjust styling through your prompt definitions or <code>cjshopt style_def</code>.<br>
-<strong>Disable:</strong> Launch with <code>cjsh --no-colors</code> or persist by adding <code>cjshopt login-startup-arg --no-colors</code> to <code>~/.cjprofile</code>.</p>
+<strong>Disable:</strong> Launch with <code>cjsh --no-colors</code> (or include <code>--no-colors</code> in your launcher/alias).</p>
 <h3 id="prompt-layout">Prompt Layout</h3>
 <p><strong>Status:</strong> <code>prompt-newline</code> defaults to off so prompts stay compact unless you explicitly add spacing.<br>
 <strong>Configure:</strong></p>
@@ -1561,7 +1550,7 @@
 <h3 id="syntax-highlighting">Syntax Highlighting</h3>
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong> Change token styles with <code>cjshopt style_def &lt;token_type&gt; &lt;style&gt;</code>.<br>
-<strong>Disable:</strong> Start cjsh with <code>--no-syntax-highlighting</code> or add <code>cjshopt login-startup-arg --no-syntax-highlighting</code> inside <code>~/.cjprofile</code>.</p>
+<strong>Disable:</strong> Start cjsh with <code>--no-syntax-highlighting</code>.</p>
 <hr>
 <h2 id="completion-line-editing">Completion &amp; Line Editing</h2>
 <h3 id="fuzzy-completions">Fuzzy Completions</h3>
@@ -1591,7 +1580,7 @@ Fuzzy matching powers command, path, and argument completions without additional
 <h3 id="smart-cd">Smart cd</h3>
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong> <code>cjshopt smart-cd on|off|status</code><br>
-<strong>Disable:</strong> Launch with <code>cjsh --no-smart-cd</code> or add <code>cjshopt login-startup-arg --no-smart-cd</code> to <code>~/.cjprofile</code>.</p>
+<strong>Disable:</strong> Launch with <code>cjsh --no-smart-cd</code>.</p>
 <h3 id="inline-hints-delay">Inline Hints &amp; Delay</h3>
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong></p>
@@ -1647,8 +1636,8 @@ Smart <code>cd</code> adds fuzzy directory matching for quick navigation between
 <hr>
 <h2 id="history-features">History Features</h2>
 <ul>
-<li><strong>History expansions:</strong> Enabled in interactive sessions (<code>!!</code>, <code>!git</code>, <code>!?text?</code>, <code>!$</code>, <code>!^</code>, <code>!*</code>, <code>^old^new</code>). <code>!?</code> by itself is not valid; include a search string. Disable with <code>cjsh --no-history-expansion</code> or persist by adding <code>cjshopt login-startup-arg --no-history-expansion</code> to <code>~/.cjprofile</code>.</li>
-<li><strong>History recording:</strong> Disable persistence with <code>cjsh --no-history</code> (also disables history expansion) or add <code>cjshopt login-startup-arg --no-history</code> to <code>~/.cjprofile</code>. Secure mode also disables history persistence.</li>
+<li><strong>History expansions:</strong> Enabled in interactive sessions (<code>!!</code>, <code>!git</code>, <code>!?text?</code>, <code>!$</code>, <code>!^</code>, <code>!*</code>, <code>^old^new</code>). <code>!?</code> by itself is not valid; include a search string. Disable with <code>cjsh --no-history-expansion</code>.</li>
+<li><strong>History recording:</strong> Disable persistence with <code>cjsh --no-history</code> (also disables history expansion). Secure mode also disables history persistence.</li>
 <li><strong>History search:</strong> Press <code>Ctrl+R</code> or <code>Ctrl+S</code> for the fuzzy history search menu (use <code>Alt+C</code> inside it to toggle case sensitivity).</li>
 <li><strong>History search case sensitivity:</strong> Matching is case-sensitive by default; adjust with <code>cjshopt history-search-case on|off|status</code> to set the default for every session.</li>
 <li><strong>Persistence:</strong> History entries are stored in <code>~/.cache/cjsh/history.txt</code>; duplicate commands are suppressed by default. Concurrent writers lock a sibling <code>.lock</code> file and atomically replace complete snapshots, preserving command metadata and frequency counts. Unsubmitted input stays private to its session. Existing history-file symlinks retain their targets and share the target lock. A killed writer can leave a private <code>.tmp.*</code> file; readers ignore it.</li>
@@ -1744,8 +1733,7 @@ systems without <code>/etc/paths</code> or <code>/etc/paths.d</code>. Startup fi
 <p>Pass <code>--no-system-paths</code> to disable this setup and preserve the inherited PATH exactly,
 including an empty or absent value. POSIX, minimal, secure, syntax-only, and <code>--no-config</code>
 invocations also skip it. These startup-only options (<code>--no-system-paths</code>, <code>--config-dir</code>,
-<code>--no-config</code>) cannot be persisted through <code>cjshopt login-startup-arg</code>; select them in your
-launcher. The former <code>--login-path</code> flag has been removed. Remove it from existing launch
+<code>--no-config</code>) are invocation-only; select them in your launcher. The former <code>--login-path</code> flag has been removed. Remove it from existing launch
 commands to use the default setup. For reproducible scripts, supply PATH explicitly and
 use <code>--no-system-paths</code> or <code>--no-config</code>.</p>
 <p>Inherited <code>USER</code> and <code>LOGNAME</code> are preserved even when empty; missing values are filled
@@ -1760,40 +1748,30 @@ usable storage can still work (for example, custom history outside an unavailabl
 Configuration directories are created only by explicit configuration-writing commands.
 History requires a writable parent directory for its lock and atomic replacement;
 later history write failures disable further writes for the session after one diagnostic.</p>
-<h3 id="persisting-startup-flags">Persisting Startup Flags</h3>
-<p><code>cjshopt login-startup-arg</code> is only valid while configuration files are being sourced. Call it once per flag inside <code>~/.cjprofile</code>:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># ~/.cjprofile</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--show-startup-time
-</span></code></pre></div>
-<p>Collected flags are applied after <code>.cjprofile</code> finishes and affect subsequent startup
-stages. They do not undo environment setup or commands already executed. Supply options
-on the command line when they must govern the entire startup, such as <code>--secure</code>.</p>
-<p>Supported flags: <code>--login</code>, <code>--interactive</code>, <code>--posix</code>, <code>--no-exec</code>, <code>--no-colors</code>, <code>--no-titleline</code>, <code>--show-startup-time</code>, <code>--no-source</code>, <code>--no-completions</code>, <code>--no-completion-learning</code>, <code>--no-smart-cd</code>, <code>--no-script-extension-interpreter</code>, <code>--no-syntax-highlighting</code>, <code>--no-error-suggestions</code>, <code>--no-agent</code>, <code>--no-prompt-vars</code>, <code>--no-history</code>, <code>--no-history-expansion</code>, <code>--no-sh-warning</code>, <code>--minimal</code>, <code>--secure</code>, and <code>--startup-test</code>.</p>
 <h3 id="posix-bash-compatibility">POSIX &amp; Bash Compatibility</h3>
 <p>cjsh targets broad POSIX compatibility for scripting while providing POSIX+ extensions such as <code>[[ ... ]]</code>, arrays, namerefs, coprocesses, extended globs, brace expansion, here-strings, process substitution, and rich redirection semantics. This is not a formal conformance or complete Bash/Zsh-emulation claim; consult the <a href="../../reference/language-compatibility/">Language Compatibility Inventory</a> for precise support. Syntax extensions are available in scripts and interactive sessions; interactive-only features like history expansion, completions, and prompt styling disable themselves automatically when stdin is not a tty. Use <code>--minimal</code> or <code>--secure</code> when you want fewer extras in interactive shells.</p>
 <h3 id="completion-learning-paths">Completion Learning Paths</h3>
 <p>When cjsh scrapes man pages for completions, it uses <code>man</code> from <code>PATH</code> by default. Set
 <code>CJSH_MAN_PATH</code> to force a specific <code>man</code> binary. In secure mode (<code>--secure</code>), cjsh only uses
 <code>CJSH_MAN_PATH</code> and skips scraping if it is not set or invalid.</p>
-<p>When <code>cjsh</code> is symlinked or launched as <code>sh</code>, interactive sessions print a reminder that cjsh is not a drop-in 100% POSIX shell. Suppress this notice with <code>cjsh --no-sh-warning</code> or persist the choice by adding <code>cjshopt login-startup-arg --no-sh-warning</code> inside <code>~/.cjprofile</code>.</p>
+<p>When <code>cjsh</code> is symlinked or launched as <code>sh</code>, interactive sessions print a reminder that cjsh is not a drop-in 100% POSIX shell. Suppress this notice with <code>cjsh --no-sh-warning</code>.</p>
 <hr>
 <h2 id="extended-interactive-tools">Extended Interactive Tools</h2>
 <h3 id="abbreviations">Abbreviations</h3>
 <p>Define inline expansions with the <code>abbr</code> builtin:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>abbr<span class="w"> </span><span class="nv">gs</span><span class="o">=</span><span class="s1">'git status --short --branch'</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>abbr<span class="w">                 </span><span class="c1"># list abbreviations</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>unabbr<span class="w"> </span>gs<span class="w">            </span><span class="c1"># remove an abbreviation</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>abbr<span class="w"> </span><span class="nv">gs</span><span class="o">=</span><span class="s1">'git status --short --branch'</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>abbr<span class="w">                 </span><span class="c1"># list abbreviations</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>unabbr<span class="w"> </span>gs<span class="w">            </span><span class="c1"># remove an abbreviation</span>
 </span></code></pre></div>
 <h3 id="typeahead">Typeahead</h3>
 <p>Keystrokes are buffered while commands run so no input is lost. This is always enabled.</p>
 <h3 id="key-bindings">Key Bindings</h3>
 <p>Inspect or tweak key bindings with:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>list<span class="w">                   </span><span class="c1"># safe at runtime</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span>list<span class="w">           </span><span class="c1"># show available profiles</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vim<span class="w">        </span><span class="c1"># add Vim-inspired navigation (persist in ~/.cjshrc)</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span><span class="nb">set</span><span class="w"> </span>&lt;action&gt;<span class="w"> </span>&lt;keys&gt;<span class="w">    </span><span class="c1"># redefine bindings (run from config files)</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>add<span class="w"> </span>&lt;action&gt;<span class="w"> </span>&lt;keys&gt;<span class="w">    </span><span class="c1"># append bindings (run from config files)</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>list<span class="w">                   </span><span class="c1"># safe at runtime</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span>list<span class="w">           </span><span class="c1"># show available profiles</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vim<span class="w">        </span><span class="c1"># add Vim-inspired navigation (persist in ~/.cjshrc)</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span><span class="nb">set</span><span class="w"> </span>&lt;action&gt;<span class="w"> </span>&lt;keys&gt;<span class="w">    </span><span class="c1"># redefine bindings (run from config files)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>add<span class="w"> </span>&lt;action&gt;<span class="w"> </span>&lt;keys&gt;<span class="w">    </span><span class="c1"># append bindings (run from config files)</span>
 </span></code></pre></div>
 <p>Use <code>cjshopt keybind --help</code> for the full action catalog. For custom widgets, see the <code>cjsh-widget</code> builtin in the reference documentation.</p>
 <hr>
@@ -1808,23 +1786,20 @@ on the command line when they must govern the entire startup, such as <code>--se
 </ul>
 <hr>
 <h2 id="quick-configuration-examples">Quick Configuration Examples</h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Toggle completion preview for the current session</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>off
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Open completion menus in expanded mode by default</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cjshopt<span class="w"> </span>completion-menu-expanded<span class="w"> </span>on
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Enable inline whitespace markers</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>cjshopt<span class="w"> </span>visible-whitespace<span class="w"> </span>on
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="c1"># Add Vim-inspired navigation bindings (add to ~/.cjshrc to persist)</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vim
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1"># Increase history retention</span>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">20000</span>
-</span></code></pre></div>
-<p>Persist startup flags by placing commands like the following in <code>~/.cjprofile</code>:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Toggle completion preview for the current session</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>off
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Open completion menus in expanded mode by default</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>cjshopt<span class="w"> </span>completion-menu-expanded<span class="w"> </span>on
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Enable inline whitespace markers</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>cjshopt<span class="w"> </span>visible-whitespace<span class="w"> </span>on
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># Add Vim-inspired navigation bindings (add to ~/.cjshrc to persist)</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vim
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="c1"># Increase history retention</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">20000</span>
 </span></code></pre></div>
 <p>Run <code>cjshopt --help</code> for a complete list of interactive toggles and their detailed help screens.</p>
 
