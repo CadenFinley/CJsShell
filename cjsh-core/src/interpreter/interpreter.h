@@ -105,7 +105,8 @@ class ShellScriptInterpreter {
                                                            bool check_semantics = true,
                                                            bool check_style = false);
 
-    std::vector<SyntaxError> validate_variable_usage(const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_variable_usage(const std::vector<std::string>& lines,
+                                                     bool include_usage = true);
 
     std::vector<SyntaxError> validate_command_existence();
 

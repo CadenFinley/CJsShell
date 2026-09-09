@@ -1065,7 +1065,9 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
             (void)errors.insert(errors.end(), source.begin(), source.end());
         };
 
-        append_errors(validate_variable_usage(lines));
+        // Execution only consumes blocking syntax errors; usage diagnostics remain
+        // available through comprehensive validation and direct validation calls.
+        append_errors(validate_variable_usage(lines, false));
 
         const bool enforce_inline_completion = [&]() {
             size_t non_empty = 0;

@@ -30,9 +30,12 @@
 
 #include "interpreter.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -302,11 +305,21 @@ struct TokenizedLineContext {
 
 template <typename Callback>
 std::vector<SyntaxError> validate_tokenized_with_first_token_context(
-    const std::vector<std::string>& lines, Callback&& callback) {
+    const std::vector<std::string>& lines, Callback&& callback,
+    std::initializer_list<std::string_view> relevant_keywords) {
     std::vector<SyntaxError> errors;
 
     for (size_t line_idx = 0; line_idx < lines.size(); ++line_idx) {
         const std::string& line = lines[line_idx];
+        // The callback only diagnoses these literal first tokens. A substring match
+        // may still need tokenization, but absence rules out a relevant token even
+        // when the caller has installed a custom whitespace locale.
+        if (std::none_of(relevant_keywords.begin(), relevant_keywords.end(),
+                         [&line](std::string_view keyword) {
+                             return line.find(keyword) != std::string::npos;
+                         })) {
+            continue;
+        }
         std::string trimmed_line;
         size_t first_non_space = 0;
         if (!extract_trimmed_line(line, trimmed_line, first_non_space)) {

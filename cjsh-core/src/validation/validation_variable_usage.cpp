@@ -546,7 +546,7 @@ void collect_read_variable_definitions(const std::vector<TokenInfo>& tokens,
 }  // namespace
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_variable_usage(
-    const std::vector<std::string>& lines) {
+    const std::vector<std::string>& lines, bool include_usage) {
     std::vector<SyntaxError> errors;
     std::map<std::string, std::vector<size_t>> defined_vars;
     std::map<std::string, std::vector<size_t>> used_vars;
@@ -554,6 +554,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
         const std::string& original_line = lines[line_num];
         size_t display_line = line_num + 1;
+
+        // Unclosed ${...} is the only blocking diagnostic in this validator.
+        if (!include_usage && original_line.find("${") == std::string::npos) {
+            continue;
+        }
 
         if (should_skip_line(original_line)) {
             continue;
@@ -565,40 +570,42 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             continue;
         }
 
-        if (starts_with_keyword_token(trimmed_line, "for")) {
-            auto tokens = tokenize_whitespace(trimmed_line);
-            if (tokens.size() >= 2) {
-                std::string loop_var = extract_identifier_from_token(tokens[1]);
-                if (!loop_var.empty() && is_valid_identifier(loop_var)) {
-                    size_t var_pos = line_without_comments.find(loop_var);
-                    size_t offset = (var_pos != std::string::npos) ? var_pos : 0;
-                    defined_vars[loop_var].push_back(
-                        adjust_display_line(original_line, display_line, offset));
+        if (include_usage) {
+            if (starts_with_keyword_token(trimmed_line, "for")) {
+                auto tokens = tokenize_whitespace(trimmed_line);
+                if (tokens.size() >= 2) {
+                    std::string loop_var = extract_identifier_from_token(tokens[1]);
+                    if (!loop_var.empty() && is_valid_identifier(loop_var)) {
+                        size_t var_pos = line_without_comments.find(loop_var);
+                        size_t offset = (var_pos != std::string::npos) ? var_pos : 0;
+                        defined_vars[loop_var].push_back(
+                            adjust_display_line(original_line, display_line, offset));
+                    }
                 }
             }
-        }
 
-        const auto tokens =
-            tokenize_shell_segment(line_without_comments, 0, line_without_comments.size());
-        collect_declaration_definitions(tokens, original_line, display_line, defined_vars);
+            const auto tokens =
+                tokenize_shell_segment(line_without_comments, 0, line_without_comments.size());
+            collect_declaration_definitions(tokens, original_line, display_line, defined_vars);
 
-        detect_keyword_assignments(line_without_comments, trimmed_line, original_line, display_line,
-                                   defined_vars);
+            detect_keyword_assignments(line_without_comments, trimmed_line, original_line,
+                                       display_line, defined_vars);
 
-        collect_read_variable_definitions(tokens, original_line, display_line, defined_vars);
+            collect_read_variable_definitions(tokens, original_line, display_line, defined_vars);
 
-        size_t eq_pos = line_without_comments.find('=');
-        if (eq_pos != std::string::npos) {
-            std::string before_eq = line_without_comments.substr(0, eq_pos);
+            size_t eq_pos = line_without_comments.find('=');
+            if (eq_pos != std::string::npos) {
+                std::string before_eq = line_without_comments.substr(0, eq_pos);
 
-            size_t start = before_eq.find_first_not_of(" \t");
-            if (start != std::string::npos) {
-                before_eq = before_eq.substr(start);
-                before_eq = trim(before_eq);
+                size_t start = before_eq.find_first_not_of(" \t");
+                if (start != std::string::npos) {
+                    before_eq = before_eq.substr(start);
+                    before_eq = trim(before_eq);
 
-                if (is_valid_identifier(before_eq)) {
-                    defined_vars[before_eq].push_back(
-                        adjust_display_line(original_line, display_line, eq_pos));
+                    if (is_valid_identifier(before_eq)) {
+                        defined_vars[before_eq].push_back(
+                            adjust_display_line(original_line, display_line, eq_pos));
+                    }
                 }
             }
         }
@@ -618,30 +625,32 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                         analyze_arithmetic_expansion_bounds(line_without_comments, i);
 
                     if (bounds.closed) {
-                        std::string expr = line_without_comments.substr(
-                            bounds.expr_start, bounds.expr_end - bounds.expr_start);
+                        if (include_usage) {
+                            std::string expr = line_without_comments.substr(
+                                bounds.expr_start, bounds.expr_end - bounds.expr_start);
 
-                        size_t pos = 0;
-                        while (pos < expr.length()) {
-                            char ec = expr[pos];
-                            if (is_valid_identifier_start(ec)) {
-                                size_t start_pos = pos;
-                                pos++;
-                                while (pos < expr.length() && is_valid_identifier_char(expr[pos])) {
+                            size_t pos = 0;
+                            while (pos < expr.length()) {
+                                char ec = expr[pos];
+                                if (is_valid_identifier_start(ec)) {
+                                    size_t start_pos = pos;
+                                    pos++;
+                                    while (pos < expr.length() &&
+                                           is_valid_identifier_char(expr[pos])) {
+                                        pos++;
+                                    }
+
+                                    std::string token = expr.substr(start_pos, pos - start_pos);
+                                    if (!token.empty() && is_valid_identifier(token)) {
+                                        used_vars[token].push_back(
+                                            adjust_display_line(original_line, display_line,
+                                                                bounds.expr_start + start_pos));
+                                    }
+                                } else {
                                     pos++;
                                 }
-
-                                std::string token = expr.substr(start_pos, pos - start_pos);
-                                if (!token.empty() && is_valid_identifier(token)) {
-                                    used_vars[token].push_back(
-                                        adjust_display_line(original_line, display_line,
-                                                            bounds.expr_start + start_pos));
-                                }
-                            } else {
-                                pos++;
                             }
                         }
-
                         i = (bounds.closing_index == 0) ? i : bounds.closing_index - 1;
                         continue;
                     }
@@ -655,11 +664,13 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                     var_start++;
                     var_end = line_without_comments.find('}', var_start);
                     if (var_end != std::string::npos) {
-                        var_name = line_without_comments.substr(var_start, var_end - var_start);
+                        if (include_usage) {
+                            var_name = line_without_comments.substr(var_start, var_end - var_start);
 
-                        size_t colon_pos = var_name.find(':');
-                        if (colon_pos != std::string::npos) {
-                            var_name = var_name.substr(0, colon_pos);
+                            size_t colon_pos = var_name.find(':');
+                            if (colon_pos != std::string::npos) {
+                                var_name = var_name.substr(0, colon_pos);
+                            }
                         }
                     } else {
                         errors.push_back(SyntaxError({display_line, i, i + 2, 0},
@@ -668,7 +679,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                                      original_line, "Add closing brace '}'"));
                         continue;
                     }
-                } else if (is_valid_identifier_start(line_without_comments[var_start])) {
+                } else if (include_usage &&
+                           is_valid_identifier_start(line_without_comments[var_start])) {
                     while (var_end < line_without_comments.length() &&
                            is_valid_identifier_char(line_without_comments[var_end])) {
                         var_end++;

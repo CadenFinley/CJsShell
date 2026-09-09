@@ -35,6 +35,7 @@
 #include "flags.h"
 #include "interpreter.h"
 #include "parameter_expansion_evaluator.h"
+#include "parser.h"
 #include "pattern_matcher.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -47,6 +48,43 @@ bool expect(bool condition, const char* message) {
         std::fprintf(stderr, "[FAIL] %s\n", message);
     }
     return condition;
+}
+
+bool test_environment_import() {
+    bool ok = true;
+    const std::string long_value(8192, 'v');
+    const std::vector<std::pair<std::string, std::string>> values = {
+        {"__import_empty", ""},
+        {"__import_equals", "one=two=three"},
+        {"__import_long", long_value},
+    };
+    for (const auto& [name, value] : values) {
+        setenv(name.c_str(), value.c_str(), 1);
+    }
+    cjsh_env::set_shell_variable_value("__import_shell_only", "retained");
+    cjsh_env::sync_env_vars_from_system(*g_shell);
+    for (const auto& [name, value] : values) {
+        setenv(name.c_str(), "changed", 1);
+        ok = expect(cjsh_env::shell_variable_is_set(name) &&
+                        cjsh_env::get_shell_variable_value(name) == value &&
+                        g_shell->get_parser()->parse_command(": \"$" + name + "\"") ==
+                            std::vector<std::string>({":", value}),
+                    "import owns values and preserves empty values and embedded equals") &&
+             ok;
+    }
+    cjsh_env::sync_env_vars_from_system(*g_shell);
+    for (const auto& [name, value] : values) {
+        ok = expect(cjsh_env::get_shell_variable_value(name) == "changed",
+                    "a subsequent import updates existing variables") &&
+             ok;
+        unsetenv(name.c_str());
+        cjsh_env::unset_shell_variable_value(name);
+    }
+    ok = expect(cjsh_env::get_shell_variable_value("__import_shell_only") == "retained",
+                "import preserves shell variables absent from the process environment") &&
+         ok;
+    cjsh_env::unset_shell_variable_value("__import_shell_only");
+    return ok;
 }
 
 bool test_variable_presence_and_scope() {
@@ -295,10 +333,11 @@ int main() {
     const bool expansion_ok = test_parameter_expansion_work();
     const bool replacement_ok = test_parameter_replacement();
     const bool removal_ok = test_literal_pattern_removal();
+    const bool import_ok = test_environment_import();
     g_shell.reset();
-    if (!lookup_ok || !expansion_ok || !replacement_ok || !removal_ok) {
+    if (!lookup_ok || !expansion_ok || !replacement_ok || !removal_ok || !import_ok) {
         return 1;
     }
-    std::puts("All 4 variable lookup and expansion tests passed");
+    std::puts("All 5 variable lookup and expansion tests passed");
     return 0;
 }

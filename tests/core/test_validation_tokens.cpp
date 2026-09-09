@@ -126,6 +126,87 @@ bool test_variable_diagnostics() {
     return ok;
 }
 
+bool test_execution_variable_syntax() {
+    auto* interpreter = g_shell->get_shell_script_interpreter();
+    const std::vector<std::string> cases = {
+        ": literal",
+        "value=unused",
+        ": $missing",
+        ": ${missing:-fallback}",
+        ": \"${missing\"",
+        ": ${first ${second",
+        ": '${literal'",
+        ": \\${escaped",
+        ": ignored # ${comment",
+        ": $((1 + 2)) ${unclosed",
+        ": $((1 + ${nested}))",
+        ": \"${closed}\" ${open",
+        ": \"one\ntwo ${open\"",
+    };
+    bool ok = true;
+    for (const auto& line : cases) {
+        const auto complete = interpreter->validate_variable_usage({line});
+        const auto syntax = interpreter->validate_variable_usage({line}, false);
+        size_t index = 0;
+        for (const auto& error : complete) {
+            if (error.severity != ErrorSeverity::CRITICAL) {
+                continue;
+            }
+            ok = expect(index < syntax.size(), "execution retains every blocking variable error") &&
+                 ok;
+            if (index < syntax.size()) {
+                const auto& actual = syntax[index];
+                ok = expect(actual.error_code == error.error_code &&
+                                actual.severity == error.severity &&
+                                actual.message == error.message &&
+                                actual.position.line_number == error.position.line_number &&
+                                actual.suggestion == error.suggestion,
+                            "execution preserves variable syntax diagnostics and source lines") &&
+                     ok;
+            }
+            ++index;
+        }
+        ok = expect(index == syntax.size(), "execution omits advisory variable diagnostics") && ok;
+    }
+    ok = expect(interpreter->has_syntax_errors({": \"${missing\""}, false),
+                "normal execution rejects unclosed parameter expansions") &&
+         ok;
+    ok = expect(!interpreter->has_syntax_errors({": ${missing:-fallback}"}, false),
+                "normal execution accepts default expansion of an unset variable") &&
+         ok;
+    return ok;
+}
+
+bool test_control_validator_filter() {
+    auto* interpreter = g_shell->get_shell_script_interpreter();
+    bool ok = true;
+    for (const auto& line : {": ordinary words", ": before select while until if case", "'for' x",
+                             "different argument", "casework word"}) {
+        ok = expect(interpreter->validate_loop_syntax({line}).empty() &&
+                        interpreter->validate_conditional_syntax({line}).empty(),
+                    "keyword substrings and quoted words remain ordinary commands") &&
+             ok;
+    }
+    for (const auto& line : {"for;", "for", "select", "while", "until"}) {
+        ok = expect(!interpreter->validate_loop_syntax({line}).empty(),
+                    "all loop leaders retain incomplete-header diagnostics") &&
+             ok;
+    }
+    for (const auto& line : {"if", "case"}) {
+        ok = expect(!interpreter->validate_conditional_syntax({line}).empty(),
+                    "conditional leaders retain incomplete-header diagnostics") &&
+             ok;
+    }
+    const std::locale previous =
+        std::locale::global(std::locale(std::locale::classic(), new CommaWhitespace));
+    ok = expect(!interpreter->validate_loop_syntax({",while,"}).empty() &&
+                    !interpreter->validate_conditional_syntax({",if,"}).empty(),
+                "keyword filtering preserves custom locale tokenization") &&
+         ok;
+    std::locale::global(previous);
+    return ok;
+}
+
 }  // namespace
 
 int main() {
@@ -137,11 +218,14 @@ int main() {
     g_shell->set_interactive_mode(false);
     const bool tokens_ok = test_whitespace_and_locale();
     const bool diagnostics_ok = test_variable_diagnostics();
+    const bool execution_ok = test_execution_variable_syntax();
+    const bool control_ok = test_control_validator_filter();
     g_shell.reset();
-    if (tokens_ok && diagnostics_ok) {
-        std::puts("All 2 validation token tests passed");
+    if (tokens_ok && diagnostics_ok && execution_ok && control_ok) {
+        std::puts("All 4 validation token tests passed");
         return 0;
     }
-    std::fprintf(stderr, "%d/2 validation token tests failed\n", !tokens_ok + !diagnostics_ok);
+    std::fprintf(stderr, "%d/4 validation token tests failed\n",
+                 !tokens_ok + !diagnostics_ok + !execution_ok + !control_ok);
     return 1;
 }

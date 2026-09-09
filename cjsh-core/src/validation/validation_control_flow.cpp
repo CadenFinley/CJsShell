@@ -108,7 +108,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_loop_syntax(
     const std::vector<std::string>& lines) {
-    return validate_tokenized_with_first_token_context(lines, [](TokenizedLineContext& ctx) {
+    auto validate_header = [](TokenizedLineContext& ctx) {
         auto& line_errors = ctx.line_errors;
         const std::string& line = ctx.line;
         const std::string& trimmed_line = ctx.trimmed_line;
@@ -221,13 +221,15 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 }
             }
         }
-    });
+    };
+    return validate_tokenized_with_first_token_context(lines, validate_header,
+                                                       {"for", "select", "while", "until"});
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::string>& lines) {
     // conditional validator feeds both syntax reporting and interactive continuation checks
-    return validate_tokenized_with_first_token_context(lines, [](TokenizedLineContext& ctx) {
+    auto validate_header = [](TokenizedLineContext& ctx) {
         auto& line_errors = ctx.line_errors;
         const std::string& line = ctx.line;
         const std::string& trimmed_line = ctx.trimmed_line;
@@ -281,7 +283,8 @@ ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::strin
                                                   "Complete case statement: case variable in"));
             }
         }
-    });
+    };
+    return validate_tokenized_with_first_token_context(lines, validate_header, {"if", "case"});
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::check_style_guidelines(

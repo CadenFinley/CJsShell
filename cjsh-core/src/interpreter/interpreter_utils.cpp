@@ -108,6 +108,13 @@ std::string process_line_for_validation(const std::string& line) {
 }
 
 std::vector<std::string> split_ampersand(const std::string& s) {
+    if (s.find('&') == std::string::npos) {
+        std::string part = trim(s);
+        if (part.empty()) {
+            return {};
+        }
+        return {std::move(part)};
+    }
     std::vector<std::string> parts;
     bool in_quotes = false;
     char q = '\0';

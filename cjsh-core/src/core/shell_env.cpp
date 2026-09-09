@@ -52,6 +52,7 @@ extern "C" char** environ;
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -594,12 +595,11 @@ bool update_terminal_dimensions() {
 void sync_env_vars_from_system(Shell& shell) {
     auto& env_map = env_vars();
     for (char** env = cjsh_environ(); *env != nullptr; env++) {
-        std::string env_str(*env);
+        std::string_view env_str(*env);
         size_t eq_pos = env_str.find('=');
         if (eq_pos != std::string::npos) {
-            std::string name = env_str.substr(0, eq_pos);
-            std::string value = env_str.substr(eq_pos + 1);
-            env_map[name] = value;
+            env_map.insert_or_assign(std::string(env_str.substr(0, eq_pos)),
+                                     std::string(env_str.substr(eq_pos + 1)));
         }
     }
 

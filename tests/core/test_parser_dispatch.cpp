@@ -121,6 +121,32 @@ void test_comments() {
     }
 }
 
+void test_ampersand_commands() {
+    using shell_script_interpreter::detail::split_ampersand;
+    const std::vector<std::pair<std::string, std::vector<std::string>>> cases = {
+        {"", {}},
+        {" \t\r\n", {}},
+        {" \t: word\r\n", {": word"}},
+        {": 'one two'", {": 'one two'"}},
+        {": $((1 + 2))", {": $((1 + 2))"}},
+        {std::string(8192, 'x'), {std::string(8192, 'x')}},
+        {std::string("a\0b", 3), {std::string("a\0b", 3)}},
+        {": one & : two", {": one &", ": two"}},
+        {": 'one&two'", {": 'one&two'"}},
+        {": one\\&two", {": one\\&two"}},
+        {": one && : two", {": one && : two"}},
+        {": >&2", {": >&2"}},
+        {": &>out", {": &>out"}},
+        {": $((1 & 2))", {": $((1 & 2))"}},
+        {"[[ one & two ]]", {"[[ one & two ]]"}},
+    };
+    for (const auto& [input, expected] : cases) {
+        expect(split_ampersand(input) == expected,
+               "ampersand splitting preserves literals, arithmetic, redirections and background "
+               "lists");
+    }
+}
+
 void test_help() {
     std::ostringstream output;
     auto* previous = std::cout.rdbuf(output.rdbuf());
@@ -184,6 +210,7 @@ int main() {
     test_logical_commands(*g_shell->get_parser());
     test_semicolon_commands(*g_shell->get_parser());
     test_comments();
+    test_ampersand_commands();
     test_help();
     test_execution();
     g_shell.reset();
