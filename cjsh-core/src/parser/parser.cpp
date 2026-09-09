@@ -1903,6 +1903,15 @@ bool Parser::is_env_assignment(const std::string& command, std::string& var_name
 
 std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& command) {
     std::vector<LogicalCommand> logical_commands;
+    // Without a logical operator the result is the original command, even when
+    // it contains semicolons. Avoid scanning delimiters only to discard the split.
+    if (command.find("&&") == std::string::npos && command.find("||") == std::string::npos) {
+        if (!command.empty()) {
+            logical_commands.push_back({command, ""});
+        }
+        return logical_commands;
+    }
+
     std::string current;
     DelimiterState delimiters;
     int arith_depth = 0;
@@ -2054,6 +2063,15 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
 std::vector<std::string> Parser::parse_semicolon_commands(const std::string& command,
                                                           bool split_on_newlines) {
     std::vector<std::string> commands;
+    if (command.find(';') == std::string::npos &&
+        (!split_on_newlines || command.find('\n') == std::string::npos)) {
+        std::string trimmed = trim_whitespace(command);
+        if (!trimmed.empty()) {
+            commands.push_back(std::move(trimmed));
+        }
+        return commands;
+    }
+
     std::string current;
     DelimiterState scan_state;
     int control_depth = 0;

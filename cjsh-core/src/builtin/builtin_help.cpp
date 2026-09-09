@@ -53,10 +53,24 @@ bool is_help_requested(const std::vector<std::string>& args, BuiltinHelpScanMode
     return false;
 }
 
-void print_help_lines(const std::vector<std::string>& help_lines) {
+template <typename Lines>
+void print_help_lines(const Lines& help_lines) {
     for (const auto& line : help_lines) {
         std::cout << line << '\n';
     }
+}
+
+template <typename Lines>
+bool handle_help(const std::vector<std::string>& args, const Lines& help_lines,
+                 BuiltinHelpScanMode scan_mode, bool startup_guard) {
+    if (!is_help_requested(args, scan_mode)) {
+        return false;
+    }
+
+    if (!startup_guard || !cjsh_env::startup_active()) {
+        print_help_lines(help_lines);
+    }
+    return true;
 }
 
 }  // namespace
@@ -64,24 +78,23 @@ void print_help_lines(const std::vector<std::string>& help_lines) {
 bool builtin_handle_help(const std::vector<std::string>& args,
                          const std::vector<std::string>& help_lines,
                          BuiltinHelpScanMode scan_mode) {
-    if (!is_help_requested(args, scan_mode)) {
-        return false;
-    }
+    return handle_help(args, help_lines, scan_mode, false);
+}
 
-    print_help_lines(help_lines);
-    return true;
+bool builtin_handle_help(const std::vector<std::string>& args,
+                         std::initializer_list<std::string_view> help_lines,
+                         BuiltinHelpScanMode scan_mode) {
+    return handle_help(args, help_lines, scan_mode, false);
 }
 
 bool builtin_handle_help_with_startup_guard(const std::vector<std::string>& args,
                                             const std::vector<std::string>& help_lines,
                                             BuiltinHelpScanMode scan_mode) {
-    if (!is_help_requested(args, scan_mode)) {
-        return false;
-    }
+    return handle_help(args, help_lines, scan_mode, true);
+}
 
-    if (!cjsh_env::startup_active()) {
-        print_help_lines(help_lines);
-    }
-
-    return true;
+bool builtin_handle_help_with_startup_guard(const std::vector<std::string>& args,
+                                            std::initializer_list<std::string_view> help_lines,
+                                            BuiltinHelpScanMode scan_mode) {
+    return handle_help(args, help_lines, scan_mode, true);
 }

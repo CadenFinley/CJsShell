@@ -93,6 +93,9 @@ size_t find_inline_comment_start(const std::string& s, size_t start, size_t end)
 }
 
 std::string strip_inline_comment(const std::string& s) {
+    if (s.find('#') == std::string::npos) {
+        return s;
+    }
     size_t comment_start = find_inline_comment_start(s, 0, std::string::npos);
     if (comment_start != std::string::npos) {
         return s.substr(0, comment_start);

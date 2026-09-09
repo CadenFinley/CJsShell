@@ -150,6 +150,9 @@ target_link_libraries(variable_lookup_tests PRIVATE cjsh_core cjsh_isocline)
 add_executable(validation_token_tests "${CMAKE_CURRENT_SOURCE_DIR}/core/test_validation_tokens.cpp")
 target_link_libraries(validation_token_tests PRIVATE cjsh_core cjsh_isocline)
 
+add_executable(parser_dispatch_tests "${CMAKE_CURRENT_SOURCE_DIR}/core/test_parser_dispatch.cpp")
+target_link_libraries(parser_dispatch_tests PRIVATE cjsh_core cjsh_isocline)
+
 cjsh_add_test(NAME isocline_behavior_tests COMMAND isocline_behavior_tests)
 cjsh_add_test(NAME completion_tests COMMAND completion_tests)
 cjsh_add_test(NAME syntax_highlighting_tests COMMAND syntax_highlighting_tests)
@@ -160,6 +163,7 @@ cjsh_add_test(NAME loop_syntax_tests COMMAND loop_syntax_tests)
 cjsh_add_test(NAME system_paths_tests COMMAND system_paths_tests)
 cjsh_add_test(NAME variable_lookup_tests COMMAND variable_lookup_tests)
 cjsh_add_test(NAME validation_token_tests COMMAND validation_token_tests)
+cjsh_add_test(NAME parser_dispatch_tests COMMAND parser_dispatch_tests)
 
 if(Python3_Interpreter_FOUND)
     if(UNIX)

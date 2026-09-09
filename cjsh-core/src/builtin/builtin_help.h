@@ -28,7 +28,9 @@
 
 #pragma once
 
+#include <initializer_list>
 #include <string>
+#include <string_view>
 #include <vector>
 
 enum class BuiltinHelpScanMode {
@@ -40,6 +42,15 @@ bool builtin_handle_help(const std::vector<std::string>& args,
                          const std::vector<std::string>& help_lines,
                          BuiltinHelpScanMode scan_mode = BuiltinHelpScanMode::FirstArgument);
 
+// Inline help text needs no owning strings when help was not requested.
+bool builtin_handle_help(const std::vector<std::string>& args,
+                         std::initializer_list<std::string_view> help_lines,
+                         BuiltinHelpScanMode scan_mode = BuiltinHelpScanMode::FirstArgument);
+
 bool builtin_handle_help_with_startup_guard(
     const std::vector<std::string>& args, const std::vector<std::string>& help_lines,
+    BuiltinHelpScanMode scan_mode = BuiltinHelpScanMode::FirstArgument);
+
+bool builtin_handle_help_with_startup_guard(
+    const std::vector<std::string>& args, std::initializer_list<std::string_view> help_lines,
     BuiltinHelpScanMode scan_mode = BuiltinHelpScanMode::FirstArgument);
