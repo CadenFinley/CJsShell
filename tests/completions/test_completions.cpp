@@ -37,6 +37,7 @@
 #include <fstream>
 #include <functional>
 #include <limits>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <unordered_map>
@@ -136,6 +137,35 @@ static ssize_t run_completion_generation(const char* input, ic_completer_fun_t* 
     return run_completion_generation_at(input, static_cast<ssize_t>(std::strlen(input)), completer,
                                         max_results);
 }
+
+static ssize_t run_hint_generation(const char* input) {
+    ic_env_t* env = ic_get_env();
+    completions_set_completer(env->completions, &cjsh_default_completer, nullptr);
+    return completions_generate_hint(env, env->completions, input,
+                                     static_cast<ssize_t>(std::strlen(input)), 2);
+}
+
+class ScopedEnvironmentValue {
+   public:
+    ScopedEnvironmentValue(const char* name, const std::string& value) : name_(name) {
+        if (const char* previous = getenv(name)) {
+            previous_ = previous;
+        }
+        (void)setenv(name, value.c_str(), 1);
+    }
+    ~ScopedEnvironmentValue() {
+        if (previous_) {
+            (void)setenv(name_.c_str(), previous_->c_str(), 1);
+        } else {
+            (void)unsetenv(name_.c_str());
+        }
+        cjsh_filesystem::reset_path_hash();
+    }
+
+   private:
+    std::string name_;
+    std::optional<std::string> previous_;
+};
 
 static bool generated_completions_include_replacement(const char* replacement) {
     if (replacement == nullptr) {
@@ -1697,6 +1727,89 @@ static bool test_rich_completion_runtime() {
     return true;
 }
 
+static bool test_hints_defer_documentation_fetch() {
+    const char* test_name = "hints_defer_documentation_fetch";
+    namespace fs = std::filesystem;
+    const fs::path root = cjsh_filesystem::g_user_home_path() / "hint-fetch";
+    fs::create_directories(root);
+    std::ofstream(root / "hintfetch-fixture") << "#!/bin/sh\nexit 0\n";
+    std::ofstream(root / "unrelated-command-in-path") << "#!/bin/sh\nexit 0\n";
+    std::ofstream(root / "man-fixture")
+        << "#!/bin/sh\nprintf 'called\\n' >> \"$CJSH_TEST_MAN_LOG\"\n"
+           "printf 'NAME\\n    hintfetch-fixture - fixture command\\n"
+           "OPTIONS\\n    --sample    Sample option\\n'\n";
+    fs::permissions(root / "hintfetch-fixture", fs::perms::owner_all);
+    fs::permissions(root / "unrelated-command-in-path", fs::perms::owner_all);
+    fs::permissions(root / "man-fixture", fs::perms::owner_all);
+    std::ofstream(root / "hintfetch-nonexecutable") << "plain file\n";
+    const ScopedEnvironmentValue path("PATH", root.string());
+    const ScopedEnvironmentValue man_path("CJSH_MAN_PATH", (root / "man-fixture").string());
+    const ScopedEnvironmentValue man_log("CJSH_TEST_MAN_LOG", (root / "calls").string());
+    const bool previous_learning = config::completion_learning_enabled;
+    config::completion_learning_enabled = true;
+
+    (void)run_hint_generation("hintfetch-fixtu");
+    const bool hinted_command = generated_completions_include_replacement("hintfetch-fixture ");
+    const auto hashed_commands = cjsh_filesystem::get_path_hash_entries();
+    const bool skipped_unrelated = std::none_of(
+        hashed_commands.begin(), hashed_commands.end(),
+        [](const auto& entry) { return entry.command == "unrelated-command-in-path"; });
+    (void)run_hint_generation("hintfetch-nonexecutable");
+    const bool rejected_nonexecutable =
+        !generated_completions_include_replacement("hintfetch-nonexecutable ");
+    (void)run_hint_generation("hintfetch-fixture --sam");
+    const bool deferred = !fs::exists(root / "calls");
+    (void)run_completion_generation("hintfetch-fixtu", &cjsh_default_completer, 256);
+    const bool fetched = fs::exists(root / "calls");
+    (void)run_hint_generation("hintfetch-fixture --sam");
+    const bool hinted_option = generated_completions_include_replacement("--sample ");
+    config::completion_learning_enabled = previous_learning;
+    clear_generated_completions();
+
+    EXPECT_TRUE(hinted_command, test_name, "cold hints should still find executable commands");
+    EXPECT_TRUE(skipped_unrelated, test_name,
+                "cold hints must not eagerly hash every PATH executable");
+    EXPECT_TRUE(rejected_nonexecutable, test_name,
+                "name-only scanning must check candidate permissions");
+    EXPECT_TRUE(deferred, test_name, "typing command names and arguments must not launch man");
+    EXPECT_TRUE(fetched, test_name, "Tab must still fetch documentation after a cache-only hint");
+    EXPECT_TRUE(hinted_option, test_name, "hints should use documentation once it is cached");
+    return true;
+}
+
+static bool test_hints_defer_dynamic_providers() {
+    const char* test_name = "hints_defer_dynamic_providers";
+    using namespace completion_specs;
+    CompletionEntry value{"--value", "Select value", EntryKind::Option};
+    value.value.requirement = ValueRequirement::Required;
+    value.value.choices = {"static-choice"};
+    value.value.dynamic_provider = "hint-provider-fixture";
+    CommandDoc doc;
+    doc.entries = {value};
+    int provider_calls = 0;
+    (void)register_command_doc("hint-provider-command", doc);
+    (void)register_dynamic_completion_provider(
+        "hint-provider-fixture", [&](const DynamicCompletionRequest&) {
+            ++provider_calls;
+            return std::vector<DynamicCompletionCandidate>{{"dynamic-choice", "fixture"}};
+        });
+    (void)run_hint_generation("hint-provider-command --value s");
+    const bool static_hint = generated_completions_include_replacement("static-choice ");
+    (void)run_hint_generation("hint-provider-command --value d");
+    const bool deferred = provider_calls == 0;
+    (void)run_completion_generation("hint-provider-command --value d", &cjsh_default_completer,
+                                    256);
+    const bool dynamic_tab =
+        provider_calls > 0 && generated_completions_include_replacement("dynamic-choice ");
+    (void)unregister_dynamic_completion_provider("hint-provider-fixture");
+    (void)unregister_command_doc("hint-provider-command");
+    clear_generated_completions();
+    EXPECT_TRUE(static_hint, test_name, "hints should retain static value choices");
+    EXPECT_TRUE(deferred, test_name, "typing must not invoke dynamic completion providers");
+    EXPECT_TRUE(dynamic_tab, test_name, "Tab must still invoke dynamic completion providers");
+    return true;
+}
+
 static bool test_command_context_completion_runtime() {
     const char* test_name = "command_context_completion_runtime";
     using namespace completion_specs;
@@ -2181,19 +2294,22 @@ static const test_case_t kTests[] = {
     {"completion_spec_legacy_compatibility", test_completion_spec_legacy_compatibility},
     {"man_page_value_metadata", test_man_page_value_metadata},
     {"rich_completion_runtime", test_rich_completion_runtime},
+    {"hints_defer_documentation_fetch", test_hints_defer_documentation_fetch},
+    {"hints_defer_dynamic_providers", test_hints_defer_dynamic_providers},
     {"command_context_completion_runtime", test_command_context_completion_runtime},
     {"builtin_docs", test_builtin_docs},
 };
 
 int main() {
-    // The history path is cached on first use; give all completion tests one isolated location.
+    // Persistence paths are cached on first use; isolate history and learned documentation.
     namespace fs = std::filesystem;
     const auto unique_suffix = std::chrono::steady_clock::now().time_since_epoch().count();
     const fs::path history_dir =
         fs::temp_directory_path() / ("cjsh_completion_history_" + std::to_string(unique_suffix));
     std::error_code ec;
     (void)fs::create_directories(history_dir, ec);
-    if (ec || setenv("CJSH_HISTORY_FILE", (history_dir / "history.txt").c_str(), 1) != 0) {
+    if (ec || setenv("HOME", history_dir.c_str(), 1) != 0 ||
+        setenv("CJSH_HISTORY_FILE", (history_dir / "history.txt").c_str(), 1) != 0) {
         (void)std::fprintf(stderr, "Failed to create isolated completion history\n");
         (void)fs::remove_all(history_dir, ec);
         return 1;

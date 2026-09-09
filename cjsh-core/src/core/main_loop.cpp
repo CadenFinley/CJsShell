@@ -281,6 +281,7 @@ std::optional<std::string> get_next_command() {
         (void)ic_set_idle_timeout(idle_timeout_ms);
 
         refresh_command_palette_entries();
+        cjsh_filesystem::reset_interactive_path_cache();
         prompt::set_prompt_refresh_allowed(true);
         ic_readline_result_t readline_result =
             resuming_after_idle ? ic_readline_with_status_at_cursor(

@@ -207,6 +207,21 @@ bool file_exists(const std::filesystem::path& path);
 bool initialize_cjsh_directories();
 void initialize_history_storage();
 std::string find_executable_in_path(const std::string& name);
+
+// Reuse PATH lookups while the editor redraws. Execution and explicit queries
+// outside this scope always retain their normal filesystem validation.
+class ScopedInteractivePathLookup {
+   public:
+    ScopedInteractivePathLookup();
+    ~ScopedInteractivePathLookup();
+    ScopedInteractivePathLookup(const ScopedInteractivePathLookup&) = delete;
+    ScopedInteractivePathLookup& operator=(const ScopedInteractivePathLookup&) = delete;
+};
+
+void reset_interactive_path_cache();
+
+// Names only: callers must check executability after matching a candidate.
+std::vector<std::string> get_path_completion_candidates();
 std::string resolve_executable_for_execution(const std::string& name);
 std::string resolve_cjsh_executable_path(const std::vector<std::string>& startup_args = {});
 std::string resolve_cjsh_executable_directory(const std::vector<std::string>& startup_args = {});

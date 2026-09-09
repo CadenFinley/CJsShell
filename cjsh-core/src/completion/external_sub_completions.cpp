@@ -1167,14 +1167,16 @@ void remember_used_entry(ResolvedCompletionContext& context, const CompletionEnt
 }
 
 ResolvedCompletionContext resolve_completion_context(const std::vector<std::string>& tokens,
-                                                     std::size_t stable_count, bool allow_fetch) {
+                                                     std::size_t stable_count, bool allow_fetch,
+                                                     bool attach_executable_path) {
     ResolvedCompletionContext context;
     if (tokens.empty()) {
         return context;
     }
 
     std::string current_doc = tokens[0];
-    CommandDoc current_doc_data = load_entries_for_target(current_doc, allow_fetch, true);
+    CommandDoc current_doc_data =
+        load_entries_for_target(current_doc, allow_fetch, attach_executable_path);
     context.entries = current_doc_data.entries;
     context.command_path.push_back(tokens[0]);
 
@@ -1296,11 +1298,16 @@ const CompletionEntry* positional_entry_for_index(const std::vector<CompletionEn
 
 std::vector<completion_specs::DynamicCompletionCandidate> collect_value_candidates(
     const CompletionEntry& entry, const std::vector<std::string>& tokens,
-    const ResolvedCompletionContext& context, const std::string& current_value) {
+    const ResolvedCompletionContext& context, const std::string& current_value,
+    bool allow_dynamic) {
     std::vector<completion_specs::DynamicCompletionCandidate> candidates;
     candidates.reserve(entry.value.choices.size());
     for (const auto& choice : entry.value.choices) {
         candidates.push_back({choice, entry.description});
+    }
+
+    if (!allow_dynamic) {
+        return candidates;
     }
 
     std::string provider = entry.value.dynamic_provider;
@@ -1359,7 +1366,11 @@ std::string get_command_summary(const std::string& command, bool allow_fetch) {
         summary = doc.executable_path;
     }
 
-    remember_summary_cache(key, summary);
+    // A cache-only hint must not prevent a later Tab completion from fetching
+    // documentation that has not been loaded yet.
+    if (allow_fetch || !summary.empty()) {
+        remember_summary_cache(key, summary);
+    }
     return summary;
 }
 
@@ -1490,10 +1501,11 @@ void handle_external_sub_completions(
         current_prefix = command_context.current_prefix;
     }
 
-    bool executable_found = !cjsh_filesystem::find_executable_in_path(tokens.front()).empty();
-    bool allow_fetch = config::completion_learning_enabled && executable_found;
+    const bool is_hint = ic_completion_is_hint(cenv);
+    const bool allow_fetch = !is_hint && config::completion_learning_enabled &&
+                             !cjsh_filesystem::find_executable_in_path(tokens.front()).empty();
 
-    auto context = resolve_completion_context(tokens, stable_count, allow_fetch);
+    auto context = resolve_completion_context(tokens, stable_count, allow_fetch, !is_hint);
     long delete_before = command_context.current_raw_prefix.empty()
                              ? 0
                              : static_cast<long>(command_context.current_raw_prefix.size());
@@ -1502,7 +1514,7 @@ void handle_external_sub_completions(
     auto add_value_completions = [&](const CompletionEntry& entry, const std::string& value_prefix,
                                      const std::string& replacement_base) {
         std::unordered_set<std::string> seen_values;
-        auto values = collect_value_candidates(entry, tokens, context, value_prefix);
+        auto values = collect_value_candidates(entry, tokens, context, value_prefix, !is_hint);
         for (const auto& candidate : values) {
             if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv) ||
                 added >= 120) {

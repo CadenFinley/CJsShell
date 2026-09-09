@@ -57,6 +57,8 @@ ic_private bool completions_add(completions_t* cms, const char* replacement, con
 ic_private ssize_t completions_count(completions_t* cms);
 ic_private ssize_t completions_generate(struct ic_env_s* env, completions_t* cms, const char* input,
                                         ssize_t pos, ssize_t max);
+ic_private ssize_t completions_generate_hint(struct ic_env_s* env, completions_t* cms,
+                                             const char* input, ssize_t pos, ssize_t max);
 ic_private void completions_sort(completions_t* cms);
 ic_private void completions_set_completer(completions_t* cms, ic_completer_fun_t* completer,
                                           void* arg);
@@ -91,6 +93,7 @@ typedef bool(ic_completion_fun_with_source_t)(ic_env_t* env, void* funenv, const
 
 struct ic_completion_env_s {
     ic_env_t* env;                  // the isocline environment
+    bool is_hint;                   // automatic hint rather than explicit completion
     const char* input;              // current full input
     long cursor;                    // current cursor position
     void* arg;                      // argument given to `ic_set_completer`

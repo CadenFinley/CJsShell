@@ -47,6 +47,7 @@
 #include <string_view>
 #include <system_error>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -413,6 +414,8 @@ enum class CacheUsage : std::uint8_t {
     Manual
 };
 
+thread_local size_t interactive_path_lookup_depth = 0;
+
 struct CachedExecutable {
     std::string path;
     std::uint64_t hits{0};
@@ -466,6 +469,14 @@ class PathHashCache {
         std::lock_guard<std::mutex> lock(mutex_);
         ensure_snapshot_locked(current_path);
 
+        const bool interactive = usage == CacheUsage::Query && interactive_path_lookup_depth > 0;
+        if (interactive) {
+            auto cached = interactive_results_.find(name);
+            if (cached != interactive_results_.end()) {
+                return cached->second;
+            }
+        }
+
         auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
         auto it = entries_.find(name);
@@ -478,6 +489,9 @@ class PathHashCache {
                     it->second.manually_added = true;
                 }
                 it->second.last_used = now;
+                if (interactive) {
+                    interactive_results_[name] = it->second.path;
+                }
                 return it->second.path;
             }
             (void)entries_.erase(it);
@@ -487,7 +501,28 @@ class PathHashCache {
             return {};
         }
 
-        std::string resolved = scan_path_for_command(name, current_path);
+        std::string resolved;
+        if (interactive) {
+            index_interactive_names_locked(current_path);
+            if (!interactive_index_complete_) {
+                // A searchable directory need not be readable. Preserve lookup
+                // semantics when its names cannot be enumerated.
+                resolved = scan_path_for_command(name, current_path);
+            } else {
+                auto candidates = interactive_paths_.find(name);
+                if (candidates == interactive_paths_.end()) {
+                    return {};
+                }
+                for (const auto& candidate : candidates->second) {
+                    if (path_is_executable(candidate)) {
+                        resolved = candidate;
+                        break;
+                    }
+                }
+            }
+        } else {
+            resolved = scan_path_for_command(name, current_path);
+        }
         if (!resolved.empty()) {
             CachedExecutable entry;
             entry.path = resolved;
@@ -495,6 +530,10 @@ class PathHashCache {
             entry.manually_added = (usage == CacheUsage::Manual);
             entry.last_used = now;
             entries_[name] = std::move(entry);
+        }
+
+        if (interactive) {
+            interactive_results_[name] = resolved;
         }
 
         return resolved;
@@ -541,21 +580,84 @@ class PathHashCache {
 
     void reset() {
         std::lock_guard<std::mutex> lock(mutex_);
+        ensure_snapshot_locked(current_path_env_value());
         entries_.clear();
-        path_snapshot_ = current_path_env_value();
         seeded_ = false;
+        reset_interactive_locked();
+    }
+
+    void reset_interactive() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        reset_interactive_locked();
+    }
+
+    std::vector<std::string> completion_candidates() {
+        const std::string current_path = current_path_env_value();
+        std::lock_guard<std::mutex> lock(mutex_);
+        ensure_snapshot_locked(current_path);
+        index_interactive_names_locked(current_path);
+        std::vector<std::string> names;
+        names.reserve(interactive_paths_.size());
+        for (const auto& [name, paths] : interactive_paths_) {
+            (void)paths;
+            names.push_back(name);
+        }
+        return names;
     }
 
    private:
+    void reset_interactive_locked() {
+        interactive_results_.clear();
+        interactive_paths_.clear();
+        interactive_names_ready_ = false;
+        interactive_index_complete_ = true;
+    }
+
+    void index_interactive_names_locked(const std::string& path_value) {
+        if (!interactive_names_ready_) {
+            // Incomplete words usually do not exist anywhere in PATH. Read names
+            // once, without stat/access on every file (especially costly on WSL
+            // mounts), then reject all those prefixes entirely in memory.
+            std::unordered_set<std::string> visited;
+            (void)for_each_path_segment(path_value, [&](std::string_view raw_segment) {
+                if (raw_segment.empty() || !visited.emplace(raw_segment).second) {
+                    return false;
+                }
+                std::error_code ec;
+                std::filesystem::directory_iterator it(std::filesystem::path(raw_segment), ec);
+                for (; !ec && it != std::filesystem::directory_iterator(); it.increment(ec)) {
+                    interactive_paths_[it->path().filename().string()].push_back(
+                        it->path().string());
+                }
+                if (ec && ec != std::errc::no_such_file_or_directory &&
+                    ec != std::errc::not_a_directory) {
+                    interactive_index_complete_ = false;
+                }
+                return false;
+            });
+            interactive_names_ready_ = true;
+        }
+    }
+
     static bool entry_is_valid(const CachedExecutable& entry) {
         return path_is_executable(entry.path);
     }
 
     void ensure_snapshot_locked(const std::string& current_path) {
         if (current_path != path_snapshot_) {
+            relative_path_ = false;
+            (void)for_each_path_segment(current_path, [&](std::string_view segment) {
+                relative_path_ = !segment.empty() && segment.front() != '/';
+                return relative_path_;
+            });
+        }
+        const std::string cwd = relative_path_ ? safe_current_directory() : std::string{};
+        if (current_path != path_snapshot_ || cwd != cwd_snapshot_) {
             entries_.clear();
             path_snapshot_ = current_path;
+            cwd_snapshot_ = cwd;
             seeded_ = false;
+            reset_interactive_locked();
         }
     }
 
@@ -625,7 +727,13 @@ class PathHashCache {
     std::mutex mutex_;
     std::unordered_map<std::string, CachedExecutable> entries_;
     std::string path_snapshot_;
+    std::string cwd_snapshot_;
+    bool relative_path_{false};
     bool seeded_{false};
+    std::unordered_map<std::string, std::string> interactive_results_;
+    std::unordered_map<std::string, std::vector<std::string>> interactive_paths_;
+    bool interactive_names_ready_{false};
+    bool interactive_index_complete_{true};
 };
 
 PathHashCache g_path_hash_cache;
@@ -655,6 +763,22 @@ void reset_path_cache_entries() {
 }
 
 }  // namespace
+
+ScopedInteractivePathLookup::ScopedInteractivePathLookup() {
+    ++interactive_path_lookup_depth;
+}
+
+ScopedInteractivePathLookup::~ScopedInteractivePathLookup() {
+    --interactive_path_lookup_depth;
+}
+
+void reset_interactive_path_cache() {
+    path_hash_cache().reset_interactive();
+}
+
+std::vector<std::string> get_path_completion_candidates() {
+    return path_hash_cache().completion_candidates();
+}
 
 std::string safe_current_directory() {
     char* cwd = ::getcwd(nullptr, 0);

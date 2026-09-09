@@ -2256,7 +2256,8 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
     }
 
     // and see if we can construct a hint (displayed after a delay)
-    ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, 2);
+    ssize_t count =
+        completions_generate_hint(env, env->completions, sbuf_string(eb->input), eb->pos, 2);
     bool has_spell_completion =
         (count >= 1 && edit_completion_is_current_word_spell(env, eb, 0, NULL, NULL));
     if (count >= 1) {
@@ -2278,8 +2279,8 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
                             break;
                         }
                         pos = newpos;
-                        count =
-                            completions_generate(env, env->completions, sbuf_string(sb), pos, 2);
+                        count = completions_generate_hint(env, env->completions, sbuf_string(sb),
+                                                          pos, 2);
                         if (count == 1) {
                             const char* extra_help = NULL;
                             extra_hint = completions_get_hint(env->completions, 0, &extra_help);

@@ -81,7 +81,7 @@ struct HighlightPathContext {
 
     const std::vector<std::string>& executables_in_path() {
         if (!executables.has_value()) {
-            executables = cjsh_filesystem::get_executables_in_path();
+            executables = cjsh_filesystem::get_path_completion_candidates();
         }
         return *executables;
     }
@@ -140,7 +140,10 @@ bool has_nearby_split_merge_candidate(const std::string& first_token,
     }
 
     const auto& executables = paths.executables_in_path();
-    return std::any_of(executables.begin(), executables.end(), matches_candidate);
+    return std::any_of(executables.begin(), executables.end(), [&](const std::string& candidate) {
+        return matches_candidate(candidate) &&
+               !cjsh_filesystem::find_executable_in_path(candidate).empty();
+    });
 }
 
 void highlight_command_range(ic_highlight_env_t* henv, const char* input,
@@ -406,6 +409,7 @@ void SyntaxHighlighter::initialize_syntax_highlighting() {
 }
 
 void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, void*) {
+    const cjsh_filesystem::ScopedInteractivePathLookup path_lookup;
     using namespace token_classifier;
     using namespace highlight_helpers;
     using namespace token_constants;

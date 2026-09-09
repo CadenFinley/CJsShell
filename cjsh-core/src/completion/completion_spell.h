@@ -59,10 +59,6 @@ void collect_spell_correction_candidates(
     std::unordered_map<std::string, SpellCorrectionMatch>& matches) {
     for (const auto& item : container) {
         std::string candidate = extractor(item);
-        if (filter && !filter(candidate)) {
-            continue;
-        }
-
         std::string normalized_candidate = completion_utils::normalize_for_comparison(candidate);
         if (normalized_candidate == normalized_prefix) {
             continue;
@@ -76,6 +72,9 @@ void collect_spell_correction_candidates(
         int distance =
             compute_edit_distance_with_limit(normalized_candidate, normalized_prefix, max_distance);
         if (!is_transposition_match && distance > max_distance) {
+            continue;
+        }
+        if (filter && !filter(candidate)) {
             continue;
         }
 

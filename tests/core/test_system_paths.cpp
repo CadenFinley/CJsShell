@@ -36,6 +36,7 @@
 #include <memory>
 #include <string>
 
+#include "cjsh_filesystem.h"
 #include "shell.h"
 #include "shell_env.h"
 
@@ -51,6 +52,98 @@ bool expect_path(const char* expected, const char* message) {
     (void)std::fprintf(stderr, "[FAIL] %s\nExpected: %s\nActual: %s\n", message,
                        expected ? expected : "<unset>", actual ? actual : "<unset>");
     return false;
+}
+
+bool test_interactive_path_cache(const std::filesystem::path& root) {
+    namespace fs = std::filesystem;
+    using namespace cjsh_filesystem;
+    const auto first = root / "first";
+    const auto second = root / "second";
+    fs::create_directory(first);
+    fs::create_directory(second);
+    auto executable = [](const fs::path& path) {
+        std::ofstream(path) << "#!/bin/sh\nexit 0\n";
+        fs::permissions(path, fs::perms::owner_all);
+    };
+    executable(first / "tool");
+    executable(second / "tool");
+    std::ofstream(first / "plain") << "not executable\n";
+    fs::create_directory(first / "directory");
+    fs::create_symlink(first / "tool", first / "linked");
+    fs::create_symlink(first / "absent", first / "broken");
+    const std::string path = first.string() + ":" + second.string() + ":" + first.string();
+    (void)setenv("PATH", path.c_str(), 1);
+    reset_path_hash();
+    bool ok = true;
+    auto expect = [&](bool condition, const char* message) {
+        if (!condition) {
+            (void)std::fprintf(stderr, "[FAIL] %s\n", message);
+            ok = false;
+        }
+    };
+    auto interactive = [](const std::string& name) {
+        const ScopedInteractivePathLookup scope;
+        return find_executable_in_path(name);
+    };
+
+    expect(interactive("t").empty() && interactive("to").empty(),
+           "incomplete PATH names should remain unknown");
+    expect(interactive("tool") == (first / "tool").string(),
+           "interactive lookup must preserve PATH precedence");
+    expect(interactive("linked") == (first / "linked").string(),
+           "interactive lookup must follow executable symlinks");
+    expect(interactive("broken").empty() && interactive("plain").empty() &&
+               interactive("directory").empty(),
+           "interactive lookup must reject broken links, nonexecutables, and directories");
+
+    fs::remove(first / "tool");
+    expect(interactive("tool") == (first / "tool").string(),
+           "redraws should reuse successful lookups during the same prompt");
+    expect(find_executable_in_path("tool") == (second / "tool").string(),
+           "ordinary queries must revalidate paths even after interactive lookups");
+    reset_interactive_path_cache();
+    expect(interactive("tool") == (second / "tool").string(),
+           "the next prompt must discard cached lookup results");
+
+    executable(first / "new-tool");
+    {
+        const ScopedInteractivePathLookup scope;
+        expect(resolve_executable_for_execution("new-tool") == (first / "new-tool").string(),
+               "execution must find new commands even while an interactive scope is active");
+    }
+    fs::permissions(first / "plain", fs::perms::owner_all);
+    reset_interactive_path_cache();
+    expect(interactive("plain") == (first / "plain").string(),
+           "the next prompt must observe permission changes");
+    executable(first / "new-after-prompt");
+    reset_interactive_path_cache();
+    expect(interactive("new-after-prompt") == (first / "new-after-prompt").string(),
+           "the next prompt must discover commands created since the last listing");
+
+    (void)setenv("PATH", second.c_str(), 1);
+    expect(interactive("plain").empty(), "PATH changes must invalidate interactive results");
+    if (getuid() != 0) {
+        fs::permissions(second, fs::perms::owner_exec);
+        reset_path_hash();
+        const bool found_without_listing = interactive("tool") == (second / "tool").string();
+        fs::permissions(second, fs::perms::owner_all);
+        expect(found_without_listing,
+               "searchable PATH directories must work even without permission to list names");
+    }
+    const auto previous_cwd = fs::current_path();
+    fs::current_path(first);
+    (void)setenv("PATH", ".", 1);
+    expect(interactive("tool").empty(), "relative PATH must use the current directory");
+    fs::current_path(second);
+    expect(interactive("tool") == "./tool", "changing cwd must invalidate relative PATH misses");
+    fs::current_path(first);
+    expect(interactive("tool").empty(), "changing cwd must invalidate relative PATH hits");
+    fs::current_path(previous_cwd);
+
+    (void)setenv("PATH", "", 1);
+    expect(interactive("tool").empty(), "empty PATH must discard previous interactive results");
+    reset_path_hash();
+    return ok;
 }
 
 }  // namespace
@@ -168,6 +261,7 @@ int main() {
         (void)chmod(unreadable.c_str(), 0600);
     }
 
+    ok = test_interactive_path_cache(root) && ok;
     std::filesystem::remove_all(root);
     return ok ? 0 : 1;
 }

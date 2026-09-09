@@ -42,9 +42,14 @@ When the cursor is inside an existing recognized command or shell keyword, cjsh 
 completions for that word. For example, moving just after the `t` in `then` does not suggest
 `tests/`. Completion remains available for unfinished words and at the end of a word.
 
+Inline hints use cached documentation and static value choices. Press `Tab` to fetch missing
+manual-page data or invoke dynamic value providers. While typing, cjsh caches PATH filenames and
+checks executability only for matching candidates; the next prompt or a `PATH` change refreshes
+these lookups.
+
 ## How automatic completions are generated
 
-- **On-demand scraping:** The first time you request completions for an external command that
+- **On-demand scraping:** The first time you press `Tab` for an external command that
   resolves in `PATH`, cjsh invokes `man -P cat <command>` (falling back to `man <command>`) and
   scrapes the result. The parser looks for `OPTIONS`, `COMMANDS`, or `SUBCOMMANDS` sections, pulls
   out option switches and subcommand names, preserves option aliases and value metavariables, and
