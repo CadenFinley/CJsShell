@@ -1132,9 +1132,13 @@ no eligible history entries exist.</p>
 <p>When the cursor is inside an existing recognized command or shell keyword, cjsh offers no
 completions for that word. For example, moving just after the <code>t</code> in <code>then</code> does not suggest
 <code>tests/</code>. Completion remains available for unfinished words and at the end of a word.</p>
+<p>Inline hints use cached documentation and static value choices. Press <code>Tab</code> to fetch missing
+manual-page data or invoke dynamic value providers. While typing, cjsh caches PATH filenames and
+checks executability only for matching candidates; the next prompt or a <code>PATH</code> change refreshes
+these lookups.</p>
 <h2 id="how-automatic-completions-are-generated">How automatic completions are generated</h2>
 <ul>
-<li><strong>On-demand scraping:</strong> The first time you request completions for an external command that
+<li><strong>On-demand scraping:</strong> The first time you press <code>Tab</code> for an external command that
   resolves in <code>PATH</code>, cjsh invokes <code>man -P cat &lt;command&gt;</code> (falling back to <code>man &lt;command&gt;</code>) and
   scrapes the result. The parser looks for <code>OPTIONS</code>, <code>COMMANDS</code>, or <code>SUBCOMMANDS</code> sections, pulls
   out option switches and subcommand names, preserves option aliases and value metavariables, and
