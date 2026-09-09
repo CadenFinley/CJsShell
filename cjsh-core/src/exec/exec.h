@@ -46,6 +46,9 @@
 #include "error_out.h"
 
 struct Command;
+namespace cjsh_env {
+struct PreparedCommand;
+}
 
 struct OutputRelayState {
     int master_fd{-1};
@@ -90,17 +93,8 @@ class Exec {
     ErrorInfo last_error;
 
     bool handle_empty_args(const std::vector<std::string>& args);
-    bool initialize_env_assignments(const std::vector<std::string>& args,
-                                    std::vector<std::pair<std::string, std::string>>& assignments,
-                                    size_t& cmd_start_idx);
-    std::optional<int> handle_assignments_prefix(
-        const std::vector<std::string>& args,
-        std::vector<std::pair<std::string, std::string>>& assignments, size_t& cmd_start_idx,
-        const std::function<void()>& on_assignments_only);
-    std::optional<std::vector<std::string>> collect_command_args_with_assignments(
-        const std::vector<std::string>& args,
-        std::vector<std::pair<std::string, std::string>>& assignments,
-        const std::function<void()>& on_assignments_only, int& early_exit_code);
+    std::optional<int> handle_prepared_assignments(const cjsh_env::PreparedCommand& command,
+                                                   bool asynchronous);
     std::optional<int> run_command_not_found_handler(
         const std::vector<std::string>& args,
         const std::vector<std::pair<std::string, std::string>>& assignments, bool is_builtin,
@@ -126,6 +120,10 @@ class Exec {
                              bool auto_background_on_stop = false,
                              bool auto_background_on_stop_silent = false);
     int execute_command_async(const std::vector<std::string>& args);
+    int execute_prepared_command_sync(cjsh_env::PreparedCommand command,
+                                      bool auto_background_on_stop = false,
+                                      bool auto_background_on_stop_silent = false);
+    int execute_prepared_command_async(cjsh_env::PreparedCommand command);
     int execute_pipeline(const std::vector<Command>& commands);
     int run_with_command_redirections(Command cmd, const std::function<int()>& action,
                                       const std::string& command_name, bool persist_fd_changes,

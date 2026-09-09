@@ -1040,6 +1040,17 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     return errors;
 }
 
+ShellScriptInterpreter::StructuralSyntax ShellScriptInterpreter::take_structural_syntax(
+    const std::vector<std::string>& lines) {
+    auto prepared = std::move(structural_syntax);
+    structural_syntax.reset();
+    if (prepared && prepared->posix_mode == config::posix_mode && prepared->lines == lines) {
+        return std::move(*prepared);
+    }
+    return StructuralSyntax{
+        {}, config::posix_mode, validate_script_syntax(lines), std::nullopt, std::nullopt};
+}
+
 bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& lines,
                                                bool print_errors) {
     std::vector<SyntaxError> errors;
@@ -1047,7 +1058,8 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
     if (config::posix_mode) {
         errors = validate_comprehensive_syntax(lines, false, false);
     } else {
-        errors = validate_script_syntax(lines);
+        auto syntax = take_structural_syntax(lines);
+        errors = syntax.script_errors;
 
         auto append_errors = [&errors](const std::vector<SyntaxError>& source) {
             (void)errors.insert(errors.end(), source.begin(), source.end());
@@ -1077,8 +1089,14 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
             }
         };
 
-        const std::vector<SyntaxError> loop_errors = validate_loop_syntax(lines);
-        const std::vector<SyntaxError> conditional_errors = validate_conditional_syntax(lines);
+        if (!syntax.loop_errors) {
+            syntax.loop_errors = validate_loop_syntax(lines);
+        }
+        if (!syntax.conditional_errors) {
+            syntax.conditional_errors = validate_conditional_syntax(lines);
+        }
+        const auto& loop_errors = *syntax.loop_errors;
+        const auto& conditional_errors = *syntax.conditional_errors;
 
         auto append_filtered_errors = [&errors](
                                           const std::vector<SyntaxError>& source,
@@ -1151,18 +1169,27 @@ bool ShellScriptInterpreter::needs_additional_input(const std::vector<std::strin
         return false;
     }
 
-    // parser-level incompletes like unclosed quote or dangling delimiter
-    if (has_incomplete_construct_errors(validate_script_syntax(lines))) {
+    structural_syntax = take_structural_syntax(lines);
+    structural_syntax->lines = lines;
+    auto& syntax = *structural_syntax;
+    // Preserve the continuation diagnostics for execution of this same input.
+    if (has_incomplete_construct_errors(syntax.script_errors)) {
         return true;
     }
 
     // loop headers that have not reached do/done yet
-    if (has_incomplete_construct_errors(validate_loop_syntax(lines))) {
+    if (!syntax.loop_errors) {
+        syntax.loop_errors = validate_loop_syntax(lines);
+    }
+    if (has_incomplete_construct_errors(*syntax.loop_errors)) {
         return true;
     }
 
     // incomplete if/then/fi structures are caught here while the user is still typing
-    if (has_incomplete_construct_errors(validate_conditional_syntax(lines))) {
+    if (!syntax.conditional_errors) {
+        syntax.conditional_errors = validate_conditional_syntax(lines);
+    }
+    if (has_incomplete_construct_errors(*syntax.conditional_errors)) {
         return true;
     }
 
@@ -1178,7 +1205,8 @@ ShellScriptInterpreter::validate_comprehensive_syntax(const std::vector<std::str
         (void)all_errors.insert(all_errors.end(), new_errors.begin(), new_errors.end());
     };
 
-    add_errors(validate_script_syntax(lines));
+    auto syntax = take_structural_syntax(lines);
+    add_errors(syntax.script_errors);
     add_errors(validate_variable_usage(lines));
     add_errors(validate_redirection_syntax(lines));
     add_errors(validate_arithmetic_expressions(lines));
@@ -1186,8 +1214,14 @@ ShellScriptInterpreter::validate_comprehensive_syntax(const std::vector<std::str
     add_errors(analyze_control_flow());
     add_errors(validate_pipeline_syntax(lines));
     add_errors(validate_function_syntax(lines));
-    add_errors(validate_loop_syntax(lines));
-    add_errors(validate_conditional_syntax(lines));
+    if (!syntax.loop_errors) {
+        syntax.loop_errors = validate_loop_syntax(lines);
+    }
+    if (!syntax.conditional_errors) {
+        syntax.conditional_errors = validate_conditional_syntax(lines);
+    }
+    add_errors(*syntax.loop_errors);
+    add_errors(*syntax.conditional_errors);
     add_errors(validate_array_syntax(lines));
     add_errors(validate_heredoc_syntax(lines));
 

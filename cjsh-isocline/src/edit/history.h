@@ -32,6 +32,7 @@
 #ifndef IC_HISTORY_H
 #define IC_HISTORY_H
 
+#include <sys/stat.h>
 #include <time.h>
 
 #include "common.h"
@@ -56,6 +57,12 @@ typedef struct history_entry_s {
 } history_entry_t;
 
 typedef struct history_snapshot_s {
+    struct stat file_status;
+    bool has_file_status;
+    bool loaded;
+    bool had_pending;
+    bool allow_duplicates;
+    ssize_t max_entries;
     history_entry_t* entries;
     ssize_t count;
     ssize_t capacity;
@@ -92,6 +99,7 @@ ic_private bool history_search_prefix(const history_t* h, ssize_t from, const ch
                                       bool backward, ssize_t* hidx);
 
 ic_private bool history_snapshot_load(history_t* h, history_snapshot_t* snap, bool dedup);
+ic_private bool history_snapshot_is_current(const history_t* h, const history_snapshot_t* snap);
 ic_private void history_snapshot_free(history_t* h, history_snapshot_t* snap);
 ic_private const history_entry_t* history_snapshot_get(const history_snapshot_t* snap, ssize_t n);
 ic_private ssize_t history_snapshot_count(const history_snapshot_t* snap);
@@ -106,6 +114,11 @@ typedef struct history_match_s {
 ic_private bool history_fuzzy_search(const history_t* h, const char* query,
                                      history_match_t* matches, ssize_t max_matches,
                                      ssize_t* match_count, bool* metadata_filter_applied);
+
+ic_private bool history_snapshot_fuzzy_search(const history_t* h, const history_snapshot_t* snap,
+                                              const char* query, history_match_t* matches,
+                                              ssize_t max_matches, ssize_t* match_count,
+                                              bool* metadata_filter_applied, bool case_sensitive);
 
 ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* query,
                                                history_match_t* matches, ssize_t max_matches,

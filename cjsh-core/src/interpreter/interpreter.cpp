@@ -693,6 +693,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
     } validation_scope(this, skip_validation);
 
+    if (g_shell) {
+        g_shell->mark_terminal_dirty();
+    }
     const bool effective_skip = skip_validation_mode;
     if (!effective_skip) {
         g_parameter_expansion_fatal_error = false;
@@ -719,7 +722,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         return 2;
     }
 
-    std::function<int(const std::string&, bool)> execute_simple_or_pipeline_impl;
+    std::function<int(const std::string&, bool, bool*)> execute_simple_or_pipeline_impl;
     std::function<int(const std::string&)> execute_simple_or_pipeline;
     bool last_result_errexit_exempt = false;
 
@@ -727,7 +730,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     std::function<std::optional<int>(const std::string&, bool)> try_handle_inline_case;
 
     execute_simple_or_pipeline = [&](const std::string& cmd_text) -> int {
-        return execute_simple_or_pipeline_impl(cmd_text, true);
+        return execute_simple_or_pipeline_impl(cmd_text, true, nullptr);
     };
 
     evaluate_logical_condition = [&](const std::string& condition) -> int {
@@ -735,8 +738,17 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         return evaluate_logical_condition_internal(condition, execute_simple_or_pipeline);
     };
 
-    execute_simple_or_pipeline_impl = [&](const std::string& cmd_text,
-                                          bool allow_semicolon_split) -> int {
+    execute_simple_or_pipeline_impl = [&](const std::string& cmd_text, bool allow_semicolon_split,
+                                          bool* function_call) -> int {
+        if (function_call) {
+            *function_call = false;
+        }
+        auto call_function = [&](const std::vector<std::string>& args) {
+            if (function_call) {
+                *function_call = true;
+            }
+            return execute_function_call(args);
+        };
         last_result_errexit_exempt = false;
         if (SignalHandler::startup_interrupted() && !SignalHandler::executing_trap()) {
             return set_last_status(128 + SIGINT);
@@ -786,21 +798,22 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 return env_result;
             }
 
-            std::vector<std::pair<std::string, std::string>> function_assignments;
-            size_t function_index =
-                cjsh_env::collect_env_assignments(quick_args, function_assignments);
-            if (function_index > 0 && function_index < quick_args.size() &&
-                functions.count(quick_args[function_index]) != 0U) {
-                auto function_commands =
-                    shell_parser->parse_pipeline_with_preprocessing(command_text);
-                return run_pipeline(function_commands);
-            }
-
             if (functions.count(program) != 0U) {
-                return execute_function_call(quick_args);
+                return call_function(quick_args);
             }
 
-            int exit_code = g_shell->execute_command(quick_args, false, false, false);
+            auto prepared = cjsh_env::prepare_command(std::move(quick_args));
+            if (!prepared.assignments.empty() && !prepared.args.empty() &&
+                functions.count(prepared.args.front()) != 0U) {
+                Command function_command;
+                function_command.args = std::move(prepared.original_args);
+                if (function_call) {
+                    *function_call = true;
+                }
+                return run_pipeline({function_command});
+            }
+
+            int exit_code = g_shell->execute_prepared_command(std::move(prepared));
             return set_last_status(exit_code);
         };
 
@@ -852,7 +865,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     last_executed_index = idx;
                     executed_command = true;
                     logical_status =
-                        execute_simple_or_pipeline_impl(logical_cmds[idx].command, true);
+                        execute_simple_or_pipeline_impl(logical_cmds[idx].command, true, nullptr);
 
                     if (is_terminating_signal_exit_code(logical_status)) {
                         return logical_status;
@@ -870,7 +883,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             if (semicolon_commands.size() > 1) {
                 int last_code = 0;
                 for (const auto& part : semicolon_commands) {
-                    last_code = execute_simple_or_pipeline_impl(part, false);
+                    last_code = execute_simple_or_pipeline_impl(part, false, nullptr);
                     const bool errexit_exempt = last_result_errexit_exempt;
 
                     if (is_terminating_signal_exit_code(last_code)) {
@@ -994,7 +1007,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             }
 
             if (!has_multiple_commands) {
-                parsed_args = shell_parser->parse_command(text);
+                // Pipeline parsing already expanded these words. Re-parsing can repeat
+                // arithmetic assignments and other expansion side effects.
+                if (!cmds.empty()) {
+                    parsed_args = cmds.front().args;
+                }
 
                 if (!parsed_args.empty()) {
                     const std::string& prog = parsed_args[0];
@@ -1130,7 +1147,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
 
                     if (!expanded_args.empty() && functions.count(expanded_args[0])) {
-                        return execute_function_call(expanded_args);
+                        return call_function(expanded_args);
                     }
 
                     std::vector<std::pair<std::string, std::string>> function_assignments;
@@ -1591,85 +1608,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                     std::string t = trim(strip_inline_comment(cmd_text));
 
-                    bool is_inline_function = false;
-                    std::string func_name;
-                    size_t body_start_pos = std::string::npos;
-                    char opening_delim = '{';
-                    char closing_delim = '}';
-
-                    if (t.rfind("function", 0) == 0 && t.length() > 8 &&
-                        std::isspace(static_cast<unsigned char>(t[8]))) {
-                        size_t name_start = 8;
-                        while (name_start < t.length() &&
-                               std::isspace(static_cast<unsigned char>(t[name_start]))) {
-                            name_start++;
-                        }
-                        if (name_start < t.length()) {
-                            size_t name_end = name_start;
-                            while (name_end < t.length() &&
-                                   !std::isspace(static_cast<unsigned char>(t[name_end])) &&
-                                   t[name_end] != '(' && t[name_end] != '{') {
-                                name_end++;
-                            }
-                            func_name = t.substr(name_start, name_end - name_start);
-
-                            size_t scan_pos = name_end;
-                            while (scan_pos < t.length() &&
-                                   std::isspace(static_cast<unsigned char>(t[scan_pos]))) {
-                                scan_pos++;
-                            }
-
-                            if (scan_pos < t.length() && t[scan_pos] == '(') {
-                                size_t lookahead = scan_pos + 1;
-                                while (lookahead < t.length() &&
-                                       std::isspace(static_cast<unsigned char>(t[lookahead]))) {
-                                    lookahead++;
-                                }
-                                if (lookahead < t.length() && t[lookahead] == ')') {
-                                    scan_pos = lookahead + 1;
-                                    while (scan_pos < t.length() &&
-                                           std::isspace(static_cast<unsigned char>(t[scan_pos]))) {
-                                        scan_pos++;
-                                    }
-                                }
-                            }
-
-                            if (scan_pos < t.length() &&
-                                (t[scan_pos] == '{' || t[scan_pos] == '(')) {
-                                body_start_pos = scan_pos;
-                                opening_delim = t[scan_pos];
-                                closing_delim = opening_delim == '{' ? '}' : ')';
-                                is_inline_function = true;
-                            }
-                        }
-                    }
-
-                    if (!is_inline_function && t.find("()") != std::string::npos) {
-                        size_t name_end = t.find("()");
-                        if (name_end != std::string::npos) {
-                            std::string potential_name = trim(t.substr(0, name_end));
-                            size_t scan_pos = name_end + 2;
-                            while (scan_pos < t.length() &&
-                                   std::isspace(static_cast<unsigned char>(t[scan_pos]))) {
-                                scan_pos++;
-                            }
-
-                            if (!potential_name.empty() &&
-                                potential_name.find(' ') == std::string::npos &&
-                                scan_pos < t.length() &&
-                                (t[scan_pos] == '{' || t[scan_pos] == '(')) {
-                                func_name = potential_name;
-                                body_start_pos = scan_pos;
-                                opening_delim = t[scan_pos];
-                                closing_delim = opening_delim == '{' ? '}' : ')';
-                                is_inline_function = true;
-                            }
-                        }
-                    }
-
-                    if (is_inline_function && !func_name.empty() &&
-                        func_name.find(' ') == std::string::npos &&
-                        body_start_pos != std::string::npos) {
+                    const auto function_header = function_evaluator::parse_function_header(t);
+                    if (function_header) {
+                        const auto& func_name = function_header->name;
+                        const size_t body_start_pos = function_header->body_start;
+                        const char opening_delim = function_header->opening;
+                        const char closing_delim = function_header->closing;
                         std::vector<std::string> body_lines;
                         std::string after_body_open = trim(t.substr(body_start_pos + 1));
                         if (!after_body_open.empty()) {
@@ -1807,82 +1751,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                     int code = 0;
                     bool is_function_call = false;
-                    {
-                        auto command_has_pipeline = [](const std::string& command) {
-                            bool in_single = false;
-                            bool in_double = false;
-                            bool escaped = false;
-                            int paren_depth = 0;
-
-                            for (char ch : command) {
-                                if (escaped) {
-                                    escaped = false;
-                                    continue;
-                                }
-
-                                if (ch == '\\') {
-                                    escaped = true;
-                                    continue;
-                                }
-
-                                if (ch == '\'' && !in_double) {
-                                    in_single = !in_single;
-                                    continue;
-                                }
-
-                                if (ch == '"' && !in_single) {
-                                    in_double = !in_double;
-                                    continue;
-                                }
-
-                                if (in_single) {
-                                    continue;
-                                }
-
-                                if (!in_double) {
-                                    if (ch == '(') {
-                                        ++paren_depth;
-                                    } else if (ch == ')' && paren_depth > 0) {
-                                        --paren_depth;
-                                    }
-                                }
-
-                                if (!in_double && paren_depth == 0 &&
-                                    (ch == '|' || ch == '<' || ch == '>')) {
-                                    return true;
-                                }
-                            }
-
-                            return false;
-                        };
-
-                        bool contains_pipeline = command_has_pipeline(cmd_text);
-                        std::vector<std::string> first_toks = shell_parser->parse_command(cmd_text);
-
-                        if (!first_toks.empty() && (functions.count(first_toks[0]) != 0U)) {
-                            std::string expanded_cmd = cmd_text;
-                            try {
-                                expanded_cmd =
-                                    expand_all_substitutions(cmd_text, execute_simple_or_pipeline);
-                            } catch (const std::runtime_error&) {
-                                expanded_cmd = cmd_text;
-                            }
-
-                            contains_pipeline = command_has_pipeline(expanded_cmd);
-                            first_toks = shell_parser->parse_command(expanded_cmd);
-                        }
-
-                        if (!contains_pipeline && !first_toks.empty() &&
-                            (functions.count(first_toks[0]) != 0U)) {
-                            is_function_call = true;
-                            code = execute_function_call(first_toks);
-                        } else {
-                            try {
-                                code = execute_simple_or_pipeline(cmd_text);
-                            } catch (const std::runtime_error& e) {
-                                code = 1;
-                            }
-                        }
+                    try {
+                        code = execute_simple_or_pipeline_impl(cmd_text, true, &is_function_call);
+                    } catch (const std::runtime_error&) {
+                        code = 1;
                     }
                     last_code = code;
 

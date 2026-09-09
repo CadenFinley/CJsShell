@@ -26,11 +26,15 @@
 # SOFTWARE.
 
 
-import subprocess
-import time
-import statistics
-import sys
+import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 import os
+import shlex
+import statistics
+import subprocess
+import sys
+import time
 from typing import List, Tuple, Dict, Optional
 
 RUNS = 100
@@ -81,7 +85,32 @@ CJSH_BINARY_TYPES = [""]
 
 ENABLE_BASELINE_TESTS = True
 
-all_results: List[List[Tuple[str, float, float, float]]] = []
+
+@dataclass
+class RunMetrics:
+    elapsed_ms: float
+    user_cpu_ms: float
+    system_cpu_ms: float
+    peak_rss_mib: float
+
+    @property
+    def cpu_percent(self) -> float:
+        if self.elapsed_ms <= 0:
+            return 0.0
+        return (self.user_cpu_ms + self.system_cpu_ms) / self.elapsed_ms * 100
+
+
+@dataclass
+class ShellResult:
+    shell: str
+    runs: List[RunMetrics]
+
+    @property
+    def average_time(self) -> float:
+        return statistics.mean(run.elapsed_ms for run in self.runs)
+
+
+all_results: List[List[ShellResult]] = []
 all_commands: List[Dict[str, str]] = []
 
 
@@ -102,16 +131,11 @@ def validate_command_output(
     Validate that a command produces expected output.
     Returns (is_valid, error_message)
     """
-    if command_key not in EXPECTED_OUTPUTS:
-        return (True, "")
-
-    full_command = f"{shell_cmd} {command}"
-    expected = EXPECTED_OUTPUTS[command_key]
+    expected = EXPECTED_OUTPUTS.get(command_key, {})
 
     try:
         result = subprocess.run(
-            full_command,
-            shell=True,
+            [shell_cmd, *shlex.split(command)],
             capture_output=True,
             text=True,
             timeout=30,
@@ -122,12 +146,13 @@ def validate_command_output(
     except Exception as e:
         return (False, f"Command execution failed: {str(e)}")
 
-    if "returncode" in expected:
-        if result.returncode != expected["returncode"]:
-            return (
-                False,
-                f"Expected return code {expected['returncode']}, got {result.returncode}",
-            )
+    expected_returncode = expected.get("returncode", 0)
+    if result.returncode != expected_returncode:
+        return (
+            False,
+            f"Expected return code {expected_returncode}, got {result.returncode}: "
+            f"{result.stderr.strip()[:200]}",
+        )
 
     if "contains" in expected:
         if expected.get("exact", False):
@@ -159,17 +184,34 @@ def validate_command_output(
     return (True, "")
 
 
-def run_command_with_timing(shell_cmd: str, command: str) -> float:
-    full_command = f"{shell_cmd} {command}"
+def peak_rss_to_mib(peak_rss: int) -> float:
+    # macOS reports bytes; Linux and the other BSDs report KiB.
+    return peak_rss / (1024 * 1024 if sys.platform == "darwin" else 1024)
 
+
+def run_command_with_timing(shell_cmd: str, command: str) -> RunMetrics:
+    """Measure one shell invocation using its own wait4 resource counters."""
+    args = [shell_cmd, *shlex.split(command)]
     start_time = time.perf_counter()
-    try:
-        subprocess.run(full_command, shell=True, capture_output=True, check=False)
-    except Exception:
-        pass
-    end_time = time.perf_counter()
+    # Launch the target directly so an extra /bin/sh is not measured. Output
+    # was checked during validation; discard it here to avoid full pipe buffers
+    # blocking the child while wait4 waits for it to finish.
+    with subprocess.Popen(
+        args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    ) as process:
+        _, status, usage = os.wait4(process.pid, 0)
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        # wait4 already reaped the child; prevent Popen from waiting again.
+        process.returncode = os.waitstatus_to_exitcode(status)
+        if process.returncode != 0:
+            raise subprocess.CalledProcessError(process.returncode, args)
 
-    return (end_time - start_time) * 1000
+    return RunMetrics(
+        elapsed_ms=elapsed_ms,
+        user_cpu_ms=usage.ru_utime * 1000,
+        system_cpu_ms=usage.ru_stime * 1000,
+        peak_rss_mib=peak_rss_to_mib(usage.ru_maxrss),
+    )
 
 
 def get_shell_command(shell: str, command_key: str) -> Optional[str]:
@@ -190,9 +232,16 @@ def get_shell_command(shell: str, command_key: str) -> Optional[str]:
     return SHELL_COMMANDS["posix"].get(command_key)
 
 
-def test_command(command_spec: Dict[str, str]) -> None:
+def measure_shell(shell_name: str, shell_path: str, command: str, runs: int) -> ShellResult:
+    # Keep repetitions sequential within a shell; concurrency is across shells.
+    return ShellResult(
+        shell_name, [run_command_with_timing(shell_path, command) for _ in range(runs)]
+    )
+
+
+def test_command(command_spec: Dict[str, str], runs: int = RUNS, jobs: int = 1) -> None:
     command_key = command_spec["key"]
-    results: List[Tuple[str, float, float, float]] = []
+    results: List[ShellResult] = []
 
     print("----------------------------------------------------------------------")
     print(f"Testing command: {command_key}")
@@ -201,9 +250,17 @@ def test_command(command_spec: Dict[str, str]) -> None:
         print(description)
     print("----------------------------------------------------------------------")
 
-    for binary_type in CJSH_BINARY_TYPES:
-        shell_name = f"./cjsh{binary_type}"
-        shell_path = f"./build/release/cjsh{binary_type}"
+    shells = [
+        (f"./cjsh{binary_type}", f"./build/release/cjsh{binary_type}")
+        for binary_type in CJSH_BINARY_TYPES
+    ]
+    if ENABLE_BASELINE_TESTS:
+        shells.extend((shell, shell) for shell in BASELINE_SHELLS)
+
+    # Finish validation before measuring so captured-output validation runs do
+    # not compete with the measured workloads.
+    validated_shells = []
+    for shell_name, shell_path in shells:
         command = get_shell_command(shell_name, command_key)
 
         if command is None:
@@ -217,61 +274,33 @@ def test_command(command_spec: Dict[str, str]) -> None:
             print(f"  VALIDATION FAILED: {error_msg}")
             print(f"  Skipping performance test for {shell_name}")
             continue
-        else:
-            print(f"  Validation passed")
+        print("  Validation passed")
+        validated_shells.append((shell_name, shell_path, command))
 
-        print(f"Timing {shell_name} {command}")
+    if validated_shells:
+        workers = min(jobs, len(validated_shells))
+        print(f"Measuring time and resource usage with up to {workers} shells at a time...")
         print()
 
-        times: List[float] = []
-
-        for i in range(RUNS):
-            elapsed_time = run_command_with_timing(shell_path, command)
-            times.append(elapsed_time)
-
-        average_time = statistics.mean(times)
-        min_time = min(times)
-        max_time = max(times)
-
-        results.append((shell_name, average_time, min_time, max_time))
-
-    if ENABLE_BASELINE_TESTS:
-        for shell in BASELINE_SHELLS:
-            command = get_shell_command(shell, command_key)
-
-            if command is None:
-                print()
-                print(f"Skipping {shell}: command '{command_key}' not defined")
-                continue
-
-            print()
-            print(f"Validating {shell} {command}")
-            is_valid, error_msg = validate_command_output(shell, command, command_key)
-            if not is_valid:
-                print(f"  VALIDATION FAILED: {error_msg}")
-                print(f"  Skipping performance test for {shell}")
-                continue
-            else:
-                print(f"  Validation passed")
-
-            print(f"Timing {shell} {command}")
-            print()
-
-            times: List[float] = []
-
-            for i in range(RUNS):
-                elapsed_time = run_command_with_timing(shell, command)
-                times.append(elapsed_time)
-
-            average_time = statistics.mean(times)
-            min_time = min(times)
-            max_time = max(times)
-
-            results.append((shell, average_time, min_time, max_time))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(measure_shell, shell_name, shell_path, command, runs): shell_name
+                for shell_name, shell_path, command in validated_shells
+            }
+            # Only the main thread prints and updates shared results.
+            for future in as_completed(futures):
+                shell_name = futures[future]
+                try:
+                    results.append(future.result())
+                except (OSError, subprocess.CalledProcessError) as exc:
+                    print(f"  MEASUREMENT FAILED for {shell_name}: {exc}")
+                    print(f"  Skipping performance results for {shell_name}")
+                    continue
+                print(f"  Completed {shell_name}: {runs} runs")
 
     print("----------------------------------------------------------------------")
 
-    results.sort(key=lambda x: x[1])
+    results.sort(key=lambda result: result.average_time)
 
     all_commands.append(command_spec)
     all_results.append(results)
@@ -294,12 +323,19 @@ def get_cjsh_version() -> str:
         return "Version unavailable"
 
 
-def print_summary() -> None:
+def print_summary(runs: int = RUNS, jobs: int = 1) -> None:
     print("======================================================================")
     print("                           FINAL RESULTS SUMMARY")
     print("======================================================================")
-    print(f"Total runs per command: {RUNS}")
+    print(f"Total runs per command: {runs}")
+    print(f"Maximum concurrent shells: {jobs}")
+    if jobs > 1:
+        print("Concurrent workloads share system resources and can affect timing comparisons.")
     print(get_cjsh_version())
+    print("CPU usage: mean of (user + system CPU time) / wall time per run; 100% = one core.")
+    print("Resources include child processes accounted for by the OS when the shell waits.")
+    print("Memory: per-run peak resident set size (RSS), in MiB; not summed process-tree memory.")
+    print("Measured runs launch shells directly with stdout/stderr discarded.")
     print("======================================================================")
 
     for i, command_spec in enumerate(all_commands):
@@ -313,14 +349,25 @@ def print_summary() -> None:
         print("----------------------------------------------------------------------")
 
         if not all_results[i]:
-            print("No shells executed this command (unsupported).")
+            print("No successful measurements for this command.")
         else:
-            for shell, average, min_time, max_time in all_results[i]:
+            for result in all_results[i]:
+                shell = result.shell
+                times = [run.elapsed_ms for run in result.runs]
+                user_cpu = statistics.mean(run.user_cpu_ms for run in result.runs)
+                system_cpu = statistics.mean(run.system_cpu_ms for run in result.runs)
+                cpu_percent = statistics.mean(run.cpu_percent for run in result.runs)
+                peak_rss = [run.peak_rss_mib for run in result.runs]
                 actual_command = get_shell_command(shell, command_key) or "N/A"
                 print(f"{shell} ({actual_command}):")
-                print(f"  Avg time: {average:.3f} ms")
-                print(f"  Min time: {min_time:.3f} ms")
-                print(f"  Max time: {max_time:.3f} ms")
+                print(f"  Avg time: {result.average_time:.3f} ms")
+                print(f"  Min time: {min(times):.3f} ms")
+                print(f"  Max time: {max(times):.3f} ms")
+                print(f"  Avg user CPU time: {user_cpu:.3f} ms")
+                print(f"  Avg system CPU time: {system_cpu:.3f} ms")
+                print(f"  Avg CPU usage: {cpu_percent:.2f}%")
+                print(f"  Avg peak RSS: {statistics.mean(peak_rss):.3f} MiB")
+                print(f"  Max peak RSS: {max(peak_rss):.3f} MiB")
 
         print("----------------------------------------------------------------------")
 
@@ -362,7 +409,26 @@ def check_binaries_exist() -> bool:
     return True
 
 
-def main() -> None:
+def main(argv: Optional[List[str]] = None) -> None:
+    parser = argparse.ArgumentParser(description="Compare shell timing, CPU usage, and peak memory.")
+    parser.add_argument(
+        "-j", "--jobs", type=int, default=1,
+        help="Maximum shells to measure concurrently (default: %(default)s); shared load affects timing",
+    )
+    parser.add_argument(
+        "--runs", type=int, default=RUNS,
+        help="Measured runs per shell and command (default: %(default)s)",
+    )
+    args = parser.parse_args(argv)
+    if args.jobs <= 0:
+        parser.error("--jobs must be greater than 0")
+    if args.runs <= 0:
+        parser.error("--runs must be greater than 0")
+
+    if not hasattr(os, "wait4"):
+        print("Resource measurement requires os.wait4 (macOS, Linux, or BSD).", file=sys.stderr)
+        sys.exit(1)
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(script_dir)
     os.chdir(parent_dir)
@@ -371,12 +437,13 @@ def main() -> None:
         sys.exit(1)
 
     print("All required binaries found. Starting performance tests...")
+    print(f"Maximum concurrent shells: {args.jobs}")
     print()
 
     for command_spec in COMMAND_PLAN:
-        test_command(command_spec)
+        test_command(command_spec, runs=args.runs, jobs=args.jobs)
 
-    print_summary()
+    print_summary(runs=args.runs, jobs=args.jobs)
 
 
 if __name__ == "__main__":

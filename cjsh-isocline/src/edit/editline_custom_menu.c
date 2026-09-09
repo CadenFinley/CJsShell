@@ -323,18 +323,11 @@ again:;
     edit_refresh(env, eb);
 
     accepted_with_mouse = false;
-    code_t c = KEY_ESC;
-    (void)edit_menu_read_key(env, eb, &c);
-    if (tty_term_resize_event(env->tty)) {
-        (void)edit_resize(env, eb);
-    }
-    sbuf_clear(eb->extra);
-
-    code_t key_no_mods = KEY_NO_MODS(c);
-    if (edit_menu_mouse_prepare_key(env, eb, c, true, &menu_session.mouse_scroll_enabled,
-                                    &menu_session.mouse_suspended)) {
+    code_t c;
+    if (!edit_menu_read_event(env, eb, &menu_session, &c)) {
         goto again;
     }
+    code_t key_no_mods = KEY_NO_MODS(c);
     if (menu_session.mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
         bool accept_selection = false;
         if (custom_menu_mouse_select(env, eb, match_count, scroll_offset, last_display_count,
@@ -377,46 +370,12 @@ again:;
         goto done;
     }
 
-    if ((KEY_MODS(c) & KEY_MOD_SHIFT) && key_no_mods == KEY_DOWN) {
-        (void)edit_menu_page_down(env, match_count, last_display_count, last_max_scroll,
-                                  &scroll_offset, &selected_idx);
-    } else if ((KEY_MODS(c) & KEY_MOD_SHIFT) && key_no_mods == KEY_UP) {
-        (void)edit_menu_page_up(env, match_count, last_display_count, &scroll_offset,
-                                &selected_idx);
-    } else if ((KEY_MODS(c) & KEY_MOD_ALT) && (key_no_mods == 'c' || key_no_mods == 'C')) {
-        session_case_sensitive = !session_case_sensitive;
+    const edit_menu_input_t change = edit_menu_handle_input(
+        env, eb, c, &menu_session, match_count, last_display_count, last_max_scroll, &scroll_offset,
+        &selected_idx, &session_case_sensitive, false);
+    if (change == EDIT_MENU_INPUT_QUERY || change == EDIT_MENU_INPUT_CASE) {
         selected_idx = 0;
         scroll_offset = 0;
-    } else if (key_no_mods == KEY_UP || c == KEY_CTRL_P ||
-               (menu_session.mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_WHEEL_UP)) {
-        (void)edit_menu_move_selection(env, match_count, -1, &selected_idx);
-    } else if (key_no_mods == KEY_DOWN || c == KEY_CTRL_N ||
-               (menu_session.mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN)) {
-        (void)edit_menu_move_selection(env, match_count, 1, &selected_idx);
-    } else if (c == KEY_BACKSP) {
-        if (eb->pos > 0) {
-            edit_backspace(env, eb);
-            selected_idx = 0;
-            scroll_offset = 0;
-        }
-    } else if (c == KEY_DEL) {
-        edit_delete_char(env, eb);
-        selected_idx = 0;
-        scroll_offset = 0;
-    } else if (c == KEY_F1) {
-        edit_show_help(env, eb);
-    } else {
-        char chr;
-        unicode_t uchr;
-        if (code_is_ascii_char(c, &chr)) {
-            edit_insert_char(env, eb, chr);
-            selected_idx = 0;
-            scroll_offset = 0;
-        } else if (code_is_unicode(c, &uchr)) {
-            edit_insert_unicode(env, eb, uchr);
-            selected_idx = 0;
-            scroll_offset = 0;
-        }
     }
     goto again;
 

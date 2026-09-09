@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -104,3 +105,4 @@ void set_custom_palette_command(const std::string& id, const std::string& comman
 void clear_custom_palette_command(const std::string& id);
 void clear_all_custom_palette_commands();
 std::vector<std::pair<std::string, custom_command_binding_t>> list_custom_palette_commands();
+std::uint64_t custom_command_bindings_revision();

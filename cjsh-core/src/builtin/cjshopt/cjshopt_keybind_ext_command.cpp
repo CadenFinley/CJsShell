@@ -44,6 +44,7 @@
 #include "shell_env.h"
 
 namespace {
+std::uint64_t g_bindings_revision = 0;
 std::unordered_map<ic_keycode_t, custom_command_binding_t> g_custom_keybindings;
 std::unordered_map<std::string, custom_command_binding_t> g_custom_palette_commands;
 
@@ -68,6 +69,10 @@ auto sorted_binding_entries(const Map& bindings)
 }
 }  // namespace
 
+std::uint64_t custom_command_bindings_revision() {
+    return g_bindings_revision;
+}
+
 std::string get_custom_keybinding(ic_keycode_t key) {
     return binding_field_or_empty(g_custom_keybindings, key, &custom_command_binding_t::command);
 }
@@ -82,14 +87,17 @@ bool has_custom_keybinding(ic_keycode_t key) {
 
 void set_custom_keybinding(ic_keycode_t key, const std::string& command, const std::string& title) {
     g_custom_keybindings[key] = custom_command_binding_t{title, command};
+    ++g_bindings_revision;
 }
 
 void clear_custom_keybinding(ic_keycode_t key) {
     (void)g_custom_keybindings.erase(key);
+    ++g_bindings_revision;
 }
 
 void clear_all_custom_keybindings() {
     g_custom_keybindings.clear();
+    ++g_bindings_revision;
 }
 
 std::vector<std::pair<ic_keycode_t, custom_command_binding_t>> list_custom_keybindings() {
@@ -112,14 +120,17 @@ bool has_custom_palette_command(const std::string& id) {
 void set_custom_palette_command(const std::string& id, const std::string& command,
                                 const std::string& title) {
     g_custom_palette_commands[id] = custom_command_binding_t{title, command};
+    ++g_bindings_revision;
 }
 
 void clear_custom_palette_command(const std::string& id) {
     (void)g_custom_palette_commands.erase(id);
+    ++g_bindings_revision;
 }
 
 void clear_all_custom_palette_commands() {
     g_custom_palette_commands.clear();
+    ++g_bindings_revision;
 }
 
 std::vector<std::pair<std::string, custom_command_binding_t>> list_custom_palette_commands() {

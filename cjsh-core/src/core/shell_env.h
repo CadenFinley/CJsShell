@@ -29,6 +29,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -87,7 +88,8 @@ namespace cjsh_env {
 void setup_environment_variables(const char* argv0 = nullptr);
 void setup_path_variables(const std::string& paths_file = "/etc/paths",
                           const std::string& paths_directory = "/etc/paths.d");
-std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const struct passwd* pw);
+std::vector<std::pair<std::string, std::string>> setup_user_system_vars(
+    const struct passwd* pw, const std::string& directory = "");
 
 std::string get_shell_variable_value(const std::string& name);
 std::string get_shell_variable_value(const char* name);
@@ -103,6 +105,7 @@ bool update_terminal_dimensions();
 void sync_env_vars_from_system(Shell& shell);
 std::unordered_map<std::string, std::string>& env_vars();
 void sync_parser_env_vars(Shell* shell);
+void sync_parser_env_var(Shell* shell, const std::string& name);
 bool should_mirror_to_process_env(const std::string& name);
 void mirror_set_to_process_env(const std::string& name, const std::string& value);
 void mirror_unset_from_process_env(const std::string& name);
@@ -118,6 +121,34 @@ std::uint64_t command_sequence();
 void increment_command_sequence();
 
 void reset_shell_state();
+
+struct PreparedCommand {
+    std::vector<std::string> original_args;
+    std::vector<std::string> args;
+    std::vector<std::pair<std::string, std::string>> assignments;
+    std::optional<bool> is_builtin;
+};
+
+PreparedCommand prepare_command(std::vector<std::string> args);
+
+class TemporaryEnvAssignmentScope {
+   public:
+    TemporaryEnvAssignmentScope(Shell* shell,
+                                const std::vector<std::pair<std::string, std::string>>& assignments,
+                                bool persist = false);
+    ~TemporaryEnvAssignmentScope();
+    TemporaryEnvAssignmentScope(const TemporaryEnvAssignmentScope&) = delete;
+    TemporaryEnvAssignmentScope& operator=(const TemporaryEnvAssignmentScope&) = delete;
+
+   private:
+    struct Backup {
+        std::string name;
+        std::optional<std::string> process_value;
+        std::optional<std::string> shell_value;
+    };
+    Shell* shell_;
+    std::vector<Backup> backups_;
+};
 
 bool is_valid_env_name(const std::string& name);
 std::string get_ifs_delimiters();

@@ -155,6 +155,16 @@ class ShellScriptInterpreter {
     VariableManager& get_variable_manager();
 
    private:
+    struct StructuralSyntax {
+        std::vector<std::string> lines;
+        bool posix_mode;
+        std::vector<SyntaxError> script_errors;
+        std::optional<std::vector<SyntaxError>> loop_errors;
+        std::optional<std::vector<SyntaxError>> conditional_errors;
+    };
+    std::optional<StructuralSyntax> structural_syntax;
+    StructuralSyntax take_structural_syntax(const std::vector<std::string>& lines);
+
     Parser* shell_parser = nullptr;
     function_evaluator::FunctionMap functions;
 

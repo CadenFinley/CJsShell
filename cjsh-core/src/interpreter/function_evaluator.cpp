@@ -36,6 +36,57 @@
 
 namespace function_evaluator {
 
+std::optional<FunctionHeader> parse_function_header(const std::string& source) {
+    auto skip_space = [&](size_t& pos) {
+        while (pos < source.size() && std::isspace(static_cast<unsigned char>(source[pos]))) {
+            ++pos;
+        }
+    };
+    size_t start = 0;
+    skip_space(start);
+    const bool keyword = source.compare(start, 8, "function") == 0 && start + 8 < source.size() &&
+                         std::isspace(static_cast<unsigned char>(source[start + 8]));
+    size_t name_start = start;
+    size_t name_end;
+    if (keyword) {
+        name_start += 8;
+        skip_space(name_start);
+        name_end = name_start;
+        while (name_end < source.size() &&
+               !std::isspace(static_cast<unsigned char>(source[name_end])) &&
+               source[name_end] != '(' && source[name_end] != '{') {
+            ++name_end;
+        }
+    } else {
+        name_end = source.find("()", name_start);
+        if (name_end == std::string::npos) {
+            return std::nullopt;
+        }
+    }
+    size_t pos = name_end;
+    while (name_end > name_start &&
+           std::isspace(static_cast<unsigned char>(source[name_end - 1]))) {
+        --name_end;
+    }
+    std::string name = source.substr(name_start, name_end - name_start);
+    if (name.empty() || name.find(' ') != std::string::npos) {
+        return std::nullopt;
+    }
+    skip_space(pos);
+    if (pos < source.size() && source[pos] == '(') {
+        size_t lookahead = pos + 1;
+        skip_space(lookahead);
+        if (lookahead < source.size() && source[lookahead] == ')') {
+            pos = lookahead + 1;
+            skip_space(pos);
+        }
+    }
+    if (pos >= source.size() || (source[pos] != '{' && source[pos] != '(')) {
+        return std::nullopt;
+    }
+    return FunctionHeader{std::move(name), pos, source[pos], source[pos] == '{' ? '}' : ')'};
+}
+
 FunctionParseResult parse_and_register_functions(
     const std::string& line, const std::vector<std::string>& lines, size_t& line_index,
     FunctionMap& functions, const std::function<std::string(const std::string&)>& trim_func,
@@ -48,90 +99,12 @@ FunctionParseResult parse_and_register_functions(
     while (!current_line.empty() && found_function) {
         found_function = false;
 
-        std::string trimmed_line = trim_func(current_line);
-        bool has_function_keyword = false;
-        std::string func_name;
-
-        auto find_body_start = [](const std::string& source, const std::string& name) {
-            if (name.empty()) {
-                return std::pair<size_t, char>{std::string::npos, '}'};
-            }
-
-            size_t start = source.find(name);
-            if (start == std::string::npos) {
-                return std::pair<size_t, char>{std::string::npos, '}'};
-            }
-
-            start += name.length();
-            while (start < source.length() &&
-                   std::isspace(static_cast<unsigned char>(source[start]))) {
-                start++;
-            }
-
-            if (start < source.length() && source[start] == '(') {
-                size_t lookahead = start + 1;
-                while (lookahead < source.length() &&
-                       std::isspace(static_cast<unsigned char>(source[lookahead]))) {
-                    lookahead++;
-                }
-                if (lookahead < source.length() && source[lookahead] == ')') {
-                    start = lookahead + 1;
-                    while (start < source.length() &&
-                           std::isspace(static_cast<unsigned char>(source[start]))) {
-                        start++;
-                    }
-                }
-            }
-
-            if (start < source.length() && (source[start] == '{' || source[start] == '(')) {
-                char open = source[start];
-                char close = open == '{' ? '}' : ')';
-                return std::pair<size_t, char>{start, close};
-            }
-
-            return std::pair<size_t, char>{std::string::npos, '}'};
-        };
-
-        if (trimmed_line.rfind("function", 0) == 0 && trimmed_line.length() > 8 &&
-            std::isspace(static_cast<unsigned char>(trimmed_line[8]))) {
-            has_function_keyword = true;
-            size_t name_start = 8;
-
-            while (name_start < trimmed_line.length() &&
-                   std::isspace(static_cast<unsigned char>(trimmed_line[name_start]))) {
-                name_start++;
-            }
-
-            if (name_start < trimmed_line.length()) {
-                size_t name_end = name_start;
-                while (name_end < trimmed_line.length() &&
-                       !std::isspace(static_cast<unsigned char>(trimmed_line[name_end])) &&
-                       trimmed_line[name_end] != '(' && trimmed_line[name_end] != '{') {
-                    name_end++;
-                }
-
-                func_name = trimmed_line.substr(name_start, name_end - name_start);
-            }
-        }
-
-        size_t name_end = current_line.find("()");
-
-        if (!has_function_keyword && name_end != std::string::npos) {
-            std::string potential_name = trim_func(current_line.substr(0, name_end));
-            auto potential_body = find_body_start(current_line, potential_name);
-            size_t potential_pos = potential_body.first;
-            if (potential_pos != std::string::npos && name_end <= potential_pos) {
-                func_name = potential_name;
-            }
-        }
-
-        auto body_info = find_body_start(current_line, func_name);
-        size_t body_pos = body_info.first;
-        char closing_delim = body_info.second;
-        char opening_delim = body_pos != std::string::npos ? current_line[body_pos] : '{';
-
-        if (!func_name.empty() && func_name.find(' ') == std::string::npos &&
-            body_pos != std::string::npos) {
+        const auto header = parse_function_header(current_line);
+        if (header) {
+            const auto& func_name = header->name;
+            const size_t body_pos = header->body_start;
+            const char opening_delim = header->opening;
+            const char closing_delim = header->closing;
             std::vector<std::string> body_lines;
             bool handled_single_line = false;
             std::string after_body = trim_func(current_line.substr(body_pos + 1));

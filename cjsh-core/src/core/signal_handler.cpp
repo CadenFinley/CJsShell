@@ -823,6 +823,35 @@ void SignalHandler::restore_original_handlers() {
     }
 }
 
+void SignalHandler::reap_pending_children(Exec* shell_exec, bool managed_jobs_only) {
+    if (shell_exec == nullptr || s_sigchld_received == 0) {
+        return;
+    }
+    s_sigchld_received = 0;
+    if (managed_jobs_only) {
+        // Prompt workers own their captured children. The editor must only poll shell jobs.
+        JobManager::instance().update_job_statuses();
+        return;
+    }
+    constexpr int max_reap_iterations = 100;
+    for (int count = 0; count < max_reap_iterations;) {
+        int status = 0;
+        const pid_t pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED);
+        if (pid < 0 && errno == EINTR) {
+            continue;
+        }
+        if (pid <= 0) {
+            return;
+        }
+        ++count;
+        shell_exec->handle_child_signal(pid, status);
+        JobManager::instance().handle_child_status(pid, status);
+    }
+    // Leave work pending after a burst; never consume a status beyond the batch limit.
+    s_sigchld_received = 1;
+    s_signal_pending.store(true, std::memory_order_release);
+}
+
 SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec,
                                                               bool reap_children) {
     bool should_process = s_signal_pending.exchange(false, std::memory_order_acq_rel);
@@ -857,36 +886,8 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec,
         (void)fflush(stdout);
     }
 
-    if (reap_children && s_sigchld_received != 0) {
-        s_sigchld_received = 0;
-
-        if (shell_exec != nullptr) {
-            pid_t pid = 0;
-            int status = 0;
-            int reaped_count = 0;
-            const int max_reap_iterations = 100;
-
-            // if (s_sigchld_received == 1) {
-            // usleep(1000);
-            // }
-
-            while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0 &&
-                   reaped_count < max_reap_iterations) {
-                reaped_count++;
-                shell_exec->handle_child_signal(pid, status);
-                JobManager::instance().handle_child_status(pid, status);
-            }
-
-            if (reaped_count >= max_reap_iterations) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             ErrorSeverity::WARNING,
-                             "signal-handler",
-                             "SIGCHLD handler hit maximum iteration limit (" +
-                                 std::to_string(max_reap_iterations) +
-                                 "); breaking to prevent infinite loop",
-                             {"Investigate stuck child processes or signal storms."}});
-            }
-        }
+    if (reap_children) {
+        reap_pending_children(shell_exec);
     }
 
     const auto dispatch_termination = [&](int signum, bool& terminating) {

@@ -671,6 +671,9 @@ void JobManager::update_job_statuses() {
     }
 
     for (const auto& [pid, status] : status_changes) {
+        if (shell_ref && shell_ref->shell_exec) {
+            shell_ref->shell_exec->handle_child_signal(pid, status);
+        }
         handle_child_status(pid, status);
     }
 }

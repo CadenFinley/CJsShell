@@ -744,6 +744,51 @@ static bool test_history_dedup_snapshot(void) {
     return true;
 }
 
+static bool test_history_snapshot_search_consistency(void) {
+    alloc_t* mem = test_allocator();
+    EXPECT_TRUE(mem != NULL, "history test allocator should exist");
+    history_t* reader = history_new(mem);
+    history_t* writer = history_new(mem);
+    EXPECT_TRUE(reader != NULL && writer != NULL, "history handles should be allocated");
+    const char* path = "./isocline_history_snapshot_search.log";
+    (void)remove(path);
+    history_load_from(reader, path, 32);
+    history_load_from(writer, path, 32);
+    EXPECT_TRUE(history_push(writer, "alpha"), "initial history entry should persist");
+
+    history_snapshot_t snap = {0};
+    EXPECT_TRUE(history_snapshot_load(reader, &snap, true), "snapshot should load");
+    EXPECT_TRUE(history_snapshot_is_current(reader, &snap),
+                "unchanged history should stay current");
+    EXPECT_TRUE(history_push(writer, "beta"), "another session should append history");
+    EXPECT_FALSE(history_snapshot_is_current(reader, &snap),
+                 "file replacement should invalidate snapshot");
+
+    history_match_t matches[8];
+    ssize_t count = 0;
+    EXPECT_TRUE(
+        history_snapshot_fuzzy_search(reader, &snap, "alpha", matches, 8, &count, NULL, true),
+        "search should use the retained snapshot");
+    EXPECT_TRUE(count == 1, "snapshot should contain one matching entry");
+    EXPECT_STREQ(history_snapshot_get(&snap, matches[0].hidx)->command, "alpha",
+                 "match indices and rendered entries must use the same snapshot");
+    EXPECT_FALSE(
+        history_snapshot_fuzzy_search(reader, &snap, "beta", matches, 8, &count, NULL, true),
+        "search must not independently reload newer entries");
+    EXPECT_TRUE(history_snapshot_load(reader, &snap, true), "changed history should reload");
+    EXPECT_TRUE(history_snapshot_is_current(reader, &snap), "reloaded snapshot should be current");
+    EXPECT_TRUE(
+        history_snapshot_fuzzy_search(reader, &snap, "beta", matches, 8, &count, NULL, true),
+        "reloaded snapshot should expose another session's entry");
+    EXPECT_STREQ(history_snapshot_get(&snap, matches[0].hidx)->command, "beta",
+                 "new match index should resolve to the new entry");
+    history_snapshot_free(reader, &snap);
+    history_free(reader);
+    history_free(writer);
+    (void)remove(path);
+    return true;
+}
+
 static bool test_history_frequency_metadata_tracking(void) {
     alloc_t* mem = test_allocator();
     if (mem == NULL) {
@@ -4433,6 +4478,7 @@ static const test_case_t kTests[] = {
     {"continuation_callback_registration", test_continuation_callback_registration},
     {"completion_generation_and_apply", test_completion_generation_and_apply},
     {"history_dedup_snapshot", test_history_dedup_snapshot},
+    {"history_snapshot_search_consistency", test_history_snapshot_search_consistency},
     {"history_fuzzy_case_toggle", test_history_fuzzy_case_toggle},
     {"history_fuzzy_case_toggle_via_api", test_history_fuzzy_case_toggle_via_api},
     {"history_search_sort_api", test_history_search_sort_api},

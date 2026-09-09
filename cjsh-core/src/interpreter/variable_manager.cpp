@@ -177,18 +177,30 @@ bool VariableManager::assign_global_variable(const std::string& target, const st
 
 bool VariableManager::assign_array_literal(const std::string& name,
                                            const std::vector<std::string>& words, bool append) {
+    return assign_array_literal_impl(name, words, append, false);
+}
+
+bool VariableManager::assign_global_array_literal(const std::string& name,
+                                                  const std::vector<std::string>& words,
+                                                  bool append) {
+    return assign_array_literal_impl(name, words, append, true);
+}
+
+bool VariableManager::assign_array_literal_impl(const std::string& name,
+                                                const std::vector<std::string>& words, bool append,
+                                                bool force_global) {
     std::string resolved_name = resolve_nameref_reference(name);
     if (resolved_name != name) {
-        return assign_array_literal(resolved_name, words, append);
+        return assign_array_literal_impl(resolved_name, words, append, force_global);
     }
     if (!is_valid_identifier(name)) {
         return false;
     }
     if (is_associative_array(name)) {
-        return assign_associative_literal(name, words, append);
+        return assign_associative_literal_impl(name, words, append, force_global);
     }
 
-    bool local_scope = should_assign_to_local_scope(name);
+    bool local_scope = !force_global && should_assign_to_local_scope(name);
     IndexedArray* target_array = nullptr;
 
     if (local_scope) {
@@ -232,48 +244,30 @@ bool VariableManager::assign_array_literal(const std::string& name,
     return target_array != nullptr && assign_array_words(*target_array, words, append);
 }
 
-bool VariableManager::assign_global_array_literal(const std::string& name,
-                                                  const std::vector<std::string>& words,
-                                                  bool append) {
-    std::string resolved_name = resolve_nameref_reference(name);
-    if (resolved_name != name) {
-        return assign_global_array_literal(resolved_name, words, append);
-    }
-    if (!is_valid_identifier(name)) {
-        return false;
-    }
-    if (is_associative_array(name)) {
-        return assign_global_associative_literal(name, words, append);
-    }
-
-    auto [array_it, inserted] = global_array_variables.emplace(name, IndexedArray{});
-    IndexedArray* target_array = &array_it->second;
-
-    if (append) {
-        if (inserted && has_global_scalar_binding(name)) {
-            (void)target_array->emplace(0, get_global_scalar_value(name));
-            remove_global_scalar_binding(name);
-        }
-    } else {
-        target_array->clear();
-        remove_global_scalar_binding(name);
-    }
-
-    return assign_array_words(*target_array, words, append);
-}
-
 bool VariableManager::assign_associative_literal(const std::string& name,
                                                  const std::vector<std::string>& words,
                                                  bool append) {
+    return assign_associative_literal_impl(name, words, append, false);
+}
+
+bool VariableManager::assign_global_associative_literal(const std::string& name,
+                                                        const std::vector<std::string>& words,
+                                                        bool append) {
+    return assign_associative_literal_impl(name, words, append, true);
+}
+
+bool VariableManager::assign_associative_literal_impl(const std::string& name,
+                                                      const std::vector<std::string>& words,
+                                                      bool append, bool force_global) {
     std::string resolved_name = resolve_nameref_reference(name);
     if (resolved_name != name) {
-        return assign_associative_literal(resolved_name, words, append);
+        return assign_associative_literal_impl(resolved_name, words, append, force_global);
     }
     if (!is_valid_identifier(name)) {
         return false;
     }
 
-    const bool local_scope = should_assign_to_local_scope(name);
+    const bool local_scope = !force_global && should_assign_to_local_scope(name);
     AssociativeArray* target_array = nullptr;
     if (local_scope) {
         if (local_associative_array_stack.empty()) {
@@ -308,32 +302,6 @@ bool VariableManager::assign_associative_literal(const std::string& name,
         (void)global_nameref_variables.erase(name);
     }
     return target_array != nullptr && assign_associative_words(*target_array, words, append);
-}
-
-bool VariableManager::assign_global_associative_literal(const std::string& name,
-                                                        const std::vector<std::string>& words,
-                                                        bool append) {
-    std::string resolved_name = resolve_nameref_reference(name);
-    if (resolved_name != name) {
-        return assign_global_associative_literal(resolved_name, words, append);
-    }
-    if (!is_valid_identifier(name)) {
-        return false;
-    }
-
-    auto [array_it, inserted] =
-        global_associative_array_variables.emplace(name, AssociativeArray{});
-    AssociativeArray& target = array_it->second;
-    if (append && inserted && has_global_scalar_binding(name)) {
-        target["0"] = get_global_scalar_value(name);
-    }
-    if (!append) {
-        target.clear();
-    }
-    remove_global_scalar_binding(name);
-    (void)global_array_variables.erase(name);
-    (void)global_nameref_variables.erase(name);
-    return assign_associative_words(target, words, append);
 }
 
 bool VariableManager::assign_associative_words(AssociativeArray& target_array,

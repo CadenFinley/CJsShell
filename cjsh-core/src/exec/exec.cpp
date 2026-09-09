@@ -212,9 +212,10 @@ bool is_builtin_or_special_command(const std::vector<std::string>& cmd_args) {
     return built_ins != nullptr && (built_ins->is_builtin_or_runtime_command(cmd_args[0]) != 0);
 }
 
-CommandExecutionPlan resolve_command_exec_plan(const std::vector<std::string>& cmd_args) {
+CommandExecutionPlan resolve_command_exec_plan(const std::vector<std::string>& cmd_args,
+                                               std::optional<bool> known_builtin = std::nullopt) {
     CommandExecutionPlan plan;
-    plan.is_builtin = is_builtin_or_special_command(cmd_args);
+    plan.is_builtin = known_builtin ? *known_builtin : is_builtin_or_special_command(cmd_args);
 
     if (!cmd_args.empty() && !plan.is_builtin) {
         plan.cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd_args[0]);
@@ -269,9 +270,8 @@ void apply_assignments_to_shell_env(
     for (const auto& env : assignments) {
         env_vars[env.first] = env.second;
         cjsh_env::mirror_set_to_process_env(env.first, env.second);
+        cjsh_env::sync_parser_env_var(g_shell.get(), env.first);
     }
-
-    cjsh_env::sync_parser_env_vars(g_shell.get());
 }
 
 Job make_single_process_job(pid_t pid, const std::string& command, bool background,
@@ -516,79 +516,7 @@ bool strip_temporary_env_assignments(
     return has_temporary_env;
 }
 
-class TemporaryEnvAssignmentScope {
-   public:
-    TemporaryEnvAssignmentScope(Shell* shell,
-                                const std::vector<std::pair<std::string, std::string>>& assignments)
-        : shell_(shell) {
-        if (!shell_ || assignments.empty()) {
-            return;
-        }
-
-        auto& env_vars = cjsh_env::env_vars();
-        for (const auto& assignment : assignments) {
-            const std::string& name = assignment.first;
-            const std::string& value = assignment.second;
-
-            if (!has_backup(name)) {
-                Backup backup;
-                backup.name = name;
-                auto it = env_vars.find(name);
-                if (it != env_vars.end()) {
-                    backup.had_previous = true;
-                    backup.previous_value = it->second;
-                }
-                backups_.push_back(std::move(backup));
-            }
-
-            env_vars[name] = value;
-            (void)setenv(name.c_str(), value.c_str(), 1);
-        }
-
-        refresh_parser_env();
-    }
-
-    ~TemporaryEnvAssignmentScope() {
-        if (!shell_ || backups_.empty()) {
-            return;
-        }
-
-        auto& env_vars = cjsh_env::env_vars();
-        for (auto it = backups_.rbegin(); it != backups_.rend(); ++it) {
-            if (it->had_previous) {
-                env_vars[it->name] = it->previous_value;
-                (void)setenv(it->name.c_str(), it->previous_value.c_str(), 1);
-            } else {
-                (void)env_vars.erase(it->name);
-                (void)unsetenv(it->name.c_str());
-            }
-        }
-
-        refresh_parser_env();
-    }
-
-   private:
-    struct Backup {
-        std::string name;
-        bool had_previous{false};
-        std::string previous_value;
-    };
-
-    bool has_backup(const std::string& name) const {
-        return std::any_of(backups_.begin(), backups_.end(),
-                           [&](const Backup& entry) { return entry.name == name; });
-    }
-
-    void refresh_parser_env() {
-        if (!shell_) {
-            return;
-        }
-        cjsh_env::sync_parser_env_vars(shell_);
-    }
-
-    Shell* shell_ = nullptr;
-    std::vector<Backup> backups_;
-};
+using TemporaryEnvAssignmentScope = cjsh_env::TemporaryEnvAssignmentScope;
 
 ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
     ProcessSubstitutionResources resources;
@@ -1238,53 +1166,24 @@ bool Exec::handle_empty_args(const std::vector<std::string>& args) {
     return true;
 }
 
-bool Exec::initialize_env_assignments(const std::vector<std::string>& args,
-                                      std::vector<std::pair<std::string, std::string>>& assignments,
-                                      size_t& cmd_start_idx) {
-    if (handle_empty_args(args)) {
-        return false;
-    }
-
-    cmd_start_idx = cjsh_env::collect_env_assignments(args, assignments);
-    return true;
-}
-
-std::optional<int> Exec::handle_assignments_prefix(
-    const std::vector<std::string>& args,
-    std::vector<std::pair<std::string, std::string>>& assignments, size_t& cmd_start_idx,
-    const std::function<void()>& on_assignments_only) {
-    if (!initialize_env_assignments(args, assignments, cmd_start_idx)) {
+std::optional<int> Exec::handle_prepared_assignments(const cjsh_env::PreparedCommand& command,
+                                                     bool asynchronous) {
+    if (handle_empty_args(command.original_args)) {
         set_last_pipeline_statuses({last_exit_code});
         return last_exit_code;
     }
-
-    if (cmd_start_idx >= args.size()) {
-        if (on_assignments_only) {
-            on_assignments_only();
-        }
-        last_exit_code = 0;
-        set_last_pipeline_statuses({0});
-        return 0;
-    }
-
-    return std::nullopt;
-}
-
-std::optional<std::vector<std::string>> Exec::collect_command_args_with_assignments(
-    const std::vector<std::string>& args,
-    std::vector<std::pair<std::string, std::string>>& assignments,
-    const std::function<void()>& on_assignments_only, int& early_exit_code) {
-    size_t cmd_start_idx = 0;
-    auto early_exit =
-        handle_assignments_prefix(args, assignments, cmd_start_idx, on_assignments_only);
-    if (early_exit.has_value()) {
-        early_exit_code = early_exit.value();
+    if (!command.args.empty()) {
         return std::nullopt;
     }
-
-    std::vector<std::string> cmd_args(
-        std::next(args.begin(), static_cast<std::ptrdiff_t>(cmd_start_idx)), args.end());
-    return cmd_args;
+    if (asynchronous) {
+        cjsh_env::apply_env_assignments(command.assignments);
+        set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
+    } else {
+        apply_assignments_to_shell_env(command.assignments);
+    }
+    last_exit_code = 0;
+    set_last_pipeline_statuses({0});
+    return 0;
 }
 
 std::optional<int> Exec::run_command_not_found_handler(
@@ -1377,17 +1276,23 @@ void Exec::set_last_pipeline_statuses(std::vector<int> statuses) {
 
 int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_background_on_stop,
                                bool auto_background_on_stop_silent) {
-    const bool monitor_mode = g_shell && g_shell->is_job_control_enabled();
-    std::vector<std::pair<std::string, std::string>> env_assignments;
-    int early_exit_code = 0;
-    auto cmd_args = collect_command_args_with_assignments(
-        args, env_assignments, [&]() { apply_assignments_to_shell_env(env_assignments); },
-        early_exit_code);
-    if (!cmd_args.has_value()) {
-        return early_exit_code;
-    }
+    return execute_prepared_command_sync(cjsh_env::prepare_command(args), auto_background_on_stop,
+                                         auto_background_on_stop_silent);
+}
 
-    std::vector<std::string> cmd_args_value = std::move(cmd_args.value());
+int Exec::execute_prepared_command_sync(cjsh_env::PreparedCommand command,
+                                        bool auto_background_on_stop,
+                                        bool auto_background_on_stop_silent) {
+    const auto& args = command.original_args;
+    if (g_shell) {
+        g_shell->mark_terminal_dirty();
+    }
+    const bool monitor_mode = g_shell && g_shell->is_job_control_enabled();
+    if (auto status = handle_prepared_assignments(command, false)) {
+        return *status;
+    }
+    const auto& env_assignments = command.assignments;
+    auto& cmd_args_value = command.args;
 
     Command proc_cmd;
     proc_cmd.args = cmd_args_value;
@@ -1412,7 +1317,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         }
     }
 
-    auto exec_plan = resolve_command_exec_plan(cmd_args_value);
+    auto exec_plan = resolve_command_exec_plan(cmd_args_value, command.is_builtin);
     bool is_builtin = exec_plan.is_builtin;
     std::string cached_exec_path = std::move(exec_plan.cached_exec_path);
 
@@ -1507,18 +1412,9 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
     int job_id = add_job(job);
 
     std::string full_command = join_arguments(args);
-    bool reads_stdin = true;
-
-    if (g_shell && (g_shell->get_parser() != nullptr)) {
-        try {
-            auto command_pipeline = g_shell->get_parser()->parse_pipeline(full_command);
-            if (!command_pipeline.empty()) {
-                reads_stdin = job_utils::pipeline_consumes_terminal_stdin(command_pipeline);
-            }
-        } catch (const std::exception& e) {
-            // Best-effort parse; keep default reads_stdin on failure.
-        }
-    }
+    // These arguments are already expanded. Re-parsing their display text can reinterpret
+    // literal operators and substitutions; redirections use the pipeline execution path.
+    const bool reads_stdin = job_utils::command_consumes_terminal_stdin(proc_cmd);
 
     int new_job_id = JobManager::instance().add_job(pid, {pid}, full_command, job.background,
                                                     reads_stdin, monitor_mode);
@@ -1560,23 +1456,22 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
 }
 
 int Exec::execute_command_async(const std::vector<std::string>& args) {
-    const bool monitor_mode = g_shell && g_shell->is_job_control_enabled();
-    std::vector<std::pair<std::string, std::string>> env_assignments;
-    int early_exit_code = 0;
-    auto cmd_args = collect_command_args_with_assignments(
-        args, env_assignments,
-        [&]() {
-            cjsh_env::apply_env_assignments(env_assignments);
-            set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
-        },
-        early_exit_code);
-    if (!cmd_args.has_value()) {
-        return early_exit_code;
+    return execute_prepared_command_async(cjsh_env::prepare_command(args));
+}
+
+int Exec::execute_prepared_command_async(cjsh_env::PreparedCommand command) {
+    const auto& args = command.original_args;
+    if (g_shell) {
+        g_shell->mark_terminal_dirty();
     }
+    const bool monitor_mode = g_shell && g_shell->is_job_control_enabled();
+    if (auto status = handle_prepared_assignments(command, true)) {
+        return *status;
+    }
+    const auto& env_assignments = command.assignments;
+    auto& cmd_args_value = command.args;
 
-    std::vector<std::string> cmd_args_value = std::move(cmd_args.value());
-
-    auto exec_plan = resolve_command_exec_plan(cmd_args_value);
+    auto exec_plan = resolve_command_exec_plan(cmd_args_value, command.is_builtin);
     bool is_builtin = exec_plan.is_builtin;
     std::string cached_exec_path = std::move(exec_plan.cached_exec_path);
 
@@ -1656,6 +1551,9 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
     const bool pipeline_negated = (!commands.empty() && commands[0].negate_pipeline);
+    if (g_shell) {
+        g_shell->mark_terminal_dirty();
+    }
     const bool monitor_mode = g_shell && g_shell->is_job_control_enabled();
 
     auto apply_pipefail = [&](int exit_code, const std::vector<int>& statuses) -> int {
@@ -2819,6 +2717,9 @@ CommandOutput execute_with_stdout_capture_impl(const std::function<int()>& child
                                                const std::function<void()>& progress_callback,
                                                unsigned int progress_interval_ms,
                                                const std::function<bool()>& cancellation_callback) {
+    if (g_shell) {
+        g_shell->mark_terminal_dirty();
+    }
     CommandOutput result{"", -1, false};
 
     if (!child_executor) {

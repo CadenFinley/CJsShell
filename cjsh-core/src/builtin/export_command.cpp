@@ -193,10 +193,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
             }
             (void)setenv(name.c_str(), var_value.c_str(), 1);
         }
-    }
-
-    if (shell != nullptr) {
-        cjsh_env::sync_parser_env_vars(shell);
+        cjsh_env::sync_parser_env_var(shell, name);
     }
 
     return all_successful ? 0 : 1;
@@ -265,10 +262,7 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
                          {}});
             success = false;
         }
-    }
-
-    if (shell != nullptr) {
-        cjsh_env::sync_parser_env_vars(shell);
+        cjsh_env::sync_parser_env_var(shell, base_name);
     }
 
     return success ? 0 : 1;

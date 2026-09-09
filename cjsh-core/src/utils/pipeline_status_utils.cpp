@@ -93,8 +93,19 @@ void apply_pipeline_status_env(Exec* exec_ptr,
         return;
     }
 
-    const std::string pipe_status_str = build_status_string(pipeline_statuses);
-    (void)cjsh_env::set_shell_variable_value("PIPESTATUS", pipe_status_str);
+    static thread_local std::vector<int> cached_statuses;
+    static thread_local std::string pipe_status_str;
+    if (cached_statuses != pipeline_statuses) {
+        pipe_status_str = build_status_string(pipeline_statuses);
+        cached_statuses = pipeline_statuses;
+    }
+    // Repeated publication is common at nested execution boundaries. Check the
+    // live binding too: scripts can overwrite or unset PIPESTATUS between calls.
+    const auto& variables = cjsh_env::env_vars();
+    const auto current = variables.find("PIPESTATUS");
+    if (current == variables.end() || current->second != pipe_status_str) {
+        (void)cjsh_env::set_shell_variable_value("PIPESTATUS", pipe_status_str);
+    }
     if (on_set_callback) {
         on_set_callback(pipe_status_str);
     }

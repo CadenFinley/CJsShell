@@ -30,6 +30,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -119,6 +120,7 @@ class Parser {
     HistoryExpansionResult perform_history_expansion(const std::string& command) const;
 
     std::vector<std::string> parse_into_lines(const std::string& scripts);
+    const std::vector<std::string>& prepare_interactive_input(const std::string& script);
 
     std::vector<std::string> parse_command(const std::string& cmdline);
     std::vector<Command> parse_pipeline(const std::string& command);
@@ -146,6 +148,7 @@ class Parser {
 
    private:
     void ensure_parsers_initialized();
+    std::vector<std::string> prepare_expansion_tokens(std::vector<std::string> args);
     bool is_control_word_at_position(const std::string& command, size_t i, int paren_depth,
                                      int brace_depth, bool in_quotes, int& control_depth);
     void process_heredoc_content(std::string& content);
@@ -157,6 +160,11 @@ class Parser {
     std::unordered_map<std::string, std::string> env_vars;
     Shell* shell = nullptr;
     std::map<std::string, std::string> current_here_docs;
+    struct PreparedInput {
+        std::string source;
+        std::vector<std::string> lines;
+    };
+    std::optional<PreparedInput> prepared_input;
 
     std::unique_ptr<Tokenizer> tokenizer;
     std::unique_ptr<VariableExpander> variableExpander;

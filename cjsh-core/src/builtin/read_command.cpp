@@ -441,7 +441,6 @@ bool assign_fields_to_variables(const std::vector<std::string>& var_names,
         }
     }
 
-    cjsh_env::sync_parser_env_vars(shell);
     return true;
 }
 

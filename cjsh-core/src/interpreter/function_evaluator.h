@@ -29,11 +29,21 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 namespace function_evaluator {
+
+struct FunctionHeader {
+    std::string name;
+    size_t body_start;
+    char opening;
+    char closing;
+};
+
+std::optional<FunctionHeader> parse_function_header(const std::string& source);
 
 struct FunctionDefinition {
     std::vector<std::string> body_lines;

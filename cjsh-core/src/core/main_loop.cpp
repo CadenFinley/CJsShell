@@ -97,13 +97,7 @@ bool typeahead_capture_allowed(void*) {
 }
 
 void recover_prompt_terminal() {
-    if (!g_shell->reclaim_terminal()) {
-        return;
-    }
-
-    // Adopt command changes before preparing the next prompt. Prompt hooks also
-    // run with ordinary external modes, never the editor's capture translations.
-    ic_recover_terminal();
+    g_shell->recover_prompt_terminal();
 }
 
 struct CommandProcessResult {
@@ -178,20 +172,22 @@ CommandProcessResult process_command_line(const std::string& command) {
         };
         ic_history_add_with_metadata(expanded_command.c_str(), metadata, 4);
     }
-    // perform memory cleanup
+    // Amortize allocator maintenance across commands instead of trimming after each builtin.
+    static auto last_memory_cleanup = command_end_time;
+    if (command_end_time - last_memory_cleanup >= std::chrono::seconds(5)) {
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
-    (void)malloc_zone_pressure_relief(nullptr, 0);
+        (void)malloc_zone_pressure_relief(nullptr, 0);
 #elif defined(__GLIBC__)
-    (void)malloc_trim(0);
-#else
-    // do nothing for other platforms
+        (void)malloc_trim(0);
 #endif
+        last_memory_cleanup = command_end_time;
+    }
 
     return {cjsh_env::exit_requested(), exit_code};
 }
 
 void update_job_management() {
-    JobManager::instance().update_job_statuses();
+    SignalHandler::reap_pending_children(g_shell->shell_exec.get(), true);
     JobManager::instance().cleanup_finished_jobs();
 }
 
@@ -289,6 +285,7 @@ std::optional<std::string> get_next_command() {
                                                           inline_right_ptr, nullptr);
         prompt::set_prompt_refresh_allowed(false);
         ic_prepare_terminal_for_command();
+        g_shell->mark_terminal_dirty();
 
         char* input = readline_result.input;
         if (readline_result.disposition == IC_READLINE_DISPOSITION_IDLE) {
@@ -450,11 +447,18 @@ bool handle_command_palette_entry(const ic_command_palette_entry_t* entry, void*
 }
 
 void refresh_command_palette_entries() {
+    static std::optional<std::pair<std::uint64_t, bool>> installed_revision;
+    const auto revision =
+        std::make_pair(custom_command_bindings_revision(), agent_mode::palette_entry_enabled());
+    if (installed_revision == revision) {
+        return;
+    }
     auto custom_bindings = list_custom_keybindings();
     auto palette_bindings = list_custom_palette_commands();
-    const bool show_agent_entry = agent_mode::palette_entry_enabled();
+    const bool show_agent_entry = revision.second;
     if (custom_bindings.empty() && palette_bindings.empty() && !show_agent_entry) {
         ic_clear_command_palette_entries();
+        installed_revision = revision;
         return;
     }
 
@@ -515,6 +519,7 @@ void refresh_command_palette_entries() {
 
     if (ids.empty()) {
         ic_clear_command_palette_entries();
+        installed_revision = revision;
         return;
     }
 
@@ -526,8 +531,11 @@ void refresh_command_palette_entries() {
         entries[i].keywords = keywords[i].c_str();
     }
 
-    if (!ic_set_command_palette_entries(entries.data(), entries.size())) {
+    if (ic_set_command_palette_entries(entries.data(), entries.size())) {
+        installed_revision = revision;
+    } else {
         ic_clear_command_palette_entries();
+        installed_revision.reset();
     }
 }
 
@@ -585,7 +593,7 @@ bool buffer_requires_additional_input(const std::string& buffer) {
         return false;
     }
 
-    std::vector<std::string> lines = parser->parse_into_lines(buffer);
+    const auto& lines = parser->prepare_interactive_input(buffer);
     if (lines.empty()) {
         return false;
     }
@@ -690,7 +698,6 @@ void main_process_loop() {
         }
     }
 
-    ic_typeahead_clear();
     (void)ic_enable_typeahead(false);
 }
 

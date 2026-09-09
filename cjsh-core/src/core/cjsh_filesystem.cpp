@@ -376,16 +376,12 @@ std::optional<std::filesystem::path> resolve_executable_token(const std::string&
 }
 
 bool path_is_executable(const std::filesystem::path& candidate) {
-    if (!path_exists(candidate)) {
-        return false;
-    }
-
-    if (path_is_directory(candidate)) {
-        return false;
-    }
-
-    return ::access(candidate.c_str(), X_OK) == 0;
+    std::error_code ec;
+    const auto status = std::filesystem::status(candidate, ec);
+    return !ec && std::filesystem::exists(status) && !std::filesystem::is_directory(status) &&
+           ::access(candidate.c_str(), X_OK) == 0;
 }
+
 }  // namespace
 
 namespace {

@@ -205,6 +205,7 @@ Shell::~Shell() {
 }
 
 int Shell::execute(const std::string& script, bool skip_validation) {
+    mark_terminal_dirty();
     // main execution entry point for cjsh
     if (script.empty()) {
         return 0;
@@ -227,19 +228,28 @@ int Shell::execute(const std::string& script, bool skip_validation) {
 
 int Shell::execute_command(std::vector<std::string> args, bool run_in_background,
                            bool auto_background_on_stop, bool auto_background_on_stop_silent) {
+    return execute_prepared_command(cjsh_env::prepare_command(std::move(args)), run_in_background,
+                                    auto_background_on_stop, auto_background_on_stop_silent);
+}
+
+int Shell::execute_prepared_command(cjsh_env::PreparedCommand command, bool run_in_background,
+                                    bool auto_background_on_stop,
+                                    bool auto_background_on_stop_silent) {
+    const auto& args = command.original_args;
     // fast path back out, this condition should never hit as many other things would have failed
     // beforehand
     if (!shell_exec || !built_ins) {
         print_error({ErrorType::FATAL_ERROR, "", "shell not initialized properly", {}});
     }
 
+    mark_terminal_dirty();
     // main single command executor that dirives from execute_block in interpreter.cpp
     if (args.empty()) {
         return 0;
     }
 
     // xtrace handling
-    if (get_shell_option(ShellOption::Xtrace) && !args.empty()) {
+    if (get_shell_option(ShellOption::Xtrace)) {
         std::cerr << prompt::render_trace_prompt() << string_utils::join_strings(args, " ") << '\n';
     }
 
@@ -269,13 +279,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     }
 
     // collect any env var assignments preceding the command
-    std::vector<std::pair<std::string, std::string>> env_assignments;
-    size_t cmd_start_idx = cjsh_env::collect_env_assignments(args, env_assignments);
-    std::vector<std::string> command_args;
-    if (cmd_start_idx < args.size()) {
-        command_args.assign(std::next(args.begin(), static_cast<std::ptrdiff_t>(cmd_start_idx)),
-                            args.end());
-    }
+    const auto& env_assignments = command.assignments;
+    const auto& command_args = command.args;
     const bool has_temporary_env = !env_assignments.empty() && !command_args.empty();
     const bool assignments_persist =
         has_temporary_env && !run_in_background && is_posix_special_builtin(command_args[0]);
@@ -283,74 +288,13 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     const bool is_direct_command =
         !command_args.empty() && (built_ins->is_builtin_or_runtime_command(command_args[0]) != 0);
 
+    command.is_builtin = is_direct_command;
+
     // check for built-in and keyword-runtime command execution
     if (is_direct_command) {
-        int code = 0;
-
-        if (has_temporary_env) {
-            struct SavedEnvState {
-                std::string name;
-                bool had_env = false;
-                std::string env_value;
-                bool had_map = false;
-                std::string map_value;
-            };
-
-            auto& env_map = cjsh_env::env_vars();
-            std::vector<SavedEnvState> saved_states;
-            saved_states.reserve(env_assignments.size());
-
-            auto apply_assignments = [&]() {
-                for (const auto& [name, value] : env_assignments) {
-                    SavedEnvState state;
-                    state.name = name;
-                    if (cjsh_env::shell_variable_is_set(name)) {
-                        state.had_env = true;
-                        state.env_value = cjsh_env::get_shell_variable_value(name);
-                    }
-                    auto map_it = env_map.find(name);
-                    if (map_it != env_map.end()) {
-                        state.had_map = true;
-                        state.map_value = map_it->second;
-                    }
-
-                    (void)setenv(name.c_str(), value.c_str(), 1);
-                    env_map[name] = value;
-                    saved_states.push_back(std::move(state));
-                }
-                if (shell_parser) {
-                    shell_parser->set_env_vars(env_map);
-                }
-            };
-
-            auto restore_assignments = [&]() {
-                for (auto it = saved_states.rbegin(); it != saved_states.rend(); ++it) {
-                    if (it->had_env) {
-                        (void)setenv(it->name.c_str(), it->env_value.c_str(), 1);
-                    } else {
-                        (void)unsetenv(it->name.c_str());
-                    }
-
-                    if (it->had_map) {
-                        env_map[it->name] = it->map_value;
-                    } else {
-                        (void)env_map.erase(it->name);
-                    }
-                }
-                if (shell_parser) {
-                    shell_parser->set_env_vars(env_map);
-                }
-            };
-
-            apply_assignments();
-            code = built_ins->builtin_or_runtime_command(command_args);
-            if (!assignments_persist) {
-                restore_assignments();
-            }
-        } else {
-            code = built_ins->builtin_or_runtime_command(command_args);
-        }
-        return code;
+        cjsh_env::TemporaryEnvAssignmentScope assignments(this, env_assignments,
+                                                          assignments_persist);
+        return built_ins->builtin_or_runtime_command(command_args);
     }
 
     // not a builtin check for other things
@@ -366,7 +310,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
 
     // execute the command in the background if requested
     if (run_in_background) {
-        int job_id = shell_exec->execute_command_async(args);
+        int job_id = shell_exec->execute_prepared_command_async(std::move(command));
         if (job_id > 0) {
             auto jobs = shell_exec->get_jobs();
             auto it = jobs.find(job_id);
@@ -381,8 +325,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     }
 
     // execute the command synchronously
-    int exit_code = shell_exec->execute_command_sync(args, auto_background_on_stop,
-                                                     auto_background_on_stop_silent);
+    int exit_code = shell_exec->execute_prepared_command_sync(
+        std::move(command), auto_background_on_stop, auto_background_on_stop_silent);
     shell_exec->print_error_if_needed(exit_code);
     return exit_code;
 }
@@ -479,6 +423,7 @@ SignalProcessingResult Shell::process_pending_signals(bool reap_children) {
         return {};
     }
 
+    mark_terminal_dirty();
     Exec* exec_ptr = shell_exec ? shell_exec.get() : nullptr;
     return signal_handler->process_pending_signals(exec_ptr, reap_children);
 }
@@ -655,6 +600,18 @@ void Shell::setup_job_control() {
 bool Shell::manages_terminal() const {
     return interactive_job_control_available && shell_pgid > 0 && getpid() == shell_pgid &&
            getpgrp() == shell_pgid;
+}
+
+void Shell::recover_prompt_terminal() {
+    if (!prompt_terminal_dirty.exchange(false, std::memory_order_relaxed)) {
+        return;
+    }
+    if (!reclaim_terminal()) {
+        mark_terminal_dirty();
+        return;
+    }
+    // Clear before recovery so an asynchronous prompt worker cannot lose its invalidation.
+    ic_recover_terminal();
 }
 
 bool Shell::reclaim_terminal() {

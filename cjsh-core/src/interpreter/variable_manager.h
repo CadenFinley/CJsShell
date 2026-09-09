@@ -94,6 +94,11 @@ class VariableManager {
     std::vector<std::string> get_variable_names() const;
 
    private:
+    bool assign_array_literal_impl(const std::string& name, const std::vector<std::string>& words,
+                                   bool append, bool force_global);
+    bool assign_associative_literal_impl(const std::string& name,
+                                         const std::vector<std::string>& words, bool append,
+                                         bool force_global);
     struct ParsedArrayReference {
         std::string name;
         std::string index;

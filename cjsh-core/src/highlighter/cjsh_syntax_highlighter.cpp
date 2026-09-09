@@ -131,7 +131,8 @@ void highlight_command_resolution(ic_highlight_env_t* henv, size_t start, size_t
 
 void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                              const std::string& analysis, size_t cmd_start, size_t cmd_end,
-                             const std::unordered_set<std::string>& comparison_ops) {
+                             const std::unordered_set<std::string>& comparison_ops,
+                             const std::unordered_set<std::string>& available_commands) {
     using namespace token_classifier;
     using namespace highlight_helpers;
 
@@ -155,18 +156,13 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
     size_t absolute_token_start = cmd_start + first_token_start;
     size_t first_token_length = first_token_end - first_token_start;
 
-    std::unordered_set<std::string> available_commands;
-    if (g_shell != nullptr) {
-        available_commands = g_shell->get_available_commands();
-    }
-
     const bool first_token_unknown = !command_analysis::is_known_command_token(
         token, absolute_token_start, g_shell.get(), available_commands);
 
     bool highlight_split_unknown_second_token = false;
     size_t split_second_token_absolute_start = 0;
     size_t split_second_token_length = 0;
-    {
+    if (first_token_unknown) {
         size_t split_cursor = token_cursor;
         size_t second_token_start = 0;
         size_t second_token_end = 0;
@@ -188,7 +184,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                         !merged_token_known &&
                         has_nearby_split_merge_candidate(token, second_token, available_commands);
 
-                    if (first_token_unknown && (merged_token_known || merged_token_near_match)) {
+                    if (merged_token_known || merged_token_near_match) {
                         highlight_split_unknown_second_token = true;
                         split_second_token_absolute_start = absolute_second_token_start;
                         split_second_token_length = second_token_end - second_token_start;
@@ -214,9 +210,8 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
     }
 
     if (!handled_first_token && command_analysis::token_has_explicit_path_hint(token)) {
-        std::string path_to_check = command_analysis::resolve_token_path(token, g_shell.get());
         highlight_command_resolution(henv, absolute_token_start, first_token_length,
-                                     std::filesystem::exists(path_to_check));
+                                     !first_token_unknown);
         handled_first_token = true;
     }
 
@@ -255,7 +250,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                          static_cast<long>(first_token_length), "cjsh-builtin");
         } else {
             highlight_command_resolution(henv, absolute_token_start, first_token_length,
-                                         is_external_command(token));
+                                         !first_token_unknown);
         }
     }
 
@@ -271,7 +266,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
         }
         if (nested_start < cmd_str.size()) {
             highlight_command_range(henv, input, analysis, cmd_start + nested_start, cmd_end,
-                                    comparison_ops);
+                                    comparison_ops, available_commands);
         }
         return;
     }
@@ -468,12 +463,14 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
     }
 
     const auto& comparison_ops = token_constants::comparison_operators();
+    const auto available_commands =
+        g_shell ? g_shell->get_available_commands() : std::unordered_set<std::string>{};
 
     (void)command_analysis::visit_command_ranges(
         sanitized_input,
         [&](size_t command_start, size_t command_end) {
             highlight_command_range(henv, input, sanitized_input, command_start, command_end,
-                                    comparison_ops);
+                                    comparison_ops, available_commands);
             return true;
         },
         [&](size_t separator_start, const command_analysis::CommandSeparator& separator) {

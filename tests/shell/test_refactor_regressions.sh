@@ -140,6 +140,97 @@ else
 fi
 
 echo ""
+# Exercise preparation through external, builtin, and function dispatch, including
+# restoration of only the temporary keys while retaining unrelated variable changes.
+OUT=$("$CJSH_PATH" --no-config <<'CJSH_PREP'
+PREP=original
+PREP=one PREP=two sh -c 'printf "%s:" "$PREP"'
+printf "%s:" "$PREP"
+PREP=temporary command eval 'SIDE_EFFECT=retained'
+printf "%s:%s:" "$PREP" "$SIDE_EFFECT"
+prepared_function() { printf "%s:" "$PREP"; }
+PREP=function prepared_function
+printf "%s" "$PREP"
+CJSH_PREP
+)
+if [ "$OUT" = "two:original:original:retained:function:original" ]; then
+    pass_test "prepared commands preserve assignment order and scoped variable changes"
+else
+    fail_test "prepared command assignment behavior changed (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" --no-config <<'CJSH_PREP'
+unset PREP_ABSENT
+PREP_ABSENT=temporary command eval 'SIDE_EFFECT=updated'
+printf "%s:%s" "${PREP_ABSENT-unset}" "$SIDE_EFFECT"
+CJSH_PREP
+)
+if [ "$OUT" = "unset:updated" ]; then
+    pass_test "temporary assignment restoration removes new keys without losing other changes"
+else
+    fail_test "temporary assignment restoration changed (got '$OUT')"
+fi
+
+# Dispatch must not expand arguments while checking whether a command is a function.
+OUT=$("$CJSH_PATH" --no-config --no-source --no-history <<'CJSH_EXPAND'
+i=0
+printf '%s:' "$((i+=1))"
+true && printf '%s:' "$((i+=1))"
+f() { printf '%s:' "$1"; }
+f "$((i+=1))"
+TEMP=value f "$((i+=1))"
+printf '%s' "$i"
+CJSH_EXPAND
+)
+if [ "$OUT" = "1:2:3:4:4" ]; then
+    pass_test "builtin, logical, and function arguments expand exactly once"
+else
+    fail_test "argument expansion ran more than once (got '$OUT')"
+fi
+
+OUT=$(CJSH_HOTSPOT_OUTPUT="$TMP_DIR/expanded-output" "$CJSH_PATH" --no-config --no-source --no-history <<'CJSH_EXPAND'
+i=0
+printf '%s' "$((i+=1))" >"$CJSH_HOTSPOT_OUTPUT"
+printf '%s:' "$i"
+cat "$CJSH_HOTSPOT_OUTPUT"
+CJSH_EXPAND
+)
+if [ "$OUT" = "1:1" ]; then
+    pass_test "redirected arguments expand exactly once"
+else
+    fail_test "redirected argument expansion repeated (got '$OUT')"
+fi
+
+OUT=$(CJSH_HOTSPOT_OUTPUT="$TMP_DIR/expanded-words" "$CJSH_PATH" --no-config --no-source --no-history <<'CJSH_EXPAND'
+set -- a b
+printf '[%s]' "x$@y" >"$CJSH_HOTSPOT_OUTPUT"
+cat "$CJSH_HOTSPOT_OUTPUT"
+printf '[%s]' {a,,c} | cat
+CJSH_EXPAND
+)
+if [ "$OUT" = "[xa][by][a][c]" ]; then
+    pass_test "redirected and pipeline commands preserve word expansion semantics"
+else
+    fail_test "pipeline word expansion changed (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" --no-config --no-source --no-history <<'CJSH_SCOPE'
+unset HOTSPOT_SCOPE
+HOTSPOT_SCOPE=local
+HOTSPOT_SCOPE=temporary printf ''
+HOTSPOT_SCOPE=temporary printf '' >/dev/null
+printf '%s:' "$HOTSPOT_SCOPE"
+sh -c 'printf "%s:" "${HOTSPOT_SCOPE-unset}"'
+HOTSPOT_PERSIST=kept :
+printf '%s' "$HOTSPOT_PERSIST"
+CJSH_SCOPE
+)
+if [ "$OUT" = "local:unset:kept" ]; then
+    pass_test "temporary assignments restore shell and process values independently"
+else
+    fail_test "temporary environment restoration changed (got '$OUT')"
+fi
+
 echo "Refactor Regression Tests Summary:"
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"

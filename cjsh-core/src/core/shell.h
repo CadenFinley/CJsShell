@@ -29,6 +29,7 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -43,6 +44,10 @@
 #include "error_out.h"
 #include "parser.h"
 #include "signal_handler.h"
+
+namespace cjsh_env {
+struct PreparedCommand;
+}
 
 class Exec;
 class Built_ins;
@@ -101,6 +106,9 @@ class Shell {
     int execute_command(std::vector<std::string> args, bool run_in_background = false,
                         bool auto_background_on_stop = false,
                         bool auto_background_on_stop_silent = false);
+    int execute_prepared_command(cjsh_env::PreparedCommand command, bool run_in_background = false,
+                                 bool auto_background_on_stop = false,
+                                 bool auto_background_on_stop_silent = false);
     int execute_script_file(const std::filesystem::path& path, bool optional = false);
     int execute_script_content(const std::string& content, const std::string& source_path);
 
@@ -111,6 +119,10 @@ class Shell {
     void restore_terminal_state();
     void setup_job_control();
     bool reclaim_terminal();
+    void mark_terminal_dirty() {
+        prompt_terminal_dirty.store(true, std::memory_order_relaxed);
+    }
+    void recover_prompt_terminal();
     bool suspend();
     bool manages_terminal() const;
     bool is_job_control_enabled() const;
@@ -163,6 +175,7 @@ class Shell {
     pid_t shell_pgid = 0;
     struct termios shell_tmodes;
     bool terminal_state_saved = false;
+    std::atomic<bool> prompt_terminal_dirty{true};
     bool job_control_enabled = false;
     bool interactive_job_control_available = false;
 

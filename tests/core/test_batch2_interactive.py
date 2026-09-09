@@ -57,6 +57,29 @@ class InteractiveTests(unittest.TestCase):
         s.wait_for_prompt(0)
         return s
 
+    def test_palette_tracks_binding_changes_between_prompts(self):
+        session = self.session()
+
+        def search(expected):
+            start = len(session.output)
+            session.write(b"\x1bpzzpalettefixture")
+            session.wait_for(expected, start)
+            end = len(session.output)
+            session.write(b"\x03")
+            session.wait_for_prompt(end)
+
+        for title in ("zzpalettefixture First", "zzpalettefixture Changed"):
+            session.run_command(shlex.join([
+                "cjshopt", "keybind", "ext", "set", "palette:fixture",
+                "--title", title, ":",
+            ]).encode())
+            search(title.encode())
+            # Unrelated commands preserve the installed palette.
+            session.run_command(b":")
+            search(title.encode())
+        session.run_command(b"cjshopt keybind ext clear palette:fixture")
+        search(b"No matches - showing all actions")
+
     def test_external_modes_persist_while_editor_remains_usable(self):
         session = self.session()
         probe = self.home / "term.py"

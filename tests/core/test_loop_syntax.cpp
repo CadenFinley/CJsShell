@@ -107,6 +107,43 @@ void test_validation_and_continuation() {
     }
 }
 
+void test_prepared_input_execution() {
+    auto* parser = g_shell->get_parser();
+    auto* interpreter = g_shell->get_shell_script_interpreter();
+    const std::string loop = "for item in one two; do PREPARED_RESULT=$item; done";
+    expect(!interpreter->needs_additional_input(parser->prepare_interactive_input(loop)),
+           "prepared loop is complete");
+    expect(g_shell->execute(loop) == 0 &&
+               cjsh_env::get_shell_variable_value("PREPARED_RESULT") == "two",
+           "prepared loop executes its final iteration");
+
+    const std::string heredoc = "read PREPARED_RESULT <<EOF\noriginal\nEOF";
+    expect(!interpreter->needs_additional_input(parser->prepare_interactive_input(heredoc)),
+           "prepared heredoc is complete");
+    expect(g_shell->execute("read HOOK_RESULT <<EOF\nhook\nEOF") == 0,
+           "intervening hook executes a different heredoc");
+    expect(g_shell->execute(heredoc) == 0 &&
+               cjsh_env::get_shell_variable_value("PREPARED_RESULT") == "original",
+           "intervening parsing cannot replace the prepared command's heredoc");
+
+    const std::string expansion = "read PREPARED_RESULT <<EOF\n$PREPARED_SOURCE\nEOF";
+    (void)cjsh_env::set_shell_variable_value("PREPARED_SOURCE", "before");
+    expect(!interpreter->needs_additional_input(parser->prepare_interactive_input(expansion)),
+           "heredoc analysis leaves expansion for execution");
+    (void)cjsh_env::set_shell_variable_value("PREPARED_SOURCE", "after");
+    expect(g_shell->execute(expansion) == 0 &&
+               cjsh_env::get_shell_variable_value("PREPARED_RESULT") == "after",
+           "prepared syntax reads the current variable value");
+
+    const std::vector<std::string> extension = {"function prepared_fn() { :; }"};
+    config::posix_mode = false;
+    (void)interpreter->needs_additional_input(extension);
+    config::posix_mode = true;
+    expect(interpreter->has_syntax_errors(extension, false),
+           "changing POSIX mode invalidates prepared syntax diagnostics");
+    config::posix_mode = false;
+}
+
 void test_runtime_guards_without_validation() {
     // Exercise the evaluators directly: nested/prevalidated execution must also
     // diagnose malformed headers without running either body or trailing commands.
@@ -165,6 +202,7 @@ int main() {
 
     test_validation_and_continuation();
     test_runtime_guards_without_validation();
+    test_prepared_input_execution();
     g_shell.reset();
     std::printf("Loop syntax: %zu checks, %zu failures\n", checks, failures);
     return failures == 0 ? 0 : 1;

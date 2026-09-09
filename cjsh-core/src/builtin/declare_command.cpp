@@ -461,12 +461,18 @@ void apply_export_attribute(const std::string& name, AttributeAction action, boo
     env_map[name] = value;
     (void)setenv(name.c_str(), value.c_str(), 1);
     if (shell != nullptr) {
-        cjsh_env::sync_parser_env_vars(shell);
+        cjsh_env::sync_parser_env_var(shell, name);
     }
 }
 
-bool assign_array_literal_for_scope(ShellScriptInterpreter* interpreter, bool local_scope,
-                                    bool force_global, const std::string& base_name,
+enum class ArrayLiteralKind {
+    Indexed,
+    Associative
+};
+
+bool assign_array_literal_for_scope(ArrayLiteralKind kind, ShellScriptInterpreter* interpreter,
+                                    bool local_scope, bool force_global,
+                                    const std::string& base_name,
                                     const std::vector<std::string>& words, bool append,
                                     const std::string& command_name) {
     if (interpreter == nullptr) {
@@ -474,43 +480,17 @@ bool assign_array_literal_for_scope(ShellScriptInterpreter* interpreter, bool lo
             {ErrorType::RUNTIME_ERROR, command_name, "shell interpreter not available", {}});
         return false;
     }
-
-    auto& variable_manager = interpreter->get_variable_manager();
-    if (local_scope) {
-        if (!interpreter->is_local_variable(base_name)) {
-            interpreter->set_local_variable(base_name, "");
-        }
-        return variable_manager.assign_array_literal(base_name, words, append);
+    if (local_scope && !interpreter->is_local_variable(base_name)) {
+        interpreter->set_local_variable(base_name, "");
     }
-
-    if (force_global) {
-        return variable_manager.assign_global_array_literal(base_name, words, append);
+    auto& variables = interpreter->get_variable_manager();
+    const bool global = force_global && !local_scope;
+    if (kind == ArrayLiteralKind::Associative) {
+        return global ? variables.assign_global_associative_literal(base_name, words, append)
+                      : variables.assign_associative_literal(base_name, words, append);
     }
-
-    return variable_manager.assign_array_literal(base_name, words, append);
-}
-
-bool assign_associative_literal_for_scope(ShellScriptInterpreter* interpreter, bool local_scope,
-                                          bool force_global, const std::string& base_name,
-                                          const std::vector<std::string>& words, bool append,
-                                          const std::string& command_name) {
-    if (interpreter == nullptr) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR, command_name, "shell interpreter not available", {}});
-        return false;
-    }
-
-    auto& variable_manager = interpreter->get_variable_manager();
-    if (local_scope) {
-        if (!interpreter->is_local_variable(base_name)) {
-            interpreter->set_local_variable(base_name, "");
-        }
-        return variable_manager.assign_associative_literal(base_name, words, append);
-    }
-    if (force_global) {
-        return variable_manager.assign_global_associative_literal(base_name, words, append);
-    }
-    return variable_manager.assign_associative_literal(base_name, words, append);
+    return global ? variables.assign_global_array_literal(base_name, words, append)
+                  : variables.assign_array_literal(base_name, words, append);
 }
 
 bool assign_value_for_scope(VariableManager& variable_manager, bool force_global,
@@ -639,13 +619,13 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
 
             if (opts.associative_action == AttributeAction::Set ||
                 variable_manager.is_associative_array(base_name)) {
-                assignment_ok = assign_associative_literal_for_scope(interpreter, local_scope,
-                                                                     force_global_scope, base_name,
-                                                                     words, append, command_name);
+                assignment_ok = assign_array_literal_for_scope(
+                    ArrayLiteralKind::Associative, interpreter, local_scope, force_global_scope,
+                    base_name, words, append, command_name);
             } else {
-                assignment_ok =
-                    assign_array_literal_for_scope(interpreter, local_scope, force_global_scope,
-                                                   base_name, words, append, command_name);
+                assignment_ok = assign_array_literal_for_scope(
+                    ArrayLiteralKind::Indexed, interpreter, local_scope, force_global_scope,
+                    base_name, words, append, command_name);
             }
             i = close_index + 1;
         } else if (opts.associative_action == AttributeAction::Set) {
@@ -660,9 +640,9 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
                     interpreter->set_local_variable(base_name, "");
                     (void)variable_manager.assign_associative_literal(base_name, {}, false);
                 } else if (!variable_manager.is_associative_array(base_name)) {
-                    (void)assign_associative_literal_for_scope(interpreter, local_scope,
-                                                               force_global_scope, base_name, {},
-                                                               false, command_name);
+                    (void)assign_array_literal_for_scope(ArrayLiteralKind::Associative, interpreter,
+                                                         local_scope, force_global_scope, base_name,
+                                                         {}, false, command_name);
                 }
                 assignment_ok = assign_value_for_scope(variable_manager, force_global_scope,
                                                        normalized_target, operand.value, append);
@@ -671,9 +651,9 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
                 if (operand.has_assignment) {
                     words.push_back(operand.value);
                 }
-                assignment_ok = assign_associative_literal_for_scope(interpreter, local_scope,
-                                                                     force_global_scope, base_name,
-                                                                     words, append, command_name);
+                assignment_ok = assign_array_literal_for_scope(
+                    ArrayLiteralKind::Associative, interpreter, local_scope, force_global_scope,
+                    base_name, words, append, command_name);
             }
             ++i;
         } else if (opts.array_action == AttributeAction::Set) {
@@ -695,13 +675,13 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
                                                normalized_target, operand.value, append);
                 } else {
                     assignment_ok = assign_array_literal_for_scope(
-                        interpreter, local_scope, force_global_scope, base_name, {operand.value},
-                        append, command_name);
+                        ArrayLiteralKind::Indexed, interpreter, local_scope, force_global_scope,
+                        base_name, {operand.value}, append, command_name);
                 }
             } else {
-                assignment_ok =
-                    assign_array_literal_for_scope(interpreter, local_scope, force_global_scope,
-                                                   base_name, {}, false, command_name);
+                assignment_ok = assign_array_literal_for_scope(
+                    ArrayLiteralKind::Indexed, interpreter, local_scope, force_global_scope,
+                    base_name, {}, false, command_name);
             }
             ++i;
         } else {

@@ -1139,14 +1139,13 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
              scratch_entry->command != NULL && strcmp(current_input, scratch_entry->command) == 0);
     }
 
-    history_snapshot_free(env->history, &snap);
-
     edit_menu_session_t menu_session =
         edit_menu_begin(env, eb, ic_env_get_history_search_prompt(env), true);
 
     history_match_t* matches =
         (history_match_t*)mem_zalloc_tp_n(env->mem, history_match_t, MAX_FUZZY_RESULTS);
     if (matches == NULL) {
+        history_snapshot_free(env->history, &snap);
         term_beep(env->term);
         edit_menu_finish(env, eb, &menu_session, false, false);
         return;
@@ -1178,14 +1177,21 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
         eb->pos = 0;
     }
 
+    bool matches_dirty = true;
+    bool sort_dirty = true;
+    bool showing_all_due_to_no_matches = false;
+    bool metadata_filter_applied = false;
+
 again:;
 
     last_display_count = 0;
     last_max_scroll = 0;
     last_status_rows = 1;
 
-    bool showing_all_due_to_no_matches = false;
-    bool metadata_filter_applied = false;
+    if (!history_snapshot_is_current(env->history, &snap)) {
+        (void)history_snapshot_load(env->history, &snap, true);
+        matches_dirty = true;
+    }
     char metadata_preview_key[64];
     metadata_preview_key[0] = '\0';
     const char* metadata_suffix_key = k_history_search_timestamp_key;
@@ -1215,29 +1221,31 @@ again:;
             metadata_suffix_use_default_tag = false;
         }
 
-        (void)history_fuzzy_search_with_case(env->history, query ? query : "", matches,
-                                             MAX_FUZZY_RESULTS, &match_count,
-                                             &metadata_filter_applied, session_case_sensitive);
-        if (has_live_input) {
-            history_search_remove_scratch_match(matches, &match_count);
-        }
-
-        if (match_count == 0 && query != NULL && query[0] != '\0' && !metadata_filter_applied) {
-            (void)history_fuzzy_search_with_case(env->history, "", matches, MAX_FUZZY_RESULTS,
-                                                 &match_count, NULL, session_case_sensitive);
+        if (matches_dirty) {
+            showing_all_due_to_no_matches = false;
+            (void)history_snapshot_fuzzy_search(env->history, &snap, query ? query : "", matches,
+                                                MAX_FUZZY_RESULTS, &match_count,
+                                                &metadata_filter_applied, session_case_sensitive);
             if (has_live_input) {
                 history_search_remove_scratch_match(matches, &match_count);
             }
-            showing_all_due_to_no_matches = true;
+            if (match_count == 0 && query != NULL && query[0] != '\0' && !metadata_filter_applied) {
+                (void)history_snapshot_fuzzy_search(env->history, &snap, "", matches,
+                                                    MAX_FUZZY_RESULTS, &match_count, NULL,
+                                                    session_case_sensitive);
+                if (has_live_input) {
+                    history_search_remove_scratch_match(matches, &match_count);
+                }
+                showing_all_due_to_no_matches = true;
+            }
+            matches_dirty = false;
+            sort_dirty = true;
         }
     }
-
-    history_snapshot_free(env->history, &snap);
-    if (!history_snapshot_load(env->history, &snap, true)) {
-        term_beep(env->term);
-        match_count = 0;
+    if (sort_dirty) {
+        history_search_sort_matches(&snap, matches, match_count, session_sort, session_sort_key);
+        sort_dirty = false;
     }
-    history_search_sort_matches(&snap, matches, match_count, session_sort, session_sort_key);
 
     if (selected_idx >= match_count) {
         selected_idx = match_count > 0 ? match_count - 1 : 0;
@@ -1501,18 +1509,11 @@ again:;
 
     edit_refresh(env, eb);
 
-    code_t c = KEY_ESC;
-    (void)edit_menu_read_key(env, eb, &c);
-    if (tty_term_resize_event(env->tty)) {
-        (void)edit_resize(env, eb);
-    }
-    sbuf_clear(eb->extra);
-
-    code_t key_no_mods = KEY_NO_MODS(c);
-    if (edit_menu_mouse_prepare_key(env, eb, c, true, &menu_session.mouse_scroll_enabled,
-                                    &menu_session.mouse_suspended)) {
+    code_t c;
+    if (!edit_menu_read_event(env, eb, &menu_session, &c)) {
         goto again;
     }
+    code_t key_no_mods = KEY_NO_MODS(c);
     if (menu_session.mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
         bool accept_selection = false;
         if (edit_menu_mouse_select_vertical(env, eb, match_count, scroll_offset, last_display_count,
@@ -1589,67 +1590,29 @@ again:;
         return;
     }
 
-    if ((KEY_MODS(c) & KEY_MOD_SHIFT) && key_no_mods == KEY_DOWN) {
-        (void)edit_menu_page_down(env, match_count, last_display_count, last_max_scroll,
-                                  &scroll_offset, &selected_idx);
-        goto again;
-    } else if ((KEY_MODS(c) & KEY_MOD_SHIFT) && key_no_mods == KEY_UP) {
-        (void)edit_menu_page_up(env, match_count, last_display_count, &scroll_offset,
-                                &selected_idx);
-        goto again;
-    } else if ((KEY_MODS(c) & KEY_MOD_ALT) && (key_no_mods == 'c' || key_no_mods == 'C')) {
-        session_case_sensitive = !session_case_sensitive;
-        goto again;
-    } else if ((KEY_MODS(c) & KEY_MOD_ALT) && (key_no_mods == 's' || key_no_mods == 'S')) {
+    if ((KEY_MODS(c) & KEY_MOD_ALT) && (key_no_mods == 's' || key_no_mods == 'S')) {
         if (history_search_cycle_sort(env, &snap, matches, match_count, &session_sort,
                                       &session_sort_key)) {
             selected_idx = (has_live_input ? -1 : 0);
             scroll_offset = 0;
+            sort_dirty = true;
         } else {
             term_beep(env->term);
         }
         goto again;
-    } else if (key_no_mods == KEY_UP || c == KEY_CTRL_P ||
-               (menu_session.mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_WHEEL_UP)) {
-        if (has_live_input && selected_idx == 0) {
-            selected_idx = -1;
-        } else {
-            (void)edit_menu_move_selection(env, match_count, -1, &selected_idx);
-        }
-        goto again;
-    } else if (key_no_mods == KEY_DOWN || c == KEY_CTRL_N ||
-               (menu_session.mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN)) {
-        (void)edit_menu_move_selection(env, match_count, 1, &selected_idx);
-        goto again;
-    } else if (c == KEY_BACKSP) {
-        if (eb->pos > 0) {
-            edit_backspace(env, eb);
-            selected_idx = (has_live_input ? -1 : 0);
-        }
-        goto again;
-    } else if (c == KEY_DEL) {
-        edit_delete_char(env, eb);
-        selected_idx = (has_live_input ? -1 : 0);
-        goto again;
-    } else if (c == KEY_F1) {
-        edit_show_help(env, eb);
-        goto again;
-    } else {
-        char chr;
-        unicode_t uchr;
-        if (code_is_ascii_char(c, &chr)) {
-            edit_insert_char(env, eb, chr);
-            selected_idx = (has_live_input ? -1 : 0);
-            goto again;
-        } else if (code_is_unicode(c, &uchr)) {
-            edit_insert_unicode(env, eb, uchr);
-            selected_idx = (has_live_input ? -1 : 0);
-            goto again;
-        } else {
-            term_beep(env->term);
-            goto again;
-        }
     }
+    const edit_menu_input_t change = edit_menu_handle_input(
+        env, eb, c, &menu_session, match_count, last_display_count, last_max_scroll, &scroll_offset,
+        &selected_idx, &session_case_sensitive, has_live_input);
+    if (change == EDIT_MENU_INPUT_QUERY) {
+        selected_idx = has_live_input ? -1 : 0;
+    }
+    if (change == EDIT_MENU_INPUT_QUERY || change == EDIT_MENU_INPUT_CASE) {
+        matches_dirty = true;
+    } else if (change == EDIT_MENU_INPUT_UNHANDLED) {
+        term_beep(env->term);
+    }
+    goto again;
 }
 
 static void edit_history_search_with_current_line(ic_env_t* env, editor_t* eb) {

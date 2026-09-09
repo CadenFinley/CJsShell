@@ -1108,6 +1108,44 @@ static size_t edit_spell_threshold(size_t left_len, size_t right_len) {
     return max_len / 2;
 }
 
+static ssize_t edit_best_spell_candidate(ic_env_t* env, const char* original_word, ssize_t count,
+                                         const char* required_source) {
+    ssize_t best_index = -1;
+    size_t best_distance = SIZE_MAX;
+    long best_length_diff = LONG_MAX;
+    const ssize_t original_len = ic_strlen(original_word);
+    ssize_t best_length = 0;
+    for (ssize_t i = 0; i < count; ++i) {
+        if (required_source != NULL) {
+            const char* source = completions_get_source(env->completions, i);
+            if (source == NULL || strcmp(source, required_source) != 0) {
+                continue;
+            }
+        }
+        const char* replacement = completions_get_replacement(env->completions, i);
+        if (replacement == NULL || *replacement == '\0') {
+            continue;
+        }
+        const size_t distance = levenshtein_casefold(env->mem, original_word, replacement);
+        if (distance == SIZE_MAX) {
+            continue;
+        }
+        const ssize_t length = ic_strlen(replacement);
+        const long length_diff = labs((long)length - (long)original_len);
+        if (distance < best_distance ||
+            (distance == best_distance && length_diff < best_length_diff)) {
+            best_index = i;
+            best_distance = distance;
+            best_length_diff = length_diff;
+            best_length = length;
+        }
+    }
+    return best_index >= 0 &&
+                   best_distance <= edit_spell_threshold((size_t)original_len, (size_t)best_length)
+               ? best_index
+               : -1;
+}
+
 static bool edit_try_spell_correct(ic_env_t* env, editor_t* eb) {
     if (!env->spell_correct) {
         return false;
@@ -1154,40 +1192,8 @@ static bool edit_try_spell_correct(ic_env_t* env, editor_t* eb) {
         return false;
     }
 
-    ssize_t best_index = -1;
-    size_t best_distance = SIZE_MAX;
-    long best_length_diff = LONG_MAX;
-    ssize_t original_len = ic_strlen(original_word);
-
-    for (ssize_t i = 0; i < candidate_count; ++i) {
-        const char* replacement = completions_get_replacement(env->completions, i);
-        if (replacement == NULL || *replacement == '\0') {
-            continue;
-        }
-        size_t distance = levenshtein_casefold(env->mem, original_word, replacement);
-        if (distance == SIZE_MAX) {
-            continue;
-        }
-        ssize_t replacement_len = ic_strlen(replacement);
-        long len_diff = labs((long)replacement_len - (long)original_len);
-        if (distance < best_distance ||
-            (distance == best_distance && len_diff < best_length_diff)) {
-            best_distance = distance;
-            best_length_diff = len_diff;
-            best_index = i;
-        }
-    }
-
-    bool applied = false;
-    if (best_index >= 0) {
-        const char* best_replacement = completions_get_replacement(env->completions, best_index);
-        size_t replacement_len =
-            (best_replacement == NULL ? 0 : (size_t)ic_strlen(best_replacement));
-        size_t threshold = edit_spell_threshold((size_t)original_len, replacement_len);
-        if (best_distance <= threshold) {
-            applied = edit_complete(env, eb, best_index);
-        }
-    }
+    const ssize_t best_index = edit_best_spell_candidate(env, original_word, candidate_count, NULL);
+    const bool applied = best_index >= 0 && edit_complete(env, eb, best_index);
 
     if (!applied) {
         editor_undo_restore(eb, false);
@@ -2475,51 +2481,9 @@ static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb) {
         return;
     }
 
-    ssize_t best_spell_idx = -1;
-    ssize_t spell_count = 0;
-    size_t best_distance = SIZE_MAX;
-    long best_length_diff = LONG_MAX;
-    ssize_t original_len = ic_strlen(original_word);
-    for (ssize_t i = 0; i < count; ++i) {
-        const char* source = completions_get_source(env->completions, i);
-        if (source == NULL || strcmp(source, "spell") != 0) {
-            continue;
-        }
-        spell_count++;
-
-        const char* replacement = completions_get_replacement(env->completions, i);
-        if (replacement == NULL || *replacement == '\0') {
-            continue;
-        }
-        size_t distance = levenshtein_casefold(env->mem, original_word, replacement);
-        if (distance == SIZE_MAX) {
-            continue;
-        }
-        ssize_t replacement_len = ic_strlen(replacement);
-        long len_diff = labs((long)replacement_len - (long)original_len);
-        if (distance < best_distance ||
-            (distance == best_distance && len_diff < best_length_diff)) {
-            best_distance = distance;
-            best_length_diff = len_diff;
-            best_spell_idx = i;
-        }
-    }
-
-    if (spell_count <= 0) {
-        completions_clear(env->completions);
-        mem_free(env->mem, original_word);
-        return;
-    }
-
+    const ssize_t best_spell_idx = edit_best_spell_candidate(env, original_word, count, "spell");
     if (best_spell_idx >= 0) {
-        const char* best_replacement =
-            completions_get_replacement(env->completions, best_spell_idx);
-        size_t replacement_len =
-            (best_replacement == NULL ? 0 : (size_t)ic_strlen(best_replacement));
-        size_t threshold = edit_spell_threshold((size_t)original_len, replacement_len);
-        if (best_distance <= threshold) {
-            (void)edit_complete(env, eb, best_spell_idx);
-        }
+        (void)edit_complete(env, eb, best_spell_idx);
     }
 
     mem_free(env->mem, original_word);

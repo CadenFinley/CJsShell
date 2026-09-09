@@ -52,8 +52,10 @@ extern "C" char** environ;
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
+#include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "command_line_utils.h"
 #include "error_out.h"
@@ -207,7 +209,8 @@ void setup_environment_variables(const char* argv0) {
     struct passwd* pw = getpwuid(uid);
 
     if (pw != nullptr) {
-        auto env_vars = setup_user_system_vars(pw);
+        auto env_vars = setup_user_system_vars(
+            pw, g_shell ? g_shell->get_built_ins()->get_current_directory() : std::string{});
 
         for (const auto& [name, value] : env_vars) {
             (void)setenv(name.c_str(), value.c_str(), 1);
@@ -400,7 +403,8 @@ void setup_path_variables(const std::string& paths_file, const std::string& path
     (void)setenv("PATH", string_utils::join_strings(paths, ":").c_str(), 1);
 }
 
-std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const struct passwd* pw) {
+std::vector<std::pair<std::string, std::string>> setup_user_system_vars(
+    const struct passwd* pw, const std::string& directory) {
     std::vector<std::pair<std::string, std::string>> env_vars;
 
     // Preserve caller identity labels, even when explicitly empty. Only fill
@@ -428,9 +432,11 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
         (void)env_vars.emplace_back("HOSTNAME", std::string(hostname));
     }
 
-    std::string current_path = cjsh_filesystem::safe_current_directory();
-    // Preserve a logical spelling only when it identifies the actual working directory.
-    if (const char* inherited_pwd = getenv("PWD"); inherited_pwd && inherited_pwd[0] == '/') {
+    std::string current_path =
+        directory.empty() ? cjsh_filesystem::safe_current_directory() : directory;
+    // Startup already resolved this through Built_ins; standalone callers still validate PWD.
+    if (const char* inherited_pwd = getenv("PWD");
+        directory.empty() && inherited_pwd && inherited_pwd[0] == '/') {
         struct stat logical{};
         struct stat actual{};
         if (stat(inherited_pwd, &logical) == 0 && stat(".", &actual) == 0 &&
@@ -509,6 +515,15 @@ size_t collect_env_assignments(const std::vector<std::string>& args,
         break;
     }
     return cmd_start_idx;
+}
+
+PreparedCommand prepare_command(std::vector<std::string> args) {
+    PreparedCommand command;
+    command.original_args = std::move(args);
+    const size_t start = collect_env_assignments(command.original_args, command.assignments);
+    command.args.assign(command.original_args.begin() + static_cast<std::ptrdiff_t>(start),
+                        command.original_args.end());
+    return command;
 }
 
 void apply_env_assignments(
@@ -593,6 +608,63 @@ std::unordered_map<std::string, std::string>& env_vars() {
 
 void sync_parser_env_vars(Shell* shell) {
     apply_env_vars_to_parser(shell);
+}
+
+void sync_parser_env_var(Shell* shell, const std::string& name) {
+    if (auto* parser = shell ? shell->get_parser() : nullptr) {
+        const auto it = g_env_vars.find(name);
+        if (it == g_env_vars.end()) {
+            parser->unset_env_var(name);
+        } else {
+            parser->set_env_var(name, it->second);
+        }
+    }
+}
+
+TemporaryEnvAssignmentScope::TemporaryEnvAssignmentScope(
+    Shell* shell, const std::vector<std::pair<std::string, std::string>>& assignments, bool persist)
+    : shell_(shell) {
+    if (!shell_) {
+        return;
+    }
+    if (!persist) {
+        std::unordered_set<std::string> saved;
+        backups_.reserve(assignments.size());
+        for (const auto& [name, value] : assignments) {
+            if (!saved.insert(name).second) {
+                continue;
+            }
+            Backup backup{name, std::nullopt, std::nullopt};
+            if (const char* process_value = getenv(name.c_str())) {
+                backup.process_value = process_value;
+            }
+            if (auto it = g_env_vars.find(name); it != g_env_vars.end()) {
+                backup.shell_value = it->second;
+            }
+            backups_.push_back(std::move(backup));
+        }
+    }
+    for (const auto& [name, value] : assignments) {
+        g_env_vars[name] = value;
+        (void)setenv(name.c_str(), value.c_str(), 1);
+        sync_parser_env_var(shell_, name);
+    }
+}
+
+TemporaryEnvAssignmentScope::~TemporaryEnvAssignmentScope() {
+    for (auto it = backups_.rbegin(); it != backups_.rend(); ++it) {
+        if (it->process_value) {
+            (void)setenv(it->name.c_str(), it->process_value->c_str(), 1);
+        } else {
+            (void)unsetenv(it->name.c_str());
+        }
+        if (it->shell_value) {
+            g_env_vars[it->name] = *it->shell_value;
+        } else {
+            (void)g_env_vars.erase(it->name);
+        }
+        sync_parser_env_var(shell_, it->name);
+    }
 }
 
 bool exit_requested() {
@@ -691,7 +763,7 @@ int handle_non_interactive_mode(const std::string& script_file) {
             } else {
                 (void)env_map.erase("0");
             }
-            cjsh_env::sync_parser_env_vars(shell_);
+            cjsh_env::sync_parser_env_var(shell_, "0");
         }
 
         Shell* shell_;

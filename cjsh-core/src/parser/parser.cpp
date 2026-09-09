@@ -550,7 +550,20 @@ void Parser::set_shell(Shell* new_shell) {
     ensure_parsers_initialized();
 }
 
+const std::vector<std::string>& Parser::prepare_interactive_input(const std::string& script) {
+    auto lines = parse_into_lines(script);
+    prepared_input = PreparedInput{script, std::move(lines)};
+    return prepared_input->lines;
+}
+
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
+    if (prepared_input) {
+        auto prepared = std::move(*prepared_input);
+        prepared_input.reset();
+        if (prepared.source == script) {
+            return std::move(prepared.lines);
+        }
+    }
     // shared script splitter used by shell::execute and interactive continuation checks
     // control-flow blocks like if/then/fi depend on this producing stable logical line chunks
     std::vector<std::string> lines;
@@ -971,6 +984,93 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     return lines;
 }
 
+std::vector<std::string> Parser::prepare_expansion_tokens(std::vector<std::string> args) {
+    ensure_parsers_initialized();
+
+    std::vector<std::string> expanded_args;
+    expanded_args.reserve(args.empty() ? 8 : args.size() * 3);
+    for (std::string& raw_arg : args) {
+        QuoteInfo qi(raw_arg);
+
+        if (qi.is_unquoted() && !looks_like_assignment(qi.value) &&
+            !contains_internal_substitution_markers(raw_arg) &&
+            raw_arg.find('{') != std::string::npos && raw_arg.find('}') != std::string::npos) {
+            auto brace_expansions = expansionEngine->expand_braces(raw_arg);
+            (void)expanded_args.insert(expanded_args.end(),
+                                       std::make_move_iterator(brace_expansions.begin()),
+                                       std::make_move_iterator(brace_expansions.end()));
+        } else {
+            (void)expanded_args.emplace_back(std::move(raw_arg));
+        }
+    }
+    args = std::move(expanded_args);
+
+    auto find_expandable_dollar_ats = [](const std::string& value) {
+        const std::string& start_marker = noenv_start();
+        const std::string& end_marker = noenv_end();
+        std::vector<size_t> positions;
+        bool inside_noenv = false;
+
+        for (size_t i = 0; i + 1 < value.size();) {
+            if (value.compare(i, start_marker.size(), start_marker) == 0) {
+                inside_noenv = true;
+                i += start_marker.size();
+                continue;
+            }
+            if (value.compare(i, end_marker.size(), end_marker) == 0) {
+                inside_noenv = false;
+                i += end_marker.size();
+                continue;
+            }
+            if (!inside_noenv && value[i] == '$' && value[i + 1] == '@') {
+                positions.push_back(i);
+                i += 2;
+                continue;
+            }
+            ++i;
+        }
+
+        return positions;
+    };
+
+    std::vector<std::string> pre_expanded_args;
+    pre_expanded_args.reserve(args.size() + 4);
+    for (std::string& raw_arg : args) {
+        QuoteInfo qi(raw_arg);
+
+        const std::vector<size_t> at_positions =
+            qi.is_double ? find_expandable_dollar_ats(qi.value) : std::vector<size_t>{};
+        if (!at_positions.empty()) {
+            auto params = flags::get_positional_parameters();
+            std::vector<std::string> fields(1);
+            size_t cursor = 0;
+
+            for (size_t at_pos : at_positions) {
+                fields.back() += qi.value.substr(cursor, at_pos - cursor);
+                if (!params.empty()) {
+                    fields.back() += params.front();
+                    for (size_t param_index = 1; param_index < params.size(); ++param_index) {
+                        fields.push_back(params[param_index]);
+                    }
+                }
+                cursor = at_pos + 2;
+            }
+            fields.back() += qi.value.substr(cursor);
+
+            if (!params.empty() || fields.size() > 1 || !fields.front().empty()) {
+                for (auto& field : fields) {
+                    pre_expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, field));
+                }
+            }
+            continue;
+        }
+        (void)pre_expanded_args.emplace_back(std::move(raw_arg));
+    }
+    args = std::move(pre_expanded_args);
+
+    return args;
+}
+
 std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     ensure_parsers_initialized();
 
@@ -1064,86 +1164,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
         }
     }
 
-    std::vector<std::string> expanded_args;
-    expanded_args.reserve(args.empty() ? 8 : args.size() * 3);
-    for (std::string& raw_arg : args) {
-        QuoteInfo qi(raw_arg);
-
-        if (qi.is_unquoted() && !looks_like_assignment(qi.value) &&
-            !contains_internal_substitution_markers(raw_arg) &&
-            raw_arg.find('{') != std::string::npos && raw_arg.find('}') != std::string::npos) {
-            auto brace_expansions = expansionEngine->expand_braces(raw_arg);
-            (void)expanded_args.insert(expanded_args.end(),
-                                       std::make_move_iterator(brace_expansions.begin()),
-                                       std::make_move_iterator(brace_expansions.end()));
-        } else {
-            (void)expanded_args.emplace_back(std::move(raw_arg));
-        }
-    }
-    args = std::move(expanded_args);
-
-    auto find_expandable_dollar_ats = [](const std::string& value) {
-        const std::string& start_marker = noenv_start();
-        const std::string& end_marker = noenv_end();
-        std::vector<size_t> positions;
-        bool inside_noenv = false;
-
-        for (size_t i = 0; i + 1 < value.size();) {
-            if (value.compare(i, start_marker.size(), start_marker) == 0) {
-                inside_noenv = true;
-                i += start_marker.size();
-                continue;
-            }
-            if (value.compare(i, end_marker.size(), end_marker) == 0) {
-                inside_noenv = false;
-                i += end_marker.size();
-                continue;
-            }
-            if (!inside_noenv && value[i] == '$' && value[i + 1] == '@') {
-                positions.push_back(i);
-                i += 2;
-                continue;
-            }
-            ++i;
-        }
-
-        return positions;
-    };
-
-    std::vector<std::string> pre_expanded_args;
-    pre_expanded_args.reserve(args.size() + 4);
-    for (std::string& raw_arg : args) {
-        QuoteInfo qi(raw_arg);
-
-        const std::vector<size_t> at_positions =
-            qi.is_double ? find_expandable_dollar_ats(qi.value) : std::vector<size_t>{};
-        if (!at_positions.empty()) {
-            auto params = flags::get_positional_parameters();
-            std::vector<std::string> fields(1);
-            size_t cursor = 0;
-
-            for (size_t at_pos : at_positions) {
-                fields.back() += qi.value.substr(cursor, at_pos - cursor);
-                if (!params.empty()) {
-                    fields.back() += params.front();
-                    for (size_t param_index = 1; param_index < params.size(); ++param_index) {
-                        fields.push_back(params[param_index]);
-                    }
-                }
-                cursor = at_pos + 2;
-            }
-            fields.back() += qi.value.substr(cursor);
-
-            if (!params.empty() || fields.size() > 1 || !fields.front().empty()) {
-                for (auto& field : fields) {
-                    pre_expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, field));
-                }
-            }
-            continue;
-        }
-        (void)pre_expanded_args.emplace_back(std::move(raw_arg));
-    }
-    args = std::move(pre_expanded_args);
+    args = prepare_expansion_tokens(std::move(args));
 
     auto report_environment_expansion_error = [&](const std::runtime_error& error) {
         const std::string message = error.what();
@@ -1684,6 +1705,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             }
         }
 
+        filtered_args = prepare_expansion_tokens(std::move(filtered_args));
+
         bool is_double_bracket_cmd =
             !filtered_args.empty() && QuoteInfo(filtered_args[0]).value == "[[";
 
@@ -1734,27 +1757,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             }
 
             for (const auto& field : fields) {
-                if (qi.is_unquoted() && !is_assignment && !had_noenv &&
-                    field.find('{') != std::string::npos && field.find('}') != std::string::npos) {
-                    if (!expansionEngine) {
-                        expansionEngine = std::make_unique<ExpansionEngine>(shell);
-                    }
-                    std::vector<std::string> brace_expansions =
-                        expansionEngine->expand_braces(field);
-                    for (const auto& expanded_val : brace_expansions) {
-                        if (!is_double_bracket_cmd &&
-                            requires_glob_expansion_or_unescape(expanded_val)) {
-                            auto wildcard_expanded =
-                                expansionEngine->expand_wildcards(expanded_val);
-                            (void)final_args_local.insert(final_args_local.end(),
-                                                          wildcard_expanded.begin(),
-                                                          wildcard_expanded.end());
-                        } else {
-                            final_args_local.push_back(expanded_val);
-                        }
-                    }
-                } else if (qi.is_unquoted() && !is_double_bracket_cmd && !is_assignment &&
-                           requires_glob_expansion_or_unescape(field)) {
+                if (qi.is_unquoted() && !is_double_bracket_cmd && !is_assignment &&
+                    requires_glob_expansion_or_unescape(field)) {
                     if (!expansionEngine) {
                         expansionEngine = std::make_unique<ExpansionEngine>(shell);
                     }
@@ -1793,6 +1797,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 }
 
 std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string& command) {
+    // Preprocessing can replace heredoc placeholders retained by the input splitter.
+    prepared_input.reset();
     auto preprocessed = CommandPreprocessor::preprocess(command);
 
     for (const auto& pair : preprocessed.here_documents) {

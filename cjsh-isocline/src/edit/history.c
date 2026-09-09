@@ -444,7 +444,12 @@ ic_private bool history_snapshot_load(history_t* h, history_snapshot_t* snap, bo
         return false;
     }
     history_snapshot_free(h, snap);
+    snap->max_entries = h->max_entries;
+    snap->allow_duplicates = h->allow_duplicates;
+    snap->had_pending = !history_is_disabled(h) && h->pending != NULL;
+    snap->has_file_status = h->fname != NULL && stat(h->fname, &snap->file_status) == 0;
     if (history_is_disabled(h)) {
+        snap->loaded = true;
         snap->entries = NULL;
         snap->count = 0;
         snap->capacity = 0;
@@ -461,31 +466,58 @@ ic_private bool history_snapshot_load(history_t* h, history_snapshot_t* snap, bo
     snap->entries = list.entries;
     snap->count = list.count;
     snap->capacity = list.capacity;
+    snap->loaded = true;
     return true;
+}
+
+ic_private bool history_snapshot_is_current(const history_t* h, const history_snapshot_t* snap) {
+    if (h == NULL || snap == NULL || !snap->loaded || snap->max_entries != h->max_entries ||
+        snap->allow_duplicates != h->allow_duplicates) {
+        return false;
+    }
+    const bool has_pending = !history_is_disabled(h) && h->pending != NULL;
+    if (has_pending != snap->had_pending) {
+        return false;
+    }
+    if (has_pending) {
+        const history_entry_t* newest = history_snapshot_get(snap, 0);
+        if (newest == NULL || newest->command == NULL || strcmp(newest->command, h->pending) != 0) {
+            return false;
+        }
+    }
+    struct stat current;
+    const bool exists = h->fname != NULL && stat(h->fname, &current) == 0;
+    if (!exists) {
+        return !snap->has_file_status && (h->fname == NULL || errno == ENOENT);
+    }
+    const struct stat* old = &snap->file_status;
+    if (!snap->has_file_status || current.st_dev != old->st_dev || current.st_ino != old->st_ino ||
+        current.st_size != old->st_size || current.st_mtime != old->st_mtime ||
+        current.st_ctime != old->st_ctime) {
+        return false;
+    }
+#if defined(__APPLE__)
+    return current.st_mtimespec.tv_nsec == old->st_mtimespec.tv_nsec &&
+           current.st_ctimespec.tv_nsec == old->st_ctimespec.tv_nsec;
+#elif !defined(_WIN32)
+    return current.st_mtim.tv_nsec == old->st_mtim.tv_nsec &&
+           current.st_ctim.tv_nsec == old->st_ctim.tv_nsec;
+#else
+    return true;
+#endif
 }
 
 ic_private void history_snapshot_free(history_t* h, history_snapshot_t* snap) {
     if (snap == NULL) {
         return;
     }
-    if (h == NULL) {
-        snap->entries = NULL;
-        snap->count = 0;
-        snap->capacity = 0;
-        return;
+    if (h != NULL && snap->entries != NULL) {
+        for (ssize_t i = 0; i < snap->count; ++i) {
+            history_entry_clear(h, &snap->entries[i]);
+        }
+        mem_free(h->mem, snap->entries);
     }
-    if (snap->entries == NULL) {
-        snap->count = 0;
-        snap->capacity = 0;
-        return;
-    }
-    for (ssize_t i = 0; i < snap->count; i++) {
-        history_entry_clear(h, &snap->entries[i]);
-    }
-    mem_free(h->mem, snap->entries);
-    snap->entries = NULL;
-    snap->count = 0;
-    snap->capacity = 0;
+    *snap = (history_snapshot_t){0};
 }
 
 ic_private const history_entry_t* history_snapshot_get(const history_snapshot_t* snap, ssize_t n) {
@@ -1141,15 +1173,15 @@ static bool history_entry_matches_filters(const history_entry_t* entry,
     return true;
 }
 
-ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* query,
-                                               history_match_t* matches, ssize_t max_matches,
-                                               ssize_t* match_count, bool* metadata_filter_applied,
-                                               bool case_sensitive) {
+ic_private bool history_snapshot_fuzzy_search(const history_t* h, const history_snapshot_t* snap,
+                                              const char* query, history_match_t* matches,
+                                              ssize_t max_matches, ssize_t* match_count,
+                                              bool* metadata_filter_applied, bool case_sensitive) {
     if (metadata_filter_applied) {
         *metadata_filter_applied = false;
     }
 
-    if (h == NULL || query == NULL || matches == NULL || max_matches <= 0) {
+    if (h == NULL || snap == NULL || query == NULL || matches == NULL || max_matches <= 0) {
         if (match_count) {
             *match_count = 0;
         }
@@ -1163,17 +1195,7 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
         return false;
     }
 
-    history_list_t list;
-    history_list_init(&list);
     history_t* mutable_h = (history_t*)h;
-    if (!history_collect_entries(mutable_h, &list, true)) {
-        history_list_free(mutable_h, &list);
-        if (match_count) {
-            *match_count = 0;
-        }
-        return false;
-    }
-
     history_query_filter_t* filters = NULL;
     size_t filter_count = 0;
     size_t filter_capacity = 0;
@@ -1252,9 +1274,9 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
     ssize_t count = 0;
 
     if (effective_query[0] == '\0') {
-        for (ssize_t offset = 0; offset < list.count && count < max_matches; offset++) {
-            ssize_t idx = list.count - offset - 1;
-            const history_entry_t* entry = &list.entries[idx];
+        for (ssize_t offset = 0; offset < snap->count && count < max_matches; offset++) {
+            ssize_t idx = snap->count - offset - 1;
+            const history_entry_t* entry = &snap->entries[idx];
             if (entry->command == NULL) {
                 continue;
             }
@@ -1269,9 +1291,9 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
             count++;
         }
     } else {
-        for (ssize_t offset = 0; offset < list.count; offset++) {
-            ssize_t idx = list.count - offset - 1;
-            const history_entry_t* entry = &list.entries[idx];
+        for (ssize_t offset = 0; offset < snap->count; offset++) {
+            ssize_t idx = snap->count - offset - 1;
+            const history_entry_t* entry = &snap->entries[idx];
             if (entry->command == NULL) {
                 continue;
             }
@@ -1326,9 +1348,22 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
         mem_free(mutable_h->mem, sanitized_query);
     }
     history_query_filters_free(mutable_h, filters, filter_count);
-    history_list_free(mutable_h, &list);
 
     return count > 0;
+}
+
+ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* query,
+                                               history_match_t* matches, ssize_t max_matches,
+                                               ssize_t* match_count, bool* metadata_filter_applied,
+                                               bool case_sensitive) {
+    history_snapshot_t snap = {0};
+    const bool loaded = h != NULL && query != NULL && matches != NULL && max_matches > 0 &&
+                        history_snapshot_load((history_t*)h, &snap, true);
+    const bool found =
+        history_snapshot_fuzzy_search(h, loaded ? &snap : NULL, query, matches, max_matches,
+                                      match_count, metadata_filter_applied, case_sensitive);
+    history_snapshot_free((history_t*)h, &snap);
+    return found;
 }
 
 ic_private bool history_fuzzy_search(const history_t* h, const char* query,

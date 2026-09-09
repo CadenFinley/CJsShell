@@ -1248,3 +1248,71 @@ static bool edit_menu_mouse_event_is_left_click(ic_env_t* env) {
     return (mouse_event.action == TTY_MOUSE_ACTION_LEFT_PRESS ||
             mouse_event.action == TTY_MOUSE_ACTION_LEFT_RELEASE);
 }
+
+// Shared menu input distinguishes changes to the search from navigation/redraws.
+typedef enum edit_menu_input_e {
+    EDIT_MENU_INPUT_UNHANDLED,
+    EDIT_MENU_INPUT_SELECTION,
+    EDIT_MENU_INPUT_QUERY,
+    EDIT_MENU_INPUT_CASE
+} edit_menu_input_t;
+
+static bool edit_menu_read_event(ic_env_t* env, editor_t* eb, edit_menu_session_t* session,
+                                 code_t* key) {
+    *key = KEY_ESC;
+    (void)edit_menu_read_key(env, eb, key);
+    if (tty_term_resize_event(env->tty)) {
+        (void)edit_resize(env, eb);
+    }
+    sbuf_clear(eb->extra);
+    return !edit_menu_mouse_prepare_key(env, eb, *key, true, &session->mouse_scroll_enabled,
+                                        &session->mouse_suspended);
+}
+
+static edit_menu_input_t edit_menu_handle_input(ic_env_t* env, editor_t* eb, code_t key,
+                                                const edit_menu_session_t* session, ssize_t count,
+                                                ssize_t display_count, ssize_t max_scroll,
+                                                ssize_t* scroll_offset, ssize_t* selected,
+                                                bool* case_sensitive, bool allow_live_input) {
+    const code_t plain = KEY_NO_MODS(key);
+    if ((KEY_MODS(key) & KEY_MOD_SHIFT) && plain == KEY_DOWN) {
+        (void)edit_menu_page_down(env, count, display_count, max_scroll, scroll_offset, selected);
+    } else if ((KEY_MODS(key) & KEY_MOD_SHIFT) && plain == KEY_UP) {
+        (void)edit_menu_page_up(env, count, display_count, scroll_offset, selected);
+    } else if ((KEY_MODS(key) & KEY_MOD_ALT) && (plain == 'c' || plain == 'C')) {
+        *case_sensitive = !*case_sensitive;
+        return EDIT_MENU_INPUT_CASE;
+    } else if (plain == KEY_UP || key == KEY_CTRL_P ||
+               (session->mouse_scroll_enabled && plain == KEY_EVENT_MOUSE_WHEEL_UP)) {
+        if (allow_live_input && *selected == 0) {
+            *selected = -1;
+        } else {
+            (void)edit_menu_move_selection(env, count, -1, selected);
+        }
+    } else if (plain == KEY_DOWN || key == KEY_CTRL_N ||
+               (session->mouse_scroll_enabled && plain == KEY_EVENT_MOUSE_WHEEL_DOWN)) {
+        (void)edit_menu_move_selection(env, count, 1, selected);
+    } else if (key == KEY_BACKSP) {
+        if (eb->pos > 0) {
+            edit_backspace(env, eb);
+            return EDIT_MENU_INPUT_QUERY;
+        }
+    } else if (key == KEY_DEL) {
+        edit_delete_char(env, eb);
+        return EDIT_MENU_INPUT_QUERY;
+    } else if (key == KEY_F1) {
+        edit_show_help(env, eb);
+    } else {
+        char chr;
+        unicode_t uchr;
+        if (code_is_ascii_char(key, &chr)) {
+            edit_insert_char(env, eb, chr);
+        } else if (code_is_unicode(key, &uchr)) {
+            edit_insert_unicode(env, eb, uchr);
+        } else {
+            return EDIT_MENU_INPUT_UNHANDLED;
+        }
+        return EDIT_MENU_INPUT_QUERY;
+    }
+    return EDIT_MENU_INPUT_SELECTION;
+}
