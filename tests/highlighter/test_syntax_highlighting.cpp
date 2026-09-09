@@ -26,6 +26,7 @@
   SOFTWARE.
 */
 
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -42,6 +43,7 @@ extern "C" {
 }
 
 #include "agent_mode.h"
+#include "cjsh_filesystem.h"
 #include "cjsh_syntax_highlighter.h"
 #include "command_analysis.h"
 #include "shell.h"
@@ -687,6 +689,56 @@ static bool test_split_unknown_command_fragment_highlighting_with_known_second_t
 
     attrbuf_free(attrs);
     g_shell->set_aliases(original_aliases);
+    return ok;
+}
+
+static bool test_split_command_path_changes_between_highlights(void) {
+    const char* test_name = "split_command_path_changes_between_highlights";
+    namespace fs = std::filesystem;
+    const auto suffix = std::chrono::steady_clock::now().time_since_epoch().count();
+    const fs::path root =
+        fs::temp_directory_path() / ("cjsh_highlight_path_" + std::to_string(suffix));
+    const fs::path populated = root / "populated";
+    const fs::path empty = root / "empty";
+    fs::create_directories(populated);
+    fs::create_directories(empty);
+    const fs::path executable = populated / "auditXfragment";
+    std::ofstream(executable) << "#!/bin/sh\n";
+    fs::permissions(executable, fs::perms::owner_read | fs::perms::owner_exec);
+
+    const std::string original_path = cjsh_env::get_shell_variable_value("PATH");
+    const std::string input = "audit fragment; audit fragment";
+    ic_env_t* env = ensure_env(test_name);
+    bool ok = env != nullptr;
+    for (const auto& path : {populated, empty, populated}) {
+        (void)cjsh_env::set_shell_variable_value("PATH", path.string());
+        attrbuf_t* attrs = highlight_input(input, test_name);
+        if (attrs == nullptr || env == nullptr) {
+            ok = false;
+        } else {
+            for (size_t pos = input.find("fragment"); pos != std::string::npos;
+                 pos = input.find("fragment", pos + 1)) {
+                if (path == populated) {
+                    ok = expect_style_range(attrs, env->bbcode, pos, 8, "cjsh-unknown-command",
+                                            test_name,
+                                            "both split fragments should see PATH candidates") &&
+                         ok;
+                } else {
+                    ok = expect_not_style_range(attrs, env->bbcode, pos, 8, "cjsh-unknown-command",
+                                                test_name,
+                                                "a new highlight must see the changed PATH") &&
+                         ok;
+                }
+            }
+        }
+        if (attrs != nullptr) {
+            attrbuf_free(attrs);
+        }
+    }
+    (void)cjsh_env::set_shell_variable_value("PATH", original_path);
+    cjsh_filesystem::reset_path_hash();
+    std::error_code ec;
+    fs::remove_all(root, ec);
     return ok;
 }
 
@@ -1642,6 +1694,8 @@ static const test_case_t kTests[] = {
      test_split_unknown_command_fragment_highlighting},
     {"split_unknown_command_fragment_highlighting_with_gap",
      test_split_unknown_command_fragment_highlighting_with_gap},
+    {"split_command_path_changes_between_highlights",
+     test_split_command_path_changes_between_highlights},
     {"split_unknown_command_fragment_highlighting_with_known_second_token",
      test_split_unknown_command_fragment_highlighting_with_known_second_token},
     {"unknown_command_argument_not_marked_as_unknown_command",

@@ -1300,23 +1300,38 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
     std::string decoded_line;
     decoded_line.reserve(256);
 
-    int last_exit_code = 0;
-    bool has_last_exit_code = false;
-    long long last_timestamp = 0;
-    long long last_frequency = 1;
+    std::string header_line;
 
     while (std::getline(history_file, line) && (rank_by_usage || batch.matches.size() < 50)) {
         if (line.empty()) {
             continue;
         }
 
-        if (!line.empty() && line[0] == '#') {
-            last_exit_code = 0;
-            has_last_exit_code = false;
-            last_timestamp = 0;
-            last_frequency = 1;
+        if (line[0] == '#') {
+            header_line = line;
+            continue;
+        }
 
-            const char* cursor = line.c_str() + 1;
+        if (!decode_history_command_line(line, decoded_line)) {
+            decoded_line = line;
+        }
+        const std::string& entry_text = decoded_line;
+        const bool should_match = entry_text != prefix_str &&
+                                  (prefix_len == 0 || completion_utils::matches_completion_prefix(
+                                                          entry_text, prefix_str));
+        if (!should_match) {
+            header_line.clear();
+            continue;
+        }
+
+        // Metadata only affects eligible matches. Consume it with this command,
+        // including when the command is filtered out, so it cannot leak forward.
+        int last_exit_code = 0;
+        bool has_last_exit_code = false;
+        long long last_timestamp = 0;
+        long long last_frequency = 1;
+        if (!header_line.empty()) {
+            const char* cursor = header_line.c_str() + 1;
             while (*cursor == ' ' || *cursor == '\t') {
                 ++cursor;
             }
@@ -1355,44 +1370,17 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
                     }
                 }
             }
-
-            continue;
         }
-
-        if (!decode_history_command_line(line, decoded_line)) {
-            decoded_line = line;
-        }
-        const std::string& entry_text = decoded_line;
+        header_line.clear();
 
         if ((has_last_exit_code && last_exit_code == kHistoryCompletionHiddenExitCode) ||
             (!rank_by_usage && looks_like_file_path(entry_text)) ||
             string_utils::trim_ascii_whitespace_copy(entry_text).empty()) {
-            last_exit_code = 0;
-            has_last_exit_code = false;
-            last_timestamp = 0;
-            last_frequency = 1;
             continue;
         }
 
-        bool should_match = false;
-        if (prefix_len == 0) {
-            should_match = (entry_text != prefix_str);
-        } else if (completion_utils::matches_completion_prefix(entry_text, prefix_str) &&
-                   entry_text != prefix_str) {
-            should_match = true;
-        }
-
-        if (should_match) {
-            batch.matches.push_back(HistoryMatch{entry_text, has_last_exit_code, last_exit_code,
-                                                 last_timestamp, last_frequency});
-        }
-
-        last_exit_code = 0;
-        has_last_exit_code = false;
-        last_timestamp = 0;
-        last_frequency = 1;
-
-        line.clear();
+        batch.matches.push_back(HistoryMatch{entry_text, has_last_exit_code, last_exit_code,
+                                             last_timestamp, last_frequency});
     }
 
     if (rank_by_usage) {

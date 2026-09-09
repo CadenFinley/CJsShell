@@ -33,6 +33,13 @@
 #include <optional>
 #include <stdexcept>
 
+namespace {
+bool is_literal_pattern(const std::string& pattern) {
+    // Quoted, escaped and glob patterns still need the shell pattern matcher.
+    return pattern.find_first_of("*?[\\\"'()|") == std::string::npos;
+}
+}  // namespace
+
 ParameterExpansionEvaluator::ParameterExpansionEvaluator(
     VariableReader var_reader, VariableWriter var_writer, VariableChecker var_checker,
     PatternMatcher pattern_matcher, ArrayLengthReader array_length_reader,
@@ -298,6 +305,12 @@ std::string ParameterExpansionEvaluator::pattern_match_prefix(const std::string&
         return value;
     }
 
+    // A literal has only one possible match length, for both # and ##.
+    if (is_literal_pattern(pattern)) {
+        return value.compare(0, pattern.size(), pattern) == 0 ? value.substr(pattern.size())
+                                                              : value;
+    }
+
     for (size_t step = 0; step <= value.length(); ++step) {
         const size_t i = longest ? value.length() - step : step;
         std::string prefix = value.substr(0, i);
@@ -313,6 +326,14 @@ std::string ParameterExpansionEvaluator::pattern_match_suffix(const std::string&
                                                               const std::string& pattern,
                                                               bool longest) {
     if (value.empty() || pattern.empty()) {
+        return value;
+    }
+
+    if (is_literal_pattern(pattern)) {
+        if (pattern.size() <= value.size() &&
+            value.compare(value.size() - pattern.size(), pattern.size(), pattern) == 0) {
+            return value.substr(0, value.size() - pattern.size());
+        }
         return value;
     }
 
@@ -406,7 +427,7 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
 
     // Quoted, escaped and glob patterns still use the matcher. A plain literal
     // has only one possible match length, so there is no need to try substrings.
-    const bool literal_pattern = pattern.find_first_of("*?[\\\"'()|") == std::string::npos;
+    const bool literal_pattern = is_literal_pattern(pattern);
     auto find_leftmost_longest = [&](size_t search_begin) -> std::optional<MatchSpan> {
         if (literal_pattern) {
             const size_t begin = value.find(pattern, search_begin);

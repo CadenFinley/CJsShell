@@ -604,6 +604,36 @@ static bool test_history_completer_exit_code_ordering(void) {
     return true;
 }
 
+static bool test_history_prefix_metadata_isolation(void) {
+    const char* test_name = "history_prefix_metadata_isolation";
+    EXPECT_TRUE(write_completion_history("# code=127\nunmatched command\n"
+                                         "audit after_unmatched\n"
+                                         "# code=127\naudit hidden\n"
+                                         "audit after_hidden\n"
+                                         "# code=127\n# code=0\n\naudit last_header\n"
+                                         "# code=127\n#\naudit cleared_header\n"
+                                         "# code=127\naudit\n"
+                                         "audit after_exact_prefix\n"
+                                         "# code=0\naudit escaped\\ncontinuation\n"),
+                test_name, "history fixture should be written");
+    const ssize_t count = run_completion_generation("audit", &cjsh_history_completer, 256);
+    const bool ok = count == 6 &&
+                    generated_completions_include_replacement("audit after_unmatched") &&
+                    generated_completions_include_replacement("audit after_hidden") &&
+                    generated_completions_include_replacement("audit last_header") &&
+                    generated_completions_include_replacement("audit cleared_header") &&
+                    generated_completions_include_replacement("audit after_exact_prefix") &&
+                    generated_completions_include_replacement("audit escaped\ncontinuation") &&
+                    !generated_completions_include_replacement("audit hidden");
+    clear_generated_completions();
+    EXPECT_TRUE(ok, test_name,
+                "metadata must apply only to the next command, including skipped entries");
+    EXPECT_TRUE(run_completion_generation("absent_prefix", &cjsh_history_completer, 256) == 0,
+                test_name, "unsuccessful prefix lookup should return no history entries");
+    clear_generated_completions();
+    return true;
+}
+
 static bool test_empty_prompt_history_ranking(void) {
     const char* test_name = "empty_prompt_history_ranking";
     EXPECT_TRUE(
@@ -2094,6 +2124,7 @@ typedef struct test_case_s {
 static const test_case_t kTests[] = {
     {"history_completer_exit_code_ordering", test_history_completer_exit_code_ordering},
     {"empty_prompt_history_ranking", test_empty_prompt_history_ranking},
+    {"history_prefix_metadata_isolation", test_history_prefix_metadata_isolation},
     {"empty_prompt_history_limits", test_empty_prompt_history_limits},
     {"empty_prompt_legacy_history", test_empty_prompt_legacy_history},
     {"empty_prompt_without_history", test_empty_prompt_without_history},

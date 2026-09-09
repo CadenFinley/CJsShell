@@ -223,6 +223,66 @@ bool test_parameter_replacement() {
     config::extglob_enabled = previous_extglob;
     return ok;
 }
+
+bool test_literal_pattern_removal() {
+    std::string value;
+    PatternMatcher matcher;
+    ParameterExpansionEvaluator evaluator(
+        [&](const std::string&) { return value; },
+        [&](const std::string&, const std::string& replacement) { value = replacement; },
+        [](const std::string&) { return true; },
+        [&](const std::string& text, const std::string& pattern) {
+            return matcher.matches_pattern(text, pattern);
+        });
+    const struct {
+        const char* value;
+        const char* pattern;
+        const char* prefix;
+        const char* suffix;
+    } cases[] = {
+        {"abcabc", "abc", "abc", "abc"},
+        {"abc", "abc", "", ""},
+        {"abc", "abcd", "abc", "abc"},
+        {"abc", "missing", "abc", "abc"},
+        {"abc", "bc", "abc", "a"},
+        {"abc", "ab", "c", "abc"},
+        {"", "abc", "", ""},
+        {"abc", "", "abc", "abc"},
+        {"a.b/a.b", "a.b", "/a.b", "a.b/"},
+        {"échoé", "é", "choé", "écho"},
+        {"*abc*", "\\*", "abc*", "*abc"},
+        {"*abc*", "'*'", "abc*", "*abc"},
+        {"?abc?", "\"?\"", "abc?", "?abc"},
+        {"abc", "[ac]", "bc", "ab"},
+    };
+    bool ok = true;
+    for (const auto& entry : cases) {
+        value = entry.value;
+        for (const char* op : {"#", "##", "%", "%%"}) {
+            const std::string expression = std::string("v") + op + entry.pattern;
+            ok =
+                expect(evaluator.expand(expression) == (op[0] == '#' ? entry.prefix : entry.suffix),
+                       expression.c_str()) &&
+                ok;
+        }
+    }
+    value.assign(16384, 'a');
+    ok = expect(evaluator.expand("v##missing") == value, "long literal prefix miss") && ok;
+    ok = expect(evaluator.expand("v%%missing") == value, "long literal suffix miss") && ok;
+    ok = expect(evaluator.expand("v/#a/X") == "X" + value.substr(1),
+                "anchored prefix replacement") &&
+         ok;
+    ok = expect(evaluator.expand("v/%a/X") == value.substr(1) + "X",
+                "anchored suffix replacement") &&
+         ok;
+    const bool previous_extglob = config::extglob_enabled;
+    config::extglob_enabled = true;
+    value = "foobarfoo";
+    ok = expect(evaluator.expand("v##@(foo|bar)") == "barfoo", "extended prefix removal") && ok;
+    ok = expect(evaluator.expand("v%%@(foo|bar)") == "foobar", "extended suffix removal") && ok;
+    config::extglob_enabled = previous_extglob;
+    return ok;
+}
 }  // namespace
 
 int main() {
@@ -234,10 +294,11 @@ int main() {
     const bool lookup_ok = test_variable_presence_and_scope();
     const bool expansion_ok = test_parameter_expansion_work();
     const bool replacement_ok = test_parameter_replacement();
+    const bool removal_ok = test_literal_pattern_removal();
     g_shell.reset();
-    if (!lookup_ok || !expansion_ok || !replacement_ok) {
+    if (!lookup_ok || !expansion_ok || !replacement_ok || !removal_ok) {
         return 1;
     }
-    std::puts("All 3 variable lookup and expansion tests passed");
+    std::puts("All 4 variable lookup and expansion tests passed");
     return 0;
 }

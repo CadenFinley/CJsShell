@@ -34,6 +34,7 @@
 #include <optional>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include "agent_mode.h"
 #include "builtin.h"
@@ -65,12 +66,20 @@ enum class ExistingPathType {
 struct HighlightPathContext {
     std::optional<std::string> cwd;
     std::string previous_directory;
+    std::optional<std::vector<std::string>> executables;
 
     void initialize() {
         if (!cwd.has_value()) {
             cwd = cjsh_filesystem::safe_current_directory();
             previous_directory = g_shell ? g_shell->get_previous_directory() : "";
         }
+    }
+
+    const std::vector<std::string>& executables_in_path() {
+        if (!executables.has_value()) {
+            executables = cjsh_filesystem::get_executables_in_path();
+        }
+        return *executables;
     }
 };
 
@@ -96,7 +105,8 @@ ExistingPathType classify_existing_path_argument(const std::string& token,
 
 bool has_nearby_split_merge_candidate(const std::string& first_token,
                                       const std::string& second_token,
-                                      const std::unordered_set<std::string>& available_commands) {
+                                      const std::unordered_set<std::string>& available_commands,
+                                      HighlightPathContext& paths) {
     if (first_token.length() < 2 || second_token.length() < 2) {
         return false;
     }
@@ -125,8 +135,7 @@ bool has_nearby_split_merge_candidate(const std::string& first_token,
         }
     }
 
-    const auto executables_in_path = cjsh_filesystem::get_executables_in_path();
-    for (const auto& candidate : executables_in_path) {
+    for (const auto& candidate : paths.executables_in_path()) {
         if (matches_candidate(candidate)) {
             return true;
         }
@@ -188,8 +197,8 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                         token + second_token, absolute_token_start, g_shell.get(),
                         available_commands);
                     const bool merged_token_near_match =
-                        !merged_token_known &&
-                        has_nearby_split_merge_candidate(token, second_token, available_commands);
+                        !merged_token_known && has_nearby_split_merge_candidate(
+                                                   token, second_token, available_commands, paths);
 
                     if (merged_token_known || merged_token_near_match) {
                         highlight_split_unknown_second_token = true;
