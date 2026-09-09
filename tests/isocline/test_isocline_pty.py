@@ -237,6 +237,92 @@ def normalize_terminal_output(text: str) -> str:
     return normalized
 
 
+def terminal_state(output: str, rows: int, cols: int) -> tuple[list[str], tuple[int, int]]:
+    """Replay the cursor/erase controls used by these single-column menu fixtures."""
+    cells = [[" "] * cols for _ in range(rows)]
+    row = col = 0
+    saved_cursor = (0, 0)
+
+    def linefeed() -> None:
+        nonlocal row
+        row += 1
+        if row == rows:
+            cells.pop(0)
+            cells.append([" "] * cols)
+            row -= 1
+
+    output = ANSI_OSC_RE.sub("", output)
+    tokens = re.finditer(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b.|[^\x1b]", output, re.S)
+    for match in tokens:
+        token = match.group()
+        if token.startswith("\x1b["):
+            command = token[-1]
+            params = token[2:-1]
+            if command in "mn" or (params.startswith("?") and command in "hl"):
+                continue  # Styling, queries, and input modes do not change cells.
+            values = [int(value or "0") for value in params.split(";")]
+            amount = values[0] or 1
+            if command == "A":
+                row = max(0, row - amount)
+            elif command == "B":
+                row = min(rows - 1, row + amount)
+            elif command == "C":
+                col = min(cols - 1, col + amount)
+            elif command == "D":
+                col = max(0, col - amount)
+            elif command == "G":
+                col = min(cols - 1, amount - 1)
+            elif command in "Hf":
+                row = min(rows - 1, amount - 1)
+                col = min(cols - 1, (values[1] or 1) - 1) if len(values) > 1 else 0
+            elif command == "K":
+                start = 0 if values[0] in (1, 2) else min(col, cols)
+                end = min(col + 1, cols) if values[0] == 1 else cols
+                cells[row][start:end] = [" "] * (end - start)
+            elif command == "J":
+                for y in range(rows):
+                    for x in range(cols):
+                        if (
+                            values[0] == 2
+                            or (values[0] == 0 and (y, x) >= (row, col))
+                            or (values[0] == 1 and (y, x) <= (row, col))
+                        ):
+                            cells[y][x] = " "
+            elif command == "s":
+                saved_cursor = (row, col)
+            elif command == "u":
+                row, col = saved_cursor
+            else:
+                raise AssertionError(
+                    f"unhandled terminal control in menu fixture: {token!r}"
+                )
+        elif token == "\r":
+            col = 0
+        elif token == "\n":
+            linefeed()
+        elif token == "\b":
+            col = max(0, col - 1)
+        elif token == "\t":
+            col = min(cols - 1, (col // 8 + 1) * 8)
+        elif token == "\x07":
+            continue
+        elif token.startswith("\x1b"):
+            raise AssertionError(
+                f"unhandled terminal escape in menu fixture: {token!r}"
+            )
+        elif token >= " ":
+            if col == cols:
+                col = 0
+                linefeed()
+            cells[row][col] = token
+            col += 1
+    return ["".join(line).rstrip() for line in cells], (row, min(col, cols - 1))
+
+
+def terminal_screen(output: str, rows: int, cols: int) -> list[str]:
+    return terminal_state(output, rows, cols)[0]
+
+
 def count_prompt_lines(output_text: str) -> int:
     return len(PROMPT_LINE_RE.findall(normalize_terminal_output(output_text)))
 
@@ -702,6 +788,7 @@ def run_resize_case(
     timeout_s: float = 8.0,
     poll_interval_s: float = 0.01,
     return_after_actions: bool = False,
+    respond_to_cursor_queries: bool = False,
 ) -> str:
     global PTY_CASE_COUNT
     PTY_CASE_COUNT += 1
@@ -721,6 +808,8 @@ def run_resize_case(
     prompt_seen = False
     action_index = 0
     current_rows = initial_rows
+    current_cols = initial_cols
+    cursor_reports_sent = 0
     last_output_at = time.monotonic()
 
     def normalized_output() -> str:
@@ -733,6 +822,14 @@ def run_resize_case(
                 last_output_at = time.monotonic()
                 if not prompt_seen and b"pty> " in output:
                     prompt_seen = True
+                if respond_to_cursor_queries:
+                    query_count = output.count(b"\x1b[6n")
+                    if query_count > cursor_reports_sent:
+                        _, (row, col) = terminal_state(
+                            output.decode("utf-8", errors="replace"), current_rows, current_cols
+                        )
+                        os.write(fd, f"\x1b[{row + 1};{col + 1}R".encode("ascii"))
+                        cursor_reports_sent = query_count
 
             while prompt_seen and action_index < len(actions):
                 action, value = actions[action_index]
@@ -743,7 +840,15 @@ def run_resize_case(
                     if time.monotonic() - last_output_at < float(value):
                         break
                 elif action == "send":
-                    os.write(fd, value)
+                    keys = (
+                        value(output.decode("utf-8", errors="replace"))
+                        if callable(value)
+                        else value
+                    )
+                    os.write(fd, keys)
+                    last_output_at = time.monotonic()
+                elif action == "check":
+                    value(output.decode("utf-8", errors="replace"))
                 elif action == "resize":
                     if isinstance(value, tuple):
                         next_rows, next_cols = value
@@ -755,6 +860,7 @@ def run_resize_case(
                     except OSError:
                         pass
                     current_rows = next_rows
+                    current_cols = next_cols
                 else:
                     raise AssertionError(
                         f"case {scenario} has unknown resize action {action!r}"
@@ -928,6 +1034,165 @@ def assert_menu_viewports(binary: str) -> None:
         raise AssertionError(f"menu content limit should include the expanded preview: {preview!r}")
 
 
+def assert_menu_dismissal(binary: str) -> None:
+    menus = {
+        "completion": (
+            b"choice\t",
+            [
+                ("enter", DOWN + b"\r"),
+                ("right", DOWN + RIGHT),
+                ("end", DOWN + END),
+                ("number", b"2"),
+            ],
+        ),
+        "completion_compact": (
+            b"choice\t",
+            [("enter", DOWN + b"\r"), ("right", DOWN + RIGHT), ("number", b"2")],
+        ),
+        "history": (b"\x12choice", [("enter", DOWN + b"\r"), ("tab", DOWN + b"\t")]),
+        "palette": (
+            ALT_P + b"zzdismiss",
+            [("enter", DOWN + b"\r"), ("tab", DOWN + b"\t")],
+        ),
+        "custom": (F3, [("enter", DOWN + b"\r"), ("tab", DOWN + b"\t")]),
+    }
+    for suffix, rows, cols in [
+        ("", 24, 160),
+        ("_multiline_prompt", 24, 160),
+        ("", 8, 80),
+    ]:
+
+        def assert_closed(output: str, expected: str) -> None:
+            screen = terminal_screen(output, rows, cols)
+            prompts = [
+                line
+                for line in screen
+                if line.startswith("pty> ") and "[IC_MENU_ACTION_BEGIN]" not in line
+            ]
+            if (
+                len(prompts) != 1
+                or prompts[0].replace("MENU-BASE-RIGHT", "").rstrip()
+                != f"pty> {expected}"
+            ):
+                raise AssertionError(
+                    f"menu should restore input {expected!r}: screen={screen!r}"
+                )
+            leftovers = [
+                line
+                for line in screen
+                if line
+                and line not in prompts
+                and line not in ("MENU-BASE-TOP", "MENU-BASE-MIDDLE")
+                and "[IC_MENU_ACTION_BEGIN]" not in line
+            ]
+            if leftovers:
+                raise AssertionError(
+                    f"menu rows remain after selection: screen={screen!r}"
+                )
+            if suffix and not all(
+                label in screen for label in ("MENU-BASE-TOP", "MENU-BASE-MIDDLE")
+            ):
+                raise AssertionError(
+                    f"menu should restore the multiline prompt: screen={screen!r}"
+                )
+
+        click_position = (1, 1)
+
+        def click_second(output: str) -> bytes:
+            nonlocal click_position
+            screen = terminal_screen(output, rows, cols)
+            for row, line in enumerate(screen, 1):
+                if "choicetwo" in line:
+                    click_position = (line.index("choicetwo") + 2, row)
+                    return mouse_left_press(*click_position)
+            raise AssertionError(f"second menu item is not visible: screen={screen!r}")
+
+        for kind, (opening, keyboard_accepts) in menus.items():
+            scenario = f"menu_dismiss_{kind}{suffix}"
+            for method, keys in keyboard_accepts + [("mouse", click_second)]:
+                label = f"{scenario}/{method}/{rows}x{cols}"
+
+                def check_selection(output: str) -> None:
+                    if kind in ("palette", "custom"):
+                        before_action, marker, _ = output.partition(
+                            "[IC_MENU_ACTION_BEGIN]"
+                        )
+                        if not marker:
+                            raise AssertionError(
+                                f"{label}: selected action did not run"
+                            )
+                        assert_closed(before_action, "keep")
+                    assert_closed(output, "choicetwo")
+
+                if kind == "history" and method == "enter":
+                    result, output = run_case(
+                        binary,
+                        scenario,
+                        opening + keys,
+                        capture_output=True,
+                        initial_rows=rows,
+                        initial_cols=cols,
+                    )
+                    before_submit, marker, _ = output.partition("[IC_MENU_SUBMIT]")
+                    if result != "choicetwo" or not marker or "choiceone" not in output:
+                        raise AssertionError(
+                            f"{label}: history selection did not submit: {output!r}"
+                        )
+                    assert_closed(before_submit, "choicetwo")
+                    continue
+
+                acceptance = [("send", keys)]
+                if method == "mouse":
+                    # Let the editor query its screen position between press and release.
+                    acceptance += [
+                        ("idle", 0.05),
+                        ("send", lambda output: mouse_left_release(*click_position)),
+                    ]
+                result = run_resize_case(
+                    binary,
+                    scenario,
+                    [
+                        ("send", opening),
+                        ("wait", "choicetwo"),
+                        ("idle", 0.05),
+                        *acceptance,
+                        ("wait", "pty> choicetwo"),
+                        ("idle", 0.05),
+                        ("check", check_selection),
+                        ("send", b"!\r"),
+                    ],
+                    initial_rows=rows,
+                    initial_cols=cols,
+                    respond_to_cursor_queries=True,
+                )
+                if result != "choicetwo!":
+                    raise AssertionError(
+                        f"{label}: editing after selection returned {result!r}"
+                    )
+
+        # Built-in palette actions must also leave the restored input editable.
+        for key in (b"\r", b"\t"):
+            result = run_resize_case(
+                binary,
+                f"menu_dismiss_palette{suffix}",
+                [
+                    ("send", ALT_P + b"cursor left"),
+                    ("wait", "1 action found"),
+                    ("idle", 0.05),
+                    ("send", key),
+                    ("idle", 0.05),
+                    ("check", lambda output: assert_closed(output, "keep")),
+                    ("send", b"!\r"),
+                ],
+                initial_rows=rows,
+                initial_cols=cols,
+            )
+            if result != "kee!p":
+                raise AssertionError(
+                    f"built-in palette action lost the cursor position: {result!r}"
+                )
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f"usage: {sys.argv[0]} <isocline_pty_driver>", file=sys.stderr)
@@ -939,6 +1204,7 @@ def main() -> int:
         return 2
 
     assert_menu_viewports(binary)
+    assert_menu_dismissal(binary)
 
     for scenario, keys, expected in [
         ("notification_edit", LEFT + b"\x1b[17~X\r", "aXb"),

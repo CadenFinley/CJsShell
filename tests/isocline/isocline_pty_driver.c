@@ -113,6 +113,58 @@ static bool auto_indent_continuation_handler(const char* input, void* arg) {
     return input != NULL && strchr(input, '\n') != NULL;
 }
 
+static const char* menu_dismiss_choices[] = {"choiceone", "choicetwo", NULL};
+
+static void menu_dismiss_word_provider(ic_completion_env_t* cenv, const char* prefix) {
+    (void)ic_add_completions(cenv, prefix, menu_dismiss_choices);
+}
+
+static void menu_dismiss_completer(ic_completion_env_t* cenv, const char* prefix) {
+    ic_complete_word(cenv, prefix, menu_dismiss_word_provider, NULL);
+}
+
+static bool menu_dismiss_action(const char* choice) {
+    const char* buffer = ic_get_buffer();
+    if (buffer == NULL || strcmp(buffer, "keep") != 0 || !ic_suspend_readline_terminal()) {
+        return false;
+    }
+    // Match shell palette commands that run with the editor's terminal suspended.
+    // The PTY test inspects the screen before this action writes anything.
+    (void)printf("[IC_MENU_ACTION_BEGIN]\n");
+    (void)fflush(stdout);
+    return ic_resume_readline_terminal() && ic_set_buffer(choice);
+}
+
+static bool menu_dismiss_palette_handler(const ic_command_palette_entry_t* entry, void* arg) {
+    (void)arg;
+    return menu_dismiss_action(entry->id);
+}
+
+static bool menu_dismiss_custom_handler(ic_keycode_t key, void* arg) {
+    (void)arg;
+    if (key != IC_KEY_F3) {
+        return false;
+    }
+    const ic_menu_item_t items[] = {
+        {"choiceone", "MENU-DETAIL-ONE", ""},
+        {"choicetwo", "MENU-DETAIL-TWO", ""},
+    };
+    size_t selected = 0;
+    if (!ic_show_menu("custom actions: ", items, 2, &selected)) {
+        return true;
+    }
+    return menu_dismiss_action(menu_dismiss_choices[selected]);
+}
+
+static bool menu_dismiss_submit_handler(const char* input, void* arg) {
+    (void)input;
+    (void)arg;
+    // Observe dismissal before readline's final cleanup can hide leftover rows.
+    (void)printf("[IC_MENU_SUBMIT]");
+    (void)fflush(stdout);
+    return true;
+}
+
 static bool pty_custom_menu_runoff_handler(ic_keycode_t key, void* arg) {
     (void)arg;
     if (key != IC_KEY_F3) {
@@ -614,7 +666,41 @@ static int run_case(const char* scenario) {
     bool external_pre_prompt_output = false;
     bool typeahead_two_readlines = false;
     const bool capture_typeahead_from_pty = (strncmp(scenario, "typeahead_capture_", 18) == 0);
-    if (strncmp(scenario, "notification_", 13) == 0) {
+    if (strncmp(scenario, "menu_dismiss_", 13) == 0) {
+        if (strstr(scenario, "_multiline_prompt") != NULL) {
+            prompt_text = "MENU-BASE-TOP\nMENU-BASE-MIDDLE\npty";
+            inline_right_text = "MENU-BASE-RIGHT";
+        }
+        (void)ic_enable_inline_help(true);
+        (void)ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
+        (void)ic_enable_mouse_reporting_status_line(false);
+        (void)ic_enable_mouse_clicking(true);
+        ic_set_check_for_continuation_or_return_callback(menu_dismiss_submit_handler, NULL);
+        if (strstr(scenario, "_completion") != NULL) {
+            ic_set_default_completer(menu_dismiss_completer, NULL);
+            (void)ic_enable_completion_menu_start_expanded(strstr(scenario, "_compact") == NULL);
+        } else if (strstr(scenario, "_history") != NULL) {
+            ic_history_clear();
+            ic_history_add("choicetwo");
+            ic_history_add("choiceone");
+        } else if (strstr(scenario, "_palette") != NULL) {
+            initial_input = "keep";
+            const ic_command_palette_entry_t entries[] = {
+                {"choiceone", "choiceone", "MENU-DETAIL-ONE", "zzdismiss"},
+                {"choicetwo", "choicetwo", "MENU-DETAIL-TWO", "zzdismiss"},
+            };
+            if (!ic_set_command_palette_entries(entries, 2)) {
+                return 6;
+            }
+            ic_set_command_palette_entry_handler(menu_dismiss_palette_handler, NULL);
+        } else if (strstr(scenario, "_custom") != NULL) {
+            initial_input = "keep";
+            if (!ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_RUNOFF)) {
+                return 6;
+            }
+            ic_set_unhandled_key_handler(menu_dismiss_custom_handler, NULL);
+        }
+    } else if (strncmp(scenario, "notification_", 13) == 0) {
         initial_input = "ab";
         prompt_text = "NOTICE-TOP\npty";
         inline_right_text = "NOTICE-RIGHT";

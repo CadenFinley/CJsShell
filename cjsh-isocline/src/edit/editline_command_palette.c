@@ -638,7 +638,8 @@ again:;
         }
 
         mem_free(env->mem, matches);
-        edit_menu_finish(env, eb, &menu_session, true, false);
+        // Clear the palette before an action can suspend or replace the editor display.
+        edit_menu_finish(env, eb, &menu_session, true, true);
 
         bool handled = false;
         if (selected_is_custom) {
