@@ -404,7 +404,17 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
         size_t end;
     };
 
+    // Quoted, escaped and glob patterns still use the matcher. A plain literal
+    // has only one possible match length, so there is no need to try substrings.
+    const bool literal_pattern = pattern.find_first_of("*?[\\\"'()|") == std::string::npos;
     auto find_leftmost_longest = [&](size_t search_begin) -> std::optional<MatchSpan> {
+        if (literal_pattern) {
+            const size_t begin = value.find(pattern, search_begin);
+            if (begin == std::string::npos) {
+                return std::nullopt;
+            }
+            return MatchSpan{begin, begin + pattern.size()};
+        }
         for (size_t begin = search_begin; begin <= value.size(); ++begin) {
             for (size_t end = value.size(); end >= begin; --end) {
                 if (matches_pattern(value.substr(begin, end - begin), pattern)) {

@@ -142,6 +142,16 @@ else
     exit 1
 fi
 
+OUT=$(TMPDIR="$TEST_DIR/missing-temp-directory" "$CJSH_PATH" -c \
+    "printf regular > '$TEST_DIR/no-process-substitution.txt'; cat '$TEST_DIR/no-process-substitution.txt'" 2>&1)
+if [ "$OUT" = "regular" ]; then
+    echo "PASS: ordinary redirection does not require a process substitution directory"
+else
+    echo "FAIL: ordinary redirection depended on temporary storage (got: '$OUT')"
+    rm -rf "$TEST_DIR"
+    exit 1
+fi
+
 OUT=$("$CJSH_PATH" -c "diff <(echo test) <(echo test)" 2>&1)
 if [ -z "$OUT" ]; then  # diff returns empty when files are identical
     echo "PASS: process substitution works"

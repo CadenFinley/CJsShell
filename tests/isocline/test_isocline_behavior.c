@@ -992,6 +992,58 @@ static bool test_history_snapshot_dedup_keeps_latest_entry(void) {
     return true;
 }
 
+static bool test_history_dedup_order_and_metadata(void) {
+    alloc_t* mem = test_allocator();
+    EXPECT_TRUE(mem != NULL, "history test allocator should exist");
+    history_t* history = history_new(mem);
+    EXPECT_TRUE(history != NULL, "history should be allocated");
+
+    const char* history_path = "./isocline_history_dedup_order_metadata.log";
+    FILE* file = fopen(history_path, "w");
+    EXPECT_TRUE(file != NULL, "history fixture should open");
+    for (int i = 0; i < 600; i++) {
+        fprintf(file, "# code=%d frequency=%d timestamp=%d\ncommand_%03d\n", i, i + 1, 1000 + i,
+                i % 97);
+    }
+    EXPECT_TRUE(fclose(file) == 0, "history fixture should close");
+
+    (void)history_enable_duplicates(history, true);
+    history_load_from(history, history_path, 512);
+    history_snapshot_t snap = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &snap, false), "duplicate snapshot should load");
+    EXPECT_TRUE(history_snapshot_count(&snap) == 512,
+                "the history limit should apply while duplicates are allowed");
+    history_snapshot_free(history, &snap);
+
+    (void)history_enable_duplicates(history, false);
+    EXPECT_TRUE(history_snapshot_load(history, &snap, true), "deduplicated snapshot should load");
+    EXPECT_TRUE(history_snapshot_count(&snap) == 97, "one entry per command should survive");
+    for (int i = 0; i < 97; i++) {
+        const int original_index = 599 - i;
+        char command[32], code[32], frequency[32], timestamp[32];
+        snprintf(command, sizeof(command), "command_%03d", original_index % 97);
+        snprintf(code, sizeof(code), "%d", original_index);
+        snprintf(frequency, sizeof(frequency), "%d", original_index + 1);
+        snprintf(timestamp, sizeof(timestamp), "%d", 1000 + original_index);
+        const history_entry_t* entry = history_snapshot_get(&snap, i);
+        EXPECT_TRUE(entry != NULL, "surviving history entry should exist");
+        EXPECT_STREQ(entry->command, command, "deduplication should preserve recency order");
+        EXPECT_STREQ(history_entry_get_metadata(entry, "code"), code,
+                     "deduplication should preserve the newest exit code");
+        EXPECT_STREQ(history_entry_get_metadata(entry, "frequency"), frequency,
+                     "deduplication should preserve the newest frequency");
+        EXPECT_STREQ(history_entry_get_metadata(entry, "timestamp"), timestamp,
+                     "deduplication should preserve the newest timestamp");
+    }
+    history_snapshot_free(history, &snap);
+    EXPECT_TRUE(history_push(history, "after compaction"),
+                "history should remain writable after deduplication");
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
 static bool test_history_fuzzy_case_toggle(void) {
     ic_env_t* env = ensure_env();
     alloc_t* mem = test_allocator();
@@ -4635,6 +4687,7 @@ static const test_case_t kTests[] = {
     {"history_frequency_metadata_interactive_flow",
      test_history_frequency_metadata_interactive_flow},
     {"history_snapshot_dedup_keeps_latest_entry", test_history_snapshot_dedup_keeps_latest_entry},
+    {"history_dedup_order_and_metadata", test_history_dedup_order_and_metadata},
     {"history_disabled_mode_rejects_push", test_history_disabled_mode_rejects_push},
     {"key_spec_separator_and_invalid_forms", test_key_spec_separator_and_invalid_forms},
     {"key_binding_named_invalid_inputs", test_key_binding_named_invalid_inputs},

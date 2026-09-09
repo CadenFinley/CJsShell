@@ -521,7 +521,7 @@ using TemporaryEnvAssignmentScope = cjsh_env::TemporaryEnvAssignmentScope;
 ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
     ProcessSubstitutionResources resources;
 
-    if (!g_shell) {
+    if (!g_shell || cmd.process_substitutions.empty()) {
         return resources;
     }
 

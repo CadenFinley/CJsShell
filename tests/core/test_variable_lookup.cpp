@@ -35,6 +35,7 @@
 #include "flags.h"
 #include "interpreter.h"
 #include "parameter_expansion_evaluator.h"
+#include "pattern_matcher.h"
 #include "shell.h"
 #include "shell_env.h"
 
@@ -170,6 +171,58 @@ bool test_parameter_expansion_work() {
     ok = expect(evaluator.expand("v-fallback") == "fallback", "unset binding uses default") && ok;
     return ok;
 }
+
+bool test_parameter_replacement() {
+    std::string value;
+    PatternMatcher matcher;
+    ParameterExpansionEvaluator evaluator(
+        [&](const std::string&) { return value; },
+        [&](const std::string&, const std::string& replacement) { value = replacement; },
+        [](const std::string&) { return true; },
+        [&](const std::string& text, const std::string& pattern) {
+            return matcher.matches_pattern(text, pattern);
+        });
+    const struct {
+        const char* value;
+        const char* expression;
+        const char* expected;
+    } cases[] = {
+        {"hello hello", "v/hello/hi", "hi hello"},
+        {"hello hello", "v//hello/hi", "hi hi"},
+        {"aaaaa", "v//aa/X", "XXa"},
+        {"aaaa", "v//aa/aaa", "aaaaaa"},
+        {"abc", "v//b/", "ac"},
+        {"abc", "v//abc/", ""},
+        {"abc", "v//longer/X", "abc"},
+        {"abcabc", "v/#abc/X", "Xabc"},
+        {"abcabc", "v/%abc/X", "abcX"},
+        {"aaab", "v/a*/X", "X"},
+        {"hello world", "v/[hw]/X", "Xello world"},
+        {"a*b*a", "v/\\*/X", "aXb*a"},
+        {"a*b*a", "v/'*'/X", "aXb*a"},
+        {"root/sub/leaf", "v/\\//-", "root-sub/leaf"},
+        {"echo line", "v/echo/a\\/b", "a/b line"},
+        {"", "v//a/X", ""},
+    };
+    bool ok = true;
+    for (const auto& entry : cases) {
+        value = entry.value;
+        ok = expect(evaluator.expand(entry.expression) == entry.expected, entry.expression) && ok;
+    }
+    value.assign(4096, 'a');
+    ok = expect(evaluator.expand("v//missing/X") == value,
+                "unmatched literal replacement retains a long value") &&
+         ok;
+
+    const bool previous_extglob = config::extglob_enabled;
+    config::extglob_enabled = true;
+    value = "foo bar foo";
+    ok = expect(evaluator.expand("v//@(foo|bar)/X") == "X X X",
+                "extended patterns retain global replacement semantics") &&
+         ok;
+    config::extglob_enabled = previous_extglob;
+    return ok;
+}
 }  // namespace
 
 int main() {
@@ -180,10 +233,11 @@ int main() {
     g_shell->set_interactive_mode(false);
     const bool lookup_ok = test_variable_presence_and_scope();
     const bool expansion_ok = test_parameter_expansion_work();
+    const bool replacement_ok = test_parameter_replacement();
     g_shell.reset();
-    if (!lookup_ok || !expansion_ok) {
+    if (!lookup_ok || !expansion_ok || !replacement_ok) {
         return 1;
     }
-    std::puts("All 2 variable lookup and expansion tests passed");
+    std::puts("All 3 variable lookup and expansion tests passed");
     return 0;
 }

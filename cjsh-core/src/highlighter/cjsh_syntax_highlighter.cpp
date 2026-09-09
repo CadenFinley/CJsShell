@@ -31,6 +31,7 @@
 #include <cctype>
 #include <cstring>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <unordered_set>
 
@@ -61,16 +62,27 @@ enum class ExistingPathType {
     Other
 };
 
-ExistingPathType classify_existing_path_argument(const std::string& token) {
+struct HighlightPathContext {
+    std::optional<std::string> cwd;
+    std::string previous_directory;
+
+    void initialize() {
+        if (!cwd.has_value()) {
+            cwd = cjsh_filesystem::safe_current_directory();
+            previous_directory = g_shell ? g_shell->get_previous_directory() : "";
+        }
+    }
+};
+
+ExistingPathType classify_existing_path_argument(const std::string& token,
+                                                 HighlightPathContext& paths) {
     if (token.empty() || token == "-") {
         return ExistingPathType::None;
     }
 
-    const std::string cwd = cjsh_filesystem::safe_current_directory();
-    const std::string previous_directory =
-        (g_shell != nullptr) ? g_shell->get_previous_directory() : "";
+    paths.initialize();
     const std::string path_to_check =
-        cjsh_filesystem::resolve_shell_token_path(token, cwd, previous_directory);
+        cjsh_filesystem::resolve_shell_token_path(token, *paths.cwd, paths.previous_directory);
     std::error_code status_error;
     const std::filesystem::file_status status =
         std::filesystem::status(path_to_check, status_error);
@@ -126,7 +138,8 @@ bool has_nearby_split_merge_candidate(const std::string& first_token,
 void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                              const std::string& analysis, size_t cmd_start, size_t cmd_end,
                              const std::unordered_set<std::string>& comparison_ops,
-                             const std::unordered_set<std::string>& available_commands) {
+                             const std::unordered_set<std::string>& available_commands,
+                             HighlightPathContext& paths) {
     using namespace token_classifier;
     using namespace highlight_helpers;
 
@@ -237,7 +250,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
         }
         if (nested_start < cmd_str.size()) {
             highlight_command_range(henv, input, analysis, cmd_start + nested_start, cmd_end,
-                                    comparison_ops, available_commands);
+                                    comparison_ops, available_commands, paths);
         }
         return;
     }
@@ -340,7 +353,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                 ic_highlight(henv, static_cast<long>(absolute_arg_start),
                              static_cast<long>(arg_length), "cjsh-glob-pattern");
             } else if (is_cd_command || command_analysis::token_has_explicit_path_hint(arg)) {
-                const ExistingPathType path_type = classify_existing_path_argument(arg);
+                const ExistingPathType path_type = classify_existing_path_argument(arg, paths);
                 if (path_type == ExistingPathType::RegularFile) {
                     ic_highlight(henv, static_cast<long>(absolute_arg_start),
                                  static_cast<long>(arg_length), "cjsh-file-argument");
@@ -352,7 +365,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                                  static_cast<long>(arg_length), "cjsh-path-not-exists");
                 }
             } else {
-                const ExistingPathType path_type = classify_existing_path_argument(arg);
+                const ExistingPathType path_type = classify_existing_path_argument(arg, paths);
                 if (path_type == ExistingPathType::RegularFile) {
                     ic_highlight(henv, static_cast<long>(absolute_arg_start),
                                  static_cast<long>(arg_length), "cjsh-file-argument");
@@ -436,12 +449,13 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
     const auto& comparison_ops = token_constants::comparison_operators();
     const auto available_commands =
         g_shell ? g_shell->get_available_commands() : std::unordered_set<std::string>{};
+    HighlightPathContext paths;
 
     (void)command_analysis::visit_command_ranges(
         sanitized_input,
         [&](size_t command_start, size_t command_end) {
             highlight_command_range(henv, input, sanitized_input, command_start, command_end,
-                                    comparison_ops, available_commands);
+                                    comparison_ops, available_commands, paths);
             return true;
         },
         [&](size_t separator_start, const command_analysis::CommandSeparator& separator) {

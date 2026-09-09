@@ -381,27 +381,59 @@ static void history_list_prune_to_max(history_t* h, history_list_t* list) {
     }
 }
 
-static void history_list_remove_duplicates(history_t* h, history_list_t* list) {
-    if (h == NULL || list == NULL || h->allow_duplicates) {
-        return;
+static int compare_history_entries_by_command(const void* left, const void* right) {
+    const history_entry_t* lhs = *(history_entry_t* const*)left;
+    const history_entry_t* rhs = *(history_entry_t* const*)right;
+    const int order = strcmp(lhs->command, rhs->command);
+    if (order != 0) {
+        return order;
     }
 
-    for (ssize_t i = list->count - 1; i >= 0; i--) {
-        const char* current = list->entries[i].command;
-        if (current == NULL) {
-            continue;
-        }
+    // The pointers refer to entries in the same array. Keep the newest entry
+    // first within each group of equal commands, including all of its metadata.
+    return (lhs > rhs) ? -1 : (lhs < rhs) ? 1 : 0;
+}
 
-        for (ssize_t j = i - 1; j >= 0; j--) {
-            const char* candidate = list->entries[j].command;
-            if (candidate == NULL || strcmp(current, candidate) != 0) {
-                continue;
+static bool history_list_remove_duplicates(history_t* h, history_list_t* list) {
+    if (h == NULL || list == NULL || h->allow_duplicates || list->count < 2) {
+        return true;
+    }
+
+    history_entry_t** sorted = mem_malloc_tp_n(h->mem, history_entry_t*, list->count);
+    if (sorted == NULL) {
+        return false;
+    }
+    ssize_t sorted_count = 0;
+    for (ssize_t i = 0; i < list->count; i++) {
+        if (list->entries[i].command != NULL) {
+            sorted[sorted_count++] = &list->entries[i];
+        }
+    }
+    qsort(sorted, (size_t)sorted_count, sizeof(*sorted), compare_history_entries_by_command);
+
+    history_entry_t* newest = NULL;
+    for (ssize_t i = 0; i < sorted_count; i++) {
+        if (newest != NULL && strcmp(newest->command, sorted[i]->command) == 0) {
+            history_entry_clear(h, sorted[i]);
+        } else {
+            newest = sorted[i];
+        }
+    }
+    mem_free(h->mem, sorted);
+
+    // Compact once in original order instead of shifting the tail per duplicate.
+    ssize_t kept = 0;
+    for (ssize_t i = 0; i < list->count; i++) {
+        if (list->entries[i].command != NULL) {
+            if (kept != i) {
+                list->entries[kept] = list->entries[i];
+                list->entries[i] = (history_entry_t){0};
             }
-
-            history_list_remove_at(h, list, j);
-            i--;
+            kept++;
         }
     }
+    list->count = kept;
+    return true;
 }
 
 static void history_persistence_error(history_t* h);
@@ -1917,10 +1949,9 @@ static bool history_collect_disk_entries(history_t* h, history_list_t* list, boo
     }
 
     history_list_prune_to_max(h, list);
-    if (dedup) {
-        history_list_remove_duplicates(h, list);
-    } else if (!h->allow_duplicates) {
-        history_list_remove_duplicates(h, list);
+    if ((dedup || !h->allow_duplicates) && !history_list_remove_duplicates(h, list)) {
+        history_list_free(h, list);
+        return false;
     }
 
     return close_ok;
