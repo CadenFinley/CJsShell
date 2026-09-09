@@ -38,10 +38,8 @@
 #include "builtin_help.h"
 #include "cjsh_completions.h"
 #include "error_out.h"
-#include "flags.h"
 #include "isocline.h"
 #include "shell_env.h"
-#include "startup_flags.h"
 #include "string_utils.h"
 #include "token_constants.h"
 
@@ -49,17 +47,6 @@ namespace {
 
 bool is_help_flag(const std::string& option) {
     return option == "--help" || option == "-h";
-}
-
-const std::vector<std::string>& startup_flag_help_lines() {
-    static const std::vector<std::string> lines = [] {
-        std::vector<std::string> help = {"Usage: login-startup-arg <flag>", "Available flags:"};
-        for (const auto& entry : startup_flags::descriptors()) {
-            (void)help.emplace_back("  " + std::string(entry.name) + "  " + entry.description);
-        }
-        return help;
-    }();
-    return lines;
 }
 
 std::string resolve_style_registry_name(const std::string& token_type) {
@@ -221,45 +208,6 @@ void print_style_def_usage() {
     std::cout << "To preview current styles, use: style_def preview\n";
 }
 }  // namespace
-
-int startup_flag_command(const std::vector<std::string>& args) {
-    const auto& help_lines = startup_flag_help_lines();
-
-    if (builtin_handle_help_with_startup_guard(args, help_lines,
-                                               BuiltinHelpScanMode::AnyArgument)) {
-        return 0;
-    }
-
-    if (!cjsh_env::startup_active()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "login-startup-arg",
-                     "Startup flags can only be set in configuration files (e.g., ~/.cjprofile)",
-                     {"To set startup flags, add 'cjshopt login-startup-arg ...' commands to your "
-                      "~/.cjprofile file."}});
-        return 1;
-    }
-
-    if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "login-startup-arg", "Missing flag argument",
-                     help_lines});
-        return 1;
-    }
-
-    const std::string& flag = args[1];
-
-    if (!startup_flags::is_supported(flag)) {
-        print_error({ErrorType::INVALID_ARGUMENT, "login-startup-arg",
-                     "unknown flag '" + flag + "'", help_lines});
-        return 1;
-    }
-
-    auto& stored_flags = flags::profile_startup_args();
-    if (std::find(stored_flags.begin(), stored_flags.end(), flag) == stored_flags.end()) {
-        stored_flags.push_back(flag);
-    }
-
-    return 0;
-}
 
 int style_def_command(const std::vector<std::string>& args) {
     if (args.size() == 1 || (args.size() == 2 && is_help_flag(args[1]))) {

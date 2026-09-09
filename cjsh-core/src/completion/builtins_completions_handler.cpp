@@ -36,7 +36,6 @@
 #include "completion_utils.h"
 #include "job_control.h"
 #include "signal_handler.h"
-#include "startup_flags.h"
 
 namespace builtin_completions {
 namespace {
@@ -142,16 +141,6 @@ void append_trap_signal_entries(std::vector<CompletionEntry>& entries) {
                                     [](const std::string& token) { return token; });
     append_unique_signal_entry(entries, seen_tokens, "EXIT", "Run when the shell exits");
     append_unique_signal_entry(entries, seen_tokens, "0", "Run when the shell exits");
-}
-
-std::vector<CompletionEntry> build_startup_flag_completion_entries() {
-    std::vector<CompletionEntry> entries;
-    const auto& descriptors = startup_flags::descriptors();
-    entries.reserve(descriptors.size());
-    for (const auto& descriptor : descriptors) {
-        entries.push_back(make_option(descriptor.name, descriptor.description));
-    }
-    return entries;
 }
 
 std::string format_job_description(const JobControlJob& job) {
@@ -431,8 +420,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("do", "Begin a loop body", {});
         add_doc("done", "End the current loop body", {});
         add_doc("function", "Define a named shell function", {});
-        add_doc("login-startup-arg", "Add cjsh startup flags",
-                build_startup_flag_completion_entries());
 
         add_doc("history", "Show command history", {});
         add_doc("fc", "Edit or list commands from history",
@@ -608,7 +595,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc(
             "cjshopt", "Configure cjsh interactive behavior",
             {make_subcommand("style_def", "Define syntax highlight styles"),
-             make_subcommand("login-startup-arg", "Add a startup flag"),
              make_subcommand("completion-case", "Configure completion case sensitivity"),
              make_subcommand("history-search-case", "Configure fuzzy history case sensitivity"),
              make_subcommand("completion-spell", "Configure completion spell correction"),
@@ -670,9 +656,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-style_def", "Define or reset syntax styles",
                 {make_subcommand("preview", "Show current syntax style preview"),
                  make_option("--reset", "Reset all highlight styles to defaults")});
-
-        add_doc("cjshopt-login-startup-arg", "Add cjsh startup flags",
-                build_startup_flag_completion_entries());
 
         add_doc("cjshopt-completion-learning", "Toggle completion learning",
                 {make_subcommand("on", "Allow on-demand completion scraping"),

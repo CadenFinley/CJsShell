@@ -69,8 +69,7 @@ footprint, turn learning off and rely exclusively on whatever is already cached 
 
 - Run `cjshopt completion-learning off` during a session to stop future man-page lookups. The toggle
   persists across restarts if you add `cjshopt completion-learning off` to `~/.cjshrc`.
-- Launch cjsh with `--no-completion-learning` (or add `cjshopt login-startup-arg --no-completion-learning`
-  to `~/.cjprofile`) to start with learning disabled from the first prompt.
+- Launch cjsh with `--no-completion-learning` to start with learning disabled from the first prompt.
 - The `generate-completions` builtin continues to work either way, so you can keep caches warm with a
   one-time run and leave learning off during normal interactive use.
 - When `CJSH_MAN_PATH` is set, cjsh always uses that `man` binary (even outside secure mode).

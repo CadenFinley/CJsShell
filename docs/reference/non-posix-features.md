@@ -46,7 +46,7 @@ necessary.
 - **Right-prompt cursor tracking** – `cjshopt right-prompt-follow-cursor` lets the inline right
   prompt move with the active cursor row, something stock POSIX shells do not support.
 - **Dynamic title line** – The introductory banner and title-line management (enabled by default)
-  can be disabled with `--no-titleline` or `cjshopt login-startup-arg --no-titleline`.
+  can be disabled with `--no-titleline`.
 
 See [Prompt Markup and Styling](../themes/thedetails.md) for the full markup reference.
 
@@ -129,10 +129,9 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 
 - **History expansion** – Interactive history expansion supports `!!`, `!prefix`, `!?text?`, `!$`,
   `!^`, `!*`, and `^foo^bar`. It automatically disables in script mode, `cjsh -c`, or when stdin
-  is not a tty. Use `--no-history-expansion` or `cjshopt login-startup-arg --no-history-expansion`
-  to turn it off.
+  is not a tty. Use `--no-history-expansion` to turn it off.
 - **History recording** – Disable persistence entirely with `--no-history` (also disables history
-  expansion) or `cjshopt login-startup-arg --no-history`.
+  expansion).
 - **Persistent exit codes** – Each history entry records the command's exit status to enrich
   completions and prompts.
 - **Fuzzy history case sensitivity** – `cjshopt history-search-case` toggles whether the search menu
@@ -170,7 +169,7 @@ login/logout dotfiles:
 cjsh --minimal --secure
 ```
 
-Or persist equivalent flags through `cjshopt login-startup-arg` in `~/.cjprofile`.
+For repeatable launches, include equivalent flags in your launcher/alias.
 
 ## Summary
 

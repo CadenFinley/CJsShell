@@ -455,9 +455,10 @@ class StartupTests(unittest.TestCase):
         child = self.child_environment("-l", "--no-system-paths")
         self.assertEqual(child["PATH"], "/batch2/profile:/batch2/env:/batch2/inherited")
 
-    def test_system_paths_flag_is_invocation_only(self):
+    def test_login_startup_arg_subcommand_removed(self):
         r = self.run_shell("-c", "cjshopt login-startup-arg --no-system-paths")
         self.assertNotEqual(r.returncode, 0)
+        self.assertIn("unknown subcommand 'login-startup-arg'", r.stderr)
 
     def test_history_path_from_rc_overrides_earlier_configuration(self):
         old = self.home / "earlier-history"
@@ -702,10 +703,8 @@ class StartupTests(unittest.TestCase):
         for flag in ("--no-history", "--secure"):
             with self.subTest(flag=flag):
                 history.write_text(original)
-                (self.home / ".cjprofile").write_text(
-                    'cjshopt set-history-max 0\n'
-                    f'cjshopt login-startup-arg {flag}\n')
-                result = self.run_shell("-il", "-c", "echo usable")
+                (self.home / ".cjprofile").write_text('cjshopt set-history-max 0\n')
+                result = self.run_shell(flag, "-il", "-c", "echo usable")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stderr, "")
                 self.assertEqual(result.stdout, "usable\n")

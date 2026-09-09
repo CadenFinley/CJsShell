@@ -42,7 +42,7 @@ All prompt styling now lives inside your dotfiles—no external theme DSL or bun
 ### True Color Support
 **Status:** Enabled when the terminal advertises 24-bit color.  
 **Configure:** Automatically detected; adjust styling through your prompt definitions or `cjshopt style_def`.  
-**Disable:** Launch with `cjsh --no-colors` or persist by adding `cjshopt login-startup-arg --no-colors` to `~/.cjprofile`.
+**Disable:** Launch with `cjsh --no-colors` (or include `--no-colors` in your launcher/alias).
 
 ### Prompt Layout
 **Status:** `prompt-newline` defaults to off so prompts stay compact unless you explicitly add spacing.  
@@ -57,7 +57,7 @@ Enable `prompt-newline` when you want a visual spacer between commands in long t
 ### Syntax Highlighting
 **Status:** Enabled  
 **Configure:** Change token styles with `cjshopt style_def <token_type> <style>`.  
-**Disable:** Start cjsh with `--no-syntax-highlighting` or add `cjshopt login-startup-arg --no-syntax-highlighting` inside `~/.cjprofile`.
+**Disable:** Start cjsh with `--no-syntax-highlighting`.
 
 ---
 
@@ -98,7 +98,7 @@ Fuzzy matching powers command, path, and argument completions without additional
 ### Smart cd
 **Status:** Enabled  
 **Configure:** `cjshopt smart-cd on|off|status`  
-**Disable:** Launch with `cjsh --no-smart-cd` or add `cjshopt login-startup-arg --no-smart-cd` to `~/.cjprofile`.
+**Disable:** Launch with `cjsh --no-smart-cd`.
 
 ### Inline Hints & Delay
 **Status:** Enabled  
@@ -176,8 +176,8 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 
 ## History Features
 
-- **History expansions:** Enabled in interactive sessions (`!!`, `!git`, `!?text?`, `!$`, `!^`, `!*`, `^old^new`). `!?` by itself is not valid; include a search string. Disable with `cjsh --no-history-expansion` or persist by adding `cjshopt login-startup-arg --no-history-expansion` to `~/.cjprofile`.
-- **History recording:** Disable persistence with `cjsh --no-history` (also disables history expansion) or add `cjshopt login-startup-arg --no-history` to `~/.cjprofile`. Secure mode also disables history persistence.
+- **History expansions:** Enabled in interactive sessions (`!!`, `!git`, `!?text?`, `!$`, `!^`, `!*`, `^old^new`). `!?` by itself is not valid; include a search string. Disable with `cjsh --no-history-expansion`.
+- **History recording:** Disable persistence with `cjsh --no-history` (also disables history expansion). Secure mode also disables history persistence.
 - **History search:** Press `Ctrl+R` or `Ctrl+S` for the fuzzy history search menu (use `Alt+C` inside it to toggle case sensitivity).
 - **History search case sensitivity:** Matching is case-sensitive by default; adjust with `cjshopt history-search-case on|off|status` to set the default for every session.
 - **Persistence:** History entries are stored in `~/.cache/cjsh/history.txt`; duplicate commands are suppressed by default. Concurrent writers lock a sibling `.lock` file and atomically replace complete snapshots, preserving command metadata and frequency counts. Unsubmitted input stays private to its session. Existing history-file symlinks retain their targets and share the target lock. A killed writer can leave a private `.tmp.*` file; readers ignore it.
@@ -289,8 +289,7 @@ systems without `/etc/paths` or `/etc/paths.d`. Startup files can then override 
 Pass `--no-system-paths` to disable this setup and preserve the inherited PATH exactly,
 including an empty or absent value. POSIX, minimal, secure, syntax-only, and `--no-config`
 invocations also skip it. These startup-only options (`--no-system-paths`, `--config-dir`,
-`--no-config`) cannot be persisted through `cjshopt login-startup-arg`; select them in your
-launcher. The former `--login-path` flag has been removed. Remove it from existing launch
+`--no-config`) are invocation-only; select them in your launcher. The former `--login-path` flag has been removed. Remove it from existing launch
 commands to use the default setup. For reproducible scripts, supply PATH explicitly and
 use `--no-system-paths` or `--no-config`.
 
@@ -310,21 +309,6 @@ History requires a writable parent directory for its lock and atomic replacement
 later history write failures disable further writes for the session after one diagnostic.
 
 
-### Persisting Startup Flags
-`cjshopt login-startup-arg` is only valid while configuration files are being sourced. Call it once per flag inside `~/.cjprofile`:
-
-```bash
-# ~/.cjprofile
-cjshopt login-startup-arg --no-colors
-cjshopt login-startup-arg --show-startup-time
-```
-
-Collected flags are applied after `.cjprofile` finishes and affect subsequent startup
-stages. They do not undo environment setup or commands already executed. Supply options
-on the command line when they must govern the entire startup, such as `--secure`.
-
-Supported flags: `--login`, `--interactive`, `--posix`, `--no-exec`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-completion-learning`, `--no-smart-cd`, `--no-script-extension-interpreter`, `--no-syntax-highlighting`, `--no-error-suggestions`, `--no-agent`, `--no-prompt-vars`, `--no-history`, `--no-history-expansion`, `--no-sh-warning`, `--minimal`, and `--secure`.
-
 ### POSIX & Bash Compatibility
 cjsh targets broad POSIX compatibility for scripting while providing POSIX+ extensions such as `[[ ... ]]`, arrays, namerefs, coprocesses, extended globs, brace expansion, here-strings, process substitution, and rich redirection semantics. This is not a formal conformance or complete Bash/Zsh-emulation claim; consult the [Language Compatibility Inventory](../reference/language-compatibility.md) for precise support. Syntax extensions are available in scripts and interactive sessions; interactive-only features like history expansion, completions, and prompt styling disable themselves automatically when stdin is not a tty. Use `--minimal` or `--secure` when you want fewer extras in interactive shells.
 
@@ -333,7 +317,7 @@ When cjsh scrapes man pages for completions, it uses `man` from `PATH` by defaul
 `CJSH_MAN_PATH` to force a specific `man` binary. In secure mode (`--secure`), cjsh only uses
 `CJSH_MAN_PATH` and skips scraping if it is not set or invalid.
 
-When `cjsh` is symlinked or launched as `sh`, interactive sessions print a reminder that cjsh is not a drop-in 100% POSIX shell. Suppress this notice with `cjsh --no-sh-warning` or persist the choice by adding `cjshopt login-startup-arg --no-sh-warning` inside `~/.cjprofile`.
+When `cjsh` is symlinked or launched as `sh`, interactive sessions print a reminder that cjsh is not a drop-in 100% POSIX shell. Suppress this notice with `cjsh --no-sh-warning`.
 
 ---
 
@@ -394,12 +378,6 @@ cjshopt keybind profile set vim
 
 # Increase history retention
 cjshopt set-history-max 20000
-```
-
-Persist startup flags by placing commands like the following in `~/.cjprofile`:
-
-```bash
-cjshopt login-startup-arg --no-colors
 ```
 
 Run `cjshopt --help` for a complete list of interactive toggles and their detailed help screens.

@@ -766,7 +766,6 @@ cjshopt <subcommand> [options]
 
 Available subcommands:
 - `style_def` - Define or redefine syntax highlighting styles
-- `login-startup-arg` - Add startup flags (config file only)
 - `completion-case` - Configure completion case sensitivity
 - `history-search-case` - Configure fuzzy history case sensitivity
 - `completion-spell` - Toggle spell correction suggestions in completions
@@ -860,48 +859,6 @@ Available subcommands include:
 These commands are primarily used from custom key bindings and widgets rather than typed
 interactively. Combine them with `cjshopt keybind ext` inside `~/.cjshrc` to create bespoke
 editing behaviors.
-
-#### login-startup-arg
-
-Persist startup flags that should be applied before the interactive configuration is sourced. This command is only honored inside startup files such as `~/.cjprofile`; running it at an interactive prompt prints an error.
-
-```bash
-cjshopt login-startup-arg <flag>
-```
-
-Supported flags:
-
-| Flag | Effect |
-| --- | --- |
-| `--login` | Mark the current shell instance as a login shell |
-| `--interactive` | Force interactive startup behavior |
-| `--no-colors` | Disable colorized prompt and syntax output |
-| `--no-titleline` | Disable terminal title updates on startup |
-| `--show-startup-time` | Print the time spent initializing cjsh |
-| `--no-source` | Skip sourcing `~/.cjshrc` |
-| `--no-completions` | Skip completion initialization |
-| `--no-completion-learning` | Skip on-demand man-page scraping for completions |
-| `--no-script-extension-interpreter` | Disable extension-based script runners |
-| `--no-smart-cd` | Disable smart cd auto-jumps |
-| `--no-syntax-highlighting` | Disable syntax highlighting in the editor |
-| `--no-error-suggestions` | Disable error suggestions in interactive mode |
-| `--no-agent` | Disable agent-assisted command writing |
-| `--no-prompt-vars` | Ignore PS1/PS2 and use fixed prompts |
-| `--no-history` | Disable history recording (also disables history expansion) |
-| `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
-| `--no-sh-warning` | Suppress the reminder shown when cjsh is invoked via `sh` |
-| `--no-exec` | Read commands but do not execute them |
-| `--minimal` | Disable colors, completions and completion learning, syntax highlighting, smart cd, rc sourcing, title line, history expansion, the status line, multiline line numbers, startup time banner, error suggestions, prompt vars, and special lifecycle handlers |
-| `--secure` | Skip environment/profile/rc/logout sourcing, disable history persistence and smart cd, and ignore special lifecycle handlers |
-| `--posix` | Enable POSIX mode, reject non-POSIX syntax and non-POSIX builtins, and ignore special lifecycle handlers |
-
-Add one line per flag in `~/.cjprofile` to persist the desired behavior:
-
-```bash
-# Inside ~/.cjprofile
-cjshopt login-startup-arg --minimal
-cjshopt login-startup-arg --show-startup-time
-```
 
 #### completion-case
 

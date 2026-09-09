@@ -42,7 +42,6 @@ struct custom_command_binding_t {
 
 int cjshopt_command(const std::vector<std::string>& args);
 int keybind_ext_command(const std::vector<std::string>& args);
-int startup_flag_command(const std::vector<std::string>& args);
 int completion_case_command(const std::vector<std::string>& args);
 int history_search_case_command(const std::vector<std::string>& args);
 int completion_spell_command(const std::vector<std::string>& args);

@@ -591,7 +591,7 @@ cjshopt agent-mode reset
 
 Start CJSH with `--no-agent` to keep agent mode disabled even while executor definitions load from
 `~/.cjshrc`. It can still be deliberately enabled later with `cjshopt agent-mode on`. Persist the
-startup disable from `~/.cjprofile` with `cjshopt login-startup-arg --no-agent`.
+startup disable by including `--no-agent` in your launcher or shell alias.
 
 ## Key Bindings
 

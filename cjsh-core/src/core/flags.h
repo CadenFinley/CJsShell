@@ -42,11 +42,9 @@ struct ParseResult {
 
 ParseResult parse_arguments(int argc, char* argv[]);
 bool is_login_shell_invocation();
-void apply_profile_startup_flags();
 void apply_posix_mode_settings();
 void save_startup_arguments(int argc, char* argv[]);
 std::vector<std::string>& startup_args();
-std::vector<std::string>& profile_startup_args();
 
 void set_positional_parameters(const std::vector<std::string>& params);
 int shift_positional_parameters(int count = 1);

@@ -181,7 +181,6 @@ void process_startup_files() {
 
     if (config::login_mode && !cjsh_env::exit_requested()) {
         cjsh_filesystem::process_profile_files();
-        flags::apply_profile_startup_flags();
     }
 
     if (config::posix_mode && config::interactive_mode && !cjsh_env::exit_requested()) {

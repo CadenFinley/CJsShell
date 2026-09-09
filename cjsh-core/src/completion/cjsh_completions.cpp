@@ -515,8 +515,7 @@ bool iterate_directory_entries(
 }
 
 bool is_interactive_builtin(const std::string& cmd) {
-    static const std::unordered_set<std::string> script_only_builtins = {"__INTERNAL_SUBSHELL__",
-                                                                         "login-startup-arg"};
+    static const std::unordered_set<std::string> script_only_builtins = {"__INTERNAL_SUBSHELL__"};
 
     return script_only_builtins.find(cmd) == script_only_builtins.end();
 }

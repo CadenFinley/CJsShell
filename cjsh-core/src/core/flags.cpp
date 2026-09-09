@@ -40,17 +40,11 @@
 #include "error_out.h"
 #include "shell.h"
 #include "shell_env.h"
-#include "startup_flags.h"
 #include "usage.h"
 
 namespace flags {
 
 std::vector<std::string>& startup_args() {
-    static std::vector<std::string> args;
-    return args;
-}
-
-std::vector<std::string>& profile_startup_args() {
     static std::vector<std::string> args;
     return args;
 }
@@ -117,7 +111,7 @@ void apply_posix_mode_settings() {
 }
 
 void save_startup_arguments(int argc, char* argv[]) {
-    // save the startup args so that login-startup-arg in cjshopt can be used
+    // Save startup args for restart/prompt helpers that mirror invocation identity.
     auto& args = startup_args();
     args.clear();
     for (int i = 0; i < argc; i++) {
@@ -301,63 +295,6 @@ ParseResult parse_arguments(int argc, char* argv[]) {
     }
 
     return result;
-}
-
-void apply_profile_startup_flags() {
-    for (const std::string& flag : profile_startup_args()) {
-        if (!startup_flags::is_supported(flag)) {
-            continue;
-        }
-
-        if (flag == "--no-colors") {
-            config::colors_enabled = false;
-        } else if (flag == "--no-titleline") {
-            config::show_title_line = false;
-        } else if (flag == "--show-startup-time") {
-            config::show_startup_time = true;
-        } else if (flag == "--no-source") {
-            config::source_enabled = false;
-        } else if (flag == "--no-completions") {
-            config::completions_enabled = false;
-        } else if (flag == "--no-completion-learning") {
-            config::completion_learning_enabled = false;
-        } else if (flag == "--no-smart-cd") {
-            config::smart_cd_enabled = false;
-        } else if (flag == "--no-script-extension-interpreter") {
-            config::script_extension_interpreter_enabled = false;
-        } else if (flag == "--no-syntax-highlighting") {
-            config::syntax_highlighting_enabled = false;
-        } else if (flag == "--no-error-suggestions") {
-            config::error_suggestions_enabled = false;
-        } else if (flag == "--no-prompt-vars") {
-            config::prompt_vars_enabled = false;
-        } else if (flag == "--interactive") {
-            config::force_interactive = true;
-        } else if (flag == "--minimal") {
-            apply_minimal_mode();
-        } else if (flag == "--secure") {
-            config::secure_mode = true;
-            config::smart_cd_enabled = false;
-            config::history_enabled = false;
-            config::history_expansion_enabled = false;
-        } else if (flag == "--no-history") {
-            config::history_enabled = false;
-            config::history_expansion_enabled = false;
-        } else if (flag == "--no-agent") {
-            agent_mode::disable_for_startup();
-        } else if (flag == "--no-history-expansion") {
-            config::history_expansion_enabled = false;
-        } else if (flag == "--no-sh-warning") {
-            config::suppress_sh_warning = true;
-        } else if (flag == "--posix") {
-            apply_posix_mode_settings();
-        } else if (flag == "--no-exec") {
-            config::no_exec = true;
-            if (g_shell) {
-                g_shell->apply_no_exec(true);
-            }
-        }
-    }
 }
 
 void set_positional_parameters(const std::vector<std::string>& params) {

@@ -46,7 +46,6 @@ namespace {
 
 enum class CjshoptSubcommand : std::uint8_t {
     StyleDef,
-    LoginStartupArg,
     CompletionCase,
     HistorySearchCase,
     CompletionSpell,
@@ -106,7 +105,6 @@ struct CjshoptSubcommandDescriptor {
 constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSubcommand::Count)>
     kCjshoptSubcommandDescriptors = {
         {{CjshoptSubcommand::StyleDef, "style_def", style_def_command},
-         {CjshoptSubcommand::LoginStartupArg, "login-startup-arg", startup_flag_command},
          {CjshoptSubcommand::CompletionCase, "completion-case", completion_case_command},
          {CjshoptSubcommand::HistorySearchCase, "history-search-case", history_search_case_command},
          {CjshoptSubcommand::CompletionSpell, "completion-spell", completion_spell_command},
@@ -181,7 +179,6 @@ const std::vector<std::string>& cjshopt_usage_lines() {
         "Available subcommands:",
         "  style_def <token_type> <style>   Define or redefine a syntax highlighting style",
         "  style_def preview|--reset        Preview current styles or reset defaults",
-        "  login-startup-arg <flag>         Add a startup flag (startup files only)",
         std::string("  completion-case <on|off|status>  Configure completion case sensitivity ") +
             "(default: disabled)",
         std::string(

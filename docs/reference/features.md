@@ -119,9 +119,6 @@ for full details.
     - `cjshopt set-history-max` to adjust persistent history size (0 or more entries; no upper limit)
     - `set -o huponexit` mirrors bash's option for sending SIGHUP to background jobs when the
         shell exits (off by default so long-running helpers stick around)
-- **Login/startup flags** – Place `cjshopt login-startup-arg <flag>` lines in `~/.cjprofile` to
-    replay command-line switches (`--minimal`, `--no-completions`, `--show-startup-time`, etc.) on
-    every launch. Flags that are valid on the CLI are respected during profile evaluation.
 - **Generated config skeletons** – `cjshopt generate-env`, `cjshopt generate-profile`,
     `cjshopt generate-rc`, and `cjshopt generate-logout` create `~/.cjshenv`, `~/.cjprofile`,
     `~/.cjshrc`, and `~/.cjlogout` (or alternate locations under `~/.config/cjsh/`) with
@@ -132,7 +129,7 @@ for full details.
 | File | When it runs | Typical responsibilities |
 | --- | --- | --- |
 | `~/.cjshenv` (or `~/.config/cjsh/.cjshenv`) | Every shell start before login/interactive setup | Export environment vars shared by scripts and interactive sessions |
-| `~/.cjprofile` (or `~/.config/cjsh/.cjprofile`) | Login shells before interactive setup | Export environment vars, add `cjshopt login-startup-arg` flags |
+| `~/.cjprofile` (or `~/.config/cjsh/.cjprofile`) | Login shells before interactive setup | Export login-only environment vars and run login hooks |
 | `~/.cjshrc` | Every interactive shell (unless `--no-source`) | Prompt definitions, aliases, key bindings, abbreviations |
 | `~/.cjlogout` | When a login shell exits | Cleanup hooks, session summaries |
 
@@ -152,7 +149,6 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-c, --command <string>` – execute a single command and exit (disables history expansion)
 - `--no-exec` – read commands but do not execute them
 - `--no-system-paths` – skip automatic PATH setup from `/etc/paths` and `/etc/paths.d`
-  (invocation only; cannot be saved with `cjshopt login-startup-arg`)
 - `--posix` – enable POSIX mode and reject non-POSIX syntax and non-POSIX builtins
 - `-m, --minimal` – disable colors, completions and completion learning, syntax
   highlighting, rc sourcing, smart cd, the title line, history expansion, the status line,
@@ -176,9 +172,6 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-W, --no-sh-warning` – suppress the reminder shown when cjsh is invoked via `sh`
 - `-s, --secure` – skip `~/.cjshenv`, `~/.cjprofile`, `~/.cjshrc`, and `~/.cjlogout`, disable
   history persistence and smart cd, and ignore special lifecycle handlers
-
-Flags affecting feature toggles take effect early in startup and can also be injected via
-`cjshopt login-startup-arg` in configuration files.
 
 ## Built-in Tooling Highlights
 

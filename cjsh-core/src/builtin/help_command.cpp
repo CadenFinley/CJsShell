@@ -173,10 +173,9 @@ std::string get_help() {
     output << "  Startup sequence:\n";
     output << "    1. ~/.cjshenv is sourced if present (or CJSH_ENV if set), unless secure.\n";
     output << "    2. Login shells load ~/.cjprofile (if present), unless secure.\n";
-    output << "    3. Stored startup flags from 'cjshopt login-startup-arg' are applied.\n";
-    output << "    4. Interactive mode initializes colors and sources ~/.cjshrc\n"
+    output << "    3. Interactive mode initializes colors and sources ~/.cjshrc\n"
               "       unless disabled with --no-source or secure mode.\n";
-    output << "    5. History storage uses the final CJSH_HISTORY_FILE; the prompt loop then\n"
+    output << "    4. History storage uses the final CJSH_HISTORY_FILE; the prompt loop then\n"
               "       initializes the editor and completions.\n";
     output << "  Shutdown sequence:\n";
     output << "    - Registered EXIT traps run before teardown.\n";
@@ -185,7 +184,7 @@ std::string get_help() {
 
     heading("Primary cjsh directories");
     output << "  ~/.cjshenv          Optional environment script sourced at startup.\n";
-    output << "  ~/.cjprofile        Login configuration and persisted startup flags.\n";
+    output << "  ~/.cjprofile        Login configuration sourced before interactive setup.\n";
     output
         << "  ~/.cjshrc           Interactive configuration (aliases, prompt/editor settings).\n";
     output << "  ~/.cjlogout         Optional logout script sourced on exit.\n";
