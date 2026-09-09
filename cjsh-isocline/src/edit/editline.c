@@ -1949,8 +1949,6 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     const ssize_t previous_visible_cursor_row = edit_view_cursor_row(eb);
     term_start_of_line(env->term);
     term_up(env->term, previous_visible_cursor_row);
-    // term_clear_lines_to_end(env->term);  // gives flicker in old Windows cmd
-    // prompt
 
     // Render the input viewport and then any helper/menu rows. These regions are intentionally
     // non-contiguous in the logical layout when input rows above or below the cursor are hidden.
@@ -4022,6 +4020,10 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     }
 
     term_set_track_output(env->term, false);
+
+    // Initialize unused rows with the default background before drawing a new prompt.
+    term_attr_reset(env->term);
+    term_clear_lines_to_end(env->term);
 
     if (!env->bracketed_paste_enabled && env->term != NULL && term_is_interactive(env->term)) {
         term_write(env->term, "\x1b[?2004h");
