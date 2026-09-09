@@ -1140,7 +1140,8 @@
 <li><code>minimal</code>: size-focused release profile</li>
 </ul>
 <h2 id="test">Test</h2>
-<p>Run all shell files and focused C, C++, and Python suites with four workers:</p>
+<p>Use CTest for all automated tests. Run all shell files and focused C, C++, and
+Python suites with four workers from the repository root:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ctest<span class="w"> </span>--preset<span class="w"> </span>release<span class="w"> </span>--parallel<span class="w"> </span><span class="m">4</span>
 </span></code></pre></div>
 <p>Adjust <code>4</code> to control concurrency, or use <code>1</code> for a serial run. Timing and
@@ -1151,10 +1152,13 @@ an additional summary shows the individual tests reported by the selected suites
 with passed, failed, and skipped counts. Scripts that exercise one continuous
 integration scenario count as one test. Suites that stop before reporting results
 are listed separately when their individual counts are unavailable.</p>
-<p>The serial shell and integration harness also remains available, with combined
-individual-test counts:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./tests/run_shell_tests.sh<span class="w"> </span><span class="s2">"build/release/cjsh"</span>
+<p>Run one shell file by its CTest name, using the filename without <code>.sh</code>:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>ctest<span class="w"> </span>--preset<span class="w"> </span>release<span class="w"> </span>-R<span class="w"> </span><span class="s1">'^shell\.test_alias$'</span>
 </span></code></pre></div>
+<p>Repeat failed suites with <code>ctest --preset release --rerun-failed --output-on-failure</code>.
+For a custom build directory, use <code>ctest --test-dir build --parallel 4 --output-on-failure</code>,
+replacing <code>build</code> with your configured directory. CTest selects its built <code>cjsh</code>
+binary automatically.</p>
 <p>If you are changing parser behavior, runtime execution, job control, or interactive input handling, also build and test the <code>debug</code> preset.</p>
 <h2 id="work-on-docs">Work On Docs</h2>
 <p>Documentation contributions are always useful, especially when they clarify behavior, explain configuration, or document new builtins and options.</p>

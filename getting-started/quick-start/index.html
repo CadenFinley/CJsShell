@@ -1166,6 +1166,7 @@
 <li>A C compiler and C++ compiler (for example GCC or clang)</li>
 <li>CMake 3.25 or newer</li>
 <li>Ninja (the configured CMake presets use the Ninja generator)</li>
+<li>Python 3 to include the Python test suites when building from source</li>
 </ul>
 <p>cjsh vendors its line editor dependency (<code>cjsh-isocline</code>) in this repository, so you do not need to install a separate shell framework or plugin stack.</p>
 <h2 id="installation">Installation</h2>
@@ -1202,7 +1203,12 @@
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="c1"># Compile using all available cores</span>
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span>cmake<span class="w"> </span>--build<span class="w"> </span>--preset<span class="w"> </span>release<span class="w"> </span>--parallel
 </span></code></pre></div>
-<p>After building, the <code>cjsh</code> executable will be in <code>build/release/</code>. You can run it directly with <code>./build/release/cjsh</code></p>
+<p>After building, the <code>cjsh</code> executable will be in <code>build/release/</code>. You can run it directly with <code>./build/release/cjsh</code>.</p>
+<p>Run the automated tests through CTest from the repository root:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>ctest<span class="w"> </span>--preset<span class="w"> </span>release<span class="w"> </span>--parallel<span class="w"> </span><span class="m">4</span>
+</span></code></pre></div>
+<p>See the <a href="../development/#test">development testing guide</a> for selecting suites,
+serial runs, and individual-test counts.</p>
 <h2 id="build-info">Build info</h2>
 <p>By default the commands above produce an optimized Release build.</p>
 <ul>
