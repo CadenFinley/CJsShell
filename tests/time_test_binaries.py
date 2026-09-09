@@ -41,11 +41,11 @@ RUNS = 100
 
 SHELL_COMMANDS = {
     "posix": {
-        "loop": "-c 'for i in {1..5000}; do echo $i; done'",
-        "loop_even": "-c 'for i in {1..5000}; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; done'",
+        "loop": "-c 'i=1; while [ $i -le 5000 ]; do echo $i; i=$((i+1)); done'",
+        "loop_even": "-c 'i=1; while [ $i -le 5000 ]; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; i=$((i+1)); done'",
         "prime_sieve": '-c \'MAX=100; primes=""; i=2; while [ $i -le $MAX ]; do is_prime=1; for p in $primes; do if [ $((p*p)) -gt $i ]; then break; fi; if [ $((i % p)) -eq 0 ]; then is_prime=0; break; fi; done; if [ $is_prime -eq 1 ]; then echo $i; primes="$primes $i"; fi; i=$((i+1)); done\'',
-        "branching": "-c 'count=0; for i in {1..2000}; do if [ $((i % 15)) -eq 0 ]; then count=$((count+1)); elif [ $((i % 3)) -eq 0 ]; then :; elif [ $((i % 5)) -eq 0 ]; then :; fi; done; echo $count'",
-        "function_calls": '-c \'sum(){ out=0; for n in "$@"; do out=$((out+n)); done; echo "$out"; }; for i in {1..400}; do sum 1 2 3 4 5 >/dev/null; done\'',
+        "branching": "-c 'count=0; i=1; while [ $i -le 2000 ]; do if [ $((i % 15)) -eq 0 ]; then count=$((count+1)); elif [ $((i % 3)) -eq 0 ]; then :; elif [ $((i % 5)) -eq 0 ]; then :; fi; i=$((i+1)); done; echo $count'",
+        "function_calls": '-c \'sum(){ out=0; for n in "$@"; do out=$((out+n)); done; echo "$out"; }; i=1; while [ $i -le 400 ]; do sum 1 2 3 4 5 >/dev/null; i=$((i+1)); done\'',
         "subshell_traversal": '-c \'for dir in /bin /usr/bin /usr/sbin; do if [ -d "$dir" ]; then (cd "$dir" && ls >/dev/null); fi; done\'',
     },
     "fish": {
@@ -64,6 +64,22 @@ SHELL_COMMANDS = {
         "function_calls": "-c 'def sum [values: list<int>] { mut out = 0; for v in $values { $out += $v }; $out }; for _ in 1..400 { sum [1 2 3 4 5] | ignore }'",
         "subshell_traversal": "-c 'for dir in [/bin /usr/bin /usr/sbin] { if ($dir | path exists) { cd $dir; ls | ignore } }'",
     },
+    "elvish": {
+        "loop": "-c \"sh -c 'i=1; while [ $i -le 5000 ]; do echo $i; i=$((i+1)); done'\"",
+        "loop_even": "-c \"sh -c 'i=1; while [ $i -le 5000 ]; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; i=$((i+1)); done'\"",
+        "prime_sieve": "-c \"sh -c 'MAX=100; i=2; while [ $i -le $MAX ]; do is_prime=1; j=2; while [ $((j*j)) -le $i ]; do if [ $((i % j)) -eq 0 ]; then is_prime=0; break; fi; j=$((j+1)); done; if [ $is_prime -eq 1 ]; then echo $i; fi; i=$((i+1)); done'\"",
+        "branching": "-c \"sh -c 'count=0; i=1; while [ $i -le 2000 ]; do if [ $((i % 15)) -eq 0 ]; then count=$((count+1)); elif [ $((i % 3)) -eq 0 ]; then :; elif [ $((i % 5)) -eq 0 ]; then :; fi; i=$((i+1)); done; echo $count'\"",
+        "function_calls": "-c \"sh -c 'sum(){ out=0; for n in $@; do out=$((out+n)); done; echo $out; }; i=1; while [ $i -le 400 ]; do sum 1 2 3 4 5 >/dev/null; i=$((i+1)); done'\"",
+        "subshell_traversal": "-c \"sh -c 'for dir in /bin /usr/bin /usr/sbin; do if [ -d $dir ]; then (cd $dir && ls >/dev/null); fi; done'\"",
+    },
+    "ion": {
+        "loop": "-c \"sh -c 'i=1; while [ $i -le 5000 ]; do echo $i; i=$((i+1)); done'\"",
+        "loop_even": "-c \"sh -c 'i=1; while [ $i -le 5000 ]; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; i=$((i+1)); done'\"",
+        "prime_sieve": "-c \"sh -c 'MAX=100; i=2; while [ $i -le $MAX ]; do is_prime=1; j=2; while [ $((j*j)) -le $i ]; do if [ $((i % j)) -eq 0 ]; then is_prime=0; break; fi; j=$((j+1)); done; if [ $is_prime -eq 1 ]; then echo $i; fi; i=$((i+1)); done'\"",
+        "branching": "-c \"sh -c 'count=0; i=1; while [ $i -le 2000 ]; do if [ $((i % 15)) -eq 0 ]; then count=$((count+1)); elif [ $((i % 3)) -eq 0 ]; then :; elif [ $((i % 5)) -eq 0 ]; then :; fi; i=$((i+1)); done; echo $count'\"",
+        "function_calls": "-c \"sh -c 'sum(){ out=0; for n in $@; do out=$((out+n)); done; echo $out; }; i=1; while [ $i -le 400 ]; do sum 1 2 3 4 5 >/dev/null; i=$((i+1)); done'\"",
+        "subshell_traversal": "-c \"sh -c 'for dir in /bin /usr/bin /usr/sbin; do if [ -d $dir ]; then (cd $dir && ls >/dev/null); fi; done'\"",
+    },
 }
 
 COMMAND_PLAN = [
@@ -80,7 +96,7 @@ COMMAND_PLAN = [
         "description": "Traverse directories using subshells or directory stack",
     },
 ]
-BASELINE_SHELLS = ["cjsh", "bash", "zsh", "fish", "nu", "osh"]
+BASELINE_SHELLS = ["cjsh", "bash", "zsh", "fish", "nu", "osh", "yash", "dash", "elvish", "ion"]
 CJSH_BINARY_TYPES = [""]
 
 ENABLE_BASELINE_TESTS = True
@@ -215,7 +231,7 @@ def run_command_with_timing(shell_cmd: str, command: str) -> RunMetrics:
 
 
 def get_shell_command(shell: str, command_key: str) -> Optional[str]:
-    if shell in ["bash", "zsh", "ksh", "osh"] or shell.startswith("./cjsh"):
+    if shell in ["bash", "zsh", "ksh", "osh", "yash", "dash"] or shell.startswith("./cjsh"):
         return SHELL_COMMANDS["posix"].get(command_key)
     if shell in ["fish", "../fish-shell/build/fish"]:
         return SHELL_COMMANDS["fish"].get(command_key)
