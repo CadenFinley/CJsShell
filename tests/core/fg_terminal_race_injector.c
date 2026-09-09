@@ -40,15 +40,22 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
+#if !defined(__APPLE__)
+#include <sys/syscall.h>
+#endif
+
 static volatile sig_atomic_t injection_fired = 0;
+static pid_t shell_pid = 0;
 
 __attribute__((constructor)) static void prevent_preload_inheritance(void) {
+    shell_pid = getpid();
 #if defined(__APPLE__)
     (void)unsetenv("DYLD_INSERT_LIBRARIES");
 #else
@@ -99,6 +106,37 @@ static void record_injection(const char* path) {
     }
     (void)write(fd, "triggered\n", 10);
     (void)close(fd);
+}
+
+static int injected_setpgid(pid_t pid, pid_t pgid) {
+    const char* mode = getenv("CJSH_TEST_SETPGID_MODE");
+    const char* result_path = getenv("CJSH_TEST_SETPGID_RESULT_FILE");
+    const pid_t target_pid = pid == 0 ? getpid() : pid;
+    const int is_child = getpid() != shell_pid;
+    const int inject = mode != NULL && result_path != NULL && target_pid != shell_pid;
+
+    if (inject && strcmp(mode, "denied") == 0) {
+        // Keep the child in the inherited group, regardless of which side runs first.
+        if (!is_child) {
+            return 0;
+        }
+        record_injection(result_path);
+        errno = EPERM;
+        return -1;
+    }
+
+#if defined(__APPLE__)
+    const int result = setpgid(pid, pgid);
+#else
+    const int result = (int)syscall(SYS_setpgid, pid, pgid);
+#endif
+    if (inject && is_child && strcmp(mode, "already-grouped") == 0 && result == 0) {
+        // Reproduce EPERM after the parent's/child's requested group is established.
+        record_injection(result_path);
+        errno = EPERM;
+        return -1;
+    }
+    return result;
 }
 
 static int injected_tcsetpgrp(int fd, pid_t pgrp) {
@@ -156,7 +194,12 @@ static pid_t injected_waitpid(pid_t pid, int* status, int options) {
 
 DYLD_INTERPOSE(injected_tcsetpgrp, tcsetpgrp)
 DYLD_INTERPOSE(injected_waitpid, waitpid)
+DYLD_INTERPOSE(injected_setpgid, setpgid)
 #else
+int setpgid(pid_t pid, pid_t pgid) {
+    return injected_setpgid(pid, pgid);
+}
+
 int tcsetpgrp(int fd, pid_t pgrp) {
     return injected_tcsetpgrp(fd, pgrp);
 }

@@ -106,6 +106,22 @@ pid_t fork_command_child() {
     return pid;
 }
 
+int set_process_group(pid_t pid, pid_t pgid) {
+    if (setpgid(pid, pgid) == 0) {
+        return 0;
+    }
+
+    const int saved_errno = errno;
+    // Parent and child both establish the job's group. On macOS their concurrent
+    // calls can report EPERM even though the requested group is already in place.
+    const pid_t target_pgid = pgid == 0 ? (pid == 0 ? getpid() : pid) : pgid;
+    if (saved_errno == EPERM && getpgid(pid) == target_pgid) {
+        return 0;
+    }
+    errno = saved_errno;
+    return -1;
+}
+
 std::string join_arguments(const std::vector<std::string>& args) {
     return string_utils::join_strings(args, " ");
 }
@@ -1362,7 +1378,7 @@ int Exec::execute_prepared_command_sync(cjsh_env::PreparedCommand command,
         cjsh_env::apply_env_assignments(env_assignments);
 
         pid_t child_pid = getpid();
-        if (monitor_mode && setpgid(child_pid, child_pid) < 0) {
+        if (monitor_mode && set_process_group(child_pid, child_pid) < 0) {
             child_exit_with_error(
                 ErrorType::RUNTIME_ERROR, cmd_args_value.empty() ? "command" : cmd_args_value[0],
                 std::string("setpgid: failed to set process group ID in child: ") +
@@ -1400,7 +1416,7 @@ int Exec::execute_prepared_command_sync(cjsh_env::PreparedCommand command,
     }
 
     cjsh_filesystem::safe_close(launch_barrier[0]);
-    if (monitor_mode && setpgid(pid, pid) < 0) {
+    if (monitor_mode && set_process_group(pid, pid) < 0) {
         warn_parent_setpgid_failure();
     }
 
@@ -1496,7 +1512,7 @@ int Exec::execute_prepared_command_async(cjsh_env::PreparedCommand command) {
     if (pid == 0) {
         cjsh_env::apply_env_assignments(env_assignments);
 
-        if (monitor_mode && setpgid(0, 0) < 0) {
+        if (monitor_mode && set_process_group(0, 0) < 0) {
             child_exit_with_error(
                 ErrorType::RUNTIME_ERROR, cmd_args_value.empty() ? "command" : cmd_args_value[0],
                 std::string("setpgid: failed to set process group ID in background child: ") +
@@ -1518,7 +1534,7 @@ int Exec::execute_prepared_command_async(cjsh_env::PreparedCommand command) {
 
         exec_builtin_or_external_child(cmd_args_value, is_builtin, cached_exec_path);
     } else {
-        if (monitor_mode && setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
+        if (monitor_mode && set_process_group(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
             set_error(ErrorType::RUNTIME_ERROR, "setpgid",
                       "failed to set process group ID for background process: " +
                           std::string(strerror(errno)));
@@ -1727,7 +1743,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 cjsh_env::apply_env_assignments(env_assignments);
             }
             pid_t child_pid = getpid();
-            if (monitor_mode && setpgid(child_pid, child_pid) < 0) {
+            if (monitor_mode && set_process_group(child_pid, child_pid) < 0) {
                 child_exit_with_error(
                     ErrorType::RUNTIME_ERROR, command_name,
                     std::string("setpgid: failed to set process group ID in child: ") +
@@ -1958,7 +1974,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             return finalize_exit(exit_code);
         }
 
-        if (setpgid(pid, pid) < 0) {
+        if (set_process_group(pid, pid) < 0) {
             warn_parent_setpgid_failure();
         }
         Job job = make_single_process_job(pid, cmd.args[0], false, cmd.auto_background_on_stop,
@@ -2109,7 +2125,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     pgid = getpid();
                 }
 
-                if (monitor_mode && setpgid(0, pgid) < 0) {
+                if (monitor_mode && set_process_group(0, pgid) < 0) {
                     const int saved_errno = errno;
                     child_error(ErrorType::RUNTIME_ERROR, "failed to set process group in child: " +
                                                               std::string(strerror(saved_errno)));
@@ -2299,7 +2315,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 pgid = pid;
             }
 
-            if (monitor_mode && setpgid(pid, pgid) < 0) {
+            if (monitor_mode && set_process_group(pid, pgid) < 0) {
                 if (errno != EACCES && errno != EPERM) {
                     set_error(ErrorType::RUNTIME_ERROR, "setpgid",
                               "failed to set process group ID in pipeline parent: " +

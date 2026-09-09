@@ -255,6 +255,13 @@ if(Python3_Interpreter_FOUND)
 
     if(TARGET fg_terminal_race_injector)
         cjsh_add_test(
+            NAME process_group_launch_tests
+            COMMAND
+                "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/core/test_process_group_launch.py"
+                $<TARGET_FILE:cjsh> $<TARGET_FILE:fg_terminal_race_injector>
+        )
+        cjsh_add_test(
             NAME function_pipeline_job_control_tests
             COMMAND
                 "${Python3_EXECUTABLE}"
