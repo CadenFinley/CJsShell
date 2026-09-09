@@ -1,6 +1,28 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.4.15`.
+This changelog documents tagged releases from `v1.1.2` through `v1.5.0`.
+
+## 1.5.0 - 2026-09-09
+
+Range: `v1.4.15..HEAD` (24 commits, 156 files changed)
+
+### Changed
+
+- Removed the internal `--startup-test` shell flag and dropped `cjshopt login-startup-arg`, simplifying startup option handling and related documentation/completions.
+- Replaced the legacy `tests/run_shell_tests.sh` flow with CTest-first test execution across developer docs and CI helper scripts.
+- Applied broad performance and cleanup passes across startup, history loading, parser/interpreter paths, completion, and isocline rendering.
+
+### Fixed
+
+- Fixed startup hangs triggered by special files and orphaned process groups during startup policy handling.
+- Fixed command-palette action execution so the menu is dismissed and redrawn before the action runs, preventing stale UI artifacts on terminal resumes.
+- Fixed spurious process-group launch failures on macOS foreground command paths.
+
+### Internal and Tests
+
+- Added and expanded regression coverage for startup interruption policy, terminal selection/recovery, process-group launch races, and command-palette/menu cleanup scenarios in PTY drivers.
+- Improved musl CI token-validation stability and aligned release/developer documentation with the CTest workflow.
+- Finalized 1.5.0 as a stable release by clearing the default pre-release build marker.
 
 ## 1.4.15 - 2026-09-08
 
