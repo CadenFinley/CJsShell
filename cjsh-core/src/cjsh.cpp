@@ -126,38 +126,33 @@ void cleanup_resources() {
 }
 
 void initialize_shell(int argc, char* argv[], const flags::ParseResult& parse_result) {
-    if (config::config_directory.empty()) {
-        if (const char* root = std::getenv("CJSH_CONFIG_HOME"); root && root[0] != '\0') {
-            config::config_directory = root;
-        }
-    }
-
     // Register before construction to cover exit() calls during initialization.
-    if (std::atexit(cleanup_resources) != 0) {
+    if (std::atexit(cleanup_resources) != 0)
         print_error({ErrorType::RUNTIME_ERROR,
                      "",
                      "failed to set exit handler",
                      {"resource cleanup may not occur properly"}});
-    }
 
     g_shell = std::make_unique<Shell>();
     g_shell->apply_no_exec(config::no_exec);
     g_shell->set_interactive_mode(config::interactive_mode);
-    if (config::interactive_mode) {
+    if (config::interactive_mode)
         g_shell->setup_interactive_handlers();
-    }
 
-    if (!parse_result.script_args.empty()) {
+    if (!parse_result.script_args.empty())
         flags::set_positional_parameters(parse_result.script_args);
-    }
 
     cjsh_env::setup_environment_variables(argv[0]);
     flags::save_startup_arguments(argc, argv);
     cjsh_env::sync_env_vars_from_system(*g_shell);
-    if (!config::config_directory.empty()) {
+
+    if (const char* root = std::getenv("CJSH_CONFIG_HOME");
+        root && root[0] != '\0' && config::config_directory.empty())
+        config::config_directory = root;
+
+    if (!config::config_directory.empty())
         config::config_directory =
             cjsh_filesystem::normalize_override_path(config::config_directory).string();
-    }
 
     // Startup files see the same invocation identity and arguments as the body.
     if (!parse_result.script_file.empty()) {
@@ -165,13 +160,14 @@ void initialize_shell(int argc, char* argv[], const flags::ParseResult& parse_re
         (void)cjsh_env::set_shell_variable_value("0", parse_result.script_file);
     }
 
+    if (!config::login_mode || !config::interactive_mode)
+        return;
+
     // Keep inherited descriptors usable by builtins while preventing accidental inheritance
     // by external commands in interactive login sessions. Match Bash's 3-19 range, after
     // account lookup and before startup files can explicitly open descriptors for children.
-    if (config::login_mode && config::interactive_mode) {
-        for (int fd = STDERR_FILENO + 1; fd < 20; ++fd) {
-            (void)cjsh_filesystem::set_close_on_exec(fd);
-        }
+    for (int fd = STDERR_FILENO + 1; fd < 20; ++fd) {
+        (void)cjsh_filesystem::set_close_on_exec(fd);
     }
 }
 
@@ -219,15 +215,17 @@ int run_interactive_session(const std::string& script_file, bool launched_as_sh)
     prompt::initialize_colors();
     (void)cjsh_env::update_terminal_dimensions();
 
+    cjsh_filesystem::process_source_files();
+
     if (!cjsh_env::exit_requested()) {
-        cjsh_filesystem::process_source_files();
         cjsh_filesystem::initialize_history_storage();
     }
     cjsh_filesystem::finalize_history_path();
 
     // Interactive startup is independent of the input source. A supplied command or
     // script still finishes after its body, including when stdin is a terminal.
-    if (config::execute_command || !script_file.empty() || isatty(STDIN_FILENO) == 0) {
+    if ((config::execute_command || !script_file.empty() || isatty(STDIN_FILENO) == 0) &&
+        !cjsh_env::exit_requested()) {
         (void)g_shell->process_pending_signals();
         return run_command_or_script(script_file, SignalHandler::startup_interrupted());
     }
@@ -273,6 +271,10 @@ int run_cjsh(int argc, char* argv[]) {
 
     initialize_shell(argc, argv, parse_result);
     process_startup_files();
+
+    if (cjsh_env::exit_requested()) {
+        return read_exit_code_or(0);
+    }
 
     if (config::interactive_mode) {
         return run_interactive_session(parse_result.script_file, launched_as_sh);
