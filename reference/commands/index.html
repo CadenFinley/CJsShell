@@ -3039,7 +3039,7 @@ without printing a literal newline).</p>
 - <code>completion-click-accept</code> - Configure whether click interactions accept completion candidates
 - <code>menu-highlighting</code> - Syntax-highlight completion and history menu items
 - <code>visible-whitespace</code> - Toggle visible whitespace characters in the editor
-- <code>line-wrap-marker</code> - Toggle the symbol at wrapped line ends
+- <code>line-wrap-marker</code> - Customize the character at wrapped line ends
 - <code>hint</code> - Configure inline hints
 - <code>multiline-indent</code> - Configure auto-indent in multiline input
 - <code>multiline</code> - Configure multiline input mode
@@ -3358,15 +3358,21 @@ the current selection. Add the command to <code>~/.cjshrc</code> to persist the 
 </span></code></pre></div>
 <p>Add the command to <code>~/.cjshrc</code> to keep the preference across sessions. Synonyms like <code>enable</code>, <code>disable</code>, <code>true</code>, and <code>false</code> are accepted.</p>
 <h4 id="line-wrap-marker">line-wrap-marker</h4>
-<p>Show or hide the <code>↵</code> (macOS) or <code>←</code> (other UTF-8 terminals) symbol at the end of
-wrapped editor rows. Enabled by default.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-112-1"><a id="__codelineno-112-1" name="__codelineno-112-1" href="#__codelineno-112-1"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span>off<span class="w">     </span><span class="c1"># Hide the wrap marker</span>
-</span><span id="__span-112-2"><a id="__codelineno-112-2" name="__codelineno-112-2" href="#__codelineno-112-2"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span>on<span class="w">      </span><span class="c1"># Show the wrap marker (default)</span>
-</span><span id="__span-112-3"><a id="__codelineno-112-3" name="__codelineno-112-3" href="#__codelineno-112-3"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span>status<span class="w">  </span><span class="c1"># Show the current setting</span>
+<p>Set the character at the end of wrapped editor rows. The default is <code>↵</code> on macOS
+or <code>←</code> on other UTF-8 terminals. Use one printable Unicode character, or an empty
+string to hide the marker.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-112-1"><a id="__codelineno-112-1" name="__codelineno-112-1" href="#__codelineno-112-1"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span><span class="s1">'↪'</span><span class="w">     </span><span class="c1"># Use a custom wrap marker</span>
+</span><span id="__span-112-2"><a id="__codelineno-112-2" name="__codelineno-112-2" href="#__codelineno-112-2"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span><span class="s1">''</span><span class="w">      </span><span class="c1"># Hide the wrap marker</span>
+</span><span id="__span-112-3"><a id="__codelineno-112-3" name="__codelineno-112-3" href="#__codelineno-112-3"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span>status<span class="w">  </span><span class="c1"># Show the current marker</span>
 </span></code></pre></div>
-<p>This controls only the visible symbol. Input still wraps, and Enter still moves
-output onto the next line. Add the command to <code>~/.cjshrc</code> to persist the preference.
-The standard toggle synonyms such as <code>enable</code>, <code>disable</code>, <code>true</code>, and <code>false</code> are accepted.</p>
+<p>The marker reserves its display width (one or two columns). Disabling it lets
+input use the full terminal width before wrapping. Enter still moves output onto
+the next line. Multi-character strings, control characters, and zero-width
+characters are rejected. ASCII markers also work on non-UTF-8 terminals.
+Add the command to <code>~/.cjshrc</code> to persist the preference.</p>
+<p>This replaces the old toggle syntax: use <code>''</code> instead of <code>off</code>, and set a character
+instead of <code>on</code>. Toggle words such as <code>enable</code>, <code>disable</code>, <code>true</code>, and <code>false</code> are
+no longer accepted; <code>0</code> and <code>1</code> are literal marker characters.</p>
 <h4 id="hint">hint</h4>
 <p>Enable, disable, or inspect inline hints that appear as you type commands. Hints can include suggestions, command completions, and other helpful information.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-113-1"><a id="__codelineno-113-1" name="__codelineno-113-1" href="#__codelineno-113-1"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>&lt;on<span class="p">|</span>off<span class="p">|</span>status&gt;

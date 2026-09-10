@@ -1798,15 +1798,22 @@ The line containing the cursor can be highlighted differently:
 <p>Pair this option with custom styling via <code>cjshopt style_def ic-whitespace-char "&lt;style&gt;"</code> to adjust the marker color.</p>
 <h3 id="line-wrap-marker">Line Wrap Marker</h3>
 <p>Long lines display a <code>↵</code> marker on macOS or <code>←</code> on other UTF-8 terminals where they
-wrap onto another screen row. The marker is enabled by default.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span>off<span class="w">     </span><span class="c1"># Hide the wrap marker</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span>on<span class="w">      </span><span class="c1"># Show the wrap marker (default)</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span>status<span class="w">  </span><span class="c1"># Show the current setting</span>
+wrap onto another screen row by default. Customize it with one printable Unicode
+character, or use an empty string to hide it.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span><span class="s1">'↪'</span><span class="w">     </span><span class="c1"># Use a custom wrap marker</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span><span class="s1">''</span><span class="w">      </span><span class="c1"># Hide the wrap marker</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>cjshopt<span class="w"> </span>line-wrap-marker<span class="w"> </span>status<span class="w">  </span><span class="c1"># Show the current marker</span>
 </span></code></pre></div>
-<p>Add the command to <code>~/.cjshrc</code> to persist the preference. Hiding the marker keeps
-line wrapping and the newline after pressing Enter unchanged.</p>
-<p>The isocline API exposes this setting through <code>ic_enable_line_wrap_marker(bool)</code>
-and <code>ic_line_wrap_marker_is_enabled()</code>.</p>
+<p>Add the command to <code>~/.cjshrc</code> to persist the preference. The marker reserves its
+display width, including two columns for a wide character. An empty marker lets
+input use the full terminal width. Input contents and the newline after pressing
+Enter are unchanged. Multi-character strings, control characters, and zero-width
+characters are rejected. ASCII markers also work on non-UTF-8 terminals.</p>
+<p>The isocline API exposes <code>ic_set_line_wrap_marker(const char*)</code> and
+<code>ic_get_line_wrap_marker()</code>. The setter copies the string and returns <code>false</code>
+without changing the marker for invalid input. Pass <code>""</code> to disable the marker or
+<code>NULL</code> to restore the platform default. These replace the previous boolean API;
+the shell command no longer accepts <code>on</code>, <code>off</code>, or other toggle words.</p>
 <h3 id="syntax-highlighting">Syntax Highlighting</h3>
 <p>Real-time syntax highlighting provides visual feedback as you type.</p>
 <p><strong>Highlighted Elements:</strong>
