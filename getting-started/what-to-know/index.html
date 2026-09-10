@@ -1693,8 +1693,9 @@ startup finishes, the selected path stays fixed for the editor and history comma
 <code>ENV</code>, and system PATH setup. Explicit <code>source</code>/<code>.</code> commands still work. UI
 features, hooks defined by commands, and history preferences keep their normal behavior.
 <code>--no-source</code> (<code>-N</code>) retains its narrower meaning: skip the native interactive rc file.
-<code>--minimal</code> (<code>-m</code>) retains its feature-reduction scope and still reads native env/profile
-files. <code>--secure</code> (<code>-s</code>) skips automatic configuration and disables history and smart cd.</p>
+<code>--minimal</code> (<code>-m</code>) retains its feature-reduction scope, follows the normal system PATH
+setup rules, and still reads native env/profile files. <code>--secure</code> (<code>-s</code>) skips automatic
+configuration and disables history and smart cd.</p>
 <p>For <code>--posix</code> and invocation as <code>sh</code>, login startup reads <code>/etc/profile</code>, then
 <code>$HOME/.profile</code>, then (only when interactive) the file named by <code>ENV</code>. Non-login
 interactive shells read only <code>ENV</code>; ordinary scripts do not read it. Native startup
@@ -1731,7 +1732,7 @@ expanded. Missing or unreadable files and non-file entries are skipped.</p>
 systems without <code>/etc/paths</code> or <code>/etc/paths.d</code>. Startup files can then override PATH.
 <code>MANPATH</code> is preserved, including empty and absent values.</p>
 <p>Pass <code>--no-system-paths</code> to disable this setup and preserve the inherited PATH exactly,
-including an empty or absent value. POSIX, minimal, secure, syntax-only, and <code>--no-config</code>
+including an empty or absent value. POSIX, secure, syntax-only, and <code>--no-config</code>
 invocations also skip it. These startup-only options (<code>--no-system-paths</code>, <code>--config-dir</code>,
 <code>--no-config</code>) are invocation-only; select them in your launcher. The former <code>--login-path</code> flag has been removed. Remove it from existing launch
 commands to use the default setup. For reproducible scripts, supply PATH explicitly and
