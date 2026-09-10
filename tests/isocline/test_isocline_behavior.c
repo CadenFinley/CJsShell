@@ -1262,6 +1262,30 @@ static bool test_line_wrapping_calculations(void) {
     EXPECT_TRUE(resized_rows == 3 && rc.row == 2 && rc.col == 4,
                 "resize should count full-width rows without adding a hidden marker");
 
+    const struct {
+        const char* input;
+        ssize_t rows;
+        ssize_t row;
+        ssize_t col;
+    } marker_cases[] = {
+        {"1234567", 1, 0, 7},       {"12345678", 2, 1, 1},        {"1234567\nx", 2, 1, 1},
+        {"1234567abcdef", 2, 1, 6}, {"1234567abcdefg", 3, 2, 1},  {"12345界", 1, 0, 7},
+        {"123456界", 2, 1, 2},      {"123456e\xCC\x81", 1, 0, 7},
+    };
+    for (size_t i = 0; i < sizeof(marker_cases) / sizeof(marker_cases[0]); i++) {
+        sbuf_replace(sb, marker_cases[i].input);
+        ssize_t rows = sbuf_get_rc_at_pos(sb, 10, 2, 3, true, sbuf_len(sb), &rc);
+        EXPECT_TRUE(rows == marker_cases[i].rows,
+                    "visible marker should reserve only its single column");
+        EXPECT_TRUE(rc.row == marker_cases[i].row && rc.col == marker_cases[i].col,
+                    "cursor should use the column immediately before a visible wrap marker");
+    }
+
+    sbuf_replace(sb, "1234567x");
+    resized_rows = sbuf_get_wrapped_rc_at_pos(sb, 10, 10, 2, 3, true, sbuf_len(sb), &rc);
+    EXPECT_TRUE(resized_rows == 2 && rc.row == 1 && rc.col == 4,
+                "a marker in the final column should not count as a hard wrap");
+
     sbuf_free(sb);
     return true;
 }

@@ -730,13 +730,13 @@ static int run_case(const char* scenario) {
         (void)ic_enable_multiline(true);
         (void)ic_enable_line_numbers(false);
         if (strncmp(scenario, "line_wrap_marker_off", 20) == 0 ||
-            strcmp(scenario, "line_wrap_marker_on") == 0) {
+            strncmp(scenario, "line_wrap_marker_on", 19) == 0) {
             (void)ic_enable_line_wrap_marker(false);
         }
-        if (strcmp(scenario, "line_wrap_marker_on") == 0) {
+        if (strncmp(scenario, "line_wrap_marker_on", 19) == 0) {
             (void)ic_enable_line_wrap_marker(true);
         }
-        if (strcmp(scenario, "line_wrap_marker_off_boundary") == 0) {
+        if (strstr(scenario, "_boundary") != NULL) {
             initial_input = "";
             inline_right_text = "right";
         }

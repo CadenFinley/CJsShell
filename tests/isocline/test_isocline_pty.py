@@ -1210,7 +1210,7 @@ def assert_line_wrap_marker(binary: str) -> None:
         marker = "↵" if IS_DARWIN else "←"
         if (marker in output) != (mode != "off"):
             raise AssertionError(f"{scenario}: unexpected wrap marker visibility: {output!r}")
-        first_row = "pty> abcdefghijklmno\n" if mode == "off" else f"pty> abcdefghijklm{marker}\n"
+        first_row = "pty> abcdefghijklmno\n" if mode == "off" else f"pty> abcdefghijklmn{marker}\n"
         if first_row not in normalize_terminal_output(output):
             raise AssertionError(f"{scenario}: incorrect wrap boundary: {output!r}")
 
@@ -1224,6 +1224,41 @@ def assert_line_wrap_marker(binary: str) -> None:
                     f"got {(screen, position)!r}; output={output!r}"
                 )
         return check
+
+    marker = "↵" if IS_DARWIN else "←"
+    result = run_resize_case(
+        binary, "line_wrap_marker_on_boundary",
+        [
+            ("send", b"abcdefghijklmn"),
+            ("idle", 0.1),
+            ("check", expect_screen(["pty> abcdefghijklmn"], (0, 19))),
+            ("send", b"o"),
+            ("idle", 0.1),
+            ("check", expect_screen([f"pty> abcdefghijklmn{marker}", "   > o"], (1, 6))),
+            ("send", LEFT),
+            ("idle", 0.1),
+            ("check", expect_screen([f"pty> abcdefghijklmn{marker}", "   > o"], (1, 5))),
+            ("send", b"\x7f"),
+            ("idle", 0.1),
+            ("check", expect_screen(["pty> abcdefghijklmo"], (0, 18))),
+            ("send", b"n" + RIGHT + b"\np"),
+            ("idle", 0.1),
+            ("check", expect_screen(
+                [f"pty> abcdefghijklmn{marker}", "   > o", "   > p"], (2, 6)
+            )),
+            ("resize", 24),
+            ("idle", 0.1),
+            ("resize", 20),
+            ("idle", 0.1),
+            ("check", expect_screen(
+                [f"pty> abcdefghijklmn{marker}", "   > o", "   > p"], (2, 6)
+            )),
+            ("send", b"\r"),
+        ],
+        initial_rows=8, initial_cols=20,
+    )
+    if result != "abcdefghijklmno\np":
+        raise AssertionError(f"single-column marker changed input: {result!r}")
 
     result = run_resize_case(
         binary, "line_wrap_marker_off_boundary",

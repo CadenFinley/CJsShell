@@ -409,9 +409,9 @@ static ssize_t str_for_each_row(const char* s, ssize_t len, ssize_t termw, ssize
             break;
         }
         startw = (rcount == 0 ? promptw : cpromptw);
-        // Visible markers need their column and room for the cursor. Without a marker,
-        // text can fill the final column; its following cursor belongs on the next row.
-        ssize_t termcol = rcol + w + startw + (wrap_marker ? 2 : 0);
+        // Reserve only the marker's column. Without a marker, text can fill the final
+        // column and its following cursor belongs on the next row.
+        ssize_t termcol = rcol + w + startw + (wrap_marker ? 1 : 0);
         if (termw > 0 && i != 0 && termcol > termw && (wrap_marker || w > 0)) {
             // wrap
             if (fun != NULL) {
@@ -534,10 +534,9 @@ static bool str_get_current_wrapped_pos_iter(const char* s, ssize_t row, ssize_t
         if (i < row_len) {
             next = str_next_ofs(s + row_start, row_len, i, &cw);
         } else {
-            // end of row: take wrap or cursor into account
-            // (wrap has width 2 as it displays a back-arrow but also has an
-            // invisible newline that wraps)
-            cw = (is_wrap ? (warg->wrap_marker ? 2 : 0) : (is_cursor ? 1 : 0));
+            // The marker or end-of-input cursor occupies one column. The explicit
+            // newline after a wrapped row does not consume another column.
+            cw = (is_wrap ? (warg->wrap_marker ? 1 : 0) : (is_cursor ? 1 : 0));
             next = 1;
         }
 

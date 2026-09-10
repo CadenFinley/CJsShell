@@ -1675,10 +1675,15 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         if (info->env->inline_right_prompt_follows_cursor && info->cursor_row >= 0) {
             inline_right_row = info->cursor_row;
         }
+        const bool has_following_row = (row < info->last_row || info->has_following_row);
+        const bool show_wrap_marker =
+            (has_following_row && is_wrap && info->env->show_line_wrap_marker &&
+             tty_is_utf8(info->env->tty));
         // A terminal with delayed wrapping keeps its cursor on the last cell of a full
-        // row. Erasing from there would erase the last input character too.
+        // row. Erasing from there would erase the last input character or wrap marker.
         const bool row_fills_terminal =
-            (startw + str_column_width_n(s + row_start, row_len) >= info->eb->termw);
+            (startw + str_column_width_n(s + row_start, row_len) + (show_wrap_marker ? 1 : 0) >=
+             info->eb->termw);
         const bool should_attempt_inline_right =
             (!info->in_extra && info->eb->inline_right_text != NULL && row == inline_right_row &&
              !row_fills_terminal);
@@ -1688,8 +1693,8 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         }
 
         // write line ending
-        if (row < info->last_row || info->has_following_row) {
-            if (is_wrap && info->env->show_line_wrap_marker && tty_is_utf8(info->env->tty)) {
+        if (has_following_row) {
+            if (show_wrap_marker) {
                 ic_term_mark_prompt_start(info->env, true);
 #ifndef __APPLE__
                 bbcode_print(info->env->bbcode,

@@ -366,8 +366,7 @@ static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, s
         // Keep the beginning (and prompt) visible instead of scrolling to the end of a tall
         // replacement. Only the temporary preview is shortened; acceptance applies the full text.
         // Leave room for the dots and cursor so the shortened preview stays on this row.
-        ssize_t last_columns = eb->termw - (max_preview_rows == 1 ? promptw : cpromptw) -
-                               (env->show_line_wrap_marker ? 2 : 1) - 3;
+        ssize_t last_columns = eb->termw - (max_preview_rows == 1 ? promptw : cpromptw) - 4;
         if (last_columns < 0) {
             last_columns = 0;
         }
