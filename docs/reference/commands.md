@@ -790,6 +790,7 @@ Available subcommands:
 - `completion-click-accept` - Configure whether click interactions accept completion candidates
 - `menu-highlighting` - Syntax-highlight completion and history menu items
 - `visible-whitespace` - Toggle visible whitespace characters in the editor
+- `line-wrap-marker` - Toggle the symbol at wrapped line ends
 - `hint` - Configure inline hints
 - `multiline-indent` - Configure auto-indent in multiline input
 - `multiline` - Configure multiline input mode
@@ -1291,6 +1292,21 @@ cjshopt visible-whitespace status  # Show the current setting
 ```
 
 Add the command to `~/.cjshrc` to keep the preference across sessions. Synonyms like `enable`, `disable`, `true`, and `false` are accepted.
+
+#### line-wrap-marker
+
+Show or hide the `↵` (macOS) or `←` (other UTF-8 terminals) symbol at the end of
+wrapped editor rows. Enabled by default.
+
+```bash
+cjshopt line-wrap-marker off     # Hide the wrap marker
+cjshopt line-wrap-marker on      # Show the wrap marker (default)
+cjshopt line-wrap-marker status  # Show the current setting
+```
+
+This controls only the visible symbol. Input still wraps, and Enter still moves
+output onto the next line. Add the command to `~/.cjshrc` to persist the preference.
+The standard toggle synonyms such as `enable`, `disable`, `true`, and `false` are accepted.
 
 #### hint
 

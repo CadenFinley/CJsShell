@@ -71,6 +71,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     CompletionClickAccept,
     MenuHighlighting,
     VisibleWhitespace,
+    LineWrapMarker,
     Hint,
     MultilineIndent,
     Multiline,
@@ -140,6 +141,7 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
           completion_click_accept_command},
          {CjshoptSubcommand::MenuHighlighting, "menu-highlighting", menu_highlighting_command},
          {CjshoptSubcommand::VisibleWhitespace, "visible-whitespace", visible_whitespace_command},
+         {CjshoptSubcommand::LineWrapMarker, "line-wrap-marker", line_wrap_marker_command},
          {CjshoptSubcommand::Hint, "hint", hint_command},
          {CjshoptSubcommand::MultilineIndent, "multiline-indent", multiline_indent_command},
          {CjshoptSubcommand::Multiline, "multiline", multiline_command},
@@ -230,6 +232,8 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "completion and history menu items (default: none)",
         std::string("  visible-whitespace <on|off|status> Configure visible whitespace ") +
             "characters (default: disabled)",
+        std::string("  line-wrap-marker <on|off|status> Show a symbol at wrapped line ends ") +
+            "(default: enabled)",
         "  hint <on|off|status>            Configure inline hints (default: enabled)",
         std::string("  multiline-indent <on|off|status> Configure auto-indent in multiline ") +
             "(default: enabled)",

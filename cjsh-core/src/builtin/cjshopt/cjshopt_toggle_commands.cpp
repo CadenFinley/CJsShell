@@ -1252,6 +1252,27 @@ int visible_whitespace_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int line_wrap_marker_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: line-wrap-marker <on|off|status>",
+        "Examples:", "  line-wrap-marker on      Show the symbol at wrapped line ends",
+        "  line-wrap-marker off     Hide the symbol at wrapped line ends",
+        "  line-wrap-marker status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "line-wrap-marker",
+        usage_lines,
+        [] { return ic_line_wrap_marker_is_enabled(); },
+        [](bool enable) { (void)ic_enable_line_wrap_marker(enable); },
+        "Line wrap marker",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int hint_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: hint <on|off|status>", "Examples:", "  hint on      Enable inline hints",

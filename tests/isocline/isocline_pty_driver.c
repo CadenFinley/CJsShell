@@ -724,6 +724,17 @@ static int run_case(const char* scenario) {
             initial_input = "first\nsecond\nthird\nfourth\nfifth\nsixth\nseventh";
             (void)ic_set_multiline_max_line_count(3);
         }
+    } else if (strncmp(scenario, "line_wrap_marker_", 17) == 0) {
+        initial_input = "abcdefghijklmnopqrstuvwxyz0123456789";
+        (void)ic_enable_multiline(true);
+        (void)ic_enable_line_numbers(false);
+        if (strcmp(scenario, "line_wrap_marker_off") == 0 ||
+            strcmp(scenario, "line_wrap_marker_on") == 0) {
+            (void)ic_enable_line_wrap_marker(false);
+        }
+        if (strcmp(scenario, "line_wrap_marker_on") == 0) {
+            (void)ic_enable_line_wrap_marker(true);
+        }
     } else if (strcmp(scenario, "cursor_move_insert") == 0) {
         initial_input = "ab";
     } else if (strcmp(scenario, "home_insert") == 0) {

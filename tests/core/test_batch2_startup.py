@@ -201,6 +201,34 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "Menu content currently shows up to 8 lines.\n")
 
+    def test_line_wrap_marker_command(self):
+        result = self.run_shell("-c", "cjshopt line-wrap-marker status; "
+                                "cjshopt line-wrap-marker off; cjshopt line-wrap-marker status; "
+                                "cjshopt line-wrap-marker on; cjshopt line-wrap-marker --status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertEqual([line for line in result.stdout.splitlines() if "currently" in line], [
+            "Line wrap marker is currently enabled.",
+            "Line wrap marker is currently disabled.",
+            "Line wrap marker is currently enabled.",
+        ])
+        for value in ("", "invalid", "off extra"):
+            with self.subTest(invalid=value):
+                result = self.run_shell("-c", f"cjshopt line-wrap-marker {value}")
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("line-wrap-marker", result.stderr)
+        result = self.run_shell("-c", "cjshopt line-wrap-marker --help")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("line-wrap-marker <on|off|status>", result.stdout)
+
+    def test_line_wrap_marker_from_rc_is_quiet(self):
+        (self.home / ".cjshrc").write_text(
+            "cjshopt line-wrap-marker off\ncjshopt line-wrap-marker status\n")
+        result = self.run_shell("-i", "--no-titleline", "--no-history", "-c",
+                                "cjshopt line-wrap-marker status")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "Line wrap marker is currently disabled.\n")
+
     def test_noexec_sources(self):
         self.trace_files(self.home)
         marker = self.home / "executed"

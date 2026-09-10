@@ -165,6 +165,23 @@ cjshopt visible-whitespace on|off|status
 
 Pair this option with custom styling via `cjshopt style_def ic-whitespace-char "<style>"` to adjust the marker color.
 
+### Line Wrap Marker
+
+Long lines display a `↵` marker on macOS or `←` on other UTF-8 terminals where they
+wrap onto another screen row. The marker is enabled by default.
+
+```bash
+cjshopt line-wrap-marker off     # Hide the wrap marker
+cjshopt line-wrap-marker on      # Show the wrap marker (default)
+cjshopt line-wrap-marker status  # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the preference. Hiding the marker keeps
+line wrapping and the newline after pressing Enter unchanged.
+
+The isocline API exposes this setting through `ic_enable_line_wrap_marker(bool)`
+and `ic_line_wrap_marker_is_enabled()`.
+
 ### Syntax Highlighting
 
 Real-time syntax highlighting provides visual feedback as you type.

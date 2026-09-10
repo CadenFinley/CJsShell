@@ -603,6 +603,9 @@ def run_case(
     if pid == 0:
         # CTest supplies the locally built driver, and scenarios are fixed below.
         # execv receives an argument vector directly; no shell parses these values.
+        if scenario.startswith("line_wrap_marker_"):
+            # Isocline treats the C locale as UTF-8 on every supported platform.
+            os.environ["LC_ALL"] = "C"
         os.execv(binary, [binary, scenario])  # nosemgrep
 
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
@@ -1205,6 +1208,20 @@ def main() -> int:
 
     assert_menu_viewports(binary)
     assert_menu_dismissal(binary)
+
+    for mode in ("default", "off", "on"):
+        scenario = f"line_wrap_marker_{mode}"
+        # Cross soft-wrap boundaries before editing, then insert a real newline.
+        actual, output = run_case(
+            binary, scenario, LEFT * 24 + b"X" + CTRL_END + b"\nnext\r",
+            capture_output=True, initial_cols=20,
+        )
+        expected = "abcdefghijklXmnopqrstuvwxyz0123456789\nnext"
+        if actual != expected:
+            raise AssertionError(f"{scenario}: expected {expected!r}, got {actual!r}")
+        marker = "↵" if IS_DARWIN else "←"
+        if (marker in output) != (mode != "off"):
+            raise AssertionError(f"{scenario}: unexpected wrap marker visibility: {output!r}")
 
     for scenario, keys, expected in [
         ("notification_edit", LEFT + b"\x1b[17~X\r", "aXb"),

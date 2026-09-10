@@ -984,6 +984,14 @@ bool ic_enable_current_line_number_highlight(bool enable);
 /// Returns whether current line number highlighting is enabled.
 bool ic_current_line_number_highlight_is_enabled(void);
 
+/// Enable or disable the visible marker at the end of soft-wrapped editor rows (enabled by
+/// default). Markers are shown only on UTF-8 terminals. This changes only the marker's visibility;
+/// wrapping, input contents, and the newline printed after submitting input are unaffected.
+/// Returns the previous setting.
+bool ic_enable_line_wrap_marker(bool enable);
+/// Return the current setting without changing it.
+bool ic_line_wrap_marker_is_enabled(void);
+
 /// Enable or disable visualization of plain space characters inside the buffer (disabled by
 /// default). When enabled, every space is rendered using the whitespace marker returned by
 /// `ic_get_whitespace_marker()`. Returns the previous state.

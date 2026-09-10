@@ -1682,7 +1682,7 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
 
         // write line ending
         if (row < info->last_row || info->has_following_row) {
-            if (is_wrap && tty_is_utf8(info->env->tty)) {
+            if (is_wrap && info->env->show_line_wrap_marker && tty_is_utf8(info->env->tty)) {
                 ic_term_mark_prompt_start(info->env, true);
 #ifndef __APPLE__
                 bbcode_print(info->env->bbcode,

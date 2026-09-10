@@ -141,6 +141,7 @@ struct ic_env_s {
                                                        // prompts are active?
     bool replace_prompt_line_with_line_number;         // swap final prompt line with line numbers?
     bool show_whitespace_characters;                   // visualize spaces while editing?
+    bool show_line_wrap_marker;                        // show a symbol at soft-wrapped row ends?
     bool inline_right_prompt_follows_cursor;           // right prompt tracks cursor row
     bool bracketed_paste_enabled;                      // bracketed paste mode active
     bool readline_terminal_suspended;                  // external program owns the terminal

@@ -643,6 +643,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("menu-highlighting",
                              "Syntax-highlight completion and history menu items"),
              make_subcommand("visible-whitespace", "Toggle visible whitespace"),
+             make_subcommand("line-wrap-marker", "Toggle the symbol at wrapped line ends"),
              make_subcommand("hint", "Toggle inline hints"),
              make_subcommand("multiline-indent", "Toggle multiline auto-indent"),
              make_subcommand("multiline", "Toggle multiline input"),
@@ -826,6 +827,10 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-visible-whitespace", "",
                 {make_subcommand("on", "Show whitespace markers"),
                  make_subcommand("off", "Hide whitespace markers"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-line-wrap-marker", "",
+                {make_subcommand("on", "Show the symbol at wrapped line ends"),
+                 make_subcommand("off", "Hide the symbol at wrapped line ends"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-hint", "",
                 {make_subcommand("on", "Enable inline hints"),
