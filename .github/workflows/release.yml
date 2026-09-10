@@ -82,6 +82,9 @@ jobs:
             validation_options+=(--allow-untagged)
           fi
           version=$(./.github/scripts/validate-release-tag.sh "$RELEASE_TAG" "${validation_options[@]}")
+          if [[ "$DRY_RUN" != "true" ]]; then
+            python3 .github/scripts/extract-release-notes.py "$RELEASE_TAG" > "$RUNNER_TEMP/release-notes.md"
+          fi
           echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "source_ref=$source_ref" >> "$GITHUB_OUTPUT"
@@ -434,16 +437,18 @@ jobs:
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           set -euo pipefail
+          python3 .github/scripts/extract-release-notes.py "$RELEASE_TAG" > "$RUNNER_TEMP/release-notes.md"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             is_draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
             if [[ "$is_draft" != "true" ]]; then
               echo "Release $RELEASE_TAG is already published; refusing to replace it" >&2
               exit 1
             fi
+            gh release edit "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
           else
             gh release create "$RELEASE_TAG" \
               --draft \
-              --generate-notes \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
               --title "cjsh $RELEASE_TAG" \
               --verify-tag
           fi

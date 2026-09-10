@@ -177,8 +177,22 @@ WSL, clone the repository under your Linux home directory and use the same prese
 ## Releases
 
 Stable releases are built from tags whose names use the `vX.Y.Z` format. Before creating a tag,
-update the version in the root `CMakeLists.txt`, commit that change, and ensure the normal CI run
-passes. Then create and push an annotated tag:
+update the version in the root `CMakeLists.txt` and prepare its entry in `CHANGELOG.md`.
+Keep upcoming changes under `## [Unreleased]`, grouped into the applicable `Added`, `Changed`,
+`Deprecated`, `Removed`, `Fixed`, or `Security` sections from
+[Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Omit empty change categories.
+
+At release time, move those notes into a `## [X.Y.Z] - YYYY-MM-DD` section immediately below
+`Unreleased`, using the release date. Add the version's comparison link at the bottom of the
+file and advance the `Unreleased` link to compare the new tag with `HEAD`. Preview the release
+notes with:
+
+```bash
+python3 .github/scripts/extract-release-notes.py v1.5.3
+```
+
+Commit the version and changelog together and ensure the normal CI run passes. Then create and
+push an annotated tag:
 
 ```bash
 git tag -a v1.4.5 -m "v1.4.5"
@@ -186,7 +200,9 @@ git push origin v1.4.5
 ```
 
 The release workflow validates that the tag, CMake project version, checked-out commit, and built
-binary all agree. It then tests and packages Intel, Apple Silicon, and Universal2 macOS builds;
+binary all agree. Publishing also requires a dated, nonempty changelog entry with a version link;
+that entry becomes the GitHub release description, including when resuming an existing draft.
+It then tests and packages Intel, Apple Silicon, and Universal2 macOS builds;
 glibc x86-64 and ARM64 Linux builds; and static musl x86-64 and ARM64 Linux builds. A draft GitHub
 release is published only after all seven archives, their checksums, and their provenance
 attestations have been created successfully.
