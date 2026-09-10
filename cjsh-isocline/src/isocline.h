@@ -985,8 +985,9 @@ bool ic_enable_current_line_number_highlight(bool enable);
 bool ic_current_line_number_highlight_is_enabled(void);
 
 /// Enable or disable the visible marker at the end of soft-wrapped editor rows (enabled by
-/// default). Markers are shown only on UTF-8 terminals. This changes only the marker's visibility;
-/// wrapping, input contents, and the newline printed after submitting input are unaffected.
+/// default). Markers are shown only on UTF-8 terminals. Disabling the marker lets input use
+/// the full terminal width before wrapping. Input contents and the newline printed after
+/// submitting input are unaffected.
 /// Returns the previous setting.
 bool ic_enable_line_wrap_marker(bool enable);
 /// Return the current setting without changing it.

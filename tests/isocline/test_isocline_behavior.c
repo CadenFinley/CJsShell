@@ -1212,25 +1212,55 @@ static bool test_line_wrapping_calculations(void) {
 
     sbuf_replace(sb, "abcd");
     rowcol_t rc = {0};
-    (void)sbuf_get_rc_at_pos(sb, 2, 0, 0, 3, &rc);
+    (void)sbuf_get_rc_at_pos(sb, 2, 0, 0, true, 3, &rc);
     EXPECT_TRUE(rc.row >= 1, "wrapped rows should advance after terminal width");
     EXPECT_TRUE(rc.col >= 0 && rc.col < 2, "column should stay within terminal width bounds");
-    ssize_t roundtrip = sbuf_get_pos_at_rc(sb, 2, 0, 0, rc.row, rc.col);
+    ssize_t roundtrip = sbuf_get_pos_at_rc(sb, 2, 0, 0, true, rc.row, rc.col);
     EXPECT_TRUE(roundtrip == 3, "row/column lookup should round-trip to position");
 
     sbuf_replace(sb, "line1\nline2");
     rowcol_t multiline = {0};
-    (void)sbuf_get_rc_at_pos(sb, 10, 0, 0, 6, &multiline);
+    (void)sbuf_get_rc_at_pos(sb, 10, 0, 0, true, 6, &multiline);
     EXPECT_TRUE(multiline.row > 0, "newline should advance to next logical row");
 
     sbuf_replace(sb, "abcdefghij");
     rowcol_t wide = {0};
-    (void)sbuf_get_rc_at_pos(sb, 10, 0, 0, 7, &wide);
+    (void)sbuf_get_rc_at_pos(sb, 10, 0, 0, true, 7, &wide);
     rowcol_t shrink = {0};
-    (void)sbuf_get_wrapped_rc_at_pos(sb, 10, 5, 0, 0, 7, &shrink);
+    (void)sbuf_get_wrapped_rc_at_pos(sb, 10, 5, 0, 0, true, 7, &shrink);
     EXPECT_TRUE(shrink.row >= wide.row, "shrinking the terminal should not decrease row index");
     EXPECT_TRUE(shrink.col >= 0 && shrink.col < 5,
                 "shrinking the terminal should recompute wrapped columns");
+
+    const struct {
+        const char* input;
+        ssize_t rows;
+        ssize_t row;
+        ssize_t col;
+    } full_width_cases[] = {
+        {"1234567", 1, 0, 7},    {"12345678", 2, 1, 0},    {"123456789", 2, 1, 1},
+        {"12345678\n", 2, 1, 0}, {"12345678\nx", 2, 1, 1}, {"12345678abcdefg", 3, 2, 0},
+        {"123456界", 2, 1, 0},   {"1234567界", 2, 1, 2},   {"1234567e\xCC\x81", 2, 1, 0},
+    };
+    for (size_t i = 0; i < sizeof(full_width_cases) / sizeof(full_width_cases[0]); i++) {
+        sbuf_replace(sb, full_width_cases[i].input);
+        ssize_t rows = sbuf_get_rc_at_pos(sb, 10, 2, 3, false, sbuf_len(sb), &rc);
+        EXPECT_TRUE(rows == full_width_cases[i].rows,
+                    "hidden marker should use the full width without extra newline rows");
+        EXPECT_TRUE(
+            rc.row == full_width_cases[i].row && rc.col == full_width_cases[i].col,
+            "cursor should follow the full-width input, including wide/combining characters");
+        for (ssize_t pos = 0; pos >= 0 && pos <= sbuf_len(sb); pos = sbuf_next(sb, pos, NULL)) {
+            (void)sbuf_get_rc_at_pos(sb, 10, 2, 3, false, pos, &rc);
+            EXPECT_TRUE(sbuf_get_pos_at_rc(sb, 10, 2, 3, false, rc.row, rc.col) == pos,
+                        "full-width row/column lookup should round-trip character positions");
+        }
+    }
+
+    sbuf_replace(sb, "12345678x");
+    ssize_t resized_rows = sbuf_get_wrapped_rc_at_pos(sb, 10, 8, 2, 3, false, sbuf_len(sb), &rc);
+    EXPECT_TRUE(resized_rows == 3 && rc.row == 2 && rc.col == 4,
+                "resize should count full-width rows without adding a hidden marker");
 
     sbuf_free(sb);
     return true;

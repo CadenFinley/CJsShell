@@ -699,7 +699,8 @@ static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra, ss
 static ssize_t edit_get_rowcol(ic_env_t* env, editor_t* eb, rowcol_t* rc) {
     ssize_t promptw, cpromptw;
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
-    return sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, eb->pos, rc);
+    return sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+                              eb->pos, rc);
 }
 
 static ssize_t edit_available_terminal_rows(ic_env_t* env, const editor_t* eb) {
@@ -729,7 +730,8 @@ static ssize_t edit_visible_input_row_count(ic_env_t* env, editor_t* eb, ssize_t
 static void edit_set_pos_at_rowcol(ic_env_t* env, editor_t* eb, ssize_t row, ssize_t col) {
     ssize_t promptw, cpromptw;
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
-    ssize_t pos = sbuf_get_pos_at_rc(eb->input, eb->termw, promptw, cpromptw, row, col);
+    ssize_t pos = sbuf_get_pos_at_rc(eb->input, eb->termw, promptw, cpromptw,
+                                     env->show_line_wrap_marker, row, col);
     if (pos < 0) {
         return;
     }
@@ -894,8 +896,9 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
     }
 
     rowcol_t end_rc = {0};
-    ssize_t input_rows = sbuf_get_rc_at_pos(display_input, eb->termw, promptw, cpromptw,
-                                            sbuf_len(display_input), &end_rc);
+    ssize_t input_rows =
+        sbuf_get_rc_at_pos(display_input, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+                           sbuf_len(display_input), &end_rc);
     if (target_row >= input_rows) {
         sbuf_free(display_input_with_hint);
         return false;
@@ -907,8 +910,8 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
         target_col = 0;
     }
 
-    ssize_t new_pos =
-        sbuf_get_pos_at_rc(display_input, eb->termw, promptw, cpromptw, target_row, target_col);
+    ssize_t new_pos = sbuf_get_pos_at_rc(display_input, eb->termw, promptw, cpromptw,
+                                         env->show_line_wrap_marker, target_row, target_col);
     if (new_pos < 0) {
         sbuf_free(display_input_with_hint);
         return false;
@@ -1638,7 +1641,6 @@ static void edit_render_inline_right_prompt(refresh_info_t* info, ssize_t row, s
 static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len,
                                    ssize_t startw, bool is_wrap, const void* arg, void* res) {
     ic_unused(res);
-    ic_unused(startw);
     refresh_info_t* info = (refresh_info_t*)arg;
     term_t* term = info->env->term;
 
@@ -1673,8 +1675,13 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         if (info->env->inline_right_prompt_follows_cursor && info->cursor_row >= 0) {
             inline_right_row = info->cursor_row;
         }
+        // A terminal with delayed wrapping keeps its cursor on the last cell of a full
+        // row. Erasing from there would erase the last input character too.
+        const bool row_fills_terminal =
+            (startw + str_column_width_n(s + row_start, row_len) >= info->eb->termw);
         const bool should_attempt_inline_right =
-            (!info->in_extra && info->eb->inline_right_text != NULL && row == inline_right_row);
+            (!info->in_extra && info->eb->inline_right_text != NULL && row == inline_right_row &&
+             !row_fills_terminal);
 
         if (should_attempt_inline_right) {
             edit_render_inline_right_prompt(info, row, row_len);
@@ -1693,12 +1700,12 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
 #endif
                 ic_term_mark_input_start(info->env);
             }
-            if (!should_attempt_inline_right) {
+            if (!should_attempt_inline_right && !row_fills_terminal) {
                 term_clear_to_end_of_line(term);
             }
             term_writeln(term, "");
         } else {
-            if (!should_attempt_inline_right) {
+            if (!should_attempt_inline_right && !row_fills_terminal) {
                 term_clear_to_end_of_line(term);
             }
         }
@@ -1735,8 +1742,8 @@ static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, a
     info.cursor_logical_line = cursor_logical_line;
     info.continuation_row = false;
     info.has_following_row = has_following_row;
-    (void)sbuf_for_each_row(input, eb->termw, promptw, cpromptw, &edit_refresh_rows_iter, &info,
-                            NULL);
+    (void)sbuf_for_each_row(input, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+                            &edit_refresh_rows_iter, &info, NULL);
 }
 
 static bool sbuf_ends_with_newline(stringbuf_t* sbuf) {
@@ -1878,11 +1885,13 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
 
     while (true) {
         rc = (rowcol_t){0};
-        rows_input = sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, eb->pos, &rc);
+        rows_input = sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw,
+                                        env->show_line_wrap_marker, eb->pos, &rc);
 
         if (extra != NULL) {
             rc_extra = (rowcol_t){0};
-            rows_extra = sbuf_get_rc_at_pos(extra, eb->termw, 0, 0, 0 /*pos*/, &rc_extra);
+            rows_extra = sbuf_get_rc_at_pos(extra, eb->termw, 0, 0, env->show_line_wrap_marker,
+                                            0 /*pos*/, &rc_extra);
         } else {
             rows_extra = 0;
         }
@@ -2190,12 +2199,13 @@ static bool edit_resize(ic_env_t* env, editor_t* eb) {
     }
     rowcol_t rc = {0};
     const ssize_t rows_input =
-        sbuf_get_wrapped_rc_at_pos(eb->input, eb->termw, newtermw, promptw, cpromptw, eb->pos, &rc);
+        sbuf_get_wrapped_rc_at_pos(eb->input, eb->termw, newtermw, promptw, cpromptw,
+                                   env->show_line_wrap_marker, eb->pos, &rc);
     rowcol_t rc_extra = {0};
     ssize_t rows_extra = 0;
     if (extra != NULL) {
-        rows_extra =
-            sbuf_get_wrapped_rc_at_pos(extra, eb->termw, newtermw, 0, 0, 0 /*pos*/, &rc_extra);
+        rows_extra = sbuf_get_wrapped_rc_at_pos(extra, eb->termw, newtermw, 0, 0,
+                                                env->show_line_wrap_marker, 0 /*pos*/, &rc_extra);
     }
     ssize_t rows = rows_input + rows_extra;
     debug_msg(

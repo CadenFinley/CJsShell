@@ -675,8 +675,8 @@ static ssize_t edit_menu_input_rows(ic_env_t* env, editor_t* eb) {
 
     rowcol_t rc_dummy;
     memset(&rc_dummy, 0, sizeof(rc_dummy));
-    ssize_t input_rows =
-        sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, input_len, &rc_dummy);
+    ssize_t input_rows = sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw,
+                                            env->show_line_wrap_marker, input_len, &rc_dummy);
     if (input_rows <= 0) {
         input_rows = 1;
     }
@@ -712,8 +712,8 @@ static ssize_t edit_menu_rendered_rows(ic_env_t* env, editor_t* eb, const char* 
     bbcode_append(env->bbcode, text, rendered, NULL);
     rowcol_t rc_dummy;
     memset(&rc_dummy, 0, sizeof(rc_dummy));
-    ssize_t rows = sbuf_get_rc_at_pos(rendered, term_get_width(env->term), 0, 0, sbuf_len(rendered),
-                                      &rc_dummy);
+    ssize_t rows = sbuf_get_rc_at_pos(rendered, term_get_width(env->term), 0, 0,
+                                      env->show_line_wrap_marker, sbuf_len(rendered), &rc_dummy);
     if (sbuf_ends_with_newline(rendered) && rows > 0) {
         rows--;
     }
@@ -889,8 +889,8 @@ static ssize_t edit_menu_multiline_preview_row_count(ic_env_t* env, const char* 
 
     sbuf_replace(preview, display);
     rowcol_t rc_dummy = {0};
-    ssize_t rows =
-        sbuf_get_rc_at_pos(preview, term_get_width(env->term), 2, 2, sbuf_len(preview), &rc_dummy);
+    ssize_t rows = sbuf_get_rc_at_pos(preview, term_get_width(env->term), 2, 2,
+                                      env->show_line_wrap_marker, sbuf_len(preview), &rc_dummy);
     sbuf_free(preview);
     const ssize_t logical_rows = edit_menu_line_count(display);
     if (rows < logical_rows) {
@@ -948,8 +948,8 @@ static ssize_t edit_menu_multiline_preview_visible_len(ic_env_t* env, const char
     sbuf_replace(preview, display);
     rowcol_t rc_dummy = {0};
     const ssize_t term_width = term_get_width(env->term);
-    const ssize_t rendered_rows =
-        sbuf_get_rc_at_pos(preview, term_width, 2, 2, display_len, &rc_dummy);
+    const ssize_t rendered_rows = sbuf_get_rc_at_pos(
+        preview, term_width, 2, 2, env->show_line_wrap_marker, display_len, &rc_dummy);
     const ssize_t logical_rows = edit_menu_line_count(display);
     if (rendered_rows <= max_rows && logical_rows <= max_rows) {
         sbuf_free(preview);
@@ -966,7 +966,8 @@ static ssize_t edit_menu_multiline_preview_visible_len(ic_env_t* env, const char
     }
     const ssize_t wrapped_visible_len =
         (rendered_rows > max_rows
-             ? sbuf_get_pos_at_rc(preview, term_width, 2, 2, max_rows - 1, last_row_columns)
+             ? sbuf_get_pos_at_rc(preview, term_width, 2, 2, env->show_line_wrap_marker,
+                                  max_rows - 1, last_row_columns)
              : display_len);
     sbuf_free(preview);
     if (rendered_rows > max_rows) {

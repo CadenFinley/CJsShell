@@ -276,7 +276,7 @@ def terminal_state(output: str, rows: int, cols: int) -> tuple[list[str], tuple[
                 row = min(rows - 1, amount - 1)
                 col = min(cols - 1, (values[1] or 1) - 1) if len(values) > 1 else 0
             elif command == "K":
-                start = 0 if values[0] in (1, 2) else min(col, cols)
+                start = 0 if values[0] in (1, 2) else min(col, cols - 1)
                 end = min(col + 1, cols) if values[0] == 1 else cols
                 cells[row][start:end] = [" "] * (end - start)
             elif command == "J":
@@ -1196,19 +1196,7 @@ def assert_menu_dismissal(binary: str) -> None:
                 )
 
 
-def main() -> int:
-    if len(sys.argv) != 2:
-        print(f"usage: {sys.argv[0]} <isocline_pty_driver>", file=sys.stderr)
-        return 2
-
-    binary = os.path.abspath(sys.argv[1])
-    if not os.path.exists(binary):
-        print(f"driver binary not found: {binary}", file=sys.stderr)
-        return 2
-
-    assert_menu_viewports(binary)
-    assert_menu_dismissal(binary)
-
+def assert_line_wrap_marker(binary: str) -> None:
     for mode in ("default", "off", "on"):
         scenario = f"line_wrap_marker_{mode}"
         # Cross soft-wrap boundaries before editing, then insert a real newline.
@@ -1222,6 +1210,80 @@ def main() -> int:
         marker = "↵" if IS_DARWIN else "←"
         if (marker in output) != (mode != "off"):
             raise AssertionError(f"{scenario}: unexpected wrap marker visibility: {output!r}")
+        first_row = "pty> abcdefghijklmno\n" if mode == "off" else f"pty> abcdefghijklm{marker}\n"
+        if first_row not in normalize_terminal_output(output):
+            raise AssertionError(f"{scenario}: incorrect wrap boundary: {output!r}")
+
+    def expect_screen(lines: list[str], cursor: tuple[int, int]):
+        def check(output: str) -> None:
+            screen, position = terminal_state(output, 8, 20)
+            expected = lines + [""] * (8 - len(lines))
+            if screen != expected or position != cursor:
+                raise AssertionError(
+                    f"full-width editing: expected {(expected, cursor)!r}, "
+                    f"got {(screen, position)!r}; output={output!r}"
+                )
+        return check
+
+    result = run_resize_case(
+        binary, "line_wrap_marker_off_boundary",
+        [
+            ("send", b"abcdefghijklmn"),
+            ("idle", 0.1),
+            ("check", expect_screen(["pty> abcdefghijklmn"], (0, 19))),
+            ("send", b"o"),
+            ("idle", 0.1),
+            ("check", expect_screen(["pty> abcdefghijklmno", "   >"], (1, 5))),
+            ("send", b"p"),
+            ("idle", 0.1),
+            ("check", expect_screen(["pty> abcdefghijklmno", "   > p"], (1, 6))),
+            ("send", b"\x7f\x7f"),
+            ("idle", 0.1),
+            ("check", expect_screen(["pty> abcdefghijklmn"], (0, 19))),
+            ("send", b"o\nnext"),
+            ("idle", 0.1),
+            ("check", expect_screen(["pty> abcdefghijklmno", "   > next"], (1, 9))),
+            ("send", b"\r"),
+        ],
+        initial_rows=8, initial_cols=20,
+    )
+    if result != "abcdefghijklmno\nnext":
+        raise AssertionError(f"full-width editing changed input: {result!r}")
+
+    # Reflow full-width rows, then use vertical movement to edit the last column.
+    result = run_resize_case(
+        binary, "line_wrap_marker_off",
+        [
+            ("idle", 0.1),
+            ("resize", 24),
+            ("idle", 0.1),
+            ("resize", 20),
+            ("idle", 0.1),
+            ("check", expect_screen(
+                ["pty> abcdefghijklmno", "   > pqrstuvwxyz0123", "   > 456789"], (2, 11)
+            )),
+            ("send", CTRL_HOME + RIGHT * 14 + DOWN + b"Y\r"),
+        ],
+        initial_rows=8, initial_cols=20,
+    )
+    expected = "abcdefghijklmnopqrstuvwxyz012Y3456789"
+    if result != expected:
+        raise AssertionError(f"full-width cursor movement expected {expected!r}, got {result!r}")
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        print(f"usage: {sys.argv[0]} <isocline_pty_driver>", file=sys.stderr)
+        return 2
+
+    binary = os.path.abspath(sys.argv[1])
+    if not os.path.exists(binary):
+        print(f"driver binary not found: {binary}", file=sys.stderr)
+        return 2
+
+    assert_line_wrap_marker(binary)
+    assert_menu_viewports(binary)
+    assert_menu_dismissal(binary)
 
     for scenario, keys, expected in [
         ("notification_edit", LEFT + b"\x1b[17~X\r", "aXb"),
@@ -3141,6 +3203,7 @@ def main() -> int:
         ("completion_many_menu_tall_flattened", 24, False, 0),
         ("completion_many_menu_tall_flattened", 24, True, 0),
         ("completion_many_menu_tall_wrapped_input", 8, True, 0),
+        ("completion_many_menu_tall_marker_off", 8, True, 0),
         ("completion_many_menu_tall_prompt_prefix", 8, True, 2),
     ):
         output = observe_resize_case(

@@ -631,6 +631,7 @@ static int run_case(const char* scenario) {
         (strcmp(scenario, "completion_many_menu_tall_replacement") == 0 ||
          strcmp(scenario, "completion_many_menu_tall_flattened") == 0 ||
          strcmp(scenario, "completion_many_menu_tall_wrapped_input") == 0 ||
+         strcmp(scenario, "completion_many_menu_tall_marker_off") == 0 ||
          strcmp(scenario, "completion_many_menu_tall_prompt_prefix") == 0);
     if (tall_completion_case) {
         multiline_mode = true;
@@ -728,12 +729,16 @@ static int run_case(const char* scenario) {
         initial_input = "abcdefghijklmnopqrstuvwxyz0123456789";
         (void)ic_enable_multiline(true);
         (void)ic_enable_line_numbers(false);
-        if (strcmp(scenario, "line_wrap_marker_off") == 0 ||
+        if (strncmp(scenario, "line_wrap_marker_off", 20) == 0 ||
             strcmp(scenario, "line_wrap_marker_on") == 0) {
             (void)ic_enable_line_wrap_marker(false);
         }
         if (strcmp(scenario, "line_wrap_marker_on") == 0) {
             (void)ic_enable_line_wrap_marker(true);
+        }
+        if (strcmp(scenario, "line_wrap_marker_off_boundary") == 0) {
+            initial_input = "";
+            inline_right_text = "right";
         }
     } else if (strcmp(scenario, "cursor_move_insert") == 0) {
         initial_input = "ab";
@@ -892,7 +897,11 @@ static int run_case(const char* scenario) {
             g_flatten_completion_display =
                 (strcmp(scenario, "completion_many_menu_tall_flattened") == 0);
             g_wrap_completion_input =
-                (strcmp(scenario, "completion_many_menu_tall_wrapped_input") == 0);
+                (strcmp(scenario, "completion_many_menu_tall_wrapped_input") == 0 ||
+                 strcmp(scenario, "completion_many_menu_tall_marker_off") == 0);
+            if (strcmp(scenario, "completion_many_menu_tall_marker_off") == 0) {
+                (void)ic_enable_line_wrap_marker(false);
+            }
             if (strcmp(scenario, "completion_many_menu_tall_prompt_prefix") == 0) {
                 prompt_text = "COMPLETION-PREFIX-TOP\nCOMPLETION-PREFIX-MIDDLE\npty";
                 (void)ic_enable_line_numbers_with_continuation_prompt(true);

@@ -1304,8 +1304,9 @@ cjshopt line-wrap-marker on      # Show the wrap marker (default)
 cjshopt line-wrap-marker status  # Show the current setting
 ```
 
-This controls only the visible symbol. Input still wraps, and Enter still moves
-output onto the next line. Add the command to `~/.cjshrc` to persist the preference.
+Disabling the marker lets input use the full terminal width before wrapping,
+including the columns normally reserved for the marker and cursor. Enter still
+moves output onto the next line. Add the command to `~/.cjshrc` to persist the preference.
 The standard toggle synonyms such as `enable`, `disable`, `true`, and `false` are accepted.
 
 #### hint

@@ -354,7 +354,8 @@ static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, s
     rowcol_t rc_dummy;
     memset(&rc_dummy, 0, sizeof(rc_dummy));
     ssize_t preview_rows =
-        sbuf_get_rc_at_pos(preview, eb->termw, promptw, cpromptw, sbuf_len(preview), &rc_dummy);
+        sbuf_get_rc_at_pos(preview, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+                           sbuf_len(preview), &rc_dummy);
 
     ssize_t max_preview_rows = edit_available_terminal_rows(env, eb) - reserved_rows;
     if (max_preview_rows < 1) {
@@ -364,18 +365,21 @@ static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, s
     if (preview_rows > max_preview_rows) {
         // Keep the beginning (and prompt) visible instead of scrolling to the end of a tall
         // replacement. Only the temporary preview is shortened; acceptance applies the full text.
-        // Row iteration reserves two columns for the cursor/wrap marker, plus three for dots.
-        ssize_t last_columns = eb->termw - (max_preview_rows == 1 ? promptw : cpromptw) - 5;
+        // Leave room for the dots and cursor so the shortened preview stays on this row.
+        ssize_t last_columns = eb->termw - (max_preview_rows == 1 ? promptw : cpromptw) -
+                               (env->show_line_wrap_marker ? 2 : 1) - 3;
         if (last_columns < 0) {
             last_columns = 0;
         }
-        ssize_t visible_len = sbuf_get_pos_at_rc(preview, eb->termw, promptw, cpromptw,
-                                                 max_preview_rows - 1, last_columns);
+        ssize_t visible_len =
+            sbuf_get_pos_at_rc(preview, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+                               max_preview_rows - 1, last_columns);
         if (visible_len < 0) {
             visible_len = 0;
         }
         rowcol_t visible_rc = {0};
-        (void)sbuf_get_rc_at_pos(preview, eb->termw, promptw, cpromptw, visible_len, &visible_rc);
+        (void)sbuf_get_rc_at_pos(preview, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+                                 visible_len, &visible_rc);
         if (visible_len > 0 && visible_rc.col > last_columns) {
             // A wide character can straddle the requested column.
             visible_len = sbuf_prev(preview, visible_len, NULL);
