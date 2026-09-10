@@ -1,6 +1,30 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.5.2`.
+This changelog documents tagged releases from `v1.1.2` through `v1.5.3`.
+
+## 1.5.3 - 2026-09-10
+
+Range: `v1.5.2..v1.5.3` (12 commits, 47 files changed)
+
+### Added
+
+- Added `cjshopt line-wrap-marker <char|''|status>` and matching isocline APIs so wrapped-line markers can be customized with a single printable character or disabled with an empty string.
+
+### Changed
+
+- Improved interactive history navigation so `Up` and `Down` at the end of the buffer move through history with recalled entries placing the cursor at the end, while `Shift+Up` and `Shift+Down` navigate history from any cursor position.
+- Updated wrapped-line marker behavior and documentation so marker width is reserved only when a marker is configured, including support for wide printable Unicode markers.
+
+### Fixed
+
+- Fixed wrapped-line rendering and menu layout interactions to avoid an extra padding column and keep redraw behavior consistent when the marker is customized or hidden.
+- Fixed multiline function and control-flow parsing and validation so inline and multiline forms, quoted delimiters, and keyword-like arguments are handled correctly in both interactive checks and `-n` syntax mode.
+
+### Internal and Tests
+
+- Expanded syntax regression coverage with generated validation probes and focused tests for function/control-flow edge cases.
+- Added and stabilized PTY coverage for wrap-marker customization, history navigation behavior, and `vim` profile interactions.
+- Finalized 1.5.3 as a stable release by clearing the default pre-release build marker.
 
 ## 1.5.2 - 2026-09-10
 
