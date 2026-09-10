@@ -1,6 +1,26 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.5.0`.
+This changelog documents tagged releases from `v1.1.2` through `v1.5.1`.
+
+## 1.5.1 - 2026-09-09
+
+Range: `v1.5.0..HEAD` (4 commits, 291 files changed)
+
+### Changed
+
+- Improved command and syntax-highlighting lookup paths to cache PATH command names during interactive redraws, reducing repeated filesystem scans for incomplete prefixes.
+- Updated inline completion hints to stay cache-only while typing: hint generation now avoids launching manual-page scraping and dynamic value providers until explicit Tab completion.
+
+### Fixed
+
+- Fixed interactive PATH cache invalidation for relative PATH segments and working-directory changes so executable discovery updates correctly between prompts.
+- Fixed cached-name completion filtering so non-executable files are rejected even when name-only PATH indexing is active.
+
+### Internal and Tests
+
+- Ran a broad clang-tidy cleanup pass across core and isocline modules to refresh diagnostics and consistency in shared code paths.
+- Expanded regression and benchmark coverage for hint-fetch deferral, dynamic-provider gating, interactive PATH cache lifecycle, and cross-shell timing baselines.
+- Finalized 1.5.1 as a stable release by clearing the default pre-release build marker.
 
 ## 1.5.0 - 2026-09-09
 
