@@ -1162,6 +1162,13 @@ including quoted literals and brace ranges with surrounding or following words.<
 compact <code>function sayhello {echo hello}</code> form. For conventional shell syntax, use
 <code>function sayhello { echo hello; }</code>; for POSIX scripts, use
 <code>sayhello() { echo hello; }</code>.</p>
+<p>Function headers may put the opening brace on the next line. Function bodies and
+command groups support mixed inline and multiline layouts, with quoted and escaped
+delimiters preserved as literal text. Syntax-only mode (<code>-n</code>) rejects unfinished
+function bodies and control-flow blocks.</p>
+<p>Interactive validation treats <code>then</code>, <code>do</code>, <code>fi</code>, <code>done</code>, and <code>esac</code> as control
+keywords only where a command can begin. Using those words as arguments, in
+quotes, or in comments does not complete an unfinished block.</p>
 <h2 id="configuration">Configuration</h2>
 <p>CJSH intentionally uses its own option interface rather than implementing Bash's <code>shopt</code> builtin:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cjshopt<span class="w"> </span>extglob<span class="w"> </span>on
