@@ -3450,17 +3450,43 @@ def main() -> int:
         )
 
     vim_multiline_cases = [
+        # Alt+K/Alt+J share Up/Down behavior: history at the buffer end,
+        # visual row movement while editing within the buffer.
         (
             "vim_alt_k_row_up",
             "vim_multiline_ctrl_j_insert_newline",
-            b"ab\x0acd\x0aef\x1bkX\r",
-            "ab\ncdX\nef",
+            b"ab\x0acd\x0aef" + LEFT + b"\x1bkX\r",
+            "ab\ncXd\nef",
         ),
         (
             "vim_alt_j_row_down",
             "vim_multiline_ctrl_j_insert_newline",
             b"ab\x0acd\x0aef" + PAGEUP + b"\x1bjX\r",
             "ab\nXcd\nef",
+        ),
+        (
+            "vim_alt_k_at_end_without_history",
+            "vim_multiline_ctrl_j_insert_newline",
+            b"ab\x0acd\x0aef\x1bkX\r",
+            "ab\ncd\nefX",
+        ),
+        (
+            "vim_alt_k_skips_multiline_history_rows",
+            "vim_history_navigation_multiline",
+            b"\x1bk\x1bkX\r",
+            "old first\n\nold middle\nold lastX",
+        ),
+        (
+            "vim_alt_j_skips_multiline_history_rows",
+            "vim_history_navigation_multiline",
+            b"\x1bk\x1bk\x1bjX\r",
+            "new first\nnew middle\nnew lastX",
+        ),
+        (
+            "vim_alt_j_restores_multiline_draft_at_end",
+            "vim_history_navigation_multiline",
+            b"draft\x0asaved\x1bk\x1bk\x1bj\x1bjX\r",
+            "draft\nsavedX",
         ),
     ]
     for label, scenario, key_bytes, expected in vim_multiline_cases:
