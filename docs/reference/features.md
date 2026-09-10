@@ -155,7 +155,7 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-m, --minimal` – disable colors, completions and completion learning, syntax
   highlighting, rc sourcing, smart cd, the title line, history expansion, the status line,
   multiline line numbers, the startup time banner, error suggestions, prompt vars, and special
-  lifecycle handlers
+  lifecycle handlers; normal PATH setup and native env/profile loading still apply
 - `-C, --no-colors`
 - `-L, --no-titleline`
 - `-U, --show-startup-time`

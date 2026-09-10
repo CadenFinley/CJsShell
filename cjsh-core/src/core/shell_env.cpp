@@ -343,8 +343,8 @@ bool unset_shell_or_local_variable_value(Shell* shell, const std::string& name) 
 void setup_path_variables(const std::string& paths_file, const std::string& paths_directory) {
     // Read system paths before native startup files, which may override PATH.
     // Clean invocations preserve PATH exactly, including empty and absent values.
-    if (config::no_system_paths || config::no_config || config::secure_mode ||
-        config::minimal_mode || config::posix_mode || config::no_exec) {
+    if (config::no_system_paths || config::no_config || config::secure_mode || config::posix_mode ||
+        config::no_exec) {
         return;
     }
 

@@ -241,8 +241,9 @@ startup finishes, the selected path stays fixed for the editor and history comma
 `ENV`, and system PATH setup. Explicit `source`/`.` commands still work. UI
 features, hooks defined by commands, and history preferences keep their normal behavior.
 `--no-source` (`-N`) retains its narrower meaning: skip the native interactive rc file.
-`--minimal` (`-m`) retains its feature-reduction scope and still reads native env/profile
-files. `--secure` (`-s`) skips automatic configuration and disables history and smart cd.
+`--minimal` (`-m`) retains its feature-reduction scope, follows the normal system PATH
+setup rules, and still reads native env/profile files. `--secure` (`-s`) skips automatic
+configuration and disables history and smart cd.
 
 For `--posix` and invocation as `sh`, login startup reads `/etc/profile`, then
 `$HOME/.profile`, then (only when interactive) the file named by `ENV`. Non-login
@@ -287,7 +288,7 @@ systems without `/etc/paths` or `/etc/paths.d`. Startup files can then override 
 `MANPATH` is preserved, including empty and absent values.
 
 Pass `--no-system-paths` to disable this setup and preserve the inherited PATH exactly,
-including an empty or absent value. POSIX, minimal, secure, syntax-only, and `--no-config`
+including an empty or absent value. POSIX, secure, syntax-only, and `--no-config`
 invocations also skip it. These startup-only options (`--no-system-paths`, `--config-dir`,
 `--no-config`) are invocation-only; select them in your launcher. The former `--login-path` flag has been removed. Remove it from existing launch
 commands to use the default setup. For reproducible scripts, supply PATH explicitly and

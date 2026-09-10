@@ -230,8 +230,20 @@ int main() {
         }
     }
 
+    config::minimal_mode = true;
+    (void)setenv("PATH", inherited, 1);
+    setup();
+    ok = expect_path(merged.c_str(), "minimal login shells must still load system paths") && ok;
+    (void)unsetenv("PATH");
+    cjsh_env::setup_path_variables((root / "missing-paths").string(),
+                                   (root / "missing-directory").string());
+    ok = expect_path("/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+                     "minimal shells must still supply a working default without system files") &&
+         ok;
+    config::minimal_mode = false;
+
     for (bool* bypass : {&config::no_system_paths, &config::no_config, &config::secure_mode,
-                         &config::minimal_mode, &config::posix_mode, &config::no_exec}) {
+                         &config::posix_mode, &config::no_exec}) {
         *bypass = true;
         for (const char* value : {static_cast<const char*>(nullptr), "", ":/custom::/custom:"}) {
             if (value) {

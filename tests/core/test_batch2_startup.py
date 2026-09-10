@@ -432,7 +432,9 @@ class StartupTests(unittest.TestCase):
                     self.env[name] = value
             for args in (["--no-system-paths"], ["-l", "--no-system-paths"],
                          ["--no-config"], ["-l", "--no-config"],
-                         ["-l", "--secure"], ["-l", "-m"], ["--posix"]):
+                         ["-l", "--secure"], ["--posix"],
+                         ["-m", "--no-system-paths"], ["-l", "-m", "--no-system-paths"],
+                         ["-l", "--minimal", "--no-config"], ["-l", "-m", "--secure"]):
                 with self.subTest(value=value, args=args):
                     child = self.child_environment(*args)
                     for name in names:
@@ -484,7 +486,9 @@ class StartupTests(unittest.TestCase):
                     else:
                         self.env[name] = entry
                 for args in ([], ["-l"], ["-i", "--no-titleline", "--no-history"],
-                             ["-il", "--no-titleline", "--no-history"]):
+                             ["-il", "--no-titleline", "--no-history"],
+                             ["--minimal"], ["-l", "--minimal"],
+                             ["-i", "-m", "--no-history"], ["-il", "-m", "--no-history"]):
                     with self.subTest(value=value, manpath=manpath, args=args):
                         child = self.child_environment(*args)
                         self.assertTrue(child.get("PATH"))
@@ -507,7 +511,8 @@ class StartupTests(unittest.TestCase):
     def test_nonlogin_preserves_path_components(self):
         for value in (":/custom/bin::/usr/bin:/custom/bin:", ":", "::", " "):
             self.env["PATH"] = value
-            for args in ([], ["-i", "--no-titleline", "--no-history"]):
+            for args in ([], ["-i", "--no-titleline", "--no-history"],
+                         ["--minimal"], ["-i", "-m", "--no-history"]):
                 with self.subTest(value=value, args=args):
                     self.assertEqual(self.child_environment(*args)["PATH"], value)
 
@@ -530,13 +535,15 @@ class StartupTests(unittest.TestCase):
     def test_system_paths_precede_native_configuration(self):
         (self.home / ".cjshenv").write_text('PATH="/batch2/env:$PATH"\n')
         (self.home / ".cjprofile").write_text('PATH="/batch2/profile:$PATH"\n')
-        self.env.pop("PATH", None)
-        child = self.child_environment("-l")
-        self.assertTrue(child["PATH"].startswith("/batch2/profile:/batch2/env:"))
-        self.assertIn("/usr/bin", child["PATH"].split(":"))
-        self.env["PATH"] = "/batch2/inherited"
-        child = self.child_environment("-l", "--no-system-paths")
-        self.assertEqual(child["PATH"], "/batch2/profile:/batch2/env:/batch2/inherited")
+        for args in ([], ["--minimal"]):
+            with self.subTest(args=args):
+                self.env.pop("PATH", None)
+                child = self.child_environment("-l", *args)
+                self.assertTrue(child["PATH"].startswith("/batch2/profile:/batch2/env:"))
+                self.assertIn("/usr/bin", child["PATH"].split(":"))
+                self.env["PATH"] = "/batch2/inherited"
+                child = self.child_environment("-l", *args, "--no-system-paths")
+                self.assertEqual(child["PATH"], "/batch2/profile:/batch2/env:/batch2/inherited")
 
     def test_login_startup_arg_subcommand_removed(self):
         r = self.run_shell("-c", "cjshopt login-startup-arg --no-system-paths")
