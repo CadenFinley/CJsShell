@@ -1777,6 +1777,60 @@ static bool test_hints_defer_documentation_fetch() {
     return true;
 }
 
+static bool test_tab_path_candidates_and_refresh() {
+    const char* test_name = "tab_path_candidates_and_refresh";
+    namespace fs = std::filesystem;
+    const fs::path root = cjsh_filesystem::g_user_home_path() / "tab-path";
+    fs::create_directories(root);
+    auto executable = [&](const char* name) {
+        std::ofstream(root / name) << "#!/bin/sh\nexit 0\n";
+        fs::permissions(root / name, fs::perms::owner_all);
+    };
+    executable("tabfixture-tool");
+    executable("unrelated-command-in-path");
+    std::ofstream(root / "tabfixture-plain") << "plain file\n";
+    fs::create_directory(root / "tabfixture-directory");
+    fs::create_symlink(root / "tabfixture-tool", root / "tabfixture-link");
+    fs::create_symlink(root / "missing", root / "tabfixture-broken");
+    const ScopedEnvironmentValue path("PATH", root.string());
+    const bool previous_learning = config::completion_learning_enabled;
+    config::completion_learning_enabled = false;
+
+    (void)run_completion_generation("tabfixture-", &cjsh_default_completer, 256);
+    const bool found_tool = generated_completions_include_replacement("tabfixture-tool ");
+    const bool found_link = generated_completions_include_replacement("tabfixture-link ");
+    const bool rejected_invalid =
+        !generated_completions_include_replacement("tabfixture-plain ") &&
+        !generated_completions_include_replacement("tabfixture-directory ") &&
+        !generated_completions_include_replacement("tabfixture-broken ");
+    const auto hashed_commands = cjsh_filesystem::get_path_hash_entries();
+    const bool skipped_unrelated = std::none_of(
+        hashed_commands.begin(), hashed_commands.end(),
+        [](const auto& entry) { return entry.command == "unrelated-command-in-path"; });
+
+    (void)run_hint_generation("tabfixture-new");
+    executable("tabfixture-new");
+    fs::permissions(root / "tabfixture-tool", fs::perms::owner_read);
+    fs::permissions(root / "tabfixture-plain", fs::perms::owner_all);
+    (void)run_completion_generation("tabfixture-", &cjsh_default_completer, 256);
+    const bool refreshed = generated_completions_include_replacement("tabfixture-new ") &&
+                           generated_completions_include_replacement("tabfixture-plain ") &&
+                           !generated_completions_include_replacement("tabfixture-tool ") &&
+                           !generated_completions_include_replacement("tabfixture-link ");
+    config::completion_learning_enabled = previous_learning;
+    clear_generated_completions();
+
+    EXPECT_TRUE(found_tool && found_link, test_name,
+                "Tab must find executables and follow executable symlinks");
+    EXPECT_TRUE(rejected_invalid, test_name,
+                "Tab must reject nonexecutables, directories, and broken symlinks in PATH");
+    EXPECT_TRUE(skipped_unrelated, test_name,
+                "Tab must not eagerly hash unrelated PATH executables");
+    EXPECT_TRUE(refreshed, test_name,
+                "Tab must discover new commands and recheck permissions after cached hints");
+    return true;
+}
+
 static bool test_hints_defer_dynamic_providers() {
     const char* test_name = "hints_defer_dynamic_providers";
     using namespace completion_specs;
@@ -2295,6 +2349,7 @@ static const test_case_t kTests[] = {
     {"man_page_value_metadata", test_man_page_value_metadata},
     {"rich_completion_runtime", test_rich_completion_runtime},
     {"hints_defer_documentation_fetch", test_hints_defer_documentation_fetch},
+    {"tab_path_candidates_and_refresh", test_tab_path_candidates_and_refresh},
     {"hints_defer_dynamic_providers", test_hints_defer_dynamic_providers},
     {"command_context_completion_runtime", test_command_context_completion_runtime},
     {"builtin_docs", test_builtin_docs},

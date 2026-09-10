@@ -43,9 +43,11 @@ completions for that word. For example, moving just after the `t` in `then` does
 `tests/`. Completion remains available for unfinished words and at the end of a word.
 
 Inline hints use cached documentation and static value choices. Press `Tab` to fetch missing
-manual-page data or invoke dynamic value providers. While typing, cjsh caches PATH filenames and
-checks executability only for matching candidates; the next prompt or a `PATH` change refreshes
-these lookups.
+manual-page data or invoke dynamic value providers. Hints, Tab completion, status-line analysis,
+and command-error suggestions share cached PATH filenames and check executability only for matching
+candidates. The next prompt, an explicit Tab request, or a `PATH` change refreshes these lookups.
+Command execution and explicit queries such as `type`, `which`, and `command -v` still validate
+executable paths against the filesystem.
 
 ## How automatic completions are generated
 

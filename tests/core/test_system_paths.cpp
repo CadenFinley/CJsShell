@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -126,9 +127,12 @@ bool test_interactive_path_cache(const std::filesystem::path& root) {
         fs::permissions(second, fs::perms::owner_exec);
         reset_path_hash();
         const bool found_without_listing = interactive("tool") == (second / "tool").string();
+        const auto candidates = get_path_completion_candidates();
         fs::permissions(second, fs::perms::owner_all);
         expect(found_without_listing,
                "searchable PATH directories must work even without permission to list names");
+        expect(std::find(candidates.begin(), candidates.end(), "tool") != candidates.end(),
+               "completion candidates must retain known commands in unlistable directories");
     }
     const auto previous_cwd = fs::current_path();
     fs::current_path(first);

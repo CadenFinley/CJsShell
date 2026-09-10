@@ -37,6 +37,7 @@
 #include <cstddef>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 #include "cjsh_filesystem.h"
 #include "command_lookup.h"
@@ -66,6 +67,13 @@ std::string value_for_kind(const ResolutionEntries& entries, ResolutionKind kind
 bool is_cjsh_custom_command(const std::string& name) {
     return std::find(kCjshCustomCommands.begin(), kCjshCustomCommands.end(), name) !=
            kCjshCustomCommands.end();
+}
+
+void append_path_resolution(ResolutionEntries& entries, const std::string& name) {
+    std::string path = cjsh_filesystem::find_executable_in_path(name);
+    if (!path.empty()) {
+        entries.push_back({ResolutionKind::Path, std::move(path)});
+    }
 }
 
 template <typename FullPrinter>
@@ -148,7 +156,7 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         const std::string& name = args[i];
         bool found = false;
 
-        const auto entries = command_lookup::list_resolution_entries(name, shell, true);
+        auto entries = command_lookup::list_resolution_entries(name, shell, false);
 
         if ((!force_path && !inhibit_functions) &&
             emit_type_match(
@@ -195,6 +203,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
             }
         }
 
+        if (!found || show_all || force_path) {
+            append_path_resolution(entries, name);
+        }
         if ((!found || show_all || force_path) &&
             emit_type_match(entries, ResolutionKind::Path, "file", show_type_only,
                             [&](const std::string& value) {
@@ -264,7 +275,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         bool found = false;
         bool found_executable = false;
 
-        const auto entries = command_lookup::list_resolution_entries(name, shell, true);
+        auto entries = command_lookup::list_resolution_entries(name, shell, false);
         const bool is_cjsh_custom = is_cjsh_custom_command(name);
 
         if (is_cjsh_custom &&
@@ -277,6 +288,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
             }
         }
 
+        append_path_resolution(entries, name);
         if (emit_which_match(entries, ResolutionKind::Path, silent,
                              [&](const std::string& value) { std::cout << value << '\n'; })) {
             found = true;

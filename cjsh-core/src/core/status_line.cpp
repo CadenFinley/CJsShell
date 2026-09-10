@@ -750,6 +750,8 @@ std::string build_validation_status_message(
 }
 
 std::string build_cjsh_status_reporting_message(Shell* shell, const std::string& current_input) {
+    // Limit cached lookups to our analysis; user status callbacks may execute explicit queries.
+    const cjsh_filesystem::ScopedInteractivePathLookup path_lookup;
     if (!config::status_reporting_enabled) {
         return {};
     }

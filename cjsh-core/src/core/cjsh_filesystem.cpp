@@ -602,6 +602,13 @@ class PathHashCache {
             (void)paths;
             names.push_back(name);
         }
+        // Retain known commands in searchable directories that cannot be listed.
+        for (const auto& [name, entry] : entries_) {
+            (void)entry;
+            if (interactive_paths_.count(name) == 0) {
+                names.push_back(name);
+            }
+        }
         return names;
     }
 

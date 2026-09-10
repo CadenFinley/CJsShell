@@ -465,12 +465,11 @@ struct CommandCompletionSources {
     std::vector<std::string> alias_names;
     std::vector<std::string> abbreviation_names;
     std::vector<std::string> executables_in_path;
-    bool validate_executables = false;
     const std::unordered_map<std::string, std::string>* alias_map = nullptr;
     const std::unordered_map<std::string, std::string>* abbreviation_map = nullptr;
 };
 
-CommandCompletionSources collect_command_completion_sources(ic_completion_env_t* cenv) {
+CommandCompletionSources collect_command_completion_sources() {
     CommandCompletionSources sources;
     if (g_shell && (g_shell->get_built_ins() != nullptr)) {
         sources.builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
@@ -488,10 +487,7 @@ CommandCompletionSources collect_command_completion_sources(ic_completion_env_t*
         sources.abbreviation_names = collect_map_keys(*sources.abbreviation_map);
     }
 
-    sources.validate_executables = ic_completion_is_hint(cenv);
-    sources.executables_in_path = sources.validate_executables
-                                      ? cjsh_filesystem::get_path_completion_candidates()
-                                      : cjsh_filesystem::get_executables_in_path();
+    sources.executables_in_path = cjsh_filesystem::get_path_completion_candidates();
 
     return sources;
 }
@@ -594,8 +590,7 @@ void add_command_spell_corrections(ic_completion_env_t* cenv,
                     completion_utils::normalize_for_comparison(candidate), normalized_prefix)) {
                 return false;
             }
-            return !sources.validate_executables ||
-                   !cjsh_filesystem::find_executable_in_path(candidate).empty();
+            return !cjsh_filesystem::find_executable_in_path(candidate).empty();
         },
         normalized_prefix, spell_matches);
 
@@ -686,8 +681,7 @@ void add_command_name_completions(ic_completion_env_t* cenv,
         cenv, sources.executables_in_path, prefix, delete_before_length, "system installed command",
         [](const std::string& value) { return value; },
         [&](const std::string& candidate) {
-            return !sources.validate_executables ||
-                   !cjsh_filesystem::find_executable_in_path(candidate).empty();
+            return !cjsh_filesystem::find_executable_in_path(candidate).empty();
         },
         system_summary_provider);
 
@@ -721,7 +715,7 @@ bool add_split_unknown_command_completions(ic_completion_env_t* cenv,
         return false;
     }
 
-    auto sources = collect_command_completion_sources(cenv);
+    auto sources = collect_command_completion_sources();
     add_command_name_completions(cenv, sources, merged_prefix, full_prefix.length(), false);
     return ic_has_completions(cenv);
 }
@@ -1155,7 +1149,7 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
             return false;
         }
 
-        auto sources = collect_command_completion_sources(cenv);
+        auto sources = collect_command_completion_sources();
         add_command_name_completions(cenv, sources, context.current_prefix, prefix_len, false);
 
         return ic_has_completions(cenv);
@@ -1222,7 +1216,7 @@ void add_command_token_completions(ic_completion_env_t* cenv, const std::string&
         return;
     }
 
-    auto sources = collect_command_completion_sources(cenv);
+    auto sources = collect_command_completion_sources();
     add_command_name_completions(cenv, sources, decoded_prefix, raw_prefix_length);
 }
 

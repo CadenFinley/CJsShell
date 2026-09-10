@@ -33,6 +33,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -96,9 +97,7 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
     const std::string& command_name = args[start_index];
 
     if (describe_command || verbose_description) {
-        const auto resolution = command_lookup::resolve_command(command_name, shell, true);
-
-        if (resolution.is_builtin) {
+        if (command_lookup::is_shell_builtin(command_name, shell)) {
             if (verbose_description) {
                 std::cout << command_name << " is a shell builtin\n";
             } else {
@@ -107,7 +106,7 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
             return 0;
         }
 
-        std::string saved_path;
+        std::optional<std::string> saved_path;
         if (use_default_path) {
             if (cjsh_env::shell_variable_is_set("PATH")) {
                 saved_path = cjsh_env::get_shell_variable_value("PATH");
@@ -116,13 +115,14 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
             (void)cjsh_env::set_shell_variable_value("PATH", "/usr/bin:/bin");
         }
 
-        std::string full_path = resolution.path;
-        if (use_default_path) {
-            full_path = cjsh_filesystem::find_executable_in_path(command_name);
-        }
+        const std::string full_path = cjsh_filesystem::find_executable_in_path(command_name);
 
-        if (use_default_path && !saved_path.empty()) {
-            (void)cjsh_env::set_shell_variable_value("PATH", saved_path);
+        if (use_default_path) {
+            if (saved_path) {
+                (void)cjsh_env::set_shell_variable_value("PATH", *saved_path);
+            } else {
+                (void)cjsh_env::unset_shell_variable_value("PATH");
+            }
         }
 
         if (!full_path.empty()) {
@@ -151,7 +151,7 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
 
     std::vector<std::string> exec_args(args.begin() + static_cast<long>(start_index), args.end());
 
-    std::string saved_path;
+    std::optional<std::string> saved_path;
     if (use_default_path) {
         if (cjsh_env::shell_variable_is_set("PATH")) {
             saved_path = cjsh_env::get_shell_variable_value("PATH");
@@ -163,8 +163,8 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
     int exit_code = shell->execute_command(exec_args, false);
 
     if (use_default_path) {
-        if (!saved_path.empty()) {
-            (void)cjsh_env::set_shell_variable_value("PATH", saved_path);
+        if (saved_path) {
+            (void)cjsh_env::set_shell_variable_value("PATH", *saved_path);
         } else {
             (void)cjsh_env::unset_shell_variable_value("PATH");
         }

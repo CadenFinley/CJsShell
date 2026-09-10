@@ -144,6 +144,9 @@ target_link_libraries(loop_syntax_tests PRIVATE cjsh_core cjsh_isocline)
 add_executable(system_paths_tests "${CMAKE_CURRENT_SOURCE_DIR}/core/test_system_paths.cpp")
 target_link_libraries(system_paths_tests PRIVATE cjsh_core cjsh_isocline)
 
+add_executable(command_lookup_tests "${CMAKE_CURRENT_SOURCE_DIR}/core/test_command_lookup.cpp")
+target_link_libraries(command_lookup_tests PRIVATE cjsh_core cjsh_isocline)
+
 add_executable(variable_lookup_tests "${CMAKE_CURRENT_SOURCE_DIR}/core/test_variable_lookup.cpp")
 target_link_libraries(variable_lookup_tests PRIVATE cjsh_core cjsh_isocline)
 
@@ -161,6 +164,7 @@ cjsh_add_test(NAME agent_mode_tests COMMAND agent_mode_tests)
 cjsh_add_test(NAME function_syntax_tests COMMAND function_syntax_tests)
 cjsh_add_test(NAME loop_syntax_tests COMMAND loop_syntax_tests)
 cjsh_add_test(NAME system_paths_tests COMMAND system_paths_tests)
+cjsh_add_test(NAME command_lookup_tests COMMAND command_lookup_tests)
 cjsh_add_test(NAME variable_lookup_tests COMMAND variable_lookup_tests)
 cjsh_add_test(NAME validation_token_tests COMMAND validation_token_tests)
 cjsh_add_test(NAME parser_dispatch_tests COMMAND parser_dispatch_tests)

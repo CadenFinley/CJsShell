@@ -32,7 +32,6 @@
 #include <cctype>
 #include <cstddef>
 #include <filesystem>
-#include <functional>
 #include <memory>
 #include <string>
 #include <system_error>
@@ -113,42 +112,39 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
         return suggestions;
     }
 
-    std::unordered_set<std::string> all_commands_set;
+    const cjsh_filesystem::ScopedInteractivePathLookup path_lookup;
+    std::unordered_set<std::string> shell_commands;
 
     if (g_shell && g_shell->get_built_ins()) {
         auto builtin_commands = g_shell->get_built_ins()->get_builtin_commands();
         for (const auto& builtin : builtin_commands) {
-            (void)all_commands_set.insert(builtin);
+            (void)shell_commands.insert(builtin);
         }
     }
 
     if (g_shell) {
         auto& aliases = g_shell->get_aliases();
         for (const auto& alias_pair : aliases) {
-            (void)all_commands_set.insert(alias_pair.first);
+            (void)shell_commands.insert(alias_pair.first);
         }
     }
 
     if (g_shell) {
         auto& abbreviations = g_shell->get_abbreviations();
         for (const auto& abbr_pair : abbreviations) {
-            (void)all_commands_set.insert(abbr_pair.first);
+            (void)shell_commands.insert(abbr_pair.first);
         }
     }
 
     if (g_shell && g_shell->get_shell_script_interpreter()) {
         auto function_names = g_shell->get_shell_script_interpreter()->get_function_names();
         for (const auto& func_name : function_names) {
-            (void)all_commands_set.insert(func_name);
+            (void)shell_commands.insert(func_name);
         }
     }
 
-    auto executables = cjsh_filesystem::get_executables_in_path();
-    for (const auto& exec_name : executables) {
-        (void)all_commands_set.insert(exec_name);
-    }
-
-    std::vector<std::string> all_commands(all_commands_set.begin(), all_commands_set.end());
+    auto all_commands = cjsh_filesystem::get_path_completion_candidates();
+    all_commands.insert(all_commands.end(), shell_commands.begin(), shell_commands.end());
 
     if (all_commands.empty()) {
         return suggestions;
@@ -157,7 +153,13 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> spell_matches;
     completion_spell::collect_spell_correction_candidates(
         all_commands, [](const std::string& value) { return value; },
-        std::function<bool(const std::string&)>{}, normalized_command, spell_matches);
+        [&](const std::string& candidate) {
+            // Spell matching runs before this filter, so unrelated PATH files need no metadata
+            // lookup. Shell commands remain valid even if a nonexecutable file shares the name.
+            return shell_commands.count(candidate) != 0 ||
+                   !cjsh_filesystem::find_executable_in_path(candidate).empty();
+        },
+        normalized_command, spell_matches);
 
     if (spell_matches.empty()) {
         return suggestions;
