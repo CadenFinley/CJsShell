@@ -169,6 +169,64 @@ jobs:
           file "$binary"
           ldd "$binary"
 
+  build-windows-wsl:
+    name: Test windows-wsl2-ubuntu-24.04-x86_64
+    runs-on: windows-2025
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: wsl-bash_Ubuntu-24.04 {0}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Ubuntu in WSL 2
+        uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364 # v7.0.0
+        with:
+          distribution: Ubuntu-24.04
+          wsl-version: "2"
+          wsl-shell-user: cjsh-test
+          additional-packages: build-essential cmake ninja-build python3 git file binutils procps
+
+      - name: Prepare source in the Linux filesystem
+        run: |
+          test "$(id -u)" -ne 0
+          # A Linux checkout preserves executable bits and LF line endings, and
+          # keeps permission-sensitive tests off the Windows-mounted filesystem.
+          source_commit=$(git -c safe.directory="$PWD" rev-parse HEAD)
+          git -c safe.directory="$PWD/.git" clone --no-hardlinks \
+            -c core.autocrlf=false "$PWD" "$HOME/cjsh"
+          git -C "$HOME/cjsh" checkout --detach "$source_commit"
+
+      - name: Configure
+        run: |
+          cd "$HOME/cjsh"
+          cmake --preset release-artifact
+
+      - name: Build
+        run: |
+          cd "$HOME/cjsh"
+          cmake --build --preset release-artifact --parallel
+
+      - name: Run all tests in parallel
+        run: |
+          cd "$HOME/cjsh"
+          ctest --preset release-artifact --parallel 4
+
+      - name: Verify WSL environment and Linux binary
+        run: |
+          cd "$HOME/cjsh"
+          uname -a
+          grep -qi microsoft /proc/sys/kernel/osrelease
+          test "$(uname -m)" = x86_64
+          binary=build/release-artifact/cjsh
+          "$binary" --version
+          file "$binary"
+          ldd "$binary"
+
   build-linux-musl:
     name: Test ${{ matrix.target }}
     strategy:

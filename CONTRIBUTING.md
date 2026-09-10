@@ -168,6 +168,12 @@ When opening a pull request:
 
 Pull requests and pushes to `master` run the GitHub Actions workflows in `.github/workflows/`. Keep local verification aligned with the parts of CI your change is expected to affect.
 
+The CI workflow also builds and runs the full CTest suite on a Windows 2025 runner
+using Ubuntu 24.04 under WSL 2. It uses the `release-artifact` preset and four test
+workers, with a regular Linux user and a checkout inside the Linux filesystem so
+file permissions and executable bits behave as expected. To reproduce locally in
+WSL, clone the repository under your Linux home directory and use the same preset.
+
 ## Releases
 
 Stable releases are built from tags whose names use the `vX.Y.Z` format. Before creating a tag,
