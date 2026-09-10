@@ -699,7 +699,7 @@ static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra, ss
 static ssize_t edit_get_rowcol(ic_env_t* env, editor_t* eb, rowcol_t* rc) {
     ssize_t promptw, cpromptw;
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
-    return sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+    return sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, env->line_wrap_marker_width,
                               eb->pos, rc);
 }
 
@@ -731,7 +731,7 @@ static void edit_set_pos_at_rowcol(ic_env_t* env, editor_t* eb, ssize_t row, ssi
     ssize_t promptw, cpromptw;
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
     ssize_t pos = sbuf_get_pos_at_rc(eb->input, eb->termw, promptw, cpromptw,
-                                     env->show_line_wrap_marker, row, col);
+                                     env->line_wrap_marker_width, row, col);
     if (pos < 0) {
         return;
     }
@@ -897,7 +897,7 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
 
     rowcol_t end_rc = {0};
     ssize_t input_rows =
-        sbuf_get_rc_at_pos(display_input, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+        sbuf_get_rc_at_pos(display_input, eb->termw, promptw, cpromptw, env->line_wrap_marker_width,
                            sbuf_len(display_input), &end_rc);
     if (target_row >= input_rows) {
         sbuf_free(display_input_with_hint);
@@ -911,7 +911,7 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
     }
 
     ssize_t new_pos = sbuf_get_pos_at_rc(display_input, eb->termw, promptw, cpromptw,
-                                         env->show_line_wrap_marker, target_row, target_col);
+                                         env->line_wrap_marker_width, target_row, target_col);
     if (new_pos < 0) {
         sbuf_free(display_input_with_hint);
         return false;
@@ -1677,12 +1677,13 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         }
         const bool has_following_row = (row < info->last_row || info->has_following_row);
         const bool show_wrap_marker =
-            (has_following_row && is_wrap && info->env->show_line_wrap_marker &&
-             tty_is_utf8(info->env->tty));
+            (has_following_row && is_wrap && info->env->line_wrap_marker_width > 0 &&
+             (tty_is_utf8(info->env->tty) || (uint8_t)info->env->line_wrap_marker[0] < 0x80));
         // A terminal with delayed wrapping keeps its cursor on the last cell of a full
         // row. Erasing from there would erase the last input character or wrap marker.
         const bool row_fills_terminal =
-            (startw + str_column_width_n(s + row_start, row_len) + (show_wrap_marker ? 1 : 0) >=
+            (startw + str_column_width_n(s + row_start, row_len) +
+                 (show_wrap_marker ? info->env->line_wrap_marker_width : 0) >=
              info->eb->termw);
         const bool should_attempt_inline_right =
             (!info->in_extra && info->eb->inline_right_text != NULL && row == inline_right_row &&
@@ -1696,13 +1697,9 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         if (has_following_row) {
             if (show_wrap_marker) {
                 ic_term_mark_prompt_start(info->env, true);
-#ifndef __APPLE__
-                bbcode_print(info->env->bbcode,
-                             "[ic-diminish]\xE2\x86\x90[/]");  // left arrow
-#else
-                bbcode_print(info->env->bbcode,
-                             "[ic-diminish]\xE2\x86\xB5[/]");  // return symbol
-#endif
+                bbcode_style_open(info->env->bbcode, "ic-diminish");
+                term_write(term, info->env->line_wrap_marker);
+                bbcode_style_close(info->env->bbcode, NULL);
                 ic_term_mark_input_start(info->env);
             }
             if (!should_attempt_inline_right && !row_fills_terminal) {
@@ -1747,7 +1744,7 @@ static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, a
     info.cursor_logical_line = cursor_logical_line;
     info.continuation_row = false;
     info.has_following_row = has_following_row;
-    (void)sbuf_for_each_row(input, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+    (void)sbuf_for_each_row(input, eb->termw, promptw, cpromptw, env->line_wrap_marker_width,
                             &edit_refresh_rows_iter, &info, NULL);
 }
 
@@ -1891,11 +1888,11 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     while (true) {
         rc = (rowcol_t){0};
         rows_input = sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw,
-                                        env->show_line_wrap_marker, eb->pos, &rc);
+                                        env->line_wrap_marker_width, eb->pos, &rc);
 
         if (extra != NULL) {
             rc_extra = (rowcol_t){0};
-            rows_extra = sbuf_get_rc_at_pos(extra, eb->termw, 0, 0, env->show_line_wrap_marker,
+            rows_extra = sbuf_get_rc_at_pos(extra, eb->termw, 0, 0, env->line_wrap_marker_width,
                                             0 /*pos*/, &rc_extra);
         } else {
             rows_extra = 0;
@@ -2205,12 +2202,12 @@ static bool edit_resize(ic_env_t* env, editor_t* eb) {
     rowcol_t rc = {0};
     const ssize_t rows_input =
         sbuf_get_wrapped_rc_at_pos(eb->input, eb->termw, newtermw, promptw, cpromptw,
-                                   env->show_line_wrap_marker, eb->pos, &rc);
+                                   env->line_wrap_marker_width, eb->pos, &rc);
     rowcol_t rc_extra = {0};
     ssize_t rows_extra = 0;
     if (extra != NULL) {
         rows_extra = sbuf_get_wrapped_rc_at_pos(extra, eb->termw, newtermw, 0, 0,
-                                                env->show_line_wrap_marker, 0 /*pos*/, &rc_extra);
+                                                env->line_wrap_marker_width, 0 /*pos*/, &rc_extra);
     }
     ssize_t rows = rows_input + rows_extra;
     debug_msg(

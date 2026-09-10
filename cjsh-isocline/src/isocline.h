@@ -984,14 +984,16 @@ bool ic_enable_current_line_number_highlight(bool enable);
 /// Returns whether current line number highlighting is enabled.
 bool ic_current_line_number_highlight_is_enabled(void);
 
-/// Enable or disable the visible marker at the end of soft-wrapped editor rows (enabled by
-/// default). The enabled marker reserves one column and is shown only on UTF-8 terminals.
-/// Disabling the marker lets input use the full terminal width before wrapping. Input contents
-/// and the newline printed after submitting input are unaffected.
-/// Returns the previous setting.
-bool ic_enable_line_wrap_marker(bool enable);
-/// Return the current setting without changing it.
-bool ic_line_wrap_marker_is_enabled(void);
+/// Set the marker at the end of soft-wrapped editor rows. The string is copied and must be
+/// empty (disable the marker) or exactly one printable UTF-8 code point with positive display
+/// width. Passing NULL restores the default: a return symbol on macOS, a left arrow elsewhere.
+/// The marker reserves its display width; an empty marker lets input use the full terminal width.
+/// Non-ASCII markers are shown only on UTF-8 terminals. Input contents and the newline printed
+/// after submitting input are unaffected. Returns false without changing the marker on failure.
+bool ic_set_line_wrap_marker(const char* marker);
+/// Get the current marker (empty when disabled). The returned string is owned by isocline and
+/// remains valid until the next successful setter call. Returns NULL if initialization fails.
+const char* ic_get_line_wrap_marker(void);
 
 /// Enable or disable visualization of plain space characters inside the buffer (disabled by
 /// default). When enabled, every space is rendered using the whitespace marker returned by

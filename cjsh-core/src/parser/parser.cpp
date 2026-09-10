@@ -1588,7 +1588,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         for (size_t i = 0; i < tokens.size(); ++i) {
             QuoteInfo qi(tokens[i]);
             auto redir = parse_redirection_token(qi.value);
-            if (redir.has_value() && redirection_requires_value(*redir) && i + 1 >= tokens.size()) {
+            if (qi.is_unquoted() && redir.has_value() && redirection_requires_value(*redir) &&
+                i + 1 >= tokens.size()) {
                 throw std::runtime_error("cjsh: syntax error near unexpected token `newline'");
             }
         }
@@ -1597,6 +1598,10 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
         for (size_t i = 0; i < tokens.size(); ++i) {
             QuoteInfo qi(tokens[i]);
+            if (!qi.is_unquoted()) {
+                filtered_args.push_back(tokens[i]);
+                continue;
+            }
 
             auto redir = parse_redirection_token(qi.value);
             if (redir.has_value()) {

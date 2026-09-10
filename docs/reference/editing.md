@@ -168,19 +168,26 @@ Pair this option with custom styling via `cjshopt style_def ic-whitespace-char "
 ### Line Wrap Marker
 
 Long lines display a `↵` marker on macOS or `←` on other UTF-8 terminals where they
-wrap onto another screen row. The marker is enabled by default.
+wrap onto another screen row by default. Customize it with one printable Unicode
+character, or use an empty string to hide it.
 
 ```bash
-cjshopt line-wrap-marker off     # Hide the wrap marker
-cjshopt line-wrap-marker on      # Show the wrap marker (default)
-cjshopt line-wrap-marker status  # Show the current setting
+cjshopt line-wrap-marker '↪'     # Use a custom wrap marker
+cjshopt line-wrap-marker ''      # Hide the wrap marker
+cjshopt line-wrap-marker status  # Show the current marker
 ```
 
-Add the command to `~/.cjshrc` to persist the preference. Hiding the marker keeps
-line wrapping and the newline after pressing Enter unchanged.
+Add the command to `~/.cjshrc` to persist the preference. The marker reserves its
+display width, including two columns for a wide character. An empty marker lets
+input use the full terminal width. Input contents and the newline after pressing
+Enter are unchanged. Multi-character strings, control characters, and zero-width
+characters are rejected. ASCII markers also work on non-UTF-8 terminals.
 
-The isocline API exposes this setting through `ic_enable_line_wrap_marker(bool)`
-and `ic_line_wrap_marker_is_enabled()`.
+The isocline API exposes `ic_set_line_wrap_marker(const char*)` and
+`ic_get_line_wrap_marker()`. The setter copies the string and returns `false`
+without changing the marker for invalid input. Pass `""` to disable the marker or
+`NULL` to restore the platform default. These replace the previous boolean API;
+the shell command no longer accepts `on`, `off`, or other toggle words.
 
 ### Syntax Highlighting
 

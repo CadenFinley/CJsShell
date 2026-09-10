@@ -729,12 +729,19 @@ static int run_case(const char* scenario) {
         initial_input = "abcdefghijklmnopqrstuvwxyz0123456789";
         (void)ic_enable_multiline(true);
         (void)ic_enable_line_numbers(false);
-        if (strncmp(scenario, "line_wrap_marker_off", 20) == 0 ||
-            strncmp(scenario, "line_wrap_marker_on", 19) == 0) {
-            (void)ic_enable_line_wrap_marker(false);
+        if (strstr(scenario, "_empty") != NULL || strstr(scenario, "_restored") != NULL) {
+            (void)ic_set_line_wrap_marker("");
         }
-        if (strncmp(scenario, "line_wrap_marker_on", 19) == 0) {
-            (void)ic_enable_line_wrap_marker(true);
+        if (strstr(scenario, "_restored") != NULL) {
+            (void)ic_set_line_wrap_marker(NULL);
+        } else if (strstr(scenario, "_ascii") != NULL) {
+            (void)ic_set_line_wrap_marker("!");
+        } else if (strstr(scenario, "_unicode") != NULL) {
+            (void)ic_set_line_wrap_marker("↪");
+        } else if (strstr(scenario, "_wide") != NULL) {
+            (void)ic_set_line_wrap_marker("界");
+        } else if (strstr(scenario, "_bracket") != NULL) {
+            (void)ic_set_line_wrap_marker("[");
         }
         if (strstr(scenario, "_boundary") != NULL) {
             initial_input = "";
@@ -900,7 +907,7 @@ static int run_case(const char* scenario) {
                 (strcmp(scenario, "completion_many_menu_tall_wrapped_input") == 0 ||
                  strcmp(scenario, "completion_many_menu_tall_marker_off") == 0);
             if (strcmp(scenario, "completion_many_menu_tall_marker_off") == 0) {
-                (void)ic_enable_line_wrap_marker(false);
+                (void)ic_set_line_wrap_marker("");
             }
             if (strcmp(scenario, "completion_many_menu_tall_prompt_prefix") == 0) {
                 prompt_text = "COMPLETION-PREFIX-TOP\nCOMPLETION-PREFIX-MIDDLE\npty";

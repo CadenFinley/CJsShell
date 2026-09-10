@@ -354,7 +354,7 @@ static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, s
     rowcol_t rc_dummy;
     memset(&rc_dummy, 0, sizeof(rc_dummy));
     ssize_t preview_rows =
-        sbuf_get_rc_at_pos(preview, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+        sbuf_get_rc_at_pos(preview, eb->termw, promptw, cpromptw, env->line_wrap_marker_width,
                            sbuf_len(preview), &rc_dummy);
 
     ssize_t max_preview_rows = edit_available_terminal_rows(env, eb) - reserved_rows;
@@ -371,13 +371,13 @@ static ssize_t edit_completion_preview_input_rows(ic_env_t* env, editor_t* eb, s
             last_columns = 0;
         }
         ssize_t visible_len =
-            sbuf_get_pos_at_rc(preview, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+            sbuf_get_pos_at_rc(preview, eb->termw, promptw, cpromptw, env->line_wrap_marker_width,
                                max_preview_rows - 1, last_columns);
         if (visible_len < 0) {
             visible_len = 0;
         }
         rowcol_t visible_rc = {0};
-        (void)sbuf_get_rc_at_pos(preview, eb->termw, promptw, cpromptw, env->show_line_wrap_marker,
+        (void)sbuf_get_rc_at_pos(preview, eb->termw, promptw, cpromptw, env->line_wrap_marker_width,
                                  visible_len, &visible_rc);
         if (visible_len > 0 && visible_rc.col > last_columns) {
             // A wide character can straddle the requested column.

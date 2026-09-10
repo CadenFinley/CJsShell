@@ -328,6 +328,54 @@ static bool test_prompt_line_replacement_requires_content(void) {
     return true;
 }
 
+static bool test_line_wrap_marker(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL) {
+        return false;
+    }
+#ifdef __APPLE__
+    const char* default_marker = "↵";
+#else
+    const char* default_marker = "←";
+#endif
+    EXPECT_STREQ(ic_get_line_wrap_marker(), default_marker, "default wrap marker mismatch");
+    EXPECT_TRUE(ic_set_line_wrap_marker(""), "empty marker should disable wrap indicators");
+    EXPECT_STREQ(ic_get_line_wrap_marker(), "", "disabled marker should be empty");
+    EXPECT_TRUE(env->line_wrap_marker_width == 0, "empty marker should not reserve any columns");
+
+    char custom_marker[] = ">";
+    EXPECT_TRUE(ic_set_line_wrap_marker(custom_marker), "ASCII marker should be accepted");
+    custom_marker[0] = '!';
+    EXPECT_STREQ(ic_get_line_wrap_marker(), ">", "setter should copy the marker");
+    EXPECT_TRUE(ic_set_line_wrap_marker(ic_get_line_wrap_marker()),
+                "setter should accept its own getter's result");
+    EXPECT_STREQ(ic_get_line_wrap_marker(), ">", "self-assignment should preserve the marker");
+
+    const char* markers[] = {"é", "↪", "界", "😀", "[", "'", " ", "0", "1"};
+    for (size_t i = 0; i < sizeof(markers) / sizeof(markers[0]); i++) {
+        EXPECT_TRUE(ic_set_line_wrap_marker(markers[i]),
+                    "one Unicode character should be accepted");
+        EXPECT_STREQ(ic_get_line_wrap_marker(), markers[i], "marker should round-trip verbatim");
+    }
+    EXPECT_TRUE(ic_set_line_wrap_marker("界"), "wide character should be accepted");
+    EXPECT_TRUE(env->line_wrap_marker_width == 2, "wide marker should reserve two columns");
+
+    const char* invalid[] = {
+        "on",           "off",  "ab",       "↪↪",       "e\xCC\x81",    "\n",
+        "\r",           "\t",   "\x1B",     "\x7F",     "\xC2\x85",     "\xCC\x81",
+        "\xE2\x80\x8D", "\xFF", "\xC0\xAF", "\xE2\x86", "\xED\xA0\x80", "\xF4\x90\x80\x80",
+    };
+    for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
+        EXPECT_FALSE(ic_set_line_wrap_marker(invalid[i]), "invalid marker should be rejected");
+        EXPECT_STREQ(ic_get_line_wrap_marker(), "界", "rejection should preserve the marker");
+        EXPECT_TRUE(env->line_wrap_marker_width == 2, "rejection should preserve its width");
+    }
+    EXPECT_TRUE(ic_set_line_wrap_marker(NULL), "NULL should restore the default marker");
+    EXPECT_STREQ(ic_get_line_wrap_marker(), default_marker, "reset should restore default marker");
+    EXPECT_TRUE(env->line_wrap_marker_width == 1, "default marker should reserve one column");
+    return true;
+}
+
 static bool test_visible_whitespace_marker(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL) {
@@ -1285,6 +1333,19 @@ static bool test_line_wrapping_calculations(void) {
     resized_rows = sbuf_get_wrapped_rc_at_pos(sb, 10, 10, 2, 3, true, sbuf_len(sb), &rc);
     EXPECT_TRUE(resized_rows == 2 && rc.row == 1 && rc.col == 4,
                 "a marker in the final column should not count as a hard wrap");
+
+    sbuf_replace(sb, "123456x");
+    ssize_t rows = sbuf_get_rc_at_pos(sb, 10, 2, 3, 2, sbuf_len(sb), &rc);
+    EXPECT_TRUE(rows == 2 && rc.row == 1 && rc.col == 1,
+                "a wide marker should reserve two columns before wrapping");
+    for (ssize_t pos = 0; pos >= 0 && pos <= sbuf_len(sb); pos = sbuf_next(sb, pos, NULL)) {
+        (void)sbuf_get_rc_at_pos(sb, 10, 2, 3, 2, pos, &rc);
+        EXPECT_TRUE(sbuf_get_pos_at_rc(sb, 10, 2, 3, 2, rc.row, rc.col) == pos,
+                    "wide marker row/column lookup should round-trip character positions");
+    }
+    resized_rows = sbuf_get_wrapped_rc_at_pos(sb, 10, 9, 2, 3, 2, sbuf_len(sb), &rc);
+    EXPECT_TRUE(resized_rows == 3 && rc.row == 2 && rc.col == 4,
+                "resize should account for a wide marker that no longer fits its old row");
 
     sbuf_free(sb);
     return true;
@@ -4641,6 +4702,7 @@ static const test_case_t kTests[] = {
     {"line_number_continuation_prompt_toggle", test_line_number_continuation_prompt_toggle},
     {"line_number_prompt_replacement_toggle", test_line_number_prompt_replacement_toggle},
     {"prompt_line_replacement_requires_content", test_prompt_line_replacement_requires_content},
+    {"line_wrap_marker", test_line_wrap_marker},
     {"visible_whitespace_marker", test_visible_whitespace_marker},
     {"multiline_start_line_count_clamp", test_multiline_start_line_count_clamp},
     {"multiline_max_line_count_defaults_and_clamps",

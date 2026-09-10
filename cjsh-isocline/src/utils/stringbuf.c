@@ -389,8 +389,8 @@ static ssize_t str_find_ws_word_end(const char* s, ssize_t len, ssize_t pos) {
 
 // invoke a function for each terminal row; returns total row count.
 static ssize_t str_for_each_row(const char* s, ssize_t len, ssize_t termw, ssize_t promptw,
-                                ssize_t cpromptw, bool wrap_marker, row_fun_t* fun, const void* arg,
-                                void* res) {
+                                ssize_t cpromptw, ssize_t wrap_marker_width, row_fun_t* fun,
+                                const void* arg, void* res) {
     if (s == NULL) {
         s = "";
         len = 0;
@@ -409,10 +409,10 @@ static ssize_t str_for_each_row(const char* s, ssize_t len, ssize_t termw, ssize
             break;
         }
         startw = (rcount == 0 ? promptw : cpromptw);
-        // Reserve only the marker's column. Without a marker, text can fill the final
+        // Reserve the marker's display width. Without a marker, text can fill the final
         // column and its following cursor belongs on the next row.
-        ssize_t termcol = rcol + w + startw + (wrap_marker ? 1 : 0);
-        if (termw > 0 && i != 0 && termcol > termw && (wrap_marker || w > 0)) {
+        ssize_t termcol = rcol + w + startw + wrap_marker_width;
+        if (termw > 0 && i != 0 && termcol > termw && (wrap_marker_width || w > 0)) {
             // wrap
             if (fun != NULL) {
                 if (fun(s, rcount, rstart, i - rstart, startw, true, arg, res)) {
@@ -440,7 +440,7 @@ static ssize_t str_for_each_row(const char* s, ssize_t len, ssize_t termw, ssize
         i += next;
         rcol += w;
     }
-    if (!wrap_marker && termw > 0 && rcol > 0 && startw + rcol >= termw) {
+    if (!wrap_marker_width && termw > 0 && rcol > 0 && startw + rcol >= termw) {
         // Materialize the cursor row after text that exactly fills the terminal.
         // An explicit newline has already emitted its row above.
         if (fun != NULL && fun(s, rcount, rstart, i - rstart, startw, true, arg, res)) {
@@ -491,9 +491,10 @@ static bool str_get_current_pos_iter(const char* s, ssize_t row, ssize_t row_sta
 }
 
 static ssize_t str_get_rc_at_pos(const char* s, ssize_t len, ssize_t termw, ssize_t promptw,
-                                 ssize_t cpromptw, bool wrap_marker, ssize_t pos, rowcol_t* rc) {
+                                 ssize_t cpromptw, ssize_t wrap_marker_width, ssize_t pos,
+                                 rowcol_t* rc) {
     memset(rc, 0, sizeof(*rc));
-    ssize_t rows = str_for_each_row(s, len, termw, promptw, cpromptw, wrap_marker,
+    ssize_t rows = str_for_each_row(s, len, termw, promptw, cpromptw, wrap_marker_width,
                                     &str_get_current_pos_iter, &pos, rc);
     // debug_msg("edit: current pos: (%d, %d) %s %s\n", rc->row, rc->col,
     // rc->first_on_row ? "first" : "", rc->last_on_row ? "last" : "");
@@ -507,7 +508,7 @@ static ssize_t str_get_rc_at_pos(const char* s, ssize_t len, ssize_t termw, ssiz
 typedef struct wrapped_arg_s {
     ssize_t pos;
     ssize_t newtermw;
-    bool wrap_marker;
+    ssize_t wrap_marker_width;
 } wrapped_arg_t;
 
 typedef struct wrowcol_s {
@@ -534,9 +535,9 @@ static bool str_get_current_wrapped_pos_iter(const char* s, ssize_t row, ssize_t
         if (i < row_len) {
             next = str_next_ofs(s + row_start, row_len, i, &cw);
         } else {
-            // The marker or end-of-input cursor occupies one column. The explicit
-            // newline after a wrapped row does not consume another column.
-            cw = (is_wrap ? (warg->wrap_marker ? 1 : 0) : (is_cursor ? 1 : 0));
+            // Account for the marker width or the one-column end-of-input cursor.
+            // The newline after a wrapped row does not consume another column.
+            cw = (is_wrap ? warg->wrap_marker_width : (is_cursor ? 1 : 0));
             next = 1;
         }
 
@@ -571,14 +572,14 @@ static bool str_get_current_wrapped_pos_iter(const char* s, ssize_t row, ssize_t
 
 static ssize_t str_get_wrapped_rc_at_pos(const char* s, ssize_t len, ssize_t termw,
                                          ssize_t newtermw, ssize_t promptw, ssize_t cpromptw,
-                                         bool wrap_marker, ssize_t pos, rowcol_t* rc) {
+                                         ssize_t wrap_marker_width, ssize_t pos, rowcol_t* rc) {
     wrapped_arg_t warg;
     warg.pos = pos;
     warg.newtermw = newtermw;
-    warg.wrap_marker = wrap_marker;
+    warg.wrap_marker_width = wrap_marker_width;
     wrowcol_t wrc;
     memset(&wrc, 0, sizeof(wrc));
-    ssize_t rows = str_for_each_row(s, len, termw, promptw, cpromptw, wrap_marker,
+    ssize_t rows = str_for_each_row(s, len, termw, promptw, cpromptw, wrap_marker_width,
                                     &str_get_current_wrapped_pos_iter, &warg, &wrc);
     debug_msg("edit: wrapped pos: (%zd,%zd) rows %zd %s %s, hrows: %zd\n", wrc.rc.row, wrc.rc.col,
               rows, wrc.rc.first_on_row ? "first" : "", wrc.rc.last_on_row ? "last" : "",
@@ -618,15 +619,15 @@ static bool str_set_pos_iter(const char* s, ssize_t row, ssize_t row_start, ssiz
 }
 
 static ssize_t str_get_pos_at_rc(const char* s, ssize_t len, ssize_t termw, ssize_t promptw,
-                                 ssize_t cpromptw, bool wrap_marker, ssize_t row,
+                                 ssize_t cpromptw, ssize_t wrap_marker_width, ssize_t row,
                                  ssize_t col /* without prompt */) {
     rowcol_t rc;
     memset(&rc, 0, ssizeof(rc));
     rc.row = row;
     rc.col = col;
     ssize_t pos = -1;
-    (void)str_for_each_row(s, len, termw, promptw, cpromptw, wrap_marker, &str_set_pos_iter, &rc,
-                           &pos);
+    (void)str_for_each_row(s, len, termw, promptw, cpromptw, wrap_marker_width, &str_set_pos_iter,
+                           &rc, &pos);
     return pos;
 }
 
@@ -964,35 +965,36 @@ ic_private ssize_t sbuf_find_ws_word_end(stringbuf_t* sbuf, ssize_t pos) {
 
 // find row/col position
 ic_private ssize_t sbuf_get_pos_at_rc(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw,
-                                      ssize_t cpromptw, bool wrap_marker, ssize_t row,
+                                      ssize_t cpromptw, ssize_t wrap_marker_width, ssize_t row,
                                       ssize_t col) {
-    return str_get_pos_at_rc(sbuf->buf, sbuf->count, termw, promptw, cpromptw, wrap_marker, row,
-                             col);
+    return str_get_pos_at_rc(sbuf->buf, sbuf->count, termw, promptw, cpromptw, wrap_marker_width,
+                             row, col);
 }
 
 // get row/col for a given position
 ic_private ssize_t sbuf_get_rc_at_pos(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw,
-                                      ssize_t cpromptw, bool wrap_marker, ssize_t pos,
+                                      ssize_t cpromptw, ssize_t wrap_marker_width, ssize_t pos,
                                       rowcol_t* rc) {
-    return str_get_rc_at_pos(sbuf->buf, sbuf->count, termw, promptw, cpromptw, wrap_marker, pos,
-                             rc);
+    return str_get_rc_at_pos(sbuf->buf, sbuf->count, termw, promptw, cpromptw, wrap_marker_width,
+                             pos, rc);
 }
 
 ic_private ssize_t sbuf_get_wrapped_rc_at_pos(stringbuf_t* sbuf, ssize_t termw, ssize_t newtermw,
-                                              ssize_t promptw, ssize_t cpromptw, bool wrap_marker,
-                                              ssize_t pos, rowcol_t* rc) {
+                                              ssize_t promptw, ssize_t cpromptw,
+                                              ssize_t wrap_marker_width, ssize_t pos,
+                                              rowcol_t* rc) {
     return str_get_wrapped_rc_at_pos(sbuf->buf, sbuf->count, termw, newtermw, promptw, cpromptw,
-                                     wrap_marker, pos, rc);
+                                     wrap_marker_width, pos, rc);
 }
 
 ic_private ssize_t sbuf_for_each_row(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw,
-                                     ssize_t cpromptw, bool wrap_marker, row_fun_t* fun, void* arg,
-                                     void* res) {
+                                     ssize_t cpromptw, ssize_t wrap_marker_width, row_fun_t* fun,
+                                     void* arg, void* res) {
     if (sbuf == NULL) {
         return 0;
     }
-    return str_for_each_row(sbuf->buf, sbuf->count, termw, promptw, cpromptw, wrap_marker, fun, arg,
-                            res);
+    return str_for_each_row(sbuf->buf, sbuf->count, termw, promptw, cpromptw, wrap_marker_width,
+                            fun, arg, res);
 }
 
 // Duplicate and decode from utf-8 (for non-utf8 terminals)

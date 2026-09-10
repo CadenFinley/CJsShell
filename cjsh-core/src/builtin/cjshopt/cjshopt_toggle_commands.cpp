@@ -1254,23 +1254,48 @@ int visible_whitespace_command(const std::vector<std::string>& args) {
 
 int line_wrap_marker_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: line-wrap-marker <on|off|status>",
-        "Examples:", "  line-wrap-marker on      Show the symbol at wrapped line ends",
-        "  line-wrap-marker off     Hide the symbol at wrapped line ends",
-        "  line-wrap-marker status  Show the current setting"};
+        "Usage: line-wrap-marker <marker|status>",
+        "The marker must be one printable Unicode character, or '' to disable it.",
+        "Examples:",
+        "  line-wrap-marker '>'     Set the symbol at wrapped line ends",
+        "  line-wrap-marker ''      Hide the symbol at wrapped line ends",
+        "  line-wrap-marker status  Show the current marker"};
 
-    static const ToggleCommandConfig config{
-        "line-wrap-marker",
-        usage_lines,
-        [] { return ic_line_wrap_marker_is_enabled(); },
-        [](bool enable) { (void)ic_enable_line_wrap_marker(enable); },
-        "Line wrap marker",
-        false,
-        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
-        {},
-        {}};
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT, "line-wrap-marker", "Missing marker argument",
+                     usage_lines});
+        return 1;
+    }
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
+        return 0;
+    }
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "line-wrap-marker", "Too many arguments provided",
+                     usage_lines});
+        return 1;
+    }
 
-    return handle_toggle_command(config, args);
+    const bool status = matches_token(normalize_option(args[1]), {"status", "--status"});
+    if (!status && !ic_set_line_wrap_marker(args[1].c_str())) {
+        print_error({ErrorType::INVALID_ARGUMENT, "line-wrap-marker",
+                     "Marker must be empty or one printable Unicode character with positive "
+                     "display width",
+                     usage_lines});
+        return 1;
+    }
+
+    if (!cjsh_env::startup_active()) {
+        const char* current = ic_get_line_wrap_marker();
+        const std::string marker = (current == nullptr ? "" : current);
+        const std::string quoted = (marker == "'" ? "\"'\"" : "'" + marker + "'");
+        std::cout << "Line wrap marker " << (status ? "is currently " : "set to ") << quoted
+                  << (marker.empty() ? " (disabled).\n" : ".\n");
+        if (!status) {
+            std::cout << "Add `cjshopt line-wrap-marker " << quoted
+                      << "` to your ~/.cjshrc to persist this change.\n";
+        }
+    }
+    return 0;
 }
 
 int hint_command(const std::vector<std::string>& args) {

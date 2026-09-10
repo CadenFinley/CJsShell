@@ -45,6 +45,7 @@ ic_private void ic_env_apply_history_search_prompt(ic_env_t* env, const char* pr
 ic_private void ic_env_apply_command_palette_prompt(ic_env_t* env, const char* prompt_text);
 ic_private const char* ic_env_get_history_search_prompt(ic_env_t* env);
 ic_private const char* ic_env_get_command_palette_prompt(ic_env_t* env);
+ic_private bool ic_env_apply_line_wrap_marker(ic_env_t* env, const char* marker);
 
 // Shared prompt rendering helpers
 ic_private void ic_emit_continuation_indent(ic_env_t* env, const char* prompt_text);

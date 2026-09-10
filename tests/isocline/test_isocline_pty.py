@@ -1198,7 +1198,11 @@ def assert_menu_dismissal(binary: str) -> None:
 
 
 def assert_line_wrap_marker(binary: str) -> None:
-    for mode in ("default", "off", "on"):
+    default_marker = "↵" if IS_DARWIN else "←"
+    for mode, marker, width in (
+        ("default", default_marker, 1), ("empty", "", 0), ("restored", default_marker, 1),
+        ("ascii", "!", 1), ("unicode", "↪", 1), ("wide", "界", 2), ("bracket", "[", 1),
+    ):
         scenario = f"line_wrap_marker_{mode}"
         # Cross soft-wrap boundaries before editing, then insert a real newline.
         actual, output = run_case(
@@ -1208,10 +1212,9 @@ def assert_line_wrap_marker(binary: str) -> None:
         expected = "abcdefghijklXmnopqrstuvwxyz0123456789\nnext"
         if actual != expected:
             raise AssertionError(f"{scenario}: expected {expected!r}, got {actual!r}")
-        marker = "↵" if IS_DARWIN else "←"
-        if (marker in output) != (mode != "off"):
+        if (default_marker in output) != (mode in ("default", "restored")):
             raise AssertionError(f"{scenario}: unexpected wrap marker visibility: {output!r}")
-        first_row = "pty> abcdefghijklmno\n" if mode == "off" else f"pty> abcdefghijklmn{marker}\n"
+        first_row = "pty> " + "abcdefghijklmno"[:15 - width] + marker + "\n"
         if first_row not in normalize_terminal_output(output):
             raise AssertionError(f"{scenario}: incorrect wrap boundary: {output!r}")
 
@@ -1228,7 +1231,7 @@ def assert_line_wrap_marker(binary: str) -> None:
 
     marker = "↵" if IS_DARWIN else "←"
     result = run_resize_case(
-        binary, "line_wrap_marker_on_boundary",
+        binary, "line_wrap_marker_restored_boundary",
         [
             ("send", b"abcdefghijklmn"),
             ("idle", 0.1),
@@ -1262,7 +1265,7 @@ def assert_line_wrap_marker(binary: str) -> None:
         raise AssertionError(f"single-column marker changed input: {result!r}")
 
     result = run_resize_case(
-        binary, "line_wrap_marker_off_boundary",
+        binary, "line_wrap_marker_empty_boundary",
         [
             ("send", b"abcdefghijklmn"),
             ("idle", 0.1),
@@ -1288,7 +1291,7 @@ def assert_line_wrap_marker(binary: str) -> None:
 
     # Reflow full-width rows, then use vertical movement to edit the last column.
     result = run_resize_case(
-        binary, "line_wrap_marker_off",
+        binary, "line_wrap_marker_empty",
         [
             ("idle", 0.1),
             ("resize", 24),
@@ -1305,6 +1308,29 @@ def assert_line_wrap_marker(binary: str) -> None:
     expected = "abcdefghijklmnopqrstuvwxyz012Y3456789"
     if result != expected:
         raise AssertionError(f"full-width cursor movement expected {expected!r}, got {result!r}")
+
+    def check_wide_marker(output: str) -> None:
+        # The screen helper models single-column cells; expand the known two-column marker.
+        expect_screen(
+            ["pty> abcdefghijklm##", "   > nopqrstuvwxyz##", "   > 0123456789"], (2, 15)
+        )(output.replace("界", "##"))
+
+    result = run_resize_case(
+        binary, "line_wrap_marker_wide",
+        [
+            ("idle", 0.1),
+            ("resize", 24),
+            ("idle", 0.1),
+            ("resize", 20),
+            ("idle", 0.1),
+            ("check", check_wide_marker),
+            ("send", CTRL_HOME + RIGHT * 12 + DOWN + b"Y\r"),
+        ],
+        initial_rows=8, initial_cols=20,
+    )
+    expected = "abcdefghijklmnopqrstuvwxyYz0123456789"
+    if result != expected:
+        raise AssertionError(f"wide-marker cursor movement expected {expected!r}, got {result!r}")
 
 
 def assert_multiline_history_navigation(binary: str) -> None:

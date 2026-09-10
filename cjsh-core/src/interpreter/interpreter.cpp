@@ -970,7 +970,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 };
 
                 QuoteInfo last_token(merged_tokens.back());
-                if (requires_operand(last_token.value)) {
+                if (last_token.is_unquoted() && requires_operand(last_token.value)) {
                     std::vector<std::string> suggestions = {
                         "Provide a destination after the redirection operator."};
                     append_context_hint(suggestions, text, current_line_number);

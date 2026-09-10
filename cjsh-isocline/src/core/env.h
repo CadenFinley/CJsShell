@@ -141,7 +141,6 @@ struct ic_env_s {
                                                        // prompts are active?
     bool replace_prompt_line_with_line_number;         // swap final prompt line with line numbers?
     bool show_whitespace_characters;                   // visualize spaces while editing?
-    bool show_line_wrap_marker;                        // show a symbol at soft-wrapped row ends?
     bool inline_right_prompt_follows_cursor;           // right prompt tracks cursor row
     bool bracketed_paste_enabled;                      // bracketed paste mode active
     bool readline_terminal_suspended;                  // external program owns the terminal
@@ -173,6 +172,8 @@ struct ic_env_s {
     void* command_palette_handler_arg;
 
     char* whitespace_marker;  // custom marker used when visualizing spaces
+    char line_wrap_marker[5];        // one UTF-8 code point, or empty to hide soft-wrap indicators
+    ssize_t line_wrap_marker_width;  // terminal columns reserved for the marker
 };
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text, const char* inline_right_text);

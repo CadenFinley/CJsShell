@@ -112,15 +112,16 @@ typedef struct rowcol_s {
 
 // find row/col position
 ic_private ssize_t sbuf_get_pos_at_rc(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw,
-                                      ssize_t cpromptw, bool wrap_marker, ssize_t row, ssize_t col);
+                                      ssize_t cpromptw, ssize_t wrap_marker_width, ssize_t row,
+                                      ssize_t col);
 // get row/col for a given position
 ic_private ssize_t sbuf_get_rc_at_pos(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw,
-                                      ssize_t cpromptw, bool wrap_marker, ssize_t pos,
+                                      ssize_t cpromptw, ssize_t wrap_marker_width, ssize_t pos,
                                       rowcol_t* rc);
 
 ic_private ssize_t sbuf_get_wrapped_rc_at_pos(stringbuf_t* sbuf, ssize_t termw, ssize_t newtermw,
-                                              ssize_t promptw, ssize_t cpromptw, bool wrap_marker,
-                                              ssize_t pos, rowcol_t* rc);
+                                              ssize_t promptw, ssize_t cpromptw,
+                                              ssize_t wrap_marker_width, ssize_t pos, rowcol_t* rc);
 
 // row iteration
 typedef bool(row_fun_t)(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len,
@@ -128,8 +129,8 @@ typedef bool(row_fun_t)(const char* s, ssize_t row, ssize_t row_start, ssize_t r
                         bool is_wrap, const void* arg, void* res);
 
 ic_private ssize_t sbuf_for_each_row(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw,
-                                     ssize_t cpromptw, bool wrap_marker, row_fun_t* fun, void* arg,
-                                     void* res);
+                                     ssize_t cpromptw, ssize_t wrap_marker_width, row_fun_t* fun,
+                                     void* arg, void* res);
 
 //-------------------------------------------------------------
 // Strings

@@ -674,19 +674,13 @@ ic_public bool ic_current_line_number_highlight_is_enabled(void) {
     return env->highlight_current_line_number;
 }
 
-ic_public bool ic_enable_line_wrap_marker(bool enable) {
-    ic_env_t* env = ic_get_env();
-    if (env == NULL) {
-        return false;
-    }
-    bool prev = env->show_line_wrap_marker;
-    env->show_line_wrap_marker = enable;
-    return prev;
+ic_public bool ic_set_line_wrap_marker(const char* marker) {
+    return ic_env_apply_line_wrap_marker(ic_get_env(), marker);
 }
 
-ic_public bool ic_line_wrap_marker_is_enabled(void) {
+ic_public const char* ic_get_line_wrap_marker(void) {
     const ic_env_t* env = ic_get_env();
-    return env != NULL && env->show_line_wrap_marker;
+    return (env == NULL ? NULL : env->line_wrap_marker);
 }
 
 ic_public bool ic_enable_visible_whitespace(bool enable) {

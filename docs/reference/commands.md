@@ -790,7 +790,7 @@ Available subcommands:
 - `completion-click-accept` - Configure whether click interactions accept completion candidates
 - `menu-highlighting` - Syntax-highlight completion and history menu items
 - `visible-whitespace` - Toggle visible whitespace characters in the editor
-- `line-wrap-marker` - Toggle the symbol at wrapped line ends
+- `line-wrap-marker` - Customize the character at wrapped line ends
 - `hint` - Configure inline hints
 - `multiline-indent` - Configure auto-indent in multiline input
 - `multiline` - Configure multiline input mode
@@ -1295,19 +1295,25 @@ Add the command to `~/.cjshrc` to keep the preference across sessions. Synonyms 
 
 #### line-wrap-marker
 
-Show or hide the `↵` (macOS) or `←` (other UTF-8 terminals) symbol at the end of
-wrapped editor rows. Enabled by default.
+Set the character at the end of wrapped editor rows. The default is `↵` on macOS
+or `←` on other UTF-8 terminals. Use one printable Unicode character, or an empty
+string to hide the marker.
 
 ```bash
-cjshopt line-wrap-marker off     # Hide the wrap marker
-cjshopt line-wrap-marker on      # Show the wrap marker (default)
-cjshopt line-wrap-marker status  # Show the current setting
+cjshopt line-wrap-marker '↪'     # Use a custom wrap marker
+cjshopt line-wrap-marker ''      # Hide the wrap marker
+cjshopt line-wrap-marker status  # Show the current marker
 ```
 
-The enabled marker reserves just one column at the end of each row. Disabling it
-lets input use the full terminal width before wrapping. Enter still
-moves output onto the next line. Add the command to `~/.cjshrc` to persist the preference.
-The standard toggle synonyms such as `enable`, `disable`, `true`, and `false` are accepted.
+The marker reserves its display width (one or two columns). Disabling it lets
+input use the full terminal width before wrapping. Enter still moves output onto
+the next line. Multi-character strings, control characters, and zero-width
+characters are rejected. ASCII markers also work on non-UTF-8 terminals.
+Add the command to `~/.cjshrc` to persist the preference.
+
+This replaces the old toggle syntax: use `''` instead of `off`, and set a character
+instead of `on`. Toggle words such as `enable`, `disable`, `true`, and `false` are
+no longer accepted; `0` and `1` are literal marker characters.
 
 #### hint
 

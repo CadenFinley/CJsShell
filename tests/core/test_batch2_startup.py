@@ -202,32 +202,55 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(result.stdout, "Menu content currently shows up to 8 lines.\n")
 
     def test_line_wrap_marker_command(self):
+        default_marker = "↵" if sys.platform == "darwin" else "←"
         result = self.run_shell("-c", "cjshopt line-wrap-marker status; "
-                                "cjshopt line-wrap-marker off; cjshopt line-wrap-marker status; "
-                                "cjshopt line-wrap-marker on; cjshopt line-wrap-marker --status")
+                                "cjshopt line-wrap-marker ''; cjshopt line-wrap-marker status; "
+                                "cjshopt line-wrap-marker '↪'; cjshopt line-wrap-marker --status")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stderr, "")
         self.assertEqual([line for line in result.stdout.splitlines() if "currently" in line], [
-            "Line wrap marker is currently enabled.",
-            "Line wrap marker is currently disabled.",
-            "Line wrap marker is currently enabled.",
+            f"Line wrap marker is currently '{default_marker}'.",
+            "Line wrap marker is currently '' (disabled).",
+            "Line wrap marker is currently '↪'.",
         ])
-        for value in ("", "invalid", "off extra"):
+        for value in ("", "on", "off", "enable", "false", "ab", "'↪↪'", "'é'", "'>' extra",
+                      shlex.quote("\n"), shlex.quote("\t"), shlex.quote("\x1b")):
             with self.subTest(invalid=value):
-                result = self.run_shell("-c", f"cjshopt line-wrap-marker {value}")
+                result = self.run_shell("-c", "cjshopt line-wrap-marker '!'; "
+                                        f"cjshopt line-wrap-marker {value}; result=$?; "
+                                        "cjshopt line-wrap-marker status; exit $result")
                 self.assertEqual(result.returncode, 1)
                 self.assertIn("line-wrap-marker", result.stderr)
+                self.assertEqual(result.stdout.splitlines()[-1],
+                                 "Line wrap marker is currently '!'.")
         result = self.run_shell("-c", "cjshopt line-wrap-marker --help")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("line-wrap-marker <on|off|status>", result.stdout)
+        self.assertIn("line-wrap-marker <marker|status>", result.stdout)
+
+    def test_line_wrap_marker_characters_and_persistence(self):
+        for marker in ("", ">", "<", "|", "&", ";", "(", ")", "é", "界", "😀", "'", '"',
+                       "\\", "$", "`", "[", " ", "0", "1"):
+            with self.subTest(marker=marker):
+                result = self.run_shell("-c", "cjshopt line-wrap-marker " + shlex.quote(marker))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stderr, "")
+                # Reuse the printed persistence command, including shell metacharacter quoting.
+                command = result.stdout.split("Add `", 1)[1].rsplit("` to your", 1)[0]
+                (self.home / ".cjshrc").write_text(command + "\ncjshopt line-wrap-marker status\n")
+                result = self.run_shell("-i", "--no-titleline", "--no-history", "-c",
+                                        "cjshopt line-wrap-marker status")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                quoted = "\"'\"" if marker == "'" else "'" + marker + "'"
+                suffix = " (disabled).\n" if not marker else ".\n"
+                self.assertEqual(result.stdout, "Line wrap marker is currently " + quoted + suffix)
 
     def test_line_wrap_marker_from_rc_is_quiet(self):
         (self.home / ".cjshrc").write_text(
-            "cjshopt line-wrap-marker off\ncjshopt line-wrap-marker status\n")
+            "cjshopt line-wrap-marker ''\ncjshopt line-wrap-marker status\n")
         result = self.run_shell("-i", "--no-titleline", "--no-history", "-c",
                                 "cjshopt line-wrap-marker status")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "Line wrap marker is currently disabled.\n")
+        self.assertEqual(result.stdout, "Line wrap marker is currently '' (disabled).\n")
 
     def test_noexec_sources(self):
         self.trace_files(self.home)

@@ -232,8 +232,7 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "completion and history menu items (default: none)",
         std::string("  visible-whitespace <on|off|status> Configure visible whitespace ") +
             "characters (default: disabled)",
-        std::string("  line-wrap-marker <on|off|status> Show a symbol at wrapped line ends ") +
-            "(default: enabled)",
+        "  line-wrap-marker <marker|status> Set a single wrap character ('' to disable)",
         "  hint <on|off|status>            Configure inline hints (default: enabled)",
         std::string("  multiline-indent <on|off|status> Configure auto-indent in multiline ") +
             "(default: enabled)",

@@ -34,6 +34,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 
 #include "bbcode.h"
@@ -47,6 +48,7 @@
 #include "stringbuf.h"
 #include "term.h"
 #include "tty.h"
+#include "unicode.h"
 
 //-------------------------------------------------------------
 // Prompt helpers shared with other modules
@@ -54,6 +56,33 @@
 
 static const char* ic_default_history_search_prompt = "history search: ";
 static const char* ic_default_command_palette_prompt = "command palette: ";
+
+ic_private bool ic_env_apply_line_wrap_marker(ic_env_t* env, const char* marker) {
+    if (env == NULL) {
+        return false;
+    }
+    if (marker == NULL) {
+#ifdef __APPLE__
+        marker = "\xE2\x86\xB5";  // return symbol
+#else
+        marker = "\xE2\x86\x90";  // left arrow
+#endif
+    }
+    const ssize_t len = ic_strlen(marker);
+    ssize_t width = 0;
+    if (len > 0) {
+        unicode_codepoint_t codepoint = 0;
+        ssize_t bytes_read = 0;
+        if (len > 4 || !unicode_decode_utf8((const uint8_t*)marker, len, &codepoint, &bytes_read) ||
+            bytes_read != len || (width = unicode_codepoint_width(codepoint)) <= 0) {
+            return false;
+        }
+    }
+    // memmove also permits passing the getter's result back into the setter.
+    memmove(env->line_wrap_marker, marker, (size_t)len + 1);
+    env->line_wrap_marker_width = width;
+    return true;
+}
 
 ic_private void ic_env_apply_prompt_markers(ic_env_t* env, const char* prompt_marker,
                                             const char* continuation_prompt_marker) {
@@ -173,7 +202,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->highlight_current_line_number = true;  // highlight current line number by default
     env->allow_line_numbers_with_continuation_prompt = false;  // keep legacy suppression by default
     env->replace_prompt_line_with_line_number = false;  // keep final prompt line visible by default
-    env->show_line_wrap_marker = true;                  // show soft-wrap indicators by default
+    (void)ic_env_apply_line_wrap_marker(env, NULL);     // default soft-wrap indicator
     env->complete_nopreview = false;               // completion preview (inverted: false = enabled)
     env->complete_menu_start_expanded = false;     // keep completion menu collapsed by default
     env->completion_click_accept_enabled = false;  // keep click-to-accept off by default
