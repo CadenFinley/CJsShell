@@ -1,6 +1,27 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.5.1`.
+This changelog documents tagged releases from `v1.1.2` through `v1.5.2`.
+
+## 1.5.2 - 2026-09-10
+
+Range: `v1.5.1..v1.5.2` (5 commits, 17 files changed)
+
+### Changed
+
+- Extended cached PATH filename lookup to Tab completion, status-line analysis, and command-error suggestions, checking executability only for matching candidates and refreshing lookups on explicit Tab requests.
+- Kept explicit command queries such as `type`, `which`, and `command -v` validating executable paths against the filesystem while avoiding unnecessary PATH lookups for shell builtins.
+
+### Fixed
+
+- Fixed `command -p` PATH restoration so empty and unset values are preserved after command execution and descriptive queries.
+- Preserved known command names from searchable PATH directories that cannot be listed so they remain available as completion candidates.
+
+### Internal and Tests
+
+- Added Windows WSL 2 CI coverage for Ubuntu 24.04 x86_64, running the full CTest suite as an unprivileged user from a checkout in the Linux filesystem.
+- Expanded regression coverage for completion refreshes, executable filtering, command suggestions, explicit command lookup, and PATH restoration.
+- Replaced timing assumptions in shell lifecycle and background-job notification tests with synchronization suitable for slower WSL runners.
+- Finalized 1.5.2 as a stable release by clearing the default pre-release build marker.
 
 ## 1.5.1 - 2026-09-09
 
