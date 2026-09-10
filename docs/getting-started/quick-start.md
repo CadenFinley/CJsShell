@@ -73,7 +73,7 @@ Hopefully more package managers to come as cjsh gets bigger.
 
 ### Manual building and installation
 
-cjsh is super easy to download and install. Everything is hosted on the github repo at: `https://github.com/CadenFinley/CJsShell` 
+cjsh is super easy to download and install. Everything is hosted on the github repo at: `https://github.com/CadenFinley/cjsh`
 
 The master branch holds the most recent commits and may not always be stable and may have breaking changes with no backwards compatibility. For the most stable release, stick to using the latest tagged release from the public GitHub releases.
 
@@ -81,7 +81,7 @@ cjsh is still in active, rapid development so even the latest release can still 
 
 ```bash
     # First clone the repo
-    git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
+    git clone https://github.com/CadenFinley/cjsh && cd cjsh
 
     # Configure a Release build (outputs to ./build/release)
     cmake --preset release

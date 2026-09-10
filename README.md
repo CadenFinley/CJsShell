@@ -26,7 +26,7 @@
   SOFTWARE.
 -->
 
-# CJ's Shell (cjsh) <a href="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml"><img src="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml/badge.svg" alt="CI"></a> <a href="https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7" alt="Codacy Badge"></a> <a href="https://cadenfinley.github.io/CJsShell/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" alt="Documentation"></a> <img src="https://img.shields.io/github/repo-size/CadenFinley/CJsShell" alt="Repo Size">
+# CJ's Shell (cjsh) <a href="https://github.com/CadenFinley/cjsh/actions/workflows/ci.yml"><img src="https://github.com/CadenFinley/cjsh/actions/workflows/ci.yml/badge.svg" alt="CI"></a> <a href="https://app.codacy.com/gh/CadenFinley/cjsh/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7" alt="Codacy Badge"></a> <a href="https://cadenfinley.github.io/cjsh/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" alt="Documentation"></a> <img src="https://img.shields.io/github/repo-size/CadenFinley/cjsh" alt="Repo Size">
 
 <p align="center"><strong>POSIX-first scripting with a modern interactive shell experience</strong></p>
 <p align="center"><img src="docs/cjsh_recording.svg" alt="Terminal recording showing CJ's Shell features"></p>
@@ -39,7 +39,7 @@ The project builds into a single `cjsh` binary and vendors its line-editing depe
 
 ## Install
 
-Detailed install and onboarding guides are available in the [documentation site](https://cadenfinley.github.io/CJsShell/getting-started/quick-start/).
+Detailed install and onboarding guides are available in the [documentation site](https://cadenfinley.github.io/cjsh/getting-started/quick-start/).
 
 ### Prebuilt binaries
 
@@ -49,7 +49,7 @@ x86-64 and ARM64 with either glibc or a fully static musl build. Every release a
 `SHA256SUMS` manifest, and its artifacts have GitHub build-provenance attestations.
 
 Download the appropriate archive from the
-[latest release](https://github.com/CadenFinley/CJsShell/releases/latest), extract it, and place the
+[latest release](https://github.com/CadenFinley/cjsh/releases/latest), extract it, and place the
 included `cjsh` executable somewhere on your `PATH`.
 
 ### Homebrew (macOS/Linux)
@@ -80,7 +80,7 @@ paru -S cjsh
 ### Build
 
 ```bash
-git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
+git clone https://github.com/CadenFinley/cjsh && cd cjsh
 cmake --preset release
 cmake --build --preset release --parallel
 ```
@@ -113,7 +113,7 @@ for filtering, serial runs, and repeating failures.
 
 ## Documentation
 
-Project documentation is published at [cadenfinley.github.io/CJsShell](https://cadenfinley.github.io/CJsShell/).
+Project documentation is published at [cadenfinley.github.io/cjsh](https://cadenfinley.github.io/cjsh/).
 
 ## Contributing
 

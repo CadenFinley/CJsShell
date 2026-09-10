@@ -54,7 +54,7 @@ You will need:
 From the repository root:
 
 ```bash
-git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
+git clone https://github.com/CadenFinley/cjsh && cd cjsh
 cmake --preset release
 cmake --build --preset release --parallel
 ```

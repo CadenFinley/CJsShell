@@ -1046,7 +1046,7 @@ Isocline is designed to be fast and responsive:
 - Press `F1` during input for interactive help
 - Run `cjshopt <subcommand> --help` for command-specific help
 - Check logs in debug mode
-- Report issues on the CJsShell GitHub repository
+- Report issues on the cjsh GitHub repository
 
 ## External terminal settings
 

@@ -28,7 +28,7 @@
 
 # Development
 
-Want to help with `cjsh`? This page is the quickest path from clone to a tested local build. For the full contributor workflow, see the repository's [CONTRIBUTING.md](https://github.com/CadenFinley/CJsShell/blob/master/CONTRIBUTING.md).
+Want to help with `cjsh`? This page is the quickest path from clone to a tested local build. For the full contributor workflow, see the repository's [CONTRIBUTING.md](https://github.com/CadenFinley/cjsh/blob/master/CONTRIBUTING.md).
 
 ## Requirements
 
@@ -43,7 +43,7 @@ Want to help with `cjsh`? This page is the quickest path from clone to a tested 
 From the repository root:
 
 ```bash
-git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
+git clone https://github.com/CadenFinley/cjsh && cd cjsh
 cmake --preset release
 cmake --build --preset release --parallel
 ```

@@ -105,8 +105,8 @@ int print_usage(bool print_version, bool print_hook, bool print_footer) {
     std::cout << get_usage();
     if (print_footer) {
         std::cout << "For more information:\n"
-                  << "  Documentation: https://cadenfinley.github.io/CJsShell/\n"
-                  << "  Repository:    https://github.com/CadenFinley/CJsShell\n"
+                  << "  Documentation: https://cadenfinley.github.io/cjsh/\n"
+                  << "  Repository:    https://github.com/CadenFinley/cjsh\n"
                   << "  Run 'help' inside cjsh for built-in command reference\n";
     }
     return 0;

@@ -1,6 +1,6 @@
 {
   "vendor": {
-    "github.com/CadenFinley/CJsShell/license": [
+    "github.com/CadenFinley/cjsh/license": [
       "CMakePresets.json",
       "",
       "This file is part of cjsh, CJ's Shell",

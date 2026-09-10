@@ -11,10 +11,18 @@ date where available and the tag date otherwise, in the tag's local time zone.
 
 ## [Unreleased]
 
+## [1.5.4] - 2026-09-10
+
 ### Changed
 
+- Updated repository links, badges, Codacy links, and clone commands for the GitHub repository rename to `CadenFinley/cjsh`.
 - Standardized the changelog format and documented all tagged releases back to 1.0.0.
 - Use each version's changelog entry as its GitHub release notes.
+
+### Fixed
+
+- Fixed GitHub Pages links in the documentation, shell help, and first-run message to use the new `/cjsh/` site URL.
+- Restored normal PATH initialization in `--minimal` mode, including system paths for login shells and fallback paths when PATH is missing or empty.
 
 ## [1.5.3] - 2026-09-10
 
@@ -937,47 +945,48 @@ date where available and the tag date otherwise, in the tag's local time zone.
 - Included JSON prompt themes, a shared-library plugin engine, and an optional built-in AI assistant.
 - Included CMake builds, installation helpers, and shell compatibility tests.
 
-[Unreleased]: https://github.com/CadenFinley/CJsShell/compare/v1.5.3...HEAD
-[1.5.3]: https://github.com/CadenFinley/CJsShell/compare/v1.5.2...v1.5.3
-[1.5.2]: https://github.com/CadenFinley/CJsShell/compare/v1.5.1...v1.5.2
-[1.5.1]: https://github.com/CadenFinley/CJsShell/compare/v1.5.0...v1.5.1
-[1.5.0]: https://github.com/CadenFinley/CJsShell/compare/v1.4.15...v1.5.0
-[1.4.15]: https://github.com/CadenFinley/CJsShell/compare/v1.4.13...v1.4.15
-[1.4.13]: https://github.com/CadenFinley/CJsShell/compare/v1.4.12...v1.4.13
-[1.4.12]: https://github.com/CadenFinley/CJsShell/compare/v1.4.11...v1.4.12
-[1.4.11]: https://github.com/CadenFinley/CJsShell/compare/v1.4.10...v1.4.11
-[1.4.10]: https://github.com/CadenFinley/CJsShell/compare/v1.4.9...v1.4.10
-[1.4.9]: https://github.com/CadenFinley/CJsShell/compare/v1.4.8...v1.4.9
-[1.4.8]: https://github.com/CadenFinley/CJsShell/compare/v1.4.7...v1.4.8
-[1.4.7]: https://github.com/CadenFinley/CJsShell/compare/v1.4.6...v1.4.7
-[1.4.6]: https://github.com/CadenFinley/CJsShell/compare/v1.4.5...v1.4.6
-[1.4.5]: https://github.com/CadenFinley/CJsShell/compare/v1.4.4...v1.4.5
-[1.4.4]: https://github.com/CadenFinley/CJsShell/compare/v1.4.3...v1.4.4
-[1.4.3]: https://github.com/CadenFinley/CJsShell/compare/v1.4.2...v1.4.3
-[1.4.2]: https://github.com/CadenFinley/CJsShell/compare/v1.4.1...v1.4.2
-[1.4.1]: https://github.com/CadenFinley/CJsShell/compare/v1.4.0...v1.4.1
-[1.4.0]: https://github.com/CadenFinley/CJsShell/compare/v1.3.3...v1.4.0
-[1.3.3]: https://github.com/CadenFinley/CJsShell/compare/v1.3.2...v1.3.3
-[1.3.2]: https://github.com/CadenFinley/CJsShell/compare/v1.3.1...v1.3.2
-[1.3.1]: https://github.com/CadenFinley/CJsShell/compare/v1.3.0...v1.3.1
-[1.3.0]: https://github.com/CadenFinley/CJsShell/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/CadenFinley/CJsShell/compare/v1.1.6...v1.2.0
-[1.1.6]: https://github.com/CadenFinley/CJsShell/compare/v1.1.5...v1.1.6
-[1.1.5]: https://github.com/CadenFinley/CJsShell/compare/v1.1.4...v1.1.5
-[1.1.4]: https://github.com/CadenFinley/CJsShell/compare/v1.1.3...v1.1.4
-[1.1.3]: https://github.com/CadenFinley/CJsShell/compare/v1.1.2...v1.1.3
-[1.1.2]: https://github.com/CadenFinley/CJsShell/compare/v1.1.1...v1.1.2
-[1.1.1]: https://github.com/CadenFinley/CJsShell/compare/v1.1.0...v1.1.1
-[1.1.0]: https://github.com/CadenFinley/CJsShell/compare/v1.0.11...v1.1.0
-[1.0.11]: https://github.com/CadenFinley/CJsShell/compare/v1.0.10...v1.0.11
-[1.0.10]: https://github.com/CadenFinley/CJsShell/compare/v1.0.9...v1.0.10
-[1.0.9]: https://github.com/CadenFinley/CJsShell/compare/v1.0.8...v1.0.9
-[1.0.8]: https://github.com/CadenFinley/CJsShell/compare/v1.0.7...v1.0.8
-[1.0.7]: https://github.com/CadenFinley/CJsShell/compare/v1.0.6...v1.0.7
-[1.0.6]: https://github.com/CadenFinley/CJsShell/compare/v1.0.5...v1.0.6
-[1.0.5]: https://github.com/CadenFinley/CJsShell/compare/v1.0.4...v1.0.5
-[1.0.4]: https://github.com/CadenFinley/CJsShell/compare/v1.0.3...v1.0.4
-[1.0.3]: https://github.com/CadenFinley/CJsShell/compare/v1.0.2...v1.0.3
-[1.0.2]: https://github.com/CadenFinley/CJsShell/compare/v1.0.1...v1.0.2
-[1.0.1]: https://github.com/CadenFinley/CJsShell/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/CadenFinley/CJsShell/releases/tag/v1.0.0
+[Unreleased]: https://github.com/CadenFinley/cjsh/compare/v1.5.4...HEAD
+[1.5.4]: https://github.com/CadenFinley/cjsh/compare/v1.5.3...v1.5.4
+[1.5.3]: https://github.com/CadenFinley/cjsh/compare/v1.5.2...v1.5.3
+[1.5.2]: https://github.com/CadenFinley/cjsh/compare/v1.5.1...v1.5.2
+[1.5.1]: https://github.com/CadenFinley/cjsh/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/CadenFinley/cjsh/compare/v1.4.15...v1.5.0
+[1.4.15]: https://github.com/CadenFinley/cjsh/compare/v1.4.13...v1.4.15
+[1.4.13]: https://github.com/CadenFinley/cjsh/compare/v1.4.12...v1.4.13
+[1.4.12]: https://github.com/CadenFinley/cjsh/compare/v1.4.11...v1.4.12
+[1.4.11]: https://github.com/CadenFinley/cjsh/compare/v1.4.10...v1.4.11
+[1.4.10]: https://github.com/CadenFinley/cjsh/compare/v1.4.9...v1.4.10
+[1.4.9]: https://github.com/CadenFinley/cjsh/compare/v1.4.8...v1.4.9
+[1.4.8]: https://github.com/CadenFinley/cjsh/compare/v1.4.7...v1.4.8
+[1.4.7]: https://github.com/CadenFinley/cjsh/compare/v1.4.6...v1.4.7
+[1.4.6]: https://github.com/CadenFinley/cjsh/compare/v1.4.5...v1.4.6
+[1.4.5]: https://github.com/CadenFinley/cjsh/compare/v1.4.4...v1.4.5
+[1.4.4]: https://github.com/CadenFinley/cjsh/compare/v1.4.3...v1.4.4
+[1.4.3]: https://github.com/CadenFinley/cjsh/compare/v1.4.2...v1.4.3
+[1.4.2]: https://github.com/CadenFinley/cjsh/compare/v1.4.1...v1.4.2
+[1.4.1]: https://github.com/CadenFinley/cjsh/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/CadenFinley/cjsh/compare/v1.3.3...v1.4.0
+[1.3.3]: https://github.com/CadenFinley/cjsh/compare/v1.3.2...v1.3.3
+[1.3.2]: https://github.com/CadenFinley/cjsh/compare/v1.3.1...v1.3.2
+[1.3.1]: https://github.com/CadenFinley/cjsh/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/CadenFinley/cjsh/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/CadenFinley/cjsh/compare/v1.1.6...v1.2.0
+[1.1.6]: https://github.com/CadenFinley/cjsh/compare/v1.1.5...v1.1.6
+[1.1.5]: https://github.com/CadenFinley/cjsh/compare/v1.1.4...v1.1.5
+[1.1.4]: https://github.com/CadenFinley/cjsh/compare/v1.1.3...v1.1.4
+[1.1.3]: https://github.com/CadenFinley/cjsh/compare/v1.1.2...v1.1.3
+[1.1.2]: https://github.com/CadenFinley/cjsh/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/CadenFinley/cjsh/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/CadenFinley/cjsh/compare/v1.0.11...v1.1.0
+[1.0.11]: https://github.com/CadenFinley/cjsh/compare/v1.0.10...v1.0.11
+[1.0.10]: https://github.com/CadenFinley/cjsh/compare/v1.0.9...v1.0.10
+[1.0.9]: https://github.com/CadenFinley/cjsh/compare/v1.0.8...v1.0.9
+[1.0.8]: https://github.com/CadenFinley/cjsh/compare/v1.0.7...v1.0.8
+[1.0.7]: https://github.com/CadenFinley/cjsh/compare/v1.0.6...v1.0.7
+[1.0.6]: https://github.com/CadenFinley/cjsh/compare/v1.0.5...v1.0.6
+[1.0.5]: https://github.com/CadenFinley/cjsh/compare/v1.0.4...v1.0.5
+[1.0.4]: https://github.com/CadenFinley/cjsh/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/CadenFinley/cjsh/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/CadenFinley/cjsh/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/CadenFinley/cjsh/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/CadenFinley/cjsh/releases/tag/v1.0.0

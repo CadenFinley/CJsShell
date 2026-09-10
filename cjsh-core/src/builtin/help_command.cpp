@@ -51,8 +51,8 @@ std::string get_help() {
     output << "POSIX shell scripting meets modern shell features\n";
 
     heading("Project source");
-    output << "  Git repository:  https://github.com/CadenFinley/CJsShell\n";
-    output << "  Documentation:   https://cadenfinley.github.io/CJsShell/\n";
+    output << "  Git repository:  https://github.com/CadenFinley/cjsh\n";
+    output << "  Documentation:   https://cadenfinley.github.io/cjsh/\n";
 
     heading("Built-in commands");
     struct BuiltinInfo {

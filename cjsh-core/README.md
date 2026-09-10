@@ -26,7 +26,7 @@
   SOFTWARE.
 -->
 
-# cjsh Core <a href="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml"><img src="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml/badge.svg" alt="CI"></a> <a href="https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7" alt="Codacy Badge"></a> <a href="https://cadenfinley.github.io/CJsShell/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" alt="Documentation"></a> <img src="https://img.shields.io/github/repo-size/CadenFinley/CJsShell" alt="Repo Size">
+# cjsh Core <a href="https://github.com/CadenFinley/cjsh/actions/workflows/ci.yml"><img src="https://github.com/CadenFinley/cjsh/actions/workflows/ci.yml/badge.svg" alt="CI"></a> <a href="https://app.codacy.com/gh/CadenFinley/cjsh/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7" alt="Codacy Badge"></a> <a href="https://cadenfinley.github.io/cjsh/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" alt="Documentation"></a> <img src="https://img.shields.io/github/repo-size/CadenFinley/cjsh" alt="Repo Size">
 
 <p align="center"><strong>The POSIX+ shell runtime that powers CJ's Shell</strong></p>
 <img align="center" src="../docs/cjsh_recording.svg"/>
@@ -42,7 +42,7 @@ This directory contains the core `cjsh` executable and `cjsh_core` static librar
 This subdirectory is designed to be built from the repository root so shared build metadata and settings are applied consistently.
 
 ```bash
-git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
+git clone https://github.com/CadenFinley/cjsh && cd cjsh
 cmake --preset release
 cmake --build --preset release --parallel
 ```

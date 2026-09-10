@@ -748,7 +748,7 @@ void start_interactive_process() {
         std::cout << " Be sure to give us a star on GitHub!" << '\n';
         std::cout << " Type 'help' to see available commands and options." << '\n';
         std::cout << " For additional help and documentation, please visit: "
-                  << " https://cadenfinley.github.io/CJsShell/" << '\n';
+                  << " https://cadenfinley.github.io/cjsh/" << '\n';
         std::cout << '\n';
 
         std::cout << " To suppress this help message run the command: 'firstboot'" << '\n';
