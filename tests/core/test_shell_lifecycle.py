@@ -169,9 +169,11 @@ class ShellLifecycleTests(unittest.TestCase):
                     start = len(session.output)
                     session.write(first)
                     if job != "none":
-                        session.wait_for_prompt(start)
+                        # Typing exit can redraw the prompt before Return is
+                        # processed. Wait for the warning before its new prompt.
+                        warning = session.wait_for(f"There are {job} jobs.".encode(), start)
+                        session.wait_for_prompt(warning)
                         self.assertFalse((self.home / "hooks").exists())
-                        self.assertIn(b"There are", session.output[start:])
                         session.write(second)
                     self.assertEqual(session.wait_for_exit(), expected)
                     self.assert_hooks()

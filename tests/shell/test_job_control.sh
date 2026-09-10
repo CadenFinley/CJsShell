@@ -533,7 +533,21 @@ background_failure_prints_exit_code() {
     log "Test: background command failure reports exit status"
     local output
     # Keep personal command_not_found_handler functions from replacing the background job.
-    output=$("$CJSH_PATH" -i -N -c "slepp 0.01 & sleep 0.2" 2>&1)
+    # Poll for completion so a slow command lookup cannot be killed at shutdown.
+    # Waiting with the wait builtin while the job is running suppresses its notification.
+    output=$("$CJSH_PATH" -i -N -c '
+        slepp 0.01 & failed_pid=$!
+        attempts=0
+        while kill -0 "$failed_pid" 2>/dev/null; do
+            if [ "$attempts" -ge 200 ]; then
+                exit --force 1
+            fi
+            sleep 0.05
+            attempts=$((attempts + 1))
+        done
+        wait "$failed_pid"
+        test "$?" -eq 127
+    ' 2>&1)
     local exit_code=$?
 
     if [ $exit_code -ne 0 ]; then
