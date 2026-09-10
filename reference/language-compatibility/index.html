@@ -1158,6 +1158,10 @@ an explicit list. Malformed headers such as <code>for i n 1 2; do ...; done</cod
 error with status 2. Omitting the list (<code>for i; do ...; done</code>) uses positional parameters;
 an explicit empty <code>for</code> list runs no iterations. Loop lists use normal word expansion,
 including quoted literals and brace ranges with surrounding or following words.</p>
+<p>One-line function bodies are recognized by interactive validation, including CJSH's
+compact <code>function sayhello {echo hello}</code> form. For conventional shell syntax, use
+<code>function sayhello { echo hello; }</code>; for POSIX scripts, use
+<code>sayhello() { echo hello; }</code>.</p>
 <h2 id="configuration">Configuration</h2>
 <p>CJSH intentionally uses its own option interface rather than implementing Bash's <code>shopt</code> builtin:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cjshopt<span class="w"> </span>extglob<span class="w"> </span>on
