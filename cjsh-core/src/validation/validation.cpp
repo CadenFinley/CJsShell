@@ -27,6 +27,7 @@
 */
 
 #include <algorithm>
+#include "function_evaluator.h"
 #include "interpreter.h"
 #include "interpreter_utils.h"
 #include "shell_env.h"
@@ -351,31 +352,35 @@ bool handle_inline_loop_header(
 void push_function_context(
     const std::string& trimmed_line, size_t display_line,
     std::vector<std::tuple<ControlToken, ControlToken, size_t>>& control_stack) {
-    if (!trimmed_line.empty() && trimmed_line.back() == '{') {
-        size_t open_brace = trimmed_line.find('{');
-        if (open_brace != std::string::npos) {
-            std::string after_brace = trimmed_line.substr(open_brace + 1);
-
-            int brace_count = 1;
-            for (char c : after_brace) {
-                if (c == '{') {
-                    brace_count++;
-                } else if (c == '}') {
-                    brace_count--;
+    const auto header = function_evaluator::parse_function_header(trimmed_line);
+    if (header) {
+        // A body that closes on this line must not leave a continuation context.
+        // Count nested delimiters, ignoring quoted and escaped literal braces.
+        int depth = 0;
+        bool closed = false;
+        for_each_effective_char(
+            trimmed_line, false, false,
+            [&](size_t index, char c, const QuoteState& state, size_t&) -> IterationAction {
+                if (index < header->body_start || state.in_quotes) {
+                    return IterationAction::Continue;
                 }
-            }
-
-            if (brace_count > 0) {
-                control_stack.push_back(
-                    {ControlToken::BraceOpen, ControlToken::BraceOpen, display_line});
-            }
-        } else {
-            control_stack.push_back(
-                {ControlToken::BraceOpen, ControlToken::BraceOpen, display_line});
+                if (c == header->opening) {
+                    ++depth;
+                } else if (c == header->closing && --depth == 0) {
+                    closed = true;
+                    return IterationAction::Break;
+                }
+                return IterationAction::Continue;
+            });
+        if (closed) {
+            return;
         }
-    } else {
-        control_stack.push_back({ControlToken::Function, ControlToken::Function, display_line});
     }
+
+    const ControlToken context = !trimmed_line.empty() && trimmed_line.back() == '{'
+                                     ? ControlToken::BraceOpen
+                                     : ControlToken::Function;
+    control_stack.push_back({context, context, display_line});
 }
 
 bool find_embedded_loop_keyword(const std::string& line, const std::string& keyword,
@@ -999,9 +1004,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                     if (tokens.size() < 2) {
                         errors.push_back({display_line, "'function' missing function name", line});
                     }
-                    push_function_context(trimmed, display_line, control_stack);
+                    push_function_context(trimmed_for_parsing, display_line, control_stack);
                 } else if (tokens.size() >= 2 && tokens[1] == "()") {
-                    push_function_context(trimmed, display_line, control_stack);
+                    push_function_context(trimmed_for_parsing, display_line, control_stack);
                 }
 
                 else if (!trimmed.empty() && trimmed.back() == '{') {

@@ -52,6 +52,11 @@ error with status 2. Omitting the list (`for i; do ...; done`) uses positional p
 an explicit empty `for` list runs no iterations. Loop lists use normal word expansion,
 including quoted literals and brace ranges with surrounding or following words.
 
+One-line function bodies are recognized by interactive validation, including CJSH's
+compact `function sayhello {echo hello}` form. For conventional shell syntax, use
+`function sayhello { echo hello; }`; for POSIX scripts, use
+`sayhello() { echo hello; }`.
+
 ## Configuration
 
 CJSH intentionally uses its own option interface rather than implementing Bash's `shopt` builtin:

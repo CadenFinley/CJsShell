@@ -98,6 +98,91 @@ bool test_invalid_keyword_function_name_still_fails_validation() {
     return ok;
 }
 
+bool test_inline_function_validation() {
+    auto* interpreter = g_shell->get_shell_script_interpreter();
+    const std::vector<std::string> definitions = {
+        "function sayhello {echo hello}",
+        "function sayhello { echo hello; }",
+        "function sayhello() { echo hello; }",
+        "function sayhello() {}",
+        "sayhello() { echo hello; }",
+        "sayhello () { echo hello; }",
+        "function sayhello { echo hello; } # trailing comment",
+        "function sayhello ( echo hello )",
+    };
+    bool ok = true;
+    for (const auto& definition : definitions) {
+        ok = expect(interpreter->validate_script_syntax({definition}).empty(),
+                    ("inline function should validate: " + definition).c_str()) &&
+             ok;
+        const auto lines = interpreter->parse_into_lines(definition);
+        ok = expect(interpreter->validate_comprehensive_syntax(lines, false, false).empty(),
+                    ("status validation should accept: " + definition).c_str()) &&
+             ok;
+        ok = expect(!interpreter->needs_additional_input(lines),
+                    ("closed function should not request more input: " + definition).c_str()) &&
+             ok;
+    }
+    ok = expect(g_shell->execute("function compact {return 7}") == 0 &&
+                    g_shell->execute("compact") == 7,
+                "compact function should still register and execute") &&
+         ok;
+    return ok;
+}
+
+bool test_function_brace_matching() {
+    auto* interpreter = g_shell->get_shell_script_interpreter();
+    const std::vector<std::string> complete = {
+        "function braces { echo '{'; }",
+        "function braces { echo \"}\"; }",
+        "function braces { echo \\{; }",
+        "function braces { echo \\}; }",
+        "function braces { echo ${value:-fallback}; }",
+        "function braces { { echo nested; }; }",
+    };
+    const std::vector<std::string> incomplete = {
+        "function braces",
+        "function braces {",
+        "function braces { echo hello",
+        "function braces { echo '}'",
+        "function braces { echo \"}\"",
+        "function braces { echo \\}",
+        "function braces { echo hello # }",
+        "function braces { echo ${value:-fallback}",
+        "function braces { { echo nested; }",
+    };
+    bool ok = true;
+    for (const auto& definition : complete) {
+        ok = expect(interpreter->validate_script_syntax({definition}).empty() &&
+                        !interpreter->needs_additional_input({definition}),
+                    ("matching function braces should close the body: " + definition).c_str()) &&
+             ok;
+    }
+    for (const auto& definition : incomplete) {
+        const auto errors = interpreter->validate_script_syntax({definition});
+        ok = expect(errors.size() == 1 && errors.front().error_code == "SYN007" &&
+                        interpreter->needs_additional_input({definition}),
+                    ("unfinished function should request more input: " + definition).c_str()) &&
+             ok;
+    }
+    ok = expect(interpreter->validate_script_syntax({"function multiline {", "echo hello", "}"})
+                    .empty(),
+                "multiline function should still close on a later line") &&
+         ok;
+    std::vector<std::string> nested = {"function outer {", "function inner { echo hello; }"};
+    const auto nested_errors = interpreter->validate_script_syntax(nested);
+    ok = expect(nested_errors.size() == 1 && nested_errors.front().position.line_number == 1 &&
+                    interpreter->needs_additional_input(nested),
+                "closed inline function should not close its unfinished outer function") &&
+         ok;
+    nested.push_back("}");
+    ok = expect(interpreter->validate_script_syntax(nested).empty() &&
+                    !interpreter->needs_additional_input(nested),
+                "inline function inside a multiline function should validate") &&
+         ok;
+    return ok;
+}
+
 }  // namespace
 
 int main() {
@@ -117,16 +202,22 @@ int main() {
     if (!test_invalid_keyword_function_name_still_fails_validation()) {
         ++failures;
     }
+    if (!test_inline_function_validation()) {
+        ++failures;
+    }
+    if (!test_function_brace_matching()) {
+        ++failures;
+    }
 
     // Match the executable's explicit teardown before process-wide registries
     // are destroyed by static finalization.
     g_shell.reset();
 
     if (failures != 0) {
-        (void)std::fprintf(stderr, "%zu/2 function syntax tests failed\n", failures);
+        (void)std::fprintf(stderr, "%zu/4 function syntax tests failed\n", failures);
         return 1;
     }
 
-    (void)std::printf("All 2 function syntax tests passed\n");
+    (void)std::printf("All 4 function syntax tests passed\n");
     return 0;
 }
