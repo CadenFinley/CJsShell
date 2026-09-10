@@ -1308,7 +1308,7 @@ def assert_line_wrap_marker(binary: str) -> None:
 
 
 def assert_multiline_history_navigation(binary: str) -> None:
-    older = "old first\nold middle\nold last\n"
+    older = "old first\n\nold middle\nold last"
     newer = "new first\nnew middle\nnew last"
     draft = b"draft\x0asaved"
     cases = [
@@ -1332,9 +1332,7 @@ def assert_multiline_history_navigation(binary: str) -> None:
     ]:
         cases.append((f"shift_up_from_{label}", UP + position + SHIFT_UP, older))
         cases.append((f"shift_down_from_{label}", UP * 2 + position + SHIFT_DOWN, newer))
-    cases.append(
-        ("shift_up_from_typed_middle", draft + PAGEUP + DOWN + SHIFT_UP, newer)
-    )
+    cases.append(("shift_up_from_typed_middle", draft + PAGEUP + DOWN + SHIFT_UP, newer))
     cases.append(
         (
             "shift_down_restores_draft",
@@ -1344,7 +1342,7 @@ def assert_multiline_history_navigation(binary: str) -> None:
     )
 
     # A narrow terminal also exercises history entries wrapped across visual rows.
-    for columns in (80, 16):
+    for columns in (80, 12):
         for label, keys, expected in cases:
             result = run_case(
                 binary,
