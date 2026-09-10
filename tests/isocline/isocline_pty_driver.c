@@ -1101,6 +1101,11 @@ static int run_case(const char* scenario) {
         initial_input = "abc";
     } else if (strcmp(scenario, "ctrl_w_single_word") == 0) {
         initial_input = "alpha";
+    } else if (strcmp(scenario, "history_navigation_multiline") == 0) {
+        (void)ic_enable_multiline(true);
+        ic_history_clear();
+        ic_history_add("old first\nold middle\nold last\n");
+        ic_history_add("new first\nnew middle\nnew last");
     } else if (strcmp(scenario, "history_prev") == 0 ||
                strcmp(scenario, "history_prev_prev") == 0 ||
                strcmp(scenario, "history_next_empty") == 0 ||

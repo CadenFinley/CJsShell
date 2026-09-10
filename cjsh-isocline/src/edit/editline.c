@@ -193,7 +193,7 @@ static void edit_show_help(ic_env_t* env, editor_t* eb);
 static void edit_cursor_left(ic_env_t* env, editor_t* eb);
 static void edit_cursor_right(ic_env_t* env, editor_t* eb);
 static void edit_cursor_row_up(ic_env_t* env, editor_t* eb);
-static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb);
+static void edit_history_prev_with_spell(ic_env_t* env, editor_t* eb);
 static void edit_cursor_row_down(ic_env_t* env, editor_t* eb);
 static void edit_cursor_line_start(ic_env_t* env, editor_t* eb);
 static void edit_cursor_line_end(ic_env_t* env, editor_t* eb);
@@ -254,7 +254,11 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
             edit_command_palette(env, eb);
             return true;
         case IC_KEY_ACTION_HISTORY_PREV:
-            edit_history_prev(env, eb);
+            if (key == WITH_SHIFT(KEY_UP)) {
+                edit_history_prev_with_spell(env, eb);
+            } else {
+                edit_history_prev(env, eb);
+            }
             return true;
         case IC_KEY_ACTION_HISTORY_NEXT:
             edit_history_next(env, eb);
@@ -282,11 +286,7 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
             }
             return true;
         case IC_KEY_ACTION_CURSOR_UP:
-            if ((KEY_MODS(key) & KEY_MOD_SHIFT) != 0 && KEY_NO_MODS(key) == KEY_UP) {
-                edit_cursor_row_up_with_history_spell(env, eb);
-            } else {
-                edit_cursor_row_up(env, eb);
-            }
+            edit_cursor_row_up(env, eb);
             return true;
         case IC_KEY_ACTION_CURSOR_DOWN:
             edit_cursor_row_down(env, eb);
@@ -2430,21 +2430,15 @@ static void edit_cursor_to_end(ic_env_t* env, editor_t* eb) {
 static void edit_cursor_row_up(ic_env_t* env, editor_t* eb) {
     rowcol_t rc;
     (void)edit_get_rowcol(env, eb, &rc);
-    if (rc.row == 0) {
+    // Recalled entries end here so repeated Up presses can skip multiline content.
+    if (editor_pos_is_at_end(eb) || rc.row == 0) {
         edit_history_prev(env, eb);
     } else {
         edit_set_pos_at_rowcol(env, eb, rc.row - 1, rc.col);
     }
 }
 
-static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb) {
-    rowcol_t rc;
-    (void)edit_get_rowcol(env, eb, &rc);
-    if (rc.row != 0) {
-        edit_set_pos_at_rowcol(env, eb, rc.row - 1, rc.col);
-        return;
-    }
-
+static void edit_history_prev_with_spell(ic_env_t* env, editor_t* eb) {
     ssize_t previous_history_idx = eb->history_idx;
     char* previous_input = mem_strdup(env->mem, sbuf_string(eb->input));
     edit_history_prev(env, eb);
@@ -2514,7 +2508,7 @@ static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb) {
 static void edit_cursor_row_down(ic_env_t* env, editor_t* eb) {
     rowcol_t rc;
     ssize_t rows = edit_get_rowcol(env, eb, &rc);
-    if (rc.row + 1 >= rows) {
+    if (editor_pos_is_at_end(eb) || rc.row + 1 >= rows) {
         edit_history_next(env, eb);
     } else {
         edit_set_pos_at_rowcol(env, eb, rc.row + 1, rc.col);
@@ -4443,6 +4437,7 @@ edit_loop_entry:
                         edit_history_prev(env, &eb);
                         break;
                     case KEY_CTRL_N:
+                    case WITH_SHIFT(KEY_DOWN):
                         edit_history_next(env, &eb);
                         break;
                     case KEY_CTRL_L:
@@ -4476,7 +4471,7 @@ edit_loop_entry:
                         edit_cursor_row_up(env, &eb);
                         break;
                     case WITH_SHIFT(KEY_UP):
-                        edit_cursor_row_up_with_history_spell(env, &eb);
+                        edit_history_prev_with_spell(env, &eb);
                         break;
                     case KEY_DOWN:
                         edit_cursor_row_down(env, &eb);

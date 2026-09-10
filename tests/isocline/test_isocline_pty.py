@@ -62,6 +62,7 @@ CTRL_END = b"\x1b[1;5F"
 SHIFT_HOME = b"\x1b[1;2H"
 SHIFT_END = b"\x1b[1;2F"
 SHIFT_UP = b"\x1b[1;2A"
+SHIFT_DOWN = b"\x1b[1;2B"
 SHIFT_TAB = b"\x1b[Z"
 F1 = b"\x1bOP"
 F2 = b"\x1bOQ"
@@ -1306,6 +1307,58 @@ def assert_line_wrap_marker(binary: str) -> None:
         raise AssertionError(f"full-width cursor movement expected {expected!r}, got {result!r}")
 
 
+def assert_multiline_history_navigation(binary: str) -> None:
+    older = "old first\nold middle\nold last\n"
+    newer = "new first\nnew middle\nnew last"
+    draft = b"draft\x0asaved"
+    cases = [
+        ("recall_at_buffer_end", UP, newer),
+        ("previous_skips_multiline_rows", UP * 2, older),
+        ("next_skips_multiline_rows", UP * 2 + DOWN, newer),
+        ("next_restores_empty_input", UP * 2 + DOWN * 2, ""),
+        ("oldest_entry_boundary", UP * 3, older),
+        ("newest_entry_boundary", DOWN, ""),
+        ("typed_multiline_end_starts_history", draft + UP, newer),
+        ("restore_multiline_draft_at_end", draft + UP * 2 + DOWN * 2, "draft\nsaved"),
+        ("prefix_recall_at_buffer_end", b"old" + UP, older),
+        ("ctrl_p_recall_at_buffer_end", b"\x10", newer),
+        ("ctrl_n_recall_at_buffer_end", b"\x10\x10\x0e", newer),
+    ]
+    for label, position in [
+        ("start", PAGEUP),
+        ("middle", PAGEUP + DOWN + RIGHT),
+        ("last_line", HOME),
+        ("end", b""),
+    ]:
+        cases.append((f"shift_up_from_{label}", UP + position + SHIFT_UP, older))
+        cases.append((f"shift_down_from_{label}", UP * 2 + position + SHIFT_DOWN, newer))
+    cases.append(
+        ("shift_up_from_typed_middle", draft + PAGEUP + DOWN + SHIFT_UP, newer)
+    )
+    cases.append(
+        (
+            "shift_down_restores_draft",
+            draft + SHIFT_UP + PAGEUP + SHIFT_DOWN,
+            "draft\nsaved",
+        )
+    )
+
+    # A narrow terminal also exercises history entries wrapped across visual rows.
+    for columns in (80, 16):
+        for label, keys, expected in cases:
+            result = run_case(
+                binary,
+                "history_navigation_multiline",
+                keys + b"X\r",
+                initial_rows=24,
+                initial_cols=columns,
+            )
+            if result != expected + "X":
+                raise AssertionError(
+                    f"{label} ({columns} columns) expected {expected + 'X'!r}, got {result!r}"
+                )
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(f"usage: {sys.argv[0]} <isocline_pty_driver>", file=sys.stderr)
@@ -1702,7 +1755,7 @@ def main() -> int:
     multiline_backslash_with_following_content = run_case(
         binary,
         "multiline_backslash_submit_with_following_content",
-        UP + END + b"\r",
+        LEFT + UP + END + b"\r",
     )
     if multiline_backslash_with_following_content != "echo \\\nhi":
         raise AssertionError(
@@ -1834,7 +1887,7 @@ def main() -> int:
     history_search_result, history_search_output = run_case(
         binary,
         "history_search_long_multiline_viewport",
-        UP + UP + b"\x12\x03\r",
+        LEFT + UP + UP + b"\x12\x03\r",
         capture_output=True,
         initial_rows=24,
         initial_cols=80,
@@ -1964,11 +2017,16 @@ def main() -> int:
         )
 
     multiline_row_navigation_cases = [
-        ("up_row_navigation", b"ab\x0acd\x0aef" + UP + b"X\r", "ab\ncdX\nef"),
+        ("up_row_navigation", b"ab\x0acd\x0aef" + LEFT + UP + b"X\r", "ab\ncXd\nef"),
         (
-            "shift_up_row_navigation",
-            b"ab\x0acd\x0aef" + SHIFT_UP + b"X\r",
-            "ab\ncdX\nef",
+            "up_at_end_without_history",
+            b"ab\x0acd\x0aef" + UP + b"X\r",
+            "ab\ncd\nefX",
+        ),
+        (
+            "shift_up_without_history_keeps_cursor",
+            b"ab\x0acd\x0aef" + LEFT + SHIFT_UP + b"X\r",
+            "ab\ncd\neXf",
         ),
         (
             "down_row_navigation",
@@ -2133,6 +2191,8 @@ def main() -> int:
         initial_delay_s=0.12,
         step_delay_s=0.5,
     )
+
+    assert_multiline_history_navigation(binary)
 
     timed_history_cases = [
         ("history_prev_ctrl_p", "history_prev", [b"one\r", b"two\r", b"\x10\r"], "two"),
@@ -2757,10 +2817,10 @@ def main() -> int:
         "history_search_multiline",
         b"\x12\t!\r",
     )
-    if hist_multiline_edit != "mlhist first line!\nmlhist second line":
+    if hist_multiline_edit != "mlhist first line\nmlhist second line!":
         raise AssertionError(
-            "editing a multiline history-search result should start at the end of its first "
-            f"line, got {hist_multiline_edit!r}"
+            "editing a multiline history-search result should start at the end of the buffer, "
+            f"got {hist_multiline_edit!r}"
         )
 
     history_multiline_prompt_output = run_resize_case(

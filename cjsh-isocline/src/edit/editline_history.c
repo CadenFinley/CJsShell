@@ -915,12 +915,7 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
 
     eb->history_idx = current_idx;
     sbuf_replace(eb->input, entry->command);
-    if (direction > 0) {
-        ssize_t end = sbuf_find_line_end(eb->input, 0);
-        eb->pos = (end < 0 ? 0 : end);
-    } else {
-        eb->pos = sbuf_len(eb->input);
-    }
+    eb->pos = sbuf_len(eb->input);
 
     sbuf_clear(eb->extra);
 
@@ -1522,10 +1517,6 @@ again:;
                 sbuf_replace(eb->input, selected->command);
                 eb->pos = sbuf_len(eb->input);
                 bool expanded = edit_expand_abbreviation_if_needed(env, eb, false);
-                if (c == KEY_TAB) {
-                    ssize_t first_line_end = sbuf_find_line_end(eb->input, 0);
-                    eb->pos = (first_line_end < 0 ? 0 : first_line_end);
-                }
                 eb->modified = expanded;
                 eb->history_idx = matches[selected_idx].hidx;
             }
