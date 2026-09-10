@@ -196,8 +196,12 @@ jobs:
           test "$(id -u)" -ne 0
           # A Linux checkout preserves executable bits and LF line endings, and
           # keeps permission-sensitive tests off the Windows-mounted filesystem.
-          source_commit=$(git -c safe.directory="$PWD" rev-parse HEAD)
-          git -c safe.directory="$PWD/.git" clone --no-hardlinks \
+          # The Windows checkout has a different owner. Trust it in the WSL
+          # user's config so clone's upload-pack subprocess sees the exception.
+          git config --global --add safe.directory "$PWD"
+          git config --global --add safe.directory "$PWD/.git"
+          source_commit=$(git rev-parse HEAD)
+          git clone --no-hardlinks \
             -c core.autocrlf=false "$PWD" "$HOME/cjsh"
           git -C "$HOME/cjsh" checkout --detach "$source_commit"
 
