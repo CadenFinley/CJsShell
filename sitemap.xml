@@ -1,51 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/getting-started/development/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/getting-started/development/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/getting-started/quick-start/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/getting-started/quick-start/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/getting-started/what-to-know/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/getting-started/what-to-know/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/reference/commands/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/reference/commands/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/reference/completions/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/reference/completions/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/reference/editing/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/reference/editing/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/reference/features/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/reference/features/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/reference/hooks/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/reference/hooks/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/reference/language-compatibility/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/reference/language-compatibility/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/reference/non-posix-features/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/reference/non-posix-features/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
     <url>
-         <loc>https://cadenfinley.github.io/CJsShell/themes/thedetails/</loc>
+         <loc>https://cadenfinley.github.io/cjsh/themes/thedetails/</loc>
          <lastmod>2026-09-10</lastmod>
     </url>
 </urlset>
