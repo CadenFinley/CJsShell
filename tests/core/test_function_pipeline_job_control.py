@@ -71,6 +71,25 @@ def text_between(text: str, start: str, end: str) -> str:
     return text.split(start, 1)[1].split(end, 1)[0]
 
 
+def abort_command() -> str:
+    # Exercise SIGABRT wait status without invoking a slow system crash collector
+    # (including WSL's). Linux piped core handlers ignore RLIMIT_CORE, so disable
+    # dumpability inside the process that will receive the signal as well.
+    script = """import os, resource, sys
+resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+if sys.platform.startswith('linux'):
+    import ctypes
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.prctl.argtypes = [ctypes.c_int] + [ctypes.c_ulong] * 4
+    PR_SET_DUMPABLE = 4
+    if libc.prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+os.abort()
+"""
+    return shlex.join([sys.executable, "-c", script])
+
+
 def run_job_control_case(
     binary: str,
     command: str = (
@@ -109,8 +128,11 @@ def run_job_control_case(
                 chunk = b""
             except OSError as exc:
                 if exc.errno == errno.EIO:
-                    break
-                raise
+                    # PTY closure can precede process exit. Keep waiting for the
+                    # actual status instead of killing a child during teardown.
+                    chunk = b""
+                else:
+                    raise
 
             if chunk:
                 output.extend(chunk)
@@ -875,9 +897,9 @@ def main(argv: list[str]) -> int:
 
     try:
         result = run_job_control_case(argv[0])
-        abort_result = run_job_control_case(argv[0], "sh -c 'kill -ABRT $$'")
+        abort_result = run_job_control_case(argv[0], abort_command())
         pipeline_abort_result = run_job_control_case(
-            argv[0], "printf ignored | sh -c 'kill -ABRT $$'"
+            argv[0], "printf ignored | " + abort_command()
         )
         term_result = run_job_control_case(argv[0], "sh -c 'kill -TERM $$'")
         kill_result = run_job_control_case(argv[0], "sh -c 'kill -KILL $$'")
@@ -1170,7 +1192,8 @@ def main(argv: list[str]) -> int:
                 not abort_result.timed_out
                 and abort_result.return_code == 128 + signal.SIGABRT,
                 "SIGABRT command returned the wrong status:\n"
-                f"return_code={abort_result.return_code}\n{abort_result.output}",
+                f"return_code={abort_result.return_code} "
+                f"timed_out={abort_result.timed_out}\n{abort_result.output}",
             ),
         ),
         (
@@ -1188,7 +1211,8 @@ def main(argv: list[str]) -> int:
                 and pipeline_abort_result.return_code == 128 + signal.SIGABRT
                 and "Abort" in pipeline_abort_result.output,
                 "pipeline SIGABRT handling failed:\n"
-                f"return_code={pipeline_abort_result.return_code}\n"
+                f"return_code={pipeline_abort_result.return_code} "
+                f"timed_out={pipeline_abort_result.timed_out}\n"
                 f"{pipeline_abort_result.output}",
             ),
         ),

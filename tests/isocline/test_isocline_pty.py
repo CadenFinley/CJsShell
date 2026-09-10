@@ -604,6 +604,8 @@ def run_case(
     if pid == 0:
         # CTest supplies the locally built driver, and scenarios are fixed below.
         # execv receives an argument vector directly; no shell parses these values.
+        if initial_rows is not None or initial_cols is not None:
+            set_pty_window_size(0, initial_rows or 24, initial_cols or 80)
         if scenario.startswith("line_wrap_marker_"):
             # Isocline treats the C locale as UTF-8 on every supported platform.
             os.environ["LC_ALL"] = "C"
@@ -611,9 +613,6 @@ def run_case(
 
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-    if initial_rows is not None or initial_cols is not None:
-        set_pty_window_size(fd, initial_rows or 24, initial_cols or 80)
-
     output = bytearray()
     deadline = time.monotonic() + timeout_s
     sent = False
@@ -799,14 +798,15 @@ def run_resize_case(
 
     pid, fd = pty.fork()
     if pid == 0:
+        # Set the size before the driver can cache it or render its first prompt.
+        # Setting it in the parent races with startup on slower CI runners.
+        set_pty_window_size(0, initial_rows, initial_cols)
         # CTest supplies the locally built driver, and scenarios are fixed below.
         # execv receives an argument vector directly; no shell parses these values.
         os.execv(binary, [binary, scenario])  # nosemgrep
 
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-    set_pty_window_size(fd, initial_rows, initial_cols)
-
     output = bytearray()
     deadline = time.monotonic() + timeout_s
     prompt_seen = False
