@@ -151,5 +151,9 @@ bool parser_contains_arithmetic_command_form(std::string_view text);
 
 size_t find_matching_paren(const std::string& text, size_t start_pos);
 size_t find_matching_brace(const std::string& text, size_t start_pos);
+// Track nesting across source lines and return the closer that finishes the block.
+size_t parser_find_block_end(const std::string& text, const std::vector<std::string>& openers,
+                             const std::string& closer, int& depth);
+std::vector<std::string> merge_command_group_lines(const std::vector<std::string>& lines);
 
 #endif  // CJSH_CORE_SRC_PARSER_PARSER_UTILS_H

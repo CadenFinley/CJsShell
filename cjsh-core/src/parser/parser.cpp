@@ -981,10 +981,10 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
     if (lines.size() == line_comment_flags.size()) {
         // preserve multiline continuation semantics so partial if headers can span input lines
-        return merge_line_continuations(lines, line_comment_flags);
+        return merge_command_group_lines(merge_line_continuations(lines, line_comment_flags));
     }
 
-    return lines;
+    return merge_command_group_lines(lines);
 }
 
 std::vector<std::string> Parser::prepare_expansion_tokens(std::vector<std::string> args) {

@@ -37,11 +37,13 @@
 #include <vector>
 
 #include "error_out.h"
+#include "parser_utils.h"
 #include "readonly_command.h"
 
 namespace function_evaluator {
 
-std::optional<FunctionHeader> parse_function_header(const std::string& source) {
+std::optional<FunctionHeader> parse_function_header(const std::string& source,
+                                                    bool allow_missing_body) {
     auto skip_space = [&](size_t& pos) {
         while (pos < source.size() && std::isspace(static_cast<unsigned char>(source[pos]))) {
             ++pos;
@@ -86,7 +88,12 @@ std::optional<FunctionHeader> parse_function_header(const std::string& source) {
             skip_space(pos);
         }
     }
-    if (pos >= source.size() || (source[pos] != '{' && source[pos] != '(')) {
+    if (pos >= source.size()) {
+        return allow_missing_body
+                   ? std::optional<FunctionHeader>{{std::move(name), pos, '\0', '\0'}}
+                   : std::nullopt;
+    }
+    if (source[pos] != '{' && source[pos] != '(') {
         return std::nullopt;
     }
     return FunctionHeader{std::move(name), pos, source[pos], source[pos] == '{' ? '}' : ')'};
@@ -95,129 +102,55 @@ std::optional<FunctionHeader> parse_function_header(const std::string& source) {
 FunctionParseResult parse_and_register_functions(
     const std::string& line, const std::vector<std::string>& lines, size_t& line_index,
     FunctionMap& functions, const std::function<std::string(const std::string&)>& trim_func,
-    const std::function<std::string(const std::string&)>& strip_comment_func) {
+    const std::function<std::string(const std::string&)>& strip_comment_func,
+    const std::function<std::vector<std::string>(const std::string&)>& parse_lines_func) {
     FunctionParseResult result{false, ""};
-
     std::string current_line = line;
-    bool found_function = true;
-
-    while (!current_line.empty() && found_function) {
-        found_function = false;
-
-        const auto header = parse_function_header(current_line);
-        if (header) {
-            const auto& func_name = header->name;
-            const size_t body_pos = header->body_start;
-            const char opening_delim = header->opening;
-            const char closing_delim = header->closing;
-            std::vector<std::string> body_lines;
-            bool handled_single_line = false;
-            std::string after_body = trim_func(current_line.substr(body_pos + 1));
-
-            if (!after_body.empty()) {
-                size_t end_delim = after_body.find(closing_delim);
-                if (end_delim != std::string::npos) {
-                    std::string body_part = trim_func(after_body.substr(0, end_delim));
-                    if (!body_part.empty()) {
-                        body_lines.push_back(body_part);
-                    }
-
-                    if (readonly_function_manager_is(func_name)) {
-                        print_error({ErrorType::INVALID_ARGUMENT,
-                                     "readonly",
-                                     func_name + ": readonly function",
-                                     {}});
-                    } else {
-                        functions[func_name] = {body_lines, opening_delim == '('};
-                    }
-
-                    std::string remainder = trim_func(after_body.substr(end_delim + 1));
-
-                    size_t start_pos = 0;
-                    while (
-                        start_pos < remainder.length() &&
-                        (remainder[start_pos] == ';' ||
-                         (std::isspace(static_cast<unsigned char>(remainder[start_pos])) != 0))) {
-                        start_pos++;
-                    }
-                    remainder = remainder.substr(start_pos);
-                    current_line = remainder;
-                    found_function = true;
-                    handled_single_line = true;
-                } else if (!after_body.empty()) {
-                    body_lines.push_back(after_body);
-                }
-            }
-
-            if (!handled_single_line) {
-                int depth = 1;
-                std::string after_closing_delim;
-
-                while (++line_index < lines.size() && depth > 0) {
-                    const std::string& func_line_raw = lines[line_index];
-                    std::string func_line = trim_func(strip_comment_func(func_line_raw));
-
-                    for (char ch : func_line) {
-                        if (ch == opening_delim) {
-                            depth++;
-                        } else if (ch == closing_delim) {
-                            depth--;
-                        }
-                    }
-
-                    if (depth <= 0) {
-                        size_t pos = func_line.find(closing_delim);
-                        if (pos != std::string::npos) {
-                            std::string before = trim_func(func_line.substr(0, pos));
-                            if (!before.empty()) {
-                                body_lines.push_back(before);
-                            }
-
-                            if (pos + 1 < func_line.length()) {
-                                after_closing_delim = trim_func(func_line.substr(pos + 1));
-                            }
-                        }
-                        break;
-                    }
-
-                    if (!func_line.empty()) {
-                        body_lines.push_back(func_line_raw);
-                    }
-                }
-
-                if (readonly_function_manager_is(func_name)) {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 "readonly",
-                                 func_name + ": readonly function",
-                                 {}});
-                } else {
-                    functions[func_name] = {body_lines, opening_delim == '('};
-                }
-
-                if (after_closing_delim.empty()) {
-                    current_line.clear();
-                } else {
-                    size_t start_pos = 0;
-                    while (start_pos < after_closing_delim.length() &&
-                           (after_closing_delim[start_pos] == ';' ||
-                            (std::isspace(static_cast<unsigned char>(
-                                 after_closing_delim[start_pos])) != 0))) {
-                        start_pos++;
-                    }
-                    current_line = after_closing_delim.substr(start_pos);
-                }
-
+    while (!current_line.empty()) {
+        auto header = parse_function_header(current_line, true);
+        if (!header) {
+            break;
+        }
+        while (header->opening == '\0' && line_index + 1 < lines.size()) {
+            current_line += '\n';
+            current_line += strip_comment_func(lines[++line_index]);
+            header = parse_function_header(current_line, true);
+            if (!header) {
                 break;
             }
-
-            result.found = true;
         }
+        if (!header || header->opening == '\0') {
+            break;
+        }
+        auto find_close = [&] {
+            return header->opening == '{' ? find_matching_brace(current_line, header->body_start)
+                                          : find_matching_paren(current_line, header->body_start);
+        };
+        size_t body_close = find_close();
+        while (body_close == std::string::npos && line_index + 1 < lines.size()) {
+            current_line += '\n';
+            current_line += lines[++line_index];
+            body_close = find_close();
+        }
+        if (body_close == std::string::npos) {
+            break;
+        }
+        const std::string body =
+            current_line.substr(header->body_start + 1, body_close - header->body_start - 1);
+        if (readonly_function_manager_is(header->name)) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "readonly",
+                         header->name + ": readonly function",
+                         {}});
+        } else {
+            functions[header->name] = {parse_lines_func(body), header->opening == '('};
+        }
+        result.found = true;
+        current_line = trim_func(current_line.substr(body_close + 1));
+        const size_t next = current_line.find_first_not_of("; \t\r\n");
+        current_line = next == std::string::npos ? "" : current_line.substr(next);
     }
-
-    if (!current_line.empty()) {
-        result.remaining_line = current_line;
-    }
-
+    result.remaining_line = std::move(current_line);
     return result;
 }
 

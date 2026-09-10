@@ -472,12 +472,17 @@ bool is_word_boundary(const std::string& text, size_t start, size_t length) {
     return parser_is_word_boundary(text, start, length);
 }
 
+size_t find_control_keyword(const std::string& line, const std::string& keyword,
+                            size_t search_from) {
+    return parser_find_keyword_token(line, keyword, search_from);
+}
+
 size_t find_inline_do_position(const std::string& line) {
-    return parser_find_inline_do_position(line);
+    return find_control_keyword(line, "do");
 }
 
 size_t find_inline_done_position(const std::string& line, size_t search_from) {
-    return parser_find_keyword_token(line, "done", search_from);
+    return find_control_keyword(line, "done", search_from);
 }
 
 bool check_for_loop_keywords(const std::vector<std::string>& tokens,
@@ -769,7 +774,7 @@ IfCheckResult analyze_if_syntax(const std::vector<std::string>& tokens,
                                 const std::string& trimmed_line) {
     IfCheckResult result;
 
-    bool has_then_on_line = parser_find_keyword_token(trimmed_line, "then") != std::string::npos;
+    bool has_then_on_line = find_control_keyword(trimmed_line, "then") != std::string::npos;
 
     if (!has_then_on_line) {
         result.missing_then_keyword = true;

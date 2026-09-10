@@ -941,7 +941,24 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         try {
-            text = expand_all_substitutions(text, execute_simple_or_pipeline);
+            const size_t group_start = text.find_first_not_of(" \t\r\n");
+            size_t group_end = std::string::npos;
+            if (group_start != std::string::npos) {
+                if (text[group_start] == '(') {
+                    group_end = find_matching_paren(text, group_start);
+                } else if (text[group_start] == '{' &&
+                           parser_is_command_group_brace(text, group_start)) {
+                    group_end = find_matching_brace(text, group_start);
+                }
+            }
+            if (group_end != std::string::npos) {
+                // The group evaluates its body in its own execution context.
+                text = text.substr(0, group_end + 1) +
+                       expand_all_substitutions(text.substr(group_end + 1),
+                                                execute_simple_or_pipeline);
+            } else {
+                text = expand_all_substitutions(text, execute_simple_or_pipeline);
+            }
 
             if (auto quick_result = try_execute_quick_command(text)) {
                 return *quick_result;
@@ -1339,7 +1356,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
         size_t esac_index = j;
         bool inline_has_esac = false;
-        size_t inline_esac_pos = inline_segment.find("esac");
+        size_t inline_esac_pos = parser_find_keyword_token(inline_segment, "esac");
         if (inline_esac_pos != std::string::npos) {
             inline_has_esac = true;
             inline_segment = trim(inline_segment.substr(0, inline_esac_pos));
@@ -1438,16 +1455,32 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             continue;
         }
 
+        if (function_evaluator::parse_function_header(line, true)) {
+            auto parse_result = function_evaluator::parse_and_register_functions(
+                line, lines, line_index, functions, trim, strip_inline_comment,
+                [this](const std::string& body) { return shell_parser->parse_into_lines(body); });
+
+            if (!parse_result.remaining_line.empty()) {
+                line = parse_result.remaining_line;
+            } else {
+                continue;
+            }
+        }
+
         // detect loop keywords on the right side of a pipeline and execute the full loop block
         // as a single combined command so done matching stays intact
         bool handled_pipeline_loop = false;
         size_t pipe_search_pos = 0;
-        while (pipe_search_pos < line.size()) {
+        while (pipe_search_pos < line.size() && line.front() != '{' && line.front() != '(') {
             size_t pipe_pos = line.find('|', pipe_search_pos);
             if (pipe_pos == std::string::npos) {
                 break;
             }
 
+            if (is_char_escaped(line, pipe_pos) || is_inside_quotes(line, pipe_pos)) {
+                pipe_search_pos = pipe_pos + 1;
+                continue;
+            }
             std::string after_pipe = trim(line.substr(pipe_pos + 1));
             auto loop_keyword = parse_statement_keyword_prefix(after_pipe);
             bool is_loop_keyword_prefix =
@@ -1502,26 +1535,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
         if (handled_pipeline_loop) {
             continue;
-        }
-
-        std::string trimmed_line = trim(line);
-        bool is_function_def = false;
-        if (line.find("()") != std::string::npos) {
-            is_function_def = true;
-        } else if (trimmed_line.rfind("function", 0) == 0 && trimmed_line.length() > 8 &&
-                   std::isspace(static_cast<unsigned char>(trimmed_line[8]))) {
-            is_function_def = true;
-        }
-
-        if (is_function_def) {
-            auto parse_result = function_evaluator::parse_and_register_functions(
-                line, lines, line_index, functions, trim, strip_inline_comment);
-
-            if (!parse_result.remaining_line.empty()) {
-                line = parse_result.remaining_line;
-            } else {
-                continue;
-            }
         }
 
         std::vector<LogicalCommand> lcmds = shell_parser->parse_logical_commands(line);
@@ -1616,17 +1629,16 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         const auto& func_name = function_header->name;
                         const size_t body_start_pos = function_header->body_start;
                         const char opening_delim = function_header->opening;
-                        const char closing_delim = function_header->closing;
                         std::vector<std::string> body_lines;
                         std::string after_body_open = trim(t.substr(body_start_pos + 1));
                         if (!after_body_open.empty()) {
-                            size_t body_close_pos = after_body_open.find(closing_delim);
+                            size_t body_close_pos = opening_delim == '{'
+                                                        ? find_matching_brace(t, body_start_pos)
+                                                        : find_matching_paren(t, body_start_pos);
                             if (body_close_pos != std::string::npos) {
-                                std::string body_part =
-                                    trim(after_body_open.substr(0, body_close_pos));
-                                if (!body_part.empty()) {
-                                    body_lines.push_back(body_part);
-                                }
+                                std::string body_part = trim(t.substr(
+                                    body_start_pos + 1, body_close_pos - body_start_pos - 1));
+                                body_lines = shell_parser->parse_into_lines(body_part);
                                 if (readonly_function_manager_is(func_name)) {
                                     print_error({ErrorType::INVALID_ARGUMENT,
                                                  "readonly",

@@ -98,6 +98,8 @@ bool extract_trimmed_line(const std::string& line, std::string& trimmed_line,
 
 std::vector<std::string> tokenize_whitespace(const std::string& input);
 bool is_word_boundary(const std::string& text, size_t start, size_t length);
+size_t find_control_keyword(const std::string& line, const std::string& keyword,
+                            size_t search_from = 0);
 size_t find_inline_do_position(const std::string& line);
 size_t find_inline_done_position(const std::string& line, size_t search_from);
 bool check_for_loop_keywords(const std::vector<std::string>& tokens,

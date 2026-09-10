@@ -109,6 +109,8 @@ bool test_inline_function_validation() {
         "sayhello () { echo hello; }",
         "function sayhello { echo hello; } # trailing comment",
         "function sayhello ( echo hello )",
+        "function first { :; }; function second { :; }",
+        "function first { :; }; echo function second",
     };
     bool ok = true;
     for (const auto& definition : definitions) {
@@ -150,6 +152,8 @@ bool test_function_brace_matching() {
         "function braces { echo hello # }",
         "function braces { echo ${value:-fallback}",
         "function braces { { echo nested; }",
+        "function first { :; }; function second {",
+        "function first { :; }; echo ok; function second {",
     };
     bool ok = true;
     for (const auto& definition : complete) {

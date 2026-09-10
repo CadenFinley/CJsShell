@@ -223,23 +223,6 @@ bool matches_keyword_only(const std::string& text, std::string_view keyword) {
     return false;
 }
 
-bool starts_with_loop_keyword(const std::string& text) {
-    const auto& loop_keywords = token_constants::loop_keywords();
-    return std::any_of(loop_keywords.begin(), loop_keywords.end(), [&](const std::string& keyword) {
-        if (text.size() < keyword.size()) {
-            return false;
-        }
-        if (text.compare(0, keyword.size(), keyword) != 0) {
-            return false;
-        }
-        if (text.size() == keyword.size()) {
-            return true;
-        }
-        char next = text[keyword.size()];
-        return (std::isspace(static_cast<unsigned char>(next)) != 0) || next == ';' || next == '(';
-    });
-}
-
 std::string get_select_prompt() {
     if (cjsh_env::shell_variable_is_set("PS3")) {
         return cjsh_env::get_shell_variable_value("PS3");
@@ -273,38 +256,6 @@ std::optional<size_t> parse_select_choice(const std::string& reply, size_t item_
     } catch (const std::exception&) {
         return std::nullopt;
     }
-}
-
-bool collect_loop_body_lines(const std::vector<std::string>& src_lines, size_t start_index,
-                             int initial_depth, std::vector<std::string>& body_lines,
-                             size_t& next_index) {
-    size_t k = start_index;
-    int depth = initial_depth;
-
-    if (depth <= 0) {
-        next_index = k;
-        return depth == 0;
-    }
-
-    while (k < src_lines.size() && depth > 0) {
-        const std::string& cur_raw = src_lines[k];
-        std::string cur = trim(strip_inline_comment(cur_raw));
-        if (starts_with_loop_keyword(cur)) {
-            ++depth;
-        } else if (matches_keyword_only(cur, "done")) {
-            --depth;
-            if (depth == 0) {
-                break;
-            }
-        }
-        if (depth > 0) {
-            body_lines.push_back(cur_raw);
-        }
-        ++k;
-    }
-
-    next_index = k;
-    return depth == 0;
 }
 
 struct CStyleForHeader {
@@ -468,153 +419,60 @@ struct ParsedLoopBlock {
     size_t end_index = 0;
 };
 
-bool parse_inline_loop_block(const std::string& first, Parser* shell_parser,
-                             ParsedLoopBlock& parsed) {
-    const size_t do_pos = parser_find_inline_do_position(first);
-    if (do_pos == std::string::npos ||
-        parser_find_keyword_token(first, "done", 0) == std::string::npos ||
-        shell_parser == nullptr) {
-        return false;
-    }
-
-    parsed = ParsedLoopBlock{};
-    parsed.header = trim(first.substr(0, do_pos));
-
-    const std::string tail = trim(first.substr(do_pos + 2));
-    size_t done_pos = parser_find_keyword_token(tail, "done", 0);
-    size_t search_from = done_pos == std::string::npos ? 0 : done_pos + 4;
-    while (done_pos != std::string::npos) {
-        const size_t next = parser_find_keyword_token(tail, "done", search_from);
-        if (next == std::string::npos) {
-            break;
-        }
-        done_pos = next;
-        search_from = done_pos + 4;
-    }
-
-    const std::string body = done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
-    if (done_pos != std::string::npos) {
-        const std::string done_suffix = trim(tail.substr(done_pos + 4));
-        auto suffix_parts = split_done_suffix(done_suffix);
-        parsed.done_redirections = std::move(suffix_parts.first);
-        parsed.trailing_commands = std::move(suffix_parts.second);
-    }
-
-    const auto& body_lines_handle = get_cached_inline_loop_body(body, shell_parser);
-    if (body_lines_handle == nullptr) {
-        return false;
-    }
-    parsed.body_lines = *body_lines_handle;
-    return true;
-}
-
 bool parse_multiline_loop_block(const std::vector<std::string>& src_lines, size_t start_index,
                                 const std::string& first, Parser* shell_parser,
                                 ParsedLoopBlock& parsed) {
     parsed = ParsedLoopBlock{};
-    parsed.header = first;
     parsed.end_index = start_index;
-
-    size_t header_end_index = start_index;
-    bool have_do = false;
-    bool do_line_has_inline_body = false;
-    std::string inline_body;
-
-    if (first.size() >= 4 && first.rfind("; do") == first.size() - 4) {
-        have_do = true;
-        parsed.header = first.substr(0, first.size() - 4);
-    } else {
-        while (!have_do && ++header_end_index < src_lines.size()) {
-            const std::string current = trim(strip_inline_comment(src_lines[header_end_index]));
-            if (current == "do") {
-                have_do = true;
-                break;
-            }
-            if (current.empty()) {
-                continue;
-            }
-
-            const size_t inline_do_pos = current.find("; do");
-            if (inline_do_pos != std::string::npos) {
-                have_do = true;
-                if (!parsed.header.empty()) {
-                    parsed.header += ' ';
-                }
-                parsed.header += current.substr(0, inline_do_pos);
-                inline_body = trim(current.substr(inline_do_pos + 4));
-                do_line_has_inline_body = !inline_body.empty();
-                break;
-            }
-            if (current.rfind("do ", 0) == 0) {
-                have_do = true;
-                do_line_has_inline_body = true;
-                inline_body = trim(current.substr(3));
-                break;
-            }
-
-            if (!parsed.header.empty()) {
-                parsed.header += ' ';
-            }
-            parsed.header += current;
-        }
-    }
-
-    parsed.end_index = header_end_index;
-    if (!have_do) {
+    if (shell_parser == nullptr) {
         return false;
     }
 
-    bool inline_consumes_done = false;
-    if (do_line_has_inline_body) {
-        if (shell_parser == nullptr) {
-            return false;
-        }
-
-        std::string inline_content = trim(inline_body);
-        if (!inline_content.empty()) {
-            if (matches_keyword_only(inline_content, "done")) {
-                inline_consumes_done = true;
-            } else {
-                const size_t done_pos = inline_content.rfind("; done");
-                if (done_pos != std::string::npos) {
-                    inline_content = trim(inline_content.substr(0, done_pos));
-                    inline_consumes_done = true;
-                } else if (inline_content.size() >= 4 &&
-                           inline_content.rfind("done") == inline_content.size() - 4) {
-                    inline_content = trim(inline_content.substr(0, inline_content.size() - 4));
-                    inline_consumes_done = true;
-                }
-            }
-
-            if (!inline_content.empty()) {
-                for (const auto& line : shell_parser->parse_into_lines(inline_content)) {
-                    const std::string trimmed_line = trim(line);
-                    if (!trimmed_line.empty() && trimmed_line != "done") {
-                        parsed.body_lines.push_back(line);
-                    }
-                }
-            }
-        }
+    std::string header = first;
+    size_t do_pos = parser_find_keyword_token(header, "do", 0);
+    while (do_pos == std::string::npos && parsed.end_index + 1 < src_lines.size()) {
+        header += '\n';
+        header += strip_inline_comment(src_lines[++parsed.end_index]);
+        do_pos = parser_find_keyword_token(header, "do", 0);
     }
+    if (do_pos == std::string::npos) {
+        return false;
+    }
+    parsed.header = trim(header.substr(0, do_pos));
 
-    const size_t body_start_index = inline_consumes_done ? header_end_index : header_end_index + 1;
-    const int initial_depth = inline_consumes_done ? 0 : 1;
-    if (!collect_loop_body_lines(src_lines, body_start_index, initial_depth, parsed.body_lines,
-                                 parsed.end_index)) {
+    std::string body = header.substr(do_pos + 2);
+    int depth = 1;
+    size_t done_pos =
+        parser_find_block_end(body, {"for", "select", "while", "until"}, "done", depth);
+    while (done_pos == std::string::npos && parsed.end_index + 1 < src_lines.size()) {
+        const std::string next = strip_inline_comment(src_lines[++parsed.end_index]);
+        const size_t next_done =
+            parser_find_block_end(next, {"for", "select", "while", "until"}, "done", depth);
+        body += '\n';
+        if (next_done != std::string::npos) {
+            done_pos = body.size() + next_done;
+        }
+        body += next;
+    }
+    if (done_pos == std::string::npos) {
         return false;
     }
 
-    if (parsed.end_index < src_lines.size()) {
-        const std::string closing = trim(strip_inline_comment(src_lines[parsed.end_index]));
-        const size_t done_pos = parser_find_keyword_token(closing, "done", 0);
-        if (done_pos != std::string::npos) {
-            auto suffix_parts = split_done_suffix(trim(closing.substr(done_pos + 4)));
-            parsed.done_redirections = std::move(suffix_parts.first);
-            parsed.trailing_commands = std::move(suffix_parts.second);
-        }
+    auto suffix_parts = split_done_suffix(trim(body.substr(done_pos + 4)));
+    parsed.done_redirections = std::move(suffix_parts.first);
+    parsed.trailing_commands = std::move(suffix_parts.second);
+    const auto& body_lines =
+        get_cached_inline_loop_body(trim(body.substr(0, done_pos)), shell_parser);
+    if (body_lines == nullptr) {
+        return false;
     }
-
+    parsed.body_lines = *body_lines;
     return true;
+}
+
+bool parse_inline_loop_block(const std::string& first, Parser* shell_parser,
+                             ParsedLoopBlock& parsed) {
+    return parse_multiline_loop_block({first}, 0, first, shell_parser, parsed);
 }
 
 bool trailing_contains_block_closer_segment(const std::string& trailing_commands,
@@ -680,94 +538,18 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
         return cjsh_env::exit_requested() || (should_abort_execution && should_abort_execution());
     };
 
-    // parse the loop header and detect inline do/body placement
-    auto parse_cond_from = [&](const std::string& s, std::string& cond, bool& inline_do,
-                               std::string& body_inline) {
-        inline_do = false;
-        body_inline.clear();
-        cond.clear();
-        std::string tmp = s;
-        if (tmp == keyword) {
-            return true;
-        }
-        if (tmp.rfind(keyword + " ", 0) == 0) {
-            tmp = tmp.substr(keyword.length() + 1);
-        }
-        size_t do_pos = tmp.find("; do");
-        if (do_pos != std::string::npos) {
-            cond = trim(tmp.substr(0, do_pos));
-            inline_do = true;
-            body_inline = trim(tmp.substr(do_pos + 4));
-            return true;
-        }
-        if (tmp == "do") {
-            inline_do = true;
-            return true;
-        }
-        if (tmp.rfind("do ", 0) == 0) {
-            inline_do = true;
-            body_inline = trim(tmp.substr(3));
-            return true;
-        }
-        cond = trim(tmp);
-        return true;
-    };
-
-    std::string cond;
-    bool inline_do = false;
-    std::string body_inline;
-    parse_cond_from(first, cond, inline_do, body_inline);
-    size_t j = idx;
-    if (!inline_do) {
-        // gather multiline condition text until do is reached
-        while (++j < src_lines.size()) {
-            const std::string& cur_raw = src_lines[j];
-            std::string cur = trim(strip_inline_comment(cur_raw));
-            if (cur == "do") {
-                inline_do = true;
-                break;
-            }
-            if (cur.rfind("do ", 0) == 0) {
-                inline_do = true;
-                body_inline = trim(cur.substr(3));
-                break;
-            }
-            if (cur.find("; do") != std::string::npos) {
-                inline_do = true;
-                break;
-            }
-            if (!cur.empty()) {
-                if (!cond.empty()) {
-                    cond += ' ';
-                }
-                cond += cur;
-            }
-        }
-    }
-    if (!inline_do) {
-        // header was incomplete and never reached do
-        idx = j;
+    ParsedLoopBlock parsed_loop;
+    if (!parse_multiline_loop_block(src_lines, idx, first, shell_parser, parsed_loop)) {
+        idx = parsed_loop.end_index;
         return 1;
     }
-
-    // collect body commands through matching done while supporting nested loop depth
-    std::vector<std::string> body_lines;
-    if (!body_inline.empty()) {
-        std::string bi = body_inline;
-        size_t done_pos = bi.rfind("; done");
-        if (done_pos != std::string::npos) {
-            bi = trim(bi.substr(0, done_pos));
-        }
-        body_lines = shell_parser->parse_into_lines(bi);
-        idx = j;
-    } else {
-        size_t body_end_idx = 0;
-        if (!collect_loop_body_lines(src_lines, j + 1, 1, body_lines, body_end_idx)) {
-            idx = body_end_idx;
-            return 1;
-        }
-        idx = body_end_idx;
+    idx = parsed_loop.end_index;
+    std::string cond = trim(parsed_loop.header.substr(keyword.size()));
+    if (!cond.empty() && cond.back() == ';' && !is_char_escaped(cond, cond.size() - 1)) {
+        cond.pop_back();
+        cond = trim(cond);
     }
+    const auto& body_lines = parsed_loop.body_lines;
 
     auto run_loop_logic = [&]() -> int {
         // evaluate condition then execute body per iteration until loop termination criteria hit
@@ -814,18 +596,8 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
         return rc;
     };
 
-    std::string done_redirections;
-    std::string trailing_commands;
-    if (idx < src_lines.size()) {
-        std::string closing_trim = trim(strip_inline_comment(src_lines[idx]));
-        size_t done_pos = parser_find_keyword_token(closing_trim, "done", 0);
-        if (done_pos != std::string::npos) {
-            std::string suffix = trim(closing_trim.substr(done_pos + 4));
-            auto suffix_parts = split_done_suffix(suffix);
-            done_redirections = suffix_parts.first;
-            trailing_commands = suffix_parts.second;
-        }
-    }
+    const auto& done_redirections = parsed_loop.done_redirections;
+    const auto& trailing_commands = parsed_loop.trailing_commands;
 
     // Only redirections after `done` belong to the loop itself. Parsing the entire
     // loop here also lifted redirections from its condition/body into this scope.

@@ -1,0 +1,1687 @@
+{
+  "license": [
+    "syntax_regression_cases.json",
+    "",
+    "This file is part of cjsh, CJ's Shell",
+    "",
+    "MIT License",
+    "",
+    "Copyright (c) 2026 Caden Finley",
+    "",
+    "Permission is hereby granted, free of charge, to any person obtaining a copy",
+    "of this software and associated documentation files (the \"Software\"), to deal",
+    "in the Software without restriction, including without limitation the rights",
+    "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell",
+    "copies of the Software, and to permit persons to whom the Software is",
+    "furnished to do so, subject to the following conditions:",
+    "",
+    "The above copyright notice and this permission notice shall be included in all",
+    "copies or substantial portions of the Software.",
+    "",
+    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR",
+    "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,",
+    "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE",
+    "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER",
+    "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,",
+    "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE",
+    "SOFTWARE."
+  ],
+  "cases": [
+    {
+      "name": "function syntax_probe_fn/plain/layout0",
+      "script": "function syntax_probe_fn { echo ok; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "function syntax_probe_fn/plain/layout1",
+      "script": "function syntax_probe_fn { echo ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "function syntax_probe_fn/plain/layout2",
+      "script": "function syntax_probe_fn {\necho ok; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "function syntax_probe_fn/plain/layout3",
+      "script": "function syntax_probe_fn {\necho ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "function syntax_probe_fn/plain/layout4",
+      "script": "function syntax_probe_fn\n{\necho ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "function syntax_probe_fn/quoted_close/layout0",
+      "script": "function syntax_probe_fn { printf \"%s\\n\" \"}\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/quoted_close/layout1",
+      "script": "function syntax_probe_fn { printf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/quoted_close/layout2",
+      "script": "function syntax_probe_fn {\nprintf \"%s\\n\" \"}\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/quoted_close/layout3",
+      "script": "function syntax_probe_fn {\nprintf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/quoted_close/layout4",
+      "script": "function syntax_probe_fn\n{\nprintf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/quoted_open/layout0",
+      "script": "function syntax_probe_fn { printf \"%s\\n\" \"{\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "function syntax_probe_fn/quoted_open/layout1",
+      "script": "function syntax_probe_fn { printf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "function syntax_probe_fn/quoted_open/layout2",
+      "script": "function syntax_probe_fn {\nprintf \"%s\\n\" \"{\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "function syntax_probe_fn/quoted_open/layout3",
+      "script": "function syntax_probe_fn {\nprintf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "function syntax_probe_fn/quoted_open/layout4",
+      "script": "function syntax_probe_fn\n{\nprintf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "function syntax_probe_fn/escaped_close/layout0",
+      "script": "function syntax_probe_fn { echo \\}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/escaped_close/layout1",
+      "script": "function syntax_probe_fn { echo \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/escaped_close/layout2",
+      "script": "function syntax_probe_fn {\necho \\}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/escaped_close/layout3",
+      "script": "function syntax_probe_fn {\necho \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/escaped_close/layout4",
+      "script": "function syntax_probe_fn\n{\necho \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/parameter/layout0",
+      "script": "function syntax_probe_fn { echo ${syntax_probe_value:-fallback}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "function syntax_probe_fn/parameter/layout1",
+      "script": "function syntax_probe_fn { echo ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "function syntax_probe_fn/parameter/layout2",
+      "script": "function syntax_probe_fn {\necho ${syntax_probe_value:-fallback}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "function syntax_probe_fn/parameter/layout3",
+      "script": "function syntax_probe_fn {\necho ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "function syntax_probe_fn/parameter/layout4",
+      "script": "function syntax_probe_fn\n{\necho ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "function syntax_probe_fn/substitution/layout0",
+      "script": "function syntax_probe_fn { echo $(printf \"%s\" \"}\"); }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/substitution/layout1",
+      "script": "function syntax_probe_fn { echo $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/substitution/layout2",
+      "script": "function syntax_probe_fn {\necho $(printf \"%s\" \"}\"); }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/substitution/layout3",
+      "script": "function syntax_probe_fn {\necho $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/substitution/layout4",
+      "script": "function syntax_probe_fn\n{\necho $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn/nested_function/layout0",
+      "script": "function syntax_probe_fn { inner_probe() { echo nested; }; inner_probe; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "function syntax_probe_fn/nested_function/layout1",
+      "script": "function syntax_probe_fn { inner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "function syntax_probe_fn/nested_function/layout2",
+      "script": "function syntax_probe_fn {\ninner_probe() { echo nested; }; inner_probe; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "function syntax_probe_fn/nested_function/layout3",
+      "script": "function syntax_probe_fn {\ninner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "function syntax_probe_fn/nested_function/layout4",
+      "script": "function syntax_probe_fn\n{\ninner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/plain/layout0",
+      "script": "function syntax_probe_fn() { echo ok; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/plain/layout1",
+      "script": "function syntax_probe_fn() { echo ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/plain/layout2",
+      "script": "function syntax_probe_fn() {\necho ok; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/plain/layout3",
+      "script": "function syntax_probe_fn() {\necho ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/plain/layout4",
+      "script": "function syntax_probe_fn()\n{\necho ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/quoted_close/layout0",
+      "script": "function syntax_probe_fn() { printf \"%s\\n\" \"}\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/quoted_close/layout1",
+      "script": "function syntax_probe_fn() { printf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/quoted_close/layout2",
+      "script": "function syntax_probe_fn() {\nprintf \"%s\\n\" \"}\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/quoted_close/layout3",
+      "script": "function syntax_probe_fn() {\nprintf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/quoted_close/layout4",
+      "script": "function syntax_probe_fn()\n{\nprintf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/quoted_open/layout0",
+      "script": "function syntax_probe_fn() { printf \"%s\\n\" \"{\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/quoted_open/layout1",
+      "script": "function syntax_probe_fn() { printf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/quoted_open/layout2",
+      "script": "function syntax_probe_fn() {\nprintf \"%s\\n\" \"{\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/quoted_open/layout3",
+      "script": "function syntax_probe_fn() {\nprintf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/quoted_open/layout4",
+      "script": "function syntax_probe_fn()\n{\nprintf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/escaped_close/layout0",
+      "script": "function syntax_probe_fn() { echo \\}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/escaped_close/layout1",
+      "script": "function syntax_probe_fn() { echo \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/escaped_close/layout2",
+      "script": "function syntax_probe_fn() {\necho \\}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/escaped_close/layout3",
+      "script": "function syntax_probe_fn() {\necho \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/escaped_close/layout4",
+      "script": "function syntax_probe_fn()\n{\necho \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/parameter/layout0",
+      "script": "function syntax_probe_fn() { echo ${syntax_probe_value:-fallback}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/parameter/layout1",
+      "script": "function syntax_probe_fn() { echo ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/parameter/layout2",
+      "script": "function syntax_probe_fn() {\necho ${syntax_probe_value:-fallback}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/parameter/layout3",
+      "script": "function syntax_probe_fn() {\necho ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/parameter/layout4",
+      "script": "function syntax_probe_fn()\n{\necho ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/substitution/layout0",
+      "script": "function syntax_probe_fn() { echo $(printf \"%s\" \"}\"); }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/substitution/layout1",
+      "script": "function syntax_probe_fn() { echo $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/substitution/layout2",
+      "script": "function syntax_probe_fn() {\necho $(printf \"%s\" \"}\"); }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/substitution/layout3",
+      "script": "function syntax_probe_fn() {\necho $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/substitution/layout4",
+      "script": "function syntax_probe_fn()\n{\necho $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/nested_function/layout0",
+      "script": "function syntax_probe_fn() { inner_probe() { echo nested; }; inner_probe; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/nested_function/layout1",
+      "script": "function syntax_probe_fn() { inner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/nested_function/layout2",
+      "script": "function syntax_probe_fn() {\ninner_probe() { echo nested; }; inner_probe; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/nested_function/layout3",
+      "script": "function syntax_probe_fn() {\ninner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "function syntax_probe_fn()/nested_function/layout4",
+      "script": "function syntax_probe_fn()\n{\ninner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "syntax_probe_fn()/plain/layout0",
+      "script": "syntax_probe_fn() { echo ok; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "syntax_probe_fn()/plain/layout1",
+      "script": "syntax_probe_fn() { echo ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "syntax_probe_fn()/plain/layout2",
+      "script": "syntax_probe_fn() {\necho ok; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "syntax_probe_fn()/plain/layout3",
+      "script": "syntax_probe_fn() {\necho ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "syntax_probe_fn()/plain/layout4",
+      "script": "syntax_probe_fn()\n{\necho ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "syntax_probe_fn()/quoted_close/layout0",
+      "script": "syntax_probe_fn() { printf \"%s\\n\" \"}\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/quoted_close/layout1",
+      "script": "syntax_probe_fn() { printf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/quoted_close/layout2",
+      "script": "syntax_probe_fn() {\nprintf \"%s\\n\" \"}\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/quoted_close/layout3",
+      "script": "syntax_probe_fn() {\nprintf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/quoted_close/layout4",
+      "script": "syntax_probe_fn()\n{\nprintf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/quoted_open/layout0",
+      "script": "syntax_probe_fn() { printf \"%s\\n\" \"{\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "syntax_probe_fn()/quoted_open/layout1",
+      "script": "syntax_probe_fn() { printf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "syntax_probe_fn()/quoted_open/layout2",
+      "script": "syntax_probe_fn() {\nprintf \"%s\\n\" \"{\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "syntax_probe_fn()/quoted_open/layout3",
+      "script": "syntax_probe_fn() {\nprintf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "syntax_probe_fn()/quoted_open/layout4",
+      "script": "syntax_probe_fn()\n{\nprintf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "syntax_probe_fn()/escaped_close/layout0",
+      "script": "syntax_probe_fn() { echo \\}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/escaped_close/layout1",
+      "script": "syntax_probe_fn() { echo \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/escaped_close/layout2",
+      "script": "syntax_probe_fn() {\necho \\}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/escaped_close/layout3",
+      "script": "syntax_probe_fn() {\necho \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/escaped_close/layout4",
+      "script": "syntax_probe_fn()\n{\necho \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/parameter/layout0",
+      "script": "syntax_probe_fn() { echo ${syntax_probe_value:-fallback}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "syntax_probe_fn()/parameter/layout1",
+      "script": "syntax_probe_fn() { echo ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "syntax_probe_fn()/parameter/layout2",
+      "script": "syntax_probe_fn() {\necho ${syntax_probe_value:-fallback}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "syntax_probe_fn()/parameter/layout3",
+      "script": "syntax_probe_fn() {\necho ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "syntax_probe_fn()/parameter/layout4",
+      "script": "syntax_probe_fn()\n{\necho ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "syntax_probe_fn()/substitution/layout0",
+      "script": "syntax_probe_fn() { echo $(printf \"%s\" \"}\"); }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/substitution/layout1",
+      "script": "syntax_probe_fn() { echo $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/substitution/layout2",
+      "script": "syntax_probe_fn() {\necho $(printf \"%s\" \"}\"); }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/substitution/layout3",
+      "script": "syntax_probe_fn() {\necho $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/substitution/layout4",
+      "script": "syntax_probe_fn()\n{\necho $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn()/nested_function/layout0",
+      "script": "syntax_probe_fn() { inner_probe() { echo nested; }; inner_probe; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "syntax_probe_fn()/nested_function/layout1",
+      "script": "syntax_probe_fn() { inner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "syntax_probe_fn()/nested_function/layout2",
+      "script": "syntax_probe_fn() {\ninner_probe() { echo nested; }; inner_probe; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "syntax_probe_fn()/nested_function/layout3",
+      "script": "syntax_probe_fn() {\ninner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "syntax_probe_fn()/nested_function/layout4",
+      "script": "syntax_probe_fn()\n{\ninner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/plain/layout0",
+      "script": "syntax_probe_fn () { echo ok; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/plain/layout1",
+      "script": "syntax_probe_fn () { echo ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/plain/layout2",
+      "script": "syntax_probe_fn () {\necho ok; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/plain/layout3",
+      "script": "syntax_probe_fn () {\necho ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/plain/layout4",
+      "script": "syntax_probe_fn ()\n{\necho ok\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nok\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/quoted_close/layout0",
+      "script": "syntax_probe_fn () { printf \"%s\\n\" \"}\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/quoted_close/layout1",
+      "script": "syntax_probe_fn () { printf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/quoted_close/layout2",
+      "script": "syntax_probe_fn () {\nprintf \"%s\\n\" \"}\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/quoted_close/layout3",
+      "script": "syntax_probe_fn () {\nprintf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/quoted_close/layout4",
+      "script": "syntax_probe_fn ()\n{\nprintf \"%s\\n\" \"}\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/quoted_open/layout0",
+      "script": "syntax_probe_fn () { printf \"%s\\n\" \"{\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/quoted_open/layout1",
+      "script": "syntax_probe_fn () { printf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/quoted_open/layout2",
+      "script": "syntax_probe_fn () {\nprintf \"%s\\n\" \"{\"; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/quoted_open/layout3",
+      "script": "syntax_probe_fn () {\nprintf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/quoted_open/layout4",
+      "script": "syntax_probe_fn ()\n{\nprintf \"%s\\n\" \"{\"\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n{\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/escaped_close/layout0",
+      "script": "syntax_probe_fn () { echo \\}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/escaped_close/layout1",
+      "script": "syntax_probe_fn () { echo \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/escaped_close/layout2",
+      "script": "syntax_probe_fn () {\necho \\}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/escaped_close/layout3",
+      "script": "syntax_probe_fn () {\necho \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/escaped_close/layout4",
+      "script": "syntax_probe_fn ()\n{\necho \\}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/parameter/layout0",
+      "script": "syntax_probe_fn () { echo ${syntax_probe_value:-fallback}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/parameter/layout1",
+      "script": "syntax_probe_fn () { echo ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/parameter/layout2",
+      "script": "syntax_probe_fn () {\necho ${syntax_probe_value:-fallback}; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/parameter/layout3",
+      "script": "syntax_probe_fn () {\necho ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/parameter/layout4",
+      "script": "syntax_probe_fn ()\n{\necho ${syntax_probe_value:-fallback}\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nfallback\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/substitution/layout0",
+      "script": "syntax_probe_fn () { echo $(printf \"%s\" \"}\"); }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/substitution/layout1",
+      "script": "syntax_probe_fn () { echo $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/substitution/layout2",
+      "script": "syntax_probe_fn () {\necho $(printf \"%s\" \"}\"); }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/substitution/layout3",
+      "script": "syntax_probe_fn () {\necho $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/substitution/layout4",
+      "script": "syntax_probe_fn ()\n{\necho $(printf \"%s\" \"}\")\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\n}\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/nested_function/layout0",
+      "script": "syntax_probe_fn () { inner_probe() { echo nested; }; inner_probe; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/nested_function/layout1",
+      "script": "syntax_probe_fn () { inner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/nested_function/layout2",
+      "script": "syntax_probe_fn () {\ninner_probe() { echo nested; }; inner_probe; }\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/nested_function/layout3",
+      "script": "syntax_probe_fn () {\ninner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "syntax_probe_fn ()/nested_function/layout4",
+      "script": "syntax_probe_fn ()\n{\ninner_probe() { echo nested; }; inner_probe\n}\necho defined\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "defined\nnested\n"
+    },
+    {
+      "name": "{/plain/layout0",
+      "script": "{ echo ok; }",
+      "complete": true,
+      "status": 0,
+      "stdout": "ok\n"
+    },
+    {
+      "name": "{/plain/layout1",
+      "script": "{ echo ok\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "ok\n"
+    },
+    {
+      "name": "{/plain/layout2",
+      "script": "{\necho ok; }",
+      "complete": true,
+      "status": 0,
+      "stdout": "ok\n"
+    },
+    {
+      "name": "{/plain/layout3",
+      "script": "{\necho ok\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "ok\n"
+    },
+    {
+      "name": "{/quoted_close/layout0",
+      "script": "{ printf \"%s\\n\" \"}\"; }",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/quoted_close/layout1",
+      "script": "{ printf \"%s\\n\" \"}\"\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/quoted_close/layout2",
+      "script": "{\nprintf \"%s\\n\" \"}\"; }",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/quoted_close/layout3",
+      "script": "{\nprintf \"%s\\n\" \"}\"\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/quoted_open/layout0",
+      "script": "{ printf \"%s\\n\" \"{\"; }",
+      "complete": true,
+      "status": 0,
+      "stdout": "{\n"
+    },
+    {
+      "name": "{/quoted_open/layout1",
+      "script": "{ printf \"%s\\n\" \"{\"\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "{\n"
+    },
+    {
+      "name": "{/quoted_open/layout2",
+      "script": "{\nprintf \"%s\\n\" \"{\"; }",
+      "complete": true,
+      "status": 0,
+      "stdout": "{\n"
+    },
+    {
+      "name": "{/quoted_open/layout3",
+      "script": "{\nprintf \"%s\\n\" \"{\"\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "{\n"
+    },
+    {
+      "name": "{/escaped_close/layout0",
+      "script": "{ echo \\}; }",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/escaped_close/layout1",
+      "script": "{ echo \\}\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/escaped_close/layout2",
+      "script": "{\necho \\}; }",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/escaped_close/layout3",
+      "script": "{\necho \\}\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/parameter/layout0",
+      "script": "{ echo ${syntax_probe_value:-fallback}; }",
+      "complete": true,
+      "status": 0,
+      "stdout": "fallback\n"
+    },
+    {
+      "name": "{/parameter/layout1",
+      "script": "{ echo ${syntax_probe_value:-fallback}\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "fallback\n"
+    },
+    {
+      "name": "{/parameter/layout2",
+      "script": "{\necho ${syntax_probe_value:-fallback}; }",
+      "complete": true,
+      "status": 0,
+      "stdout": "fallback\n"
+    },
+    {
+      "name": "{/parameter/layout3",
+      "script": "{\necho ${syntax_probe_value:-fallback}\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "fallback\n"
+    },
+    {
+      "name": "{/substitution/layout0",
+      "script": "{ echo $(printf \"%s\" \"}\"); }",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/substitution/layout1",
+      "script": "{ echo $(printf \"%s\" \"}\")\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/substitution/layout2",
+      "script": "{\necho $(printf \"%s\" \"}\"); }",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "{/substitution/layout3",
+      "script": "{\necho $(printf \"%s\" \"}\")\n}",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/plain/layout0",
+      "script": "( echo ok; )",
+      "complete": true,
+      "status": 0,
+      "stdout": "ok\n"
+    },
+    {
+      "name": "(/plain/layout1",
+      "script": "( echo ok\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "ok\n"
+    },
+    {
+      "name": "(/plain/layout2",
+      "script": "(\necho ok; )",
+      "complete": true,
+      "status": 0,
+      "stdout": "ok\n"
+    },
+    {
+      "name": "(/plain/layout3",
+      "script": "(\necho ok\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "ok\n"
+    },
+    {
+      "name": "(/quoted_close/layout0",
+      "script": "( printf \"%s\\n\" \"}\"; )",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/quoted_close/layout1",
+      "script": "( printf \"%s\\n\" \"}\"\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/quoted_close/layout2",
+      "script": "(\nprintf \"%s\\n\" \"}\"; )",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/quoted_close/layout3",
+      "script": "(\nprintf \"%s\\n\" \"}\"\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/quoted_open/layout0",
+      "script": "( printf \"%s\\n\" \"{\"; )",
+      "complete": true,
+      "status": 0,
+      "stdout": "{\n"
+    },
+    {
+      "name": "(/quoted_open/layout1",
+      "script": "( printf \"%s\\n\" \"{\"\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "{\n"
+    },
+    {
+      "name": "(/quoted_open/layout2",
+      "script": "(\nprintf \"%s\\n\" \"{\"; )",
+      "complete": true,
+      "status": 0,
+      "stdout": "{\n"
+    },
+    {
+      "name": "(/quoted_open/layout3",
+      "script": "(\nprintf \"%s\\n\" \"{\"\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "{\n"
+    },
+    {
+      "name": "(/escaped_close/layout0",
+      "script": "( echo \\}; )",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/escaped_close/layout1",
+      "script": "( echo \\}\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/escaped_close/layout2",
+      "script": "(\necho \\}; )",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/escaped_close/layout3",
+      "script": "(\necho \\}\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/parameter/layout0",
+      "script": "( echo ${syntax_probe_value:-fallback}; )",
+      "complete": true,
+      "status": 0,
+      "stdout": "fallback\n"
+    },
+    {
+      "name": "(/parameter/layout1",
+      "script": "( echo ${syntax_probe_value:-fallback}\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "fallback\n"
+    },
+    {
+      "name": "(/parameter/layout2",
+      "script": "(\necho ${syntax_probe_value:-fallback}; )",
+      "complete": true,
+      "status": 0,
+      "stdout": "fallback\n"
+    },
+    {
+      "name": "(/parameter/layout3",
+      "script": "(\necho ${syntax_probe_value:-fallback}\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "fallback\n"
+    },
+    {
+      "name": "(/substitution/layout0",
+      "script": "( echo $(printf \"%s\" \"}\"); )",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/substitution/layout1",
+      "script": "( echo $(printf \"%s\" \"}\")\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/substitution/layout2",
+      "script": "(\necho $(printf \"%s\" \"}\"); )",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "(/substitution/layout3",
+      "script": "(\necho $(printf \"%s\" \"}\")\n)",
+      "complete": true,
+      "status": 0,
+      "stdout": "}\n"
+    },
+    {
+      "name": "if/literal/fi",
+      "script": "if true; then echo fi",
+      "complete": false
+    },
+    {
+      "name": "if/literal/'fi'",
+      "script": "if true; then echo 'fi'",
+      "complete": false
+    },
+    {
+      "name": "if/literal/\"text fi text\"",
+      "script": "if true; then echo \"text fi text\"",
+      "complete": false
+    },
+    {
+      "name": "if/literal/\\fi",
+      "script": "if true; then echo \\fi",
+      "complete": false
+    },
+    {
+      "name": "if/literal/ok # fi",
+      "script": "if true; then echo ok # fi",
+      "complete": false
+    },
+    {
+      "name": "if/literal/\"; fi\"",
+      "script": "if true; then echo \"; fi\"",
+      "complete": false
+    },
+    {
+      "name": "if/closed/layout0",
+      "script": "if true; then echo fi; fi",
+      "complete": true,
+      "status": 0,
+      "stdout": "fi\n"
+    },
+    {
+      "name": "if/closed/layout1",
+      "script": "if true; then echo fi;\nfi",
+      "complete": true,
+      "status": 0,
+      "stdout": "fi\n"
+    },
+    {
+      "name": "if/closed/layout2",
+      "script": "if true; then\necho fi;\nfi",
+      "complete": true,
+      "status": 0,
+      "stdout": "fi\n"
+    },
+    {
+      "name": "while/literal/done",
+      "script": "while false; do echo done",
+      "complete": false
+    },
+    {
+      "name": "while/literal/'done'",
+      "script": "while false; do echo 'done'",
+      "complete": false
+    },
+    {
+      "name": "while/literal/\"text done text\"",
+      "script": "while false; do echo \"text done text\"",
+      "complete": false
+    },
+    {
+      "name": "while/literal/\\done",
+      "script": "while false; do echo \\done",
+      "complete": false
+    },
+    {
+      "name": "while/literal/ok # done",
+      "script": "while false; do echo ok # done",
+      "complete": false
+    },
+    {
+      "name": "while/literal/\"; done\"",
+      "script": "while false; do echo \"; done\"",
+      "complete": false
+    },
+    {
+      "name": "while/closed/layout0",
+      "script": "while false; do echo done; done",
+      "complete": true,
+      "status": 0,
+      "stdout": ""
+    },
+    {
+      "name": "while/closed/layout1",
+      "script": "while false; do echo done;\ndone",
+      "complete": true,
+      "status": 0,
+      "stdout": ""
+    },
+    {
+      "name": "while/closed/layout2",
+      "script": "while false; do\necho done;\ndone",
+      "complete": true,
+      "status": 0,
+      "stdout": ""
+    },
+    {
+      "name": "until/literal/done",
+      "script": "until true; do echo done",
+      "complete": false
+    },
+    {
+      "name": "until/literal/'done'",
+      "script": "until true; do echo 'done'",
+      "complete": false
+    },
+    {
+      "name": "until/literal/\"text done text\"",
+      "script": "until true; do echo \"text done text\"",
+      "complete": false
+    },
+    {
+      "name": "until/literal/\\done",
+      "script": "until true; do echo \\done",
+      "complete": false
+    },
+    {
+      "name": "until/literal/ok # done",
+      "script": "until true; do echo ok # done",
+      "complete": false
+    },
+    {
+      "name": "until/literal/\"; done\"",
+      "script": "until true; do echo \"; done\"",
+      "complete": false
+    },
+    {
+      "name": "until/closed/layout0",
+      "script": "until true; do echo done; done",
+      "complete": true,
+      "status": 0,
+      "stdout": ""
+    },
+    {
+      "name": "until/closed/layout1",
+      "script": "until true; do echo done;\ndone",
+      "complete": true,
+      "status": 0,
+      "stdout": ""
+    },
+    {
+      "name": "until/closed/layout2",
+      "script": "until true; do\necho done;\ndone",
+      "complete": true,
+      "status": 0,
+      "stdout": ""
+    },
+    {
+      "name": "for/literal/done",
+      "script": "for i in one; do echo done",
+      "complete": false
+    },
+    {
+      "name": "for/literal/'done'",
+      "script": "for i in one; do echo 'done'",
+      "complete": false
+    },
+    {
+      "name": "for/literal/\"text done text\"",
+      "script": "for i in one; do echo \"text done text\"",
+      "complete": false
+    },
+    {
+      "name": "for/literal/\\done",
+      "script": "for i in one; do echo \\done",
+      "complete": false
+    },
+    {
+      "name": "for/literal/ok # done",
+      "script": "for i in one; do echo ok # done",
+      "complete": false
+    },
+    {
+      "name": "for/literal/\"; done\"",
+      "script": "for i in one; do echo \"; done\"",
+      "complete": false
+    },
+    {
+      "name": "for/closed/layout0",
+      "script": "for i in one; do echo done; done",
+      "complete": true,
+      "status": 0,
+      "stdout": "done\n"
+    },
+    {
+      "name": "for/closed/layout1",
+      "script": "for i in one; do echo done;\ndone",
+      "complete": true,
+      "status": 0,
+      "stdout": "done\n"
+    },
+    {
+      "name": "for/closed/layout2",
+      "script": "for i in one; do\necho done;\ndone",
+      "complete": true,
+      "status": 0,
+      "stdout": "done\n"
+    },
+    {
+      "name": "case/literal/esac",
+      "script": "case x in x) echo esac",
+      "complete": false
+    },
+    {
+      "name": "case/literal/'esac'",
+      "script": "case x in x) echo 'esac'",
+      "complete": false
+    },
+    {
+      "name": "case/literal/\"text esac text\"",
+      "script": "case x in x) echo \"text esac text\"",
+      "complete": false
+    },
+    {
+      "name": "case/literal/\\esac",
+      "script": "case x in x) echo \\esac",
+      "complete": false
+    },
+    {
+      "name": "case/literal/ok # esac",
+      "script": "case x in x) echo ok # esac",
+      "complete": false
+    },
+    {
+      "name": "case/literal/\"; esac\"",
+      "script": "case x in x) echo \"; esac\"",
+      "complete": false
+    },
+    {
+      "name": "case/closed/layout0",
+      "script": "case x in x) echo esac;; esac",
+      "complete": true,
+      "status": 0,
+      "stdout": "esac\n"
+    },
+    {
+      "name": "case/closed/layout1",
+      "script": "case x in x) echo esac;;\nesac",
+      "complete": true,
+      "status": 0,
+      "stdout": "esac\n"
+    },
+    {
+      "name": "case/closed/layout2",
+      "script": "case x in x)\necho esac;;\nesac",
+      "complete": true,
+      "status": 0,
+      "stdout": "esac\n"
+    },
+    {
+      "name": "if",
+      "script": "if true; then\nif true; then echo nested; fi\nfi",
+      "complete": true,
+      "status": 0,
+      "stdout": "nested\n"
+    },
+    {
+      "name": "for",
+      "script": "for i in x; do\nfor j in y; do echo nested; done\ndone",
+      "complete": true,
+      "status": 0,
+      "stdout": "nested\n"
+    },
+    {
+      "name": "while",
+      "script": "while false; do\nwhile false; do echo nested; done\ndone",
+      "complete": true,
+      "status": 0,
+      "stdout": ""
+    },
+    {
+      "name": "function_subshell",
+      "script": "syntax_probe_fn() (\necho ok\n)\nsyntax_probe_fn",
+      "complete": true,
+      "status": 0,
+      "stdout": "ok\n"
+    },
+    {
+      "name": "brace_condition",
+      "script": "if { true; }; then echo ok; fi",
+      "complete": true,
+      "status": 0,
+      "stdout": "ok\n"
+    },
+    {
+      "name": "second_function",
+      "script": "function first { :; }; function second {",
+      "complete": false
+    },
+    {
+      "name": "second_function_after_command",
+      "script": "function first { :; }; echo ok; function second {",
+      "complete": false
+    },
+    {
+      "name": "{/substitution-execution-scope",
+      "complete": true,
+      "status": 0,
+      "script": "value=outer\n{\nvalue=inner\necho \"$(echo \"$value\")\"\n}\necho \"$value\"",
+      "stdout": "inner\ninner\n"
+    },
+    {
+      "name": "(/substitution-execution-scope",
+      "complete": true,
+      "status": 0,
+      "script": "value=outer\n(\nvalue=inner\necho \"$(echo \"$value\")\"\n)\necho \"$value\"",
+      "stdout": "inner\nouter\n"
+    },
+    {
+      "name": "function/comments-around-body",
+      "complete": true,
+      "status": 0,
+      "script": "function f # header\n# before body\n{\n# } ignored\necho first # } ignored\necho \"# { literal\"\n}\necho defined\nf",
+      "stdout": "defined\nfirst\n# { literal\n"
+    },
+    {
+      "name": "function/quoted-heredoc-delimiters",
+      "complete": true,
+      "status": 0,
+      "script": "f() {\ncat <<'END'\n} { ) ( fi done esac\nEND\n}\necho defined\nf",
+      "stdout": "defined\n} { ) ( fi done esac\n"
+    },
+    {
+      "name": "function/incomplete-if-body",
+      "complete": false,
+      "script": "f() {\nif true; then echo fi\n}"
+    },
+    {
+      "name": "function/complete-if-body",
+      "complete": true,
+      "status": 0,
+      "script": "f() {\nif true; then echo fi\nfi\n}\necho defined\nf",
+      "stdout": "defined\nfi\n"
+    }
+  ]
+}

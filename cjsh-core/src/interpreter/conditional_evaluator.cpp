@@ -110,7 +110,7 @@ void update_group_depths(const std::string& text, size_t position, int& bracket_
 }
 
 bool is_fi_token_boundary(const std::string& text, size_t pos) {
-    return parser_is_word_boundary(text, pos, 2);
+    return parser_find_keyword_token(text, "fi", pos) == pos;
 }
 
 bool is_arithmetic_command_form_condition(const std::string& condition) {
@@ -464,39 +464,29 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
     size_t j = idx;
     bool then_found = false;
 
-    auto pos = first.find("; then");
-    if (pos == std::string::npos) {
-        pos = first.find(";then");
-    }
+    auto pos = parser_find_keyword_token(first, "then", 0);
     if (pos != std::string::npos) {
         cond_accum = trim(first.substr(3, pos - 3));
         then_found = true;
     } else {
         while (!then_found && ++j < src_lines.size()) {
-            std::string cur = trim(strip_inline_comment(src_lines[j]));
-            if (cur == "then") {
-                then_found = true;
-                break;
-            }
-            auto p = cur.rfind("; then");
-            if (p == std::string::npos) {
-                p = cur.rfind(";then");
-            }
-            if (p != std::string::npos) {
+            const std::string cur = trim(strip_inline_comment(src_lines[j]));
+            const size_t then_pos = parser_find_keyword_token(cur, "then", 0);
+            const std::string condition_part = cur.substr(0, then_pos);
+            if (!condition_part.empty()) {
                 if (!cond_accum.empty()) {
-                    cond_accum += ' ';
+                    cond_accum += '\n';
                 }
-                cond_accum += cur.substr(0, p);
-                then_found = true;
-                break;
+                cond_accum += condition_part;
             }
-            if (!cur.empty()) {
-                if (!cond_accum.empty()) {
-                    cond_accum += ' ';
-                }
-                cond_accum += cur;
-            }
+            then_found = then_pos != std::string::npos;
         }
+    }
+    cond_accum = trim(cond_accum);
+    if (!cond_accum.empty() && cond_accum.back() == ';' &&
+        !is_char_escaped(cond_accum, cond_accum.size() - 1)) {
+        cond_accum.pop_back();
+        cond_accum = trim(cond_accum);
     }
 
     if (!then_found) {
@@ -513,47 +503,13 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
 
     if (pos != std::string::npos) {
         // handle compact if blocks that keep then/body/fi on the same physical line
-        std::string rem = trim(first.substr(pos + 6));
+        std::string rem = trim(first.substr(pos + 4));
 
         if (!rem.empty()) {
-            size_t fi_pos = std::string::npos;
             int if_depth = 1;
-            size_t search_pos = 0;
+            const size_t fi_pos = parser_find_block_end(rem, {"if"}, "fi", if_depth);
             bool in_quotes = false;
             char quote_char = '\0';
-
-            while (search_pos < rem.length() && if_depth > 0) {
-                char c = rem[search_pos];
-
-                if (handle_quote_char(c, in_quotes, quote_char, nullptr)) {
-                    search_pos++;
-                    continue;
-                }
-
-                if (!in_quotes) {
-                    if (search_pos + 3 < rem.length() && rem.substr(search_pos, 3) == "if ") {
-                        if_depth++;
-                        search_pos += 2;
-                    }
-
-                    else if (search_pos + 2 <= rem.length() && rem.substr(search_pos, 2) == "fi") {
-                        bool is_word_start =
-                            (search_pos == 0 ||
-                             std::isalnum(static_cast<unsigned char>(rem[search_pos - 1])) == 0);
-                        bool is_word_end =
-                            (search_pos + 2 >= rem.length() ||
-                             std::isalnum(static_cast<unsigned char>(rem[search_pos + 2])) == 0);
-                        if (is_word_start && is_word_end) {
-                            if_depth--;
-                            if (if_depth == 0) {
-                                fi_pos = search_pos;
-                                break;
-                            }
-                        }
-                    }
-                }
-                search_pos++;
-            }
 
             bool has_top_level_elif = false;
             if (fi_pos != std::string::npos) {
@@ -724,6 +680,16 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
     bool in_else = false;
     std::vector<std::string> then_lines;
     std::vector<std::string> else_lines;
+
+    const std::string then_header = trim(strip_inline_comment(src_lines[j]));
+    const size_t then_token = parser_find_keyword_token(then_header, "then", 0);
+    if (then_token != std::string::npos) {
+        const std::string inline_body = trim(then_header.substr(then_token + 4));
+        if (!inline_body.empty()) {
+            then_lines.push_back(inline_body);
+            (void)parser_find_block_end(inline_body, {"if"}, "fi", depth);
+        }
+    }
 
     bool is_simple_single_line = false;
 
@@ -949,34 +915,21 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             continue;
         }
 
-        if (cur == "if" || cur.rfind("if ", 0) == 0) {
-            depth++;
-        } else if (cur.find("; then") != std::string::npos ||
-                   cur.find(";then") != std::string::npos) {
-            if (cur.rfind("if ", 0) == 0 || cur == "if") {
-                depth++;
-            } else if (depth == 1 && in_elif) {
-                in_elif = false;
-                in_elif_body = true;
-
-                auto then_pos = cur.find("; then");
-                if (then_pos == std::string::npos) {
-                    then_pos = cur.find(";then");
-                }
-                if (then_pos != std::string::npos) {
-                    std::string cond_part = trim(cur.substr(0, then_pos));
-                    if (!cond_part.empty()) {
-                        current_elif_cond.push_back(cond_part);
-                    }
-                }
-                k++;
-                continue;
+        if (depth == 1 && in_elif &&
+            parser_find_keyword_token(cur, "then", 0) != std::string::npos) {
+            in_elif = false;
+            in_elif_body = true;
+            const size_t then_pos = parser_find_keyword_token(cur, "then", 0);
+            const std::string cond_part = trim(cur.substr(0, then_pos));
+            if (!cond_part.empty()) {
+                current_elif_cond.push_back(cond_part);
             }
-        } else if (cur == "fi") {
-            depth--;
-            if (depth == 0) {
-                break;
+            const std::string inline_body = trim(cur.substr(then_pos + 4));
+            if (!inline_body.empty()) {
+                current_elif_body.push_back(inline_body);
             }
+            k++;
+            continue;
         } else if (depth == 1 && cur == "else") {
             if (in_elif_body && !current_elif_cond.empty()) {
                 elif_branches.push_back({current_elif_cond, current_elif_body});
@@ -997,16 +950,22 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             continue;
         }
 
-        if (depth > 0) {
+        const size_t closing_fi = parser_find_block_end(cur, {"if"}, "fi", depth);
+        const std::string body_line =
+            closing_fi == std::string::npos ? cur_raw : trim(cur.substr(0, closing_fi));
+        if (!body_line.empty()) {
             if (in_elif) {
-                current_elif_cond.push_back(cur_raw);
+                current_elif_cond.push_back(body_line);
             } else if (in_elif_body) {
-                current_elif_body.push_back(cur_raw);
+                current_elif_body.push_back(body_line);
             } else if (!in_else) {
-                then_lines.push_back(cur_raw);
+                then_lines.push_back(body_line);
             } else {
-                else_lines.push_back(cur_raw);
+                else_lines.push_back(body_line);
             }
+        }
+        if (closing_fi != std::string::npos) {
+            break;
         }
         k++;
     }

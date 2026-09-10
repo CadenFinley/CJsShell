@@ -137,7 +137,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                                   ErrorCategory::CONTROL_FLOW, "SYN002",
                                                   "'for' statement missing 'do' keyword", line,
                                                   "Add 'do' keyword: for var in list; do"));
-            } else if (loop_check.inline_body_without_done) {
+            } else if (loop_check.inline_body_without_done &&
+                       ctx.line_index + 1 == ctx.all_lines.size()) {
                 line_errors.push_back(SyntaxError(
                     {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
                     "SYN002", "'for' loop missing closing 'done' after inline body", line,
@@ -173,7 +174,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                                   ErrorCategory::CONTROL_FLOW, "SYN002",
                                                   "'select' statement missing 'do' keyword", line,
                                                   "Add 'do' keyword: select var in list; do"));
-            } else if (has_do && inline_loop_body_missing_done(trimmed_line)) {
+            } else if (has_do && inline_loop_body_missing_done(trimmed_line) &&
+                       ctx.line_index + 1 == ctx.all_lines.size()) {
                 line_errors.push_back(SyntaxError(
                     {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
                     "SYN002", "'select' loop missing closing 'done' after inline body", line,
@@ -206,7 +208,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                         line, "Close the '[' with ']' or use '[[ ... ]]'"));
                 }
 
-                if (missing_do || loop_check.inline_body_without_done) {
+                if (missing_do || (loop_check.inline_body_without_done &&
+                                   ctx.line_index + 1 == ctx.all_lines.size())) {
                     std::string msg = "'" + first_token + "' statement missing 'do' keyword";
                     if (loop_check.inline_body_without_done && !missing_do) {
                         msg = "'" + first_token + "' loop missing 'done' after inline body";

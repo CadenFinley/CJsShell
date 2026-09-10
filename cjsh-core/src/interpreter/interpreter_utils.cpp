@@ -99,11 +99,19 @@ std::string strip_inline_comment(const std::string& s) {
     if (s.find('#') == std::string::npos) {
         return s;
     }
-    size_t comment_start = find_inline_comment_start(s, 0, std::string::npos);
-    if (comment_start != std::string::npos) {
-        return s.substr(0, comment_start);
+    std::string result = s;
+    size_t comment_start = find_inline_comment_start(result, 0, std::string::npos);
+    while (comment_start != std::string::npos) {
+        const size_t newline = result.find('\n', comment_start);
+        if (newline == std::string::npos) {
+            result.erase(comment_start);
+            break;
+        }
+        // Keep offsets and later lines intact when the input contains a whole group.
+        result.replace(comment_start, newline - comment_start, newline - comment_start, ' ');
+        comment_start = find_inline_comment_start(result, newline + 1, std::string::npos);
     }
-    return s;
+    return result;
 }
 
 std::string process_line_for_validation(const std::string& line) {

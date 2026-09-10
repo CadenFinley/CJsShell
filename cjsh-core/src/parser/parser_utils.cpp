@@ -27,6 +27,8 @@
 */
 
 #include "parser_utils.h"
+#include "function_evaluator.h"
+#include "interpreter_utils.h"
 #include "quote_info.h"
 #include "quote_state.h"
 #include "string_utils.h"
@@ -309,12 +311,51 @@ size_t parser_find_keyword_token(const std::string& text, const std::string& key
         return std::string::npos;
     }
 
-    size_t pos = text.find(keyword, search_from);
-    while (pos != std::string::npos) {
-        if (parser_is_word_boundary(text, pos, keyword.size())) {
-            return pos;
+    const std::string source = shell_script_interpreter::detail::strip_inline_comment(text);
+    utils::QuoteState state;
+    bool command_start = true;
+    for (size_t i = 0; i < source.size(); ++i) {
+        const char c = source[i];
+        if (state.consume_forward(c) == utils::QuoteAdvanceResult::Continue ||
+            state.inside_quotes()) {
+            command_start = false;
+            continue;
         }
-        pos = text.find(keyword, pos + keyword.size());
+        if (c == '$' && i + 1 < source.size() && (source[i + 1] == '(' || source[i + 1] == '{')) {
+            const size_t end = source[i + 1] == '(' ? find_matching_paren(source, i + 1)
+                                                    : find_matching_brace(source, i + 1);
+            if (end != std::string::npos) {
+                i = end;
+            }
+            command_start = false;
+            continue;
+        }
+        if (c == '\n' || c == ';' || c == '&' || c == '|' || c == '(' || c == ')' || c == '{' ||
+            c == '}') {
+            command_start = true;
+            continue;
+        }
+        if (std::isspace(static_cast<unsigned char>(c)) != 0) {
+            continue;
+        }
+        if (command_start && i >= search_from && source.compare(i, keyword.size(), keyword) == 0 &&
+            parser_is_word_boundary(source, i, keyword.size())) {
+            return i;
+        }
+        size_t end = i;
+        while (end < source.size() &&
+               (std::isalnum(static_cast<unsigned char>(source[end])) != 0 || source[end] == '_')) {
+            ++end;
+        }
+        if (end > i) {
+            const std::string_view word(source.data() + i, end - i);
+            command_start = command_start && parser_is_word_boundary(source, i, end - i) &&
+                            (word == "if" || word == "then" || word == "elif" || word == "else" ||
+                             word == "while" || word == "until" || word == "do");
+            i = end - 1;
+        } else {
+            command_start = false;
+        }
     }
 
     return std::string::npos;
@@ -331,6 +372,33 @@ size_t parser_find_inline_do_position(const std::string& text, size_t search_fro
             return pos;
         }
         pos = parser_find_keyword_token(text, "do", pos + 2);
+    }
+    return std::string::npos;
+}
+
+size_t parser_find_block_end(const std::string& text, const std::vector<std::string>& openers,
+                             const std::string& closer, int& depth) {
+    size_t search_from = 0;
+    while (search_from < text.size()) {
+        size_t next = parser_find_keyword_token(text, closer, search_from);
+        bool closing = true;
+        size_t length = closer.size();
+        for (const auto& opener : openers) {
+            const size_t pos = parser_find_keyword_token(text, opener, search_from);
+            if (pos < next) {
+                next = pos;
+                closing = false;
+                length = opener.size();
+            }
+        }
+        if (next == std::string::npos) {
+            break;
+        }
+        depth += closing ? -1 : 1;
+        if (depth == 0) {
+            return next;
+        }
+        search_from = next + length;
     }
     return std::string::npos;
 }
@@ -888,15 +956,18 @@ size_t find_matching_delimiter(const std::string& text, size_t start_pos, char o
         return std::string::npos;
     }
 
+    const std::string source = shell_script_interpreter::detail::strip_inline_comment(text);
+    utils::QuoteState state;
     int depth = 0;
-    for (size_t i = start_pos; i < text.length(); ++i) {
-        if (is_inside_quotes(text, i)) {
+    for (size_t i = start_pos; i < source.length(); ++i) {
+        if (state.consume_forward(source[i]) == utils::QuoteAdvanceResult::Continue ||
+            state.inside_quotes()) {
             continue;
         }
 
-        if (text[i] == opening) {
+        if (source[i] == opening) {
             depth++;
-        } else if (text[i] == closing) {
+        } else if (source[i] == closing) {
             depth--;
             if (depth == 0) {
                 return i;
@@ -915,4 +986,67 @@ size_t find_matching_paren(const std::string& text, size_t start_pos) {
 
 size_t find_matching_brace(const std::string& text, size_t start_pos) {
     return find_matching_delimiter(text, start_pos, '{', '}');
+}
+
+std::vector<std::string> merge_command_group_lines(const std::vector<std::string>& lines) {
+    std::vector<std::string> result = lines;
+    for (size_t i = 0; i < result.size(); ++i) {
+        std::string source = shell_script_interpreter::detail::strip_inline_comment(result[i]);
+        size_t first = source.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) {
+            continue;
+        }
+        auto header = function_evaluator::parse_function_header(source, true);
+        size_t end_line = i;
+        if (header && header->opening == '\0') {
+            size_t next = i + 1;
+            for (; next < result.size(); ++next) {
+                const std::string next_line =
+                    shell_script_interpreter::detail::strip_inline_comment(result[next]);
+                const size_t lead = next_line.find_first_not_of(" \t\r\n");
+                if (lead == std::string::npos) {
+                    continue;
+                }
+                if (next_line[lead] != '{' && next_line[lead] != '(') {
+                    next = result.size();
+                }
+                break;
+            }
+            if (next == result.size()) {
+                continue;
+            }
+            while (end_line < next) {
+                source += '\n';
+                source += result[++end_line];
+            }
+            source = shell_script_interpreter::detail::strip_inline_comment(source);
+            header = function_evaluator::parse_function_header(source);
+        }
+        size_t body_start = first;
+        char opening = source[first];
+        if (header && header->opening != '\0') {
+            body_start = header->body_start;
+            opening = header->opening;
+        } else if (opening != '(' &&
+                   (opening != '{' || !parser_is_command_group_brace(source, first))) {
+            continue;
+        }
+        auto find_close = [&] {
+            return opening == '{' ? find_matching_brace(source, body_start)
+                                  : find_matching_paren(source, body_start);
+        };
+        while (find_close() == std::string::npos && end_line + 1 < result.size()) {
+            source += '\n';
+            source += result[++end_line];
+        }
+        if (end_line > i) {
+            // Empty placeholders preserve the source line numbers of following commands.
+            result[i] = std::move(source);
+            for (size_t consumed = i + 1; consumed <= end_line; ++consumed) {
+                result[consumed].clear();
+            }
+            i = end_line;
+        }
+    }
+    return result;
 }

@@ -160,7 +160,7 @@ class TerminalSafetyTests(unittest.TestCase):
     def test_function_syntax_does_not_claim_callers_terminal(self) -> None:
         code, output = run_in_terminal([self.function_tests])
         self.assertEqual(code, 0, output)
-        self.assertIn("All 2 function syntax tests passed", output)
+        self.assertRegex(output, r"All \d+ function syntax tests passed")
 
     def test_python_pty_child_has_its_own_session(self) -> None:
         session_module = Path(__file__).resolve().parents[1] / "core/test_agent_mode_interactive.py"

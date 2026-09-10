@@ -56,7 +56,7 @@ std::pair<std::string, size_t> collect_case_body(const std::vector<std::string>&
         if (trimmed_line.empty()) {
             continue;
         }
-        size_t esac_pos = trimmed_line.find("esac");
+        size_t esac_pos = parser_find_keyword_token(trimmed_line, "esac");
         if (esac_pos != std::string::npos) {
             std::string before_esac = trim(trimmed_line.substr(0, esac_pos));
             if (!before_esac.empty()) {
@@ -278,7 +278,7 @@ bool execute_case_sections(
 }
 
 std::string sanitize_case_patterns(const std::string& patterns) {
-    size_t esac_pos = patterns.rfind("esac");
+    size_t esac_pos = parser_find_keyword_token(patterns, "esac");
     if (esac_pos != std::string::npos) {
         return patterns.substr(0, esac_pos);
     }

@@ -57,6 +57,15 @@ compact `function sayhello {echo hello}` form. For conventional shell syntax, us
 `function sayhello { echo hello; }`; for POSIX scripts, use
 `sayhello() { echo hello; }`.
 
+Function headers may put the opening brace on the next line. Function bodies and
+command groups support mixed inline and multiline layouts, with quoted and escaped
+delimiters preserved as literal text. Syntax-only mode (`-n`) rejects unfinished
+function bodies and control-flow blocks.
+
+Interactive validation treats `then`, `do`, `fi`, `done`, and `esac` as control
+keywords only where a command can begin. Using those words as arguments, in
+quotes, or in comments does not complete an unfinished block.
+
 ## Configuration
 
 CJSH intentionally uses its own option interface rather than implementing Bash's `shopt` builtin:

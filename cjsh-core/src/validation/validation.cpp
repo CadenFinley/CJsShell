@@ -30,10 +30,12 @@
 #include "function_evaluator.h"
 #include "interpreter.h"
 #include "interpreter_utils.h"
+#include "parser_utils.h"
 #include "shell_env.h"
 
 #include "validation_common.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
@@ -305,14 +307,7 @@ bool has_incomplete_construct_errors(const std::vector<SyntaxError>& errors) {
 }
 
 bool has_inline_terminator(const std::string& text, const std::string& terminator) {
-    size_t pos = 0;
-    while ((pos = text.find(terminator, pos)) != std::string::npos) {
-        if (is_word_boundary(text, pos, terminator.length())) {
-            return true;
-        }
-        pos++;
-    }
-    return false;
+    return validation_internal::find_control_keyword(text, terminator) != std::string::npos;
 }
 
 bool handle_inline_loop_header(
@@ -352,14 +347,14 @@ bool handle_inline_loop_header(
 void push_function_context(
     const std::string& trimmed_line, size_t display_line,
     std::vector<std::tuple<ControlToken, ControlToken, size_t>>& control_stack) {
-    const auto header = function_evaluator::parse_function_header(trimmed_line);
-    if (header) {
+    std::string remaining = trimmed_line;
+    while (const auto header = function_evaluator::parse_function_header(remaining)) {
         // A body that closes on this line must not leave a continuation context.
         // Count nested delimiters, ignoring quoted and escaped literal braces.
         int depth = 0;
-        bool closed = false;
+        size_t body_close = std::string::npos;
         for_each_effective_char(
-            trimmed_line, false, false,
+            remaining, false, false,
             [&](size_t index, char c, const QuoteState& state, size_t&) -> IterationAction {
                 if (index < header->body_start || state.in_quotes) {
                     return IterationAction::Continue;
@@ -367,17 +362,23 @@ void push_function_context(
                 if (c == header->opening) {
                     ++depth;
                 } else if (c == header->closing && --depth == 0) {
-                    closed = true;
+                    body_close = index;
                     return IterationAction::Break;
                 }
                 return IterationAction::Continue;
             });
-        if (closed) {
+        if (body_close == std::string::npos) {
+            break;
+        }
+        const size_t next_function =
+            validation_internal::find_control_keyword(remaining, "function", body_close + 1);
+        if (next_function == std::string::npos) {
             return;
         }
+        remaining.erase(0, next_function);
     }
 
-    const ControlToken context = !trimmed_line.empty() && trimmed_line.back() == '{'
+    const ControlToken context = !remaining.empty() && remaining.back() == '{'
                                      ? ControlToken::BraceOpen
                                      : ControlToken::Function;
     control_stack.push_back({context, context, display_line});
@@ -487,7 +488,8 @@ bool handle_embedded_loop_header(
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_script_syntax(
     const std::vector<std::string>& lines) {
     std::vector<SyntaxError> errors;
-    std::vector<std::string> sanitized_lines = sanitize_lines_for_validation(lines);
+    std::vector<std::string> sanitized_lines =
+        sanitize_lines_for_validation(merge_command_group_lines(lines));
 
     std::vector<std::tuple<ControlToken, ControlToken, size_t>> control_stack;
     bool encountered_unclosed_quote = false;
@@ -633,6 +635,28 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             encountered_unclosed_quote = true;
             control_stack.clear();
             break;
+        }
+
+        if (const auto header = function_evaluator::parse_function_header(line_without_comments)) {
+            const size_t close =
+                header->opening == '{'
+                    ? find_matching_brace(line_without_comments, header->body_start)
+                    : find_matching_paren(line_without_comments, header->body_start);
+            if (close != std::string::npos) {
+                const std::string body = line_without_comments.substr(
+                    header->body_start + 1, close - header->body_start - 1);
+                auto body_lines = parse_into_lines(body);
+                if (body_lines.empty() && !body.empty()) {
+                    body_lines.push_back(body);
+                }
+                const size_t line_offset =
+                    line_num + std::count(line_without_comments.begin(),
+                                          line_without_comments.begin() + header->body_start + 1,
+                                          '\n');
+                body_lines.insert(body_lines.begin(), line_offset, "");
+                auto body_errors = validate_script_syntax(body_lines);
+                errors.insert(errors.end(), body_errors.begin(), body_errors.end());
+            }
         }
 
         int paren_balance = 0;
@@ -1005,17 +1029,19 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                         errors.push_back({display_line, "'function' missing function name", line});
                     }
                     push_function_context(trimmed_for_parsing, display_line, control_stack);
-                } else if (tokens.size() >= 2 && tokens[1] == "()") {
+                } else if (function_evaluator::parse_function_header(trimmed_for_parsing, true)) {
                     push_function_context(trimmed_for_parsing, display_line, control_stack);
                 }
 
-                else if (!trimmed.empty() && trimmed.back() == '{') {
+                else if (first_control == ControlToken::BraceOpen) {
                     if (trimmed == "{" && !control_stack.empty() &&
                         std::get<0>(control_stack.back()) == ControlToken::Function) {
                         continue;
                     }
-                    control_stack.push_back(
-                        {ControlToken::BraceOpen, ControlToken::BraceOpen, display_line});
+                    if (find_matching_brace(trimmed_for_parsing, 0) == std::string::npos) {
+                        control_stack.push_back(
+                            {ControlToken::BraceOpen, ControlToken::BraceOpen, display_line});
+                    }
                 } else if ((first_control == ControlToken::BraceClose) &&
                            require_top({ControlToken::BraceOpen, ControlToken::Function},
                                        "Unmatched closing brace '}'")) {
@@ -1136,7 +1162,7 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
             error.error_code == "SYN004" || error.error_code == "SYN008") {
             return true;
         }
-        return error.severity == ErrorSeverity::CRITICAL && error.error_code != "SYN007";
+        return error.severity == ErrorSeverity::CRITICAL;
     };
 
     bool has_blocking_errors = false;

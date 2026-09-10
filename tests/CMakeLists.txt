@@ -156,6 +156,9 @@ target_link_libraries(validation_token_tests PRIVATE cjsh_core cjsh_isocline)
 add_executable(parser_dispatch_tests "${CMAKE_CURRENT_SOURCE_DIR}/core/test_parser_dispatch.cpp")
 target_link_libraries(parser_dispatch_tests PRIVATE cjsh_core cjsh_isocline)
 
+add_executable(syntax_validation_probe "${CMAKE_CURRENT_SOURCE_DIR}/core/syntax_validation_probe.cpp")
+target_link_libraries(syntax_validation_probe PRIVATE cjsh_core cjsh_isocline)
+
 cjsh_add_test(NAME isocline_behavior_tests COMMAND isocline_behavior_tests)
 cjsh_add_test(NAME completion_tests COMMAND completion_tests)
 cjsh_add_test(NAME syntax_highlighting_tests COMMAND syntax_highlighting_tests)
@@ -170,6 +173,9 @@ cjsh_add_test(NAME validation_token_tests COMMAND validation_token_tests)
 cjsh_add_test(NAME parser_dispatch_tests COMMAND parser_dispatch_tests)
 
 if(Python3_Interpreter_FOUND)
+    cjsh_add_test(NAME syntax_regression_tests
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_syntax_regressions.py"
+                $<TARGET_FILE:cjsh> $<TARGET_FILE:syntax_validation_probe>)
     if(UNIX)
         cjsh_add_test(NAME history_concurrency_tests
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/isocline/test_history_concurrency.py"

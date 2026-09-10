@@ -44,7 +44,8 @@ struct FunctionHeader {
     char closing;
 };
 
-std::optional<FunctionHeader> parse_function_header(const std::string& source);
+std::optional<FunctionHeader> parse_function_header(const std::string& source,
+                                                    bool allow_missing_body = false);
 
 struct FunctionDefinition {
     std::vector<std::string> body_lines;
@@ -62,7 +63,8 @@ struct FunctionParseResult {
 FunctionParseResult parse_and_register_functions(
     const std::string& line, const std::vector<std::string>& lines, size_t& line_index,
     FunctionMap& functions, const std::function<std::string(const std::string&)>& trim_func,
-    const std::function<std::string(const std::string&)>& strip_comment_func);
+    const std::function<std::string(const std::string&)>& strip_comment_func,
+    const std::function<std::vector<std::string>(const std::string&)>& parse_lines_func);
 
 bool has_function(const FunctionMap& functions, const std::string& name);
 

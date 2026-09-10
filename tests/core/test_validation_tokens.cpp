@@ -209,6 +209,35 @@ bool test_control_validator_filter() {
     return ok;
 }
 
+bool test_literal_control_keywords() {
+    auto* interpreter = g_shell->get_shell_script_interpreter();
+    const std::vector<std::pair<std::string, std::string>> blocks = {
+        {"if true; then", "fi"},      {"while false; do", "done"}, {"until true; do", "done"},
+        {"for i in one; do", "done"}, {"case x in x)", "esac"},
+    };
+    bool ok = true;
+    for (const auto& [header, closer] : blocks) {
+        for (const auto& argument : {closer, "'" + closer + "'", "\"text " + closer + " text\"",
+                                     "\\" + closer, "ok # " + closer, "\"; " + closer + "\""}) {
+            const std::string unfinished = header + " echo " + argument;
+            ok = expect(interpreter->needs_additional_input({unfinished}),
+                        ("literal keyword should not close a block: " + unfinished).c_str()) &&
+                 ok;
+        }
+        const std::string closed =
+            header + " echo '" + closer + "'" + (closer == "esac" ? ";; " : "; ") + closer;
+        ok = expect(!interpreter->needs_additional_input({closed}),
+                    ("a real terminator should close the block: " + closed).c_str()) &&
+             ok;
+    }
+    for (const auto& line : {"if echo then", "if echo 'a then b'", "if echo ok # then"}) {
+        ok = expect(!interpreter->validate_conditional_syntax({line}).empty(),
+                    "a literal then should not satisfy the if header") &&
+             ok;
+    }
+    return ok;
+}
+
 }  // namespace
 
 int main() {
@@ -222,12 +251,14 @@ int main() {
     const bool diagnostics_ok = test_variable_diagnostics();
     const bool execution_ok = test_execution_variable_syntax();
     const bool control_ok = test_control_validator_filter();
+    const bool literal_keywords_ok = test_literal_control_keywords();
     g_shell.reset();
-    if (tokens_ok && diagnostics_ok && execution_ok && control_ok) {
-        std::puts("All 4 validation token tests passed");
+    if (tokens_ok && diagnostics_ok && execution_ok && control_ok && literal_keywords_ok) {
+        std::puts("All 5 validation token tests passed");
         return 0;
     }
-    (void)std::fprintf(stderr, "%d/4 validation token tests failed\n",
-                       !tokens_ok + !diagnostics_ok + !execution_ok + !control_ok);
+    (void)std::fprintf(
+        stderr, "%d/5 validation token tests failed\n",
+        !tokens_ok + !diagnostics_ok + !execution_ok + !control_ok + !literal_keywords_ok);
     return 1;
 }
