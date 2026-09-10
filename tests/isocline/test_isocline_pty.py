@@ -971,7 +971,7 @@ def assert_completion_preview_fits(
         line.startswith(("→ m02", "> m02")) for line in menu.splitlines()
     ):
         raise AssertionError(f"tall completion should remain selected in one menu: {render!r}")
-    if "esc:cancel)" not in menu.replace("↵\n", ""):
+    if "esc:cancel)" not in re.sub(r"[←↵]\n", "", menu):
         raise AssertionError(f"completion preview hid the menu footer: {render!r}")
     # These fixtures use single-column characters, including the selection/wrap arrows.
     lines = render.splitlines()
@@ -2469,10 +2469,12 @@ def main() -> int:
         raise AssertionError(
             f"history_search_footer expected 'history', got {hist_footer!r}"
         )
-    normalized_hist_footer_output = normalize_terminal_output(hist_footer_output)
+    normalized_hist_footer_output = re.sub(
+        r"[←↵]\n", "", normalize_terminal_output(hist_footer_output)
+    )
     if (
         "alt+s:sort" not in normalized_hist_footer_output
-        or ":cancel)" not in normalized_hist_footer_output
+        or "esc:cancel)" not in normalized_hist_footer_output
     ):
         raise AssertionError(
             "history search should keep its footer inside an 80-column viewport, got "
@@ -2728,10 +2730,11 @@ def main() -> int:
             "truncated history preview should still execute the complete command, got "
             f"{tall_history_result!r}"
         )
-    normalized_tall_history_output = normalize_terminal_output(
-        tall_history_output.split("[IC_RESULT_BEGIN]", 1)[0]
+    normalized_tall_history_output = re.sub(
+        r"[←↵]\n", "",
+        normalize_terminal_output(tall_history_output.split("[IC_RESULT_BEGIN]", 1)[0]),
     )
-    tall_history_footer_end = normalized_tall_history_output.find(":cancel)")
+    tall_history_footer_end = normalized_tall_history_output.find("esc:cancel)")
     if tall_history_footer_end < 0:
         raise AssertionError(
             "history search should preserve its footer below a capped multiline preview, got "
