@@ -72,9 +72,9 @@ def text_between(text: str, start: str, end: str) -> str:
 
 
 def abort_command() -> str:
-    # Exercise SIGABRT wait status without invoking a slow system crash collector
-    # (including WSL's). Linux piped core handlers ignore RLIMIT_CORE, so disable
-    # dumpability inside the process that will receive the signal as well.
+    # Exercise a real SIGABRT without collecting an intentional crash. RLIMIT_CORE
+    # alone does not suppress Linux piped core handlers or macOS crash dialogs.
+    # Keep the suppression inside this child so unexpected test crashes are reported.
     script = """import os, resource, sys
 resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 if sys.platform.startswith('linux'):
@@ -85,6 +85,26 @@ if sys.platform.startswith('linux'):
     if libc.prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0:
         error = ctypes.get_errno()
         raise OSError(error, os.strerror(error))
+elif sys.platform == 'darwin':
+    import ctypes
+    libc = ctypes.CDLL(None)
+    task = ctypes.c_uint.in_dll(libc, 'mach_task_self_').value
+    libc.task_set_exception_ports.argtypes = [
+        ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_int, ctypes.c_int
+    ]
+    libc.task_set_exception_ports.restype = ctypes.c_int
+    # Clear both immediate and deferred crash notifications on macOS.
+    EXC_MASK_CRASH = 1 << 10
+    EXC_MASK_CORPSE_NOTIFY = 1 << 13
+    MACH_PORT_NULL = 0
+    EXCEPTION_DEFAULT = 1
+    # EXCEPTION_DEFAULT carries no thread state, so the flavor is unused.
+    result = libc.task_set_exception_ports(
+        task, EXC_MASK_CRASH | EXC_MASK_CORPSE_NOTIFY,
+        MACH_PORT_NULL, EXCEPTION_DEFAULT, 0
+    )
+    if result != 0:
+        raise RuntimeError(f'task_set_exception_ports failed: {result}')
 os.abort()
 """
     return shlex.join([sys.executable, "-c", script])

@@ -93,34 +93,35 @@ EOF
 
 OUTPUT=$("$CJSH_PATH" "$TEST_TMP_DIR/gibberish1.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ]; then
-    fail_test "gibberish script 1 unexpectedly succeeded"
-else
+if [ "$EXIT_CODE" -gt 0 ] && [ "$EXIT_CODE" -lt 128 ]; then
     pass_test "gibberish script 1 properly failed with exit code $EXIT_CODE"
+else
+    fail_test "gibberish script 1 expected an error without crashing, got $EXIT_CODE"
 fi
 
 "$CJSH_PATH" "$TEST_TMP_DIR/gibberish2.sh" 2>/dev/null
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ]; then
-    fail_test "gibberish script 2 unexpectedly succeeded"
-else
+# The out-of-range break can return 255; signal exits must still fail.
+if { [ "$EXIT_CODE" -gt 0 ] && [ "$EXIT_CODE" -lt 128 ]; } || [ "$EXIT_CODE" -eq 255 ]; then
     pass_test "gibberish script 2 properly failed with exit code $EXIT_CODE"
+else
+    fail_test "gibberish script 2 expected an error without crashing, got $EXIT_CODE"
 fi
 
 "$CJSH_PATH" "$TEST_TMP_DIR/gibberish3.sh" 2>/dev/null
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ]; then
-    fail_test "gibberish script 3 unexpectedly succeeded"
-else
+if [ "$EXIT_CODE" -gt 0 ] && [ "$EXIT_CODE" -lt 128 ]; then
     pass_test "gibberish script 3 properly failed with exit code $EXIT_CODE"
+else
+    fail_test "gibberish script 3 expected an error without crashing, got $EXIT_CODE"
 fi
 
 "$CJSH_PATH" "$TEST_TMP_DIR/gibberish4.sh" 2>/dev/null
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ]; then
-    fail_test "gibberish script 4 unexpectedly succeeded"
-else
+if [ "$EXIT_CODE" -gt 0 ] && [ "$EXIT_CODE" -lt 128 ]; then
     pass_test "gibberish script 4 properly failed with exit code $EXIT_CODE"
+else
+    fail_test "gibberish script 4 expected an error without crashing, got $EXIT_CODE"
 fi
 
 if echo "$OUTPUT" | grep -E "(ERROR|error|command not found|Suggestion)" > /dev/null; then
@@ -131,20 +132,18 @@ fi
 
 "$CJSH_PATH" "$TEST_TMP_DIR/nonexistent_file.sh" 2>/dev/null
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ]; then
-    fail_test "nonexistent file unexpectedly succeeded"
-else
+if [ "$EXIT_CODE" -gt 0 ] && [ "$EXIT_CODE" -lt 128 ]; then
     pass_test "nonexistent file properly failed with exit code $EXIT_CODE"
+else
+    fail_test "nonexistent file expected an error without crashing, got $EXIT_CODE"
 fi
 
 timeout 5s "$CJSH_PATH" -c "while true; do echo 'infinite'; done" > /dev/null 2>&1
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 124 ]; then  # timeout exit code
     pass_test "cjsh properly handles infinite loop with timeout"
-elif [ $EXIT_CODE -eq 0 ]; then
-    fail_test "cjsh infinite loop test completed unexpectedly"
 else
-    pass_test "cjsh infinite loop test failed as expected with exit code $EXIT_CODE"
+    fail_test "cjsh infinite loop expected timeout status 124, got $EXIT_CODE"
 fi
 
 touch "$TEST_TMP_DIR/empty.sh"
@@ -154,7 +153,7 @@ EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
     pass_test "empty script executed successfully"
 else
-    pass_test "empty script handled gracefully with exit code $EXIT_CODE"
+    fail_test "empty script expected status 0, got $EXIT_CODE"
 fi
 
 cat > "$TEST_TMP_DIR/comments_only.sh" << 'EOF'
@@ -169,7 +168,7 @@ EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
     pass_test "comments-only script executed successfully"
 else
-    pass_test "comments-only script handled gracefully with exit code $EXIT_CODE"
+    fail_test "comments-only script expected status 0, got $EXIT_CODE"
 fi
 
 echo ""

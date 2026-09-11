@@ -188,6 +188,38 @@ class ShellLifecycleTests(unittest.TestCase):
         self.assertEqual(session.wait_for_exit(), 29)
         self.assert_hooks()
 
+    def test_subshell_exit_after_external_commands(self) -> None:
+        for status in (0, 7):
+            for body in ("sleep 0", "printf payload | cat"):
+                for command in (f"({body}; exit {status})",
+                                f"f() ({body}; exit {status}); f",
+                                f"f() {{ ({body}; exit {status}); }}; f"):
+                    with self.subTest(command=command):
+                        result = self.run_shell(command)
+                        self.assertEqual(result.returncode, status, result.stderr)
+                        self.assertEqual(result.stdout, "payload" if "printf" in body else "")
+                        self.assertEqual(result.stderr, "")
+
+    def test_subshell_exit_preserves_hooks_and_status(self) -> None:
+        result = self.run_shell(
+            "f() ("
+            "cjshexit() { printf 'hook:%s\\n' \"$?\"; }; "
+            "trap 'printf \"trap:%s\\n\" \"$?\"' EXIT; "
+            "sleep 0; exit 7); f"
+        )
+        self.assertEqual(result.returncode, 7, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), ["hook:7", "trap:7"])
+        self.assertEqual(result.stderr, "")
+
+    def test_subshell_from_exit_hook_does_not_repeat_hooks(self) -> None:
+        result = self.run_shell(
+            "cjshexit() { (sleep 0; printf 'hook\\n'); }; "
+            "(sleep 0; exit 7)"
+        )
+        self.assertEqual(result.returncode, 7, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), ["hook", "hook"])
+        self.assertEqual(result.stderr, "")
+
     def test_hup_cleanup_respects_handlers_ignores_and_disown(self) -> None:
         for mode, protection in (("default", ""), ("exit", ""), ("handle", ""),
                                  ("ignore", ""), ("stop", ""), ("handle", "disown"),

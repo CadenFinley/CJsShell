@@ -103,6 +103,7 @@ class Shell {
    public:
     Shell();
     ~Shell();
+    void run_exit_handlers(int status);
     int execute(const std::string& script, bool skip_validation = false);
     int execute_command(std::vector<std::string> args, bool run_in_background = false,
                         bool auto_background_on_stop = false,
@@ -171,6 +172,7 @@ class Shell {
    private:
     bool interactive_mode = false;
     bool interactive_input_started = false;
+    bool exit_handlers_invoked = false;
     int shell_terminal = -1;
     bool owns_shell_terminal = false;
     pid_t shell_pgid = 0;

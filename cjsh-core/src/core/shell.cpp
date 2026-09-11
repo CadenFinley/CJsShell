@@ -55,6 +55,7 @@
 #include <vector>
 
 #include "builtin.h"
+#include "cjsh_filesystem.h"
 #include "command_lookup.h"
 #include "error_out.h"
 #include "exec.h"
@@ -215,6 +216,36 @@ Shell::~Shell() {
             std::cout << "cjsh exit";
         }
         (void)std::cout.flush();
+    }
+}
+
+void Shell::run_exit_handlers(int status) {
+    // A hook can launch another subshell. Its copy of this guard must prevent
+    // recursively running the same exit handlers again.
+    if (exit_handlers_invoked) {
+        return;
+    }
+    exit_handlers_invoked = true;
+
+    // Each exit handler starts with the original status and a cleared exit request.
+    const auto prepare_handler = [status] {
+        cjsh_env::clear_exit_request();
+        pipeline_status_utils::set_last_status_env(status);
+    };
+    prepare_handler();
+    trap_manager_set_shell(this);
+
+    if (auto* interpreter = get_shell_script_interpreter();
+        interpreter != nullptr && !config::minimal_mode && !config::secure_mode &&
+        !config::posix_mode && interpreter->has_function("cjshexit")) {
+        (void)interpreter->invoke_function({"cjshexit"});
+    }
+
+    prepare_handler();
+    trap_manager_execute_exit_trap();
+    if (config::login_mode) {
+        prepare_handler();
+        cjsh_filesystem::process_logout_file();
     }
 }
 

@@ -37,6 +37,7 @@
 #include <cctype>
 #include <csignal>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <exception>
@@ -518,7 +519,15 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
         while (waitpid(-1, &child_status, WNOHANG) > 0) {
         }
 
-        exit(exit_code);
+        // exit() destroys function-local statics (including JobManager) before
+        // the inherited shell cleanup callback, which then accesses freed state.
+        // Run shell hooks explicitly and leave C++ teardown to the parent.
+        g_shell->run_exit_handlers(exit_code);
+        (void)std::cout.flush();
+        (void)std::cerr.flush();
+        (void)std::clog.flush();
+        (void)std::fflush(nullptr);
+        _exit(exit_code);
     } else if (pid > 0) {
         int status = 0;
         (void)waitpid(pid, &status, 0);

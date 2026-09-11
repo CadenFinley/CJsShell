@@ -183,10 +183,11 @@ function(cjsh_apply_build_profile)
                 -fdata-sections
                 -fomit-frame-pointer
                 -fmerge-all-constants
-                -fno-rtti
                 -fvisibility=hidden
                 -fvisibility-inlines-hidden
             )
+            # Keep RTTI enabled: libc++ exceptions thrown across the library
+            # boundary may not match typed catch handlers with -fno-rtti.
             foreach(_cjsh_opt IN LISTS _cjsh_non_debug_cxx_opts)
                 target_compile_options(
                     ${CJSH_PROFILE_TARGET}

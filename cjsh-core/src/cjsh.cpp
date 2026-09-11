@@ -40,7 +40,6 @@
 #include "completion_history.h"
 #include "error_out.h"
 #include "flags.h"
-#include "interpreter.h"
 #include "main_loop.h"
 #include "numeric_utils.h"
 #include "pipeline_status_utils.h"
@@ -98,28 +97,7 @@ void cleanup_resources() {
                            ? 128 + termination_signal
                            : numeric_utils::parse_exit_status_or(
                                  cjsh_env::get_shell_variable_value("?"), 0, false);
-    // Each exit handler starts with the original status and a cleared exit request.
-    const auto prepare_handler = [status] {
-        cjsh_env::clear_exit_request();
-        pipeline_status_utils::set_last_status_env(status);
-    };
-    prepare_handler();
-
-    trap_manager_set_shell(g_shell.get());
-
-    if (ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
-        interpreter != nullptr && !config::minimal_mode && !config::secure_mode &&
-        !config::posix_mode && interpreter->has_function("cjshexit")) {
-        (void)interpreter->invoke_function({"cjshexit"});
-    }
-
-    // Run the EXIT trap for every shell, then the logout file for login shells.
-    prepare_handler();
-    trap_manager_execute_exit_trap();
-    if (config::login_mode) {
-        prepare_handler();
-        cjsh_filesystem::process_logout_file();
-    }
+    g_shell->run_exit_handlers(status);
 
     // Destroy the shell before static teardown so its dependencies are still available.
     g_shell.reset();

@@ -43,11 +43,11 @@ fail_test() {
 }
 
 "$CJSH_PATH" -c "cd /definitely/not/a/real/path"
-if [ $? -eq 0 ]; then
-  fail_test "cd to non-existent path should fail"
-  exit 1
+CD_STATUS=$?
+if [ "$CD_STATUS" -eq 1 ]; then
+  pass_test "cd to non-existent path returns status 1"
 else
-  pass_test "cd to non-existent path should fail"
+  fail_test "cd to non-existent path expected status 1, got $CD_STATUS"
 fi
 
 HOME_OUT=$("$CJSH_PATH" -c "cd; pwd")
