@@ -51,7 +51,7 @@ check_process_cleanup() (
     trap 'exit 1' 1 2 15
 
     cat > "$cleanup_dir/script" <<'EOF'
-if [ "$CJSH_CLEANUP_SIGNAL" = KILL ]; then
+if [ "$CJSH_CLEANUP_SIGNAL" = KILL ] || [ "$CJSH_CLEANUP_MODE" = loop ]; then
     echo $$ > "$CJSH_CLEANUP_DIR/ready.pid"
     while :; do :; done
 fi

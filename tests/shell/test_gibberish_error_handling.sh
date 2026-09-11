@@ -27,6 +27,7 @@
 # SOFTWARE.
 
 if [ -n "$CJSH" ]; then CJSH_PATH="$CJSH"; else CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"; fi
+. "$(dirname "$0")/process_cleanup_helpers.sh"
 echo "Test: gibberish script error handling..."
 
 TESTS_PASSED=0
@@ -138,12 +139,12 @@ else
     fail_test "nonexistent file expected an error without crashing, got $EXIT_CODE"
 fi
 
-timeout 5s "$CJSH_PATH" -c "while true; do echo 'infinite'; done" > /dev/null 2>&1
-EXIT_CODE=$?
-if [ $EXIT_CODE -eq 124 ]; then  # timeout exit code
-    pass_test "cjsh properly handles infinite loop with timeout"
+# macOS has no GNU timeout. Verify a ready loop exits on SIGTERM using the
+# portable helper, which checks the exact status and bounds the shutdown wait.
+if cleanup_output=$(check_process_cleanup "$CJSH_PATH" TERM 0 loop); then
+    pass_test "cjsh infinite loop exits on SIGTERM"
 else
-    fail_test "cjsh infinite loop expected timeout status 124, got $EXIT_CODE"
+    fail_test "cjsh infinite loop did not exit cleanly on SIGTERM: $cleanup_output"
 fi
 
 touch "$TEST_TMP_DIR/empty.sh"

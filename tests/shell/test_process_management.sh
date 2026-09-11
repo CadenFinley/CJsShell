@@ -32,6 +32,8 @@ else
     CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"
 fi
 
+. "$(dirname "$0")/process_cleanup_helpers.sh"
+
 TESTS_PASSED=0
 TESTS_FAILED=0
 
@@ -103,13 +105,11 @@ else
     pass_test "nonexistent command handling"
 fi
 
-timeout 1 "$CJSH_PATH" -c "sleep 2" 2>/dev/null
-EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ]; then
-    fail_test "timeout should interrupt long-running command"
-    exit 1
+if cleanup_output=$(check_process_cleanup "$CJSH_PATH" TERM); then
+    pass_test "SIGTERM interrupts long-running command and reaps it"
 else
-    pass_test "timeout handling"
+    fail_test "SIGTERM should interrupt long-running command: $cleanup_output"
+    exit 1
 fi
 
 OUT=$("$CJSH_PATH" -c "exec echo 'exec test'")
