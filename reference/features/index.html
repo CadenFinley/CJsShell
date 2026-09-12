@@ -1208,6 +1208,8 @@ POSIX, Bash, or Zsh behavior is not identical.</p>
 <li><strong>Agent-assisted command writing</strong> – Route editor text to user-configured AI executors through
     <code>cjshopt agent-mode</code>, select their JSON command suggestions in an isocline menu, and review the
     result before execution. CJSH does not manage provider credentials.</li>
+<li><strong>Browser shortcut</strong> – Press <code>Alt+O</code> to search the current buffer on the web or open its URL,
+    using <code>$BROWSER</code> or the system launcher, then continue at a fresh, empty prompt.</li>
 <li><strong>Mouse-aware editing</strong> – Configure capture with <code>cjshopt mouse-clicking</code>: <code>all-off</code> disables it
     everywhere, <code>off</code> limits it to expanded/interactive menus, and <code>simple</code>/<code>smart</code> also support
     prompt cursor placement. Collapsed completions are not clickable in <code>off</code>; clicks can select
