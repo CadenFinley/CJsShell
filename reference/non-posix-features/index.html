@@ -1264,6 +1264,10 @@ differences from Bash and Zsh.</p>
 <li><strong>Fuzzy history case sensitivity</strong> – <code>cjshopt history-search-case</code> toggles whether the search menu
   treats uppercase and lowercase entries as distinct (press <code>Alt+C</code> inside the menu to flip the
   setting temporarily).</li>
+<li><strong>Directory-aware history</strong> – Records the working directory before execution. Enable scoped
+  recall with <code>cjshopt history-directory on</code>, and include descendants with
+  <code>cjshopt history-directory-subdirs on</code>. Both default to off. <code>Alt+D</code> and <code>Alt+N</code> toggle them
+  temporarily inside the history menu.</li>
 <li><strong>Fuzzy history sorting</strong> – History search is newest-first by default, and <code>Alt+S</code> cycles the open
   menu through command-text and metadata sort arrangements without changing the configured default.</li>
 <li><strong>Typeahead buffering</strong> – Key presses made while a command runs are replayed automatically once
