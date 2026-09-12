@@ -617,6 +617,37 @@ Start CJSH with `--no-agent` to keep agent mode disabled even while executor def
 `~/.cjshrc`. It can still be deliberately enabled later with `cjshopt agent-mode on`. Persist the
 startup disable by including `--no-agent` in your launcher or shell alias.
 
+## Open Buffer in Browser
+
+Press `Alt+O` to search the web for the current buffer, or choose **Open buffer in browser**
+from the command palette (`Alt+P`). HTTP, HTTPS, and `file://` URLs open directly; addresses
+starting with `www.` open with HTTPS. Other text becomes a URL-encoded search query. Leading
+and trailing whitespace is ignored, and empty buffers do nothing. The request remains visible
+above a fresh, empty prompt, including when the browser command fails. Like agent-assisted
+command writing, this honors `PS1_FINAL` and `RPS1_FINAL` for the preserved request. The search
+text is never submitted as a shell command.
+
+Configure the browser in `~/.cjshrc`, like your editor:
+
+```bash
+export BROWSER='firefox --new-window'
+# macOS example:
+# export BROWSER='open -a "Firefox"'
+
+# Optional: replace the default Google search URL prefix.
+export CJSH_BROWSER_SEARCH_URL='https://duckduckgo.com/?q='
+```
+
+When `BROWSER` is unset or empty, CJSH uses `open` on macOS and `xdg-open` on other systems.
+The browser setting is parsed into an executable and optional quoted arguments, just like an
+agent executor. CJSH appends the destination URL as one final argument; it does not evaluate
+the buffer as a shell command. The launcher runs with normal terminal settings, so terminal
+browsers work too. The prompt resumes when the launcher exits.
+
+`Alt+O` is a CJSH-owned isocline runoff binding. It is restored after keymap resets and profile
+changes, and explicit user bindings on that key take precedence. `Alt+B` still moves backward
+one word. To disable the browser shortcut, add `cjshopt keybind add none alt+o` to `~/.cjshrc`.
+
 ## Key Bindings
 
 CJ's Shell supports customizable key bindings with multiple profiles.
@@ -681,6 +712,7 @@ action.
 - `F1`: Show help / key binding cheat sheet
 - `F2`: Toggle mouse clicking for the current prompt
 - `Alt+A`: Invoke agent-assisted command writing (when enabled)
+- `Alt+O`: Search the buffer on the web or open its URL in the browser
 - `Esc`: Cancel an open menu or search; at the main prompt, clear non-empty input
 
 ### Custom Key Bindings

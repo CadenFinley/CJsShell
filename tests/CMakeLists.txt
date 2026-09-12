@@ -240,6 +240,12 @@ if(Python3_Interpreter_FOUND)
                 $<TARGET_FILE:cjsh>
     )
 
+    cjsh_add_test(
+        NAME browser_interactive_tests
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_browser_interactive.py"
+                $<TARGET_FILE:cjsh>
+    )
+
     if(UNIX)
         cjsh_add_test(
             NAME idle_hook_interactive_tests

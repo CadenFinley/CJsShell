@@ -56,6 +56,7 @@
 #endif
 
 #include "agent_mode.h"
+#include "browser.h"
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
 #include "cjsh_syntax_highlighter.h"
@@ -432,6 +433,9 @@ bool handle_command_palette_entry(const ic_command_palette_entry_t* entry, void*
     if (id == "agent-mode") {
         return agent_mode::handle_palette_entry();
     }
+    if (id == "browser") {
+        return browser::open_buffer();
+    }
 
     if (id.rfind(kExtKeyPrefix, 0) == 0) {
         std::string key_spec = id;
@@ -462,18 +466,13 @@ void refresh_command_palette_entries() {
     auto custom_bindings = list_custom_keybindings();
     auto palette_bindings = list_custom_palette_commands();
     const bool show_agent_entry = revision.second;
-    if (custom_bindings.empty() && palette_bindings.empty() && !show_agent_entry) {
-        ic_clear_command_palette_entries();
-        installed_revision = revision;
-        return;
-    }
 
     std::vector<std::string> ids;
     std::vector<std::string> names;
     std::vector<std::string> descriptions;
     std::vector<std::string> keywords;
     const size_t total_entries =
-        custom_bindings.size() + palette_bindings.size() + (show_agent_entry ? 1 : 0);
+        custom_bindings.size() + palette_bindings.size() + (show_agent_entry ? 1 : 0) + 1;
     ids.reserve(total_entries);
     names.reserve(total_entries);
     descriptions.reserve(total_entries);
@@ -487,6 +486,11 @@ void refresh_command_palette_entries() {
         (void)descriptions.emplace_back("Convert the current request into a CJSH command");
         (void)keywords.emplace_back("agent ai assistant natural language command writing");
     }
+
+    (void)ids.emplace_back("browser");
+    (void)names.emplace_back("Open buffer in browser");
+    (void)descriptions.emplace_back("Search the web or open the current URL");
+    (void)keywords.emplace_back("browser web search url open buffer");
 
     for (const auto& [key, binding] : custom_bindings) {
         char key_spec_buffer[64];
@@ -523,12 +527,6 @@ void refresh_command_palette_entries() {
         keywords.back().append(id).append(" ").append(title).append(" ").append(command_preview);
     }
 
-    if (ids.empty()) {
-        ic_clear_command_palette_entries();
-        installed_revision = revision;
-        return;
-    }
-
     std::vector<ic_command_palette_entry_t> entries(ids.size());
     for (size_t i = 0; i < ids.size(); ++i) {
         entries[i].id = ids[i].c_str();
@@ -555,7 +553,7 @@ bool handle_runoff_bind(ic_keycode_t key, void*) {
         return execute_custom_keybinding_command(key);
     }
 
-    return agent_mode::handle_runoff_key(key);
+    return agent_mode::handle_runoff_key(key) || browser::handle_runoff_key(key);
 }
 
 bool should_show_creator_line() {
@@ -641,6 +639,7 @@ void initialize_isocline() {
     refresh_command_palette_entries();
     (void)ic_bind_key(IC_KEY_EVENT_PROMPT_REFRESH, IC_KEY_ACTION_RUNOFF);
     agent_mode::apply_key_bindings();
+    browser::apply_key_bindings();
     ic_set_status_message_callback(status_line::create_below_syntax_message, nullptr);
     ic_set_check_for_continuation_or_return_callback(continuation_or_return_callback, nullptr);
     ic_set_typeahead_capture_allowed_callback(typeahead_capture_allowed, nullptr);

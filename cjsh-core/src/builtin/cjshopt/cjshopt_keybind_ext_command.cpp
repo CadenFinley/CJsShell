@@ -40,6 +40,7 @@
 #include <vector>
 
 #include "agent_mode.h"
+#include "browser.h"
 #include "error_out.h"
 #include "isocline.h"
 #include "keybindings.h"
@@ -458,6 +459,7 @@ int keybind_ext_clear_command(const std::vector<std::string>& args) {
     }
 
     agent_mode::apply_key_bindings();
+    browser::apply_key_bindings();
 
     return cleared.empty() ? 1 : 0;
 }
@@ -469,6 +471,7 @@ int keybind_ext_reset_command() {
     clear_all_custom_keybindings();
     clear_all_custom_palette_commands();
     agent_mode::apply_key_bindings();
+    browser::apply_key_bindings();
 
     if (!cjsh_env::startup_active()) {
         std::cout << "All custom command keybindings and palette-only commands cleared.\n";

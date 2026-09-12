@@ -73,6 +73,8 @@ Powered by the embedded [isocline](https://github.com/cadenfinley/isocline) edit
 - **Agent-assisted command writing** – Route editor text to user-configured AI executors through
     `cjshopt agent-mode`, select their JSON command suggestions in an isocline menu, and review the
     result before execution. CJSH does not manage provider credentials.
+- **Browser shortcut** – Press `Alt+O` to search the current buffer on the web or open its URL,
+    using `$BROWSER` or the system launcher, then continue at a fresh, empty prompt.
 - **Mouse-aware editing** – Configure capture with `cjshopt mouse-clicking`: `all-off` disables it
     everywhere, `off` limits it to expanded/interactive menus, and `simple`/`smart` also support
     prompt cursor placement. Collapsed completions are not clickable in `off`; clicks can select
