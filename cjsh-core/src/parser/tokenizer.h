@@ -29,6 +29,7 @@
 #ifndef CJSH_CORE_SRC_PARSER_TOKENIZER_H
 #define CJSH_CORE_SRC_PARSER_TOKENIZER_H
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -36,13 +37,14 @@ class Shell;
 
 class Tokenizer {
    public:
+    // Combines redirections while retaining unquoted IO-number adjacency.
     static std::vector<std::string> tokenize_command(const std::string& cmdline);
-    static std::vector<std::string> merge_redirection_tokens(
-        const std::vector<std::string>& tokens);
 
     std::vector<std::string> split_by_ifs(const std::string& input);
 
    private:
+    static std::vector<std::string> merge_redirection_tokens(
+        const std::vector<std::string>& tokens, const std::vector<size_t>& io_number_tokens);
     static bool looks_like_assignment(const std::string& input);
 };
 

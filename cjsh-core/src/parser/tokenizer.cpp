@@ -63,11 +63,21 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
 
     bool token_saw_single = false;
     bool token_saw_double = false;
+    bool token_saw_escape = false;
+    bool token_saw_substitution = false;
+    std::vector<size_t> io_number_tokens;
 
     const size_t cmdline_len = cmdline.length();
 
-    auto flush_current_token = [&] {
+    auto flush_current_token = [&](bool before_redirection = false) {
         if (!current_token.empty() || token_saw_single || token_saw_double) {
+            // An IO number must be entirely unquoted and touch the operator.
+            // Record this before whitespace and quote information are discarded.
+            if (before_redirection && !token_saw_single && !token_saw_double && !token_saw_escape &&
+                !token_saw_substitution &&
+                current_token.find_first_not_of("0123456789") == std::string::npos) {
+                io_number_tokens.push_back(tokens.size());
+            }
             if (token_saw_single || token_saw_double) {
                 char quote_type = token_saw_double ? QUOTE_DOUBLE : QUOTE_SINGLE;
                 tokens.push_back(create_quote_tag(quote_type, current_token));
@@ -76,6 +86,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
             }
             current_token.clear();
             token_saw_single = token_saw_double = false;
+            token_saw_escape = token_saw_substitution = false;
         }
     };
 
@@ -85,6 +96,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
     for (size_t i = 0; i < cmdline_len; ++i) {
         if (!in_subst_literal && cmdline.compare(i, subst_start.size(), subst_start) == 0) {
             in_subst_literal = true;
+            token_saw_substitution = true;
             i += subst_start.size() - 1;
             continue;
         }
@@ -122,6 +134,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
             escaped = false;
         } else if (!in_subst_literal && c == '\\' && (!in_quotes || quote_char != '\'')) {
             escaped = true;
+            token_saw_escape = true;
         } else if ((c == '"' || c == '\'') && !in_quotes && !in_subst_literal) {
             in_quotes = true;
             quote_char = c;
@@ -210,7 +223,9 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
             else if ((c == '(' || c == ')' || c == '<' || c == '>' ||
                       (c == '&' && arith_depth == 0 && brace_depth == 0 && bracket_depth == 0) ||
                       (c == '|' && arith_depth == 0 && brace_depth == 0 && bracket_depth == 0))) {
-                flush_current_token();
+                const bool before_redirection =
+                    (c == '<' || c == '>') && !(i + 1 < cmdline_len && cmdline[i + 1] == '(');
+                flush_current_token(before_redirection);
 
                 bool handled_special = false;
                 if ((c == '<' || c == '>') && i + 1 < cmdline_len && cmdline[i + 1] == '(') {
@@ -305,18 +320,20 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                                  std::string(1, quote_char));
     }
 
-    return tokens;
+    return merge_redirection_tokens(tokens, io_number_tokens);
 }
 
 std::vector<std::string> Tokenizer::merge_redirection_tokens(
-    const std::vector<std::string>& tokens) {
+    const std::vector<std::string>& tokens, const std::vector<size_t>& io_number_tokens) {
     std::vector<std::string> result;
     result.reserve(tokens.size());
 
     for (size_t i = 0; i < tokens.size(); ++i) {
         const std::string& token = tokens[i];
+        const bool is_io_number =
+            std::binary_search(io_number_tokens.begin(), io_number_tokens.end(), i);
 
-        if (token == "2") {
+        if (is_io_number && token == "2") {
             size_t next_index = i + 1;
             if (next_index >= tokens.size()) {
                 result.push_back(token);
@@ -418,26 +435,25 @@ std::vector<std::string> Tokenizer::merge_redirection_tokens(
             i += 2;
         }
 
-        else if (token == "2" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
+        else if (is_io_number && token == "2" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
                  tokens[i + 2] == "1") {
             result.push_back("2>&1");
             i += 2;
         }
 
-        else if (token == "2" && i + 1 < tokens.size() &&
+        else if (is_io_number && token == "2" && i + 1 < tokens.size() &&
                  (tokens[i + 1] == ">" || tokens[i + 1] == ">>")) {
             result.push_back("2" + tokens[i + 1]);
             i++;
         }
 
-        else if ((std::isdigit(token[0]) != 0) && token.length() == 1 && i + 1 < tokens.size() &&
+        else if (is_io_number && token.length() == 1 && i + 1 < tokens.size() &&
                  (tokens[i + 1] == "<" || tokens[i + 1] == ">")) {
             result.push_back(token + tokens[i + 1]);
             i++;
         }
 
-        else if ((std::isdigit(token[0]) != 0) &&
-                 token.find_first_not_of("0123456789") == std::string::npos &&
+        else if (is_io_number && token.find_first_not_of("0123456789") == std::string::npos &&
                  i + 1 < tokens.size() &&
                  (tokens[i + 1].rfind("<&", 0) == 0 || tokens[i + 1].rfind(">&", 0) == 0)) {
             result.push_back(token + tokens[i + 1]);

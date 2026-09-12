@@ -1089,8 +1089,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     } else {
         args.reserve(16);
         try {
-            std::vector<std::string> raw_args = Tokenizer::tokenize_command(cmdline);
-            args = Tokenizer::merge_redirection_tokens(raw_args);
+            args = Tokenizer::tokenize_command(cmdline);
         } catch (const std::exception&) {
             return args;
         }
@@ -1135,9 +1134,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             alias_args.reserve(8);
 
             try {
-                std::vector<std::string> raw_alias_args =
-                    Tokenizer::tokenize_command(alias_it->second);
-                alias_args = Tokenizer::merge_redirection_tokens(raw_alias_args);
+                alias_args = Tokenizer::tokenize_command(alias_it->second);
 
                 if (!alias_args.empty()) {
                     std::vector<std::string> new_args;
@@ -1487,10 +1484,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                     cmd.args.push_back(group_content);
 
                     if (!remaining.empty()) {
-                        std::vector<std::string> redir_tokens =
-                            Tokenizer::tokenize_command(remaining);
                         std::vector<std::string> merged_redir =
-                            Tokenizer::merge_redirection_tokens(redir_tokens);
+                            Tokenizer::tokenize_command(remaining);
 
                         for (size_t i = 0; i < merged_redir.size(); ++i) {
                             QuoteInfo qi_redir(merged_redir[i]);
@@ -1525,8 +1520,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             }
         }
 
-        std::vector<std::string> raw_tokens = Tokenizer::tokenize_command(cmd_part);
-        std::vector<std::string> tokens = Tokenizer::merge_redirection_tokens(raw_tokens);
+        std::vector<std::string> tokens = Tokenizer::tokenize_command(cmd_part);
         std::vector<std::string> filtered_args;
 
         auto is_all_digits = [](const std::string& s) {
@@ -1683,10 +1677,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             auto alias_it = aliases.find(alias_candidate);
             if (alias_it != aliases.end()) {
                 try {
-                    std::vector<std::string> raw_alias_args =
-                        Tokenizer::tokenize_command(alias_it->second);
                     std::vector<std::string> alias_args =
-                        Tokenizer::merge_redirection_tokens(raw_alias_args);
+                        Tokenizer::tokenize_command(alias_it->second);
 
                     bool alias_has_pipe = false;
                     for (const auto& alias_arg : alias_args) {

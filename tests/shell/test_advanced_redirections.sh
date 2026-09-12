@@ -332,6 +332,61 @@ for LOOP_KIND in while until; do
     fi
 done
 
+# IO numbers are recognized only when unquoted and adjacent to the operator.
+for ARGUMENT in '5 ' '"5"' "'5'" '\5' "5''" '$value' '$(printf 5)'; do
+    OUT=$("$CJSH_PATH" -c "value=5; echo $ARGUMENT>'$FD_SCOPE_DIR/numeric-argument'" 2>&1)
+    STATUS=$?
+    FILE_OUT=$(cat "$FD_SCOPE_DIR/numeric-argument" 2>/dev/null)
+    if [ "$STATUS" -eq 0 ] && [ -z "$OUT" ] && [ "$FILE_OUT" = "5" ]; then
+        pass_test "numeric argument $ARGUMENT survives stdout redirection"
+    else
+        fail_test "numeric argument $ARGUMENT (status=$STATUS, stdout='$OUT', file='$FILE_OUT')"
+    fi
+done
+
+OUT=$("$CJSH_PATH" -c "echo 2 >>'$FD_SCOPE_DIR/numeric-append'; echo 3 >>'$FD_SCOPE_DIR/numeric-append'" 2>&1)
+STATUS=$?
+FILE_OUT=$(cat "$FD_SCOPE_DIR/numeric-append" 2>/dev/null)
+if [ "$STATUS" -eq 0 ] && [ -z "$OUT" ] && [ "$FILE_OUT" = "$(printf '2\n3')" ]; then
+    pass_test "numeric arguments survive append redirection"
+else
+    fail_test "numeric append arguments (status=$STATUS, stdout='$OUT', file='$FILE_OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "echo 5 <'$FD_SCOPE_DIR/list'; echo 10 >&1; echo 2 >&1" 2>&1)
+if [ "$?" -eq 0 ] && [ "$OUT" = "$(printf '5\n10\n2')" ]; then
+    pass_test "numeric arguments survive input and duplication redirections"
+else
+    fail_test "numeric input and duplication arguments (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "echo 5>'$FD_SCOPE_DIR/attached-fd'; echo 1 2 >'$FD_SCOPE_DIR/mixed-fd' 2>&1" 2>&1)
+STATUS=$?
+FILE_OUT=$(cat "$FD_SCOPE_DIR/mixed-fd" 2>/dev/null)
+if [ "$STATUS" -eq 0 ] && [ -z "$OUT" ] && [ -f "$FD_SCOPE_DIR/attached-fd" ] &&
+   [ "$(wc -c <"$FD_SCOPE_DIR/attached-fd")" -eq 0 ] && [ "$FILE_OUT" = "1 2" ]; then
+    pass_test "attached descriptors and numeric arguments retain distinct meanings"
+else
+    fail_test "attached and spaced descriptors (status=$STATUS, stdout='$OUT', file='$FILE_OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c 'sum(){ out=0; argc=$#; for n in "$@"; do out=$((out+n)); done; echo "$out"; }; sum 1 2 3 4 5 >"$1"; echo "sum=$out,args=$argc"' cjsh "$FD_SCOPE_DIR/function-sum" 2>&1)
+STATUS=$?
+FILE_OUT=$(cat "$FD_SCOPE_DIR/function-sum" 2>/dev/null)
+if [ "$STATUS" -eq 0 ] && [ "$OUT" = "sum=15,args=5" ] && [ "$FILE_OUT" = "15" ]; then
+    pass_test "function receives all five arguments and redirects the complete sum"
+else
+    fail_test "function argument redirection (status=$STATUS, stdout='$OUT', file='$FILE_OUT')"
+fi
+
+# Match the timed workload and also check the final sum and argument list.
+OUT=$("$CJSH_PATH" -c 'sum(){ out=0; argc=$#; for n in "$@"; do out=$((out+n)); done; echo "$out"; }; i=1; while [ $i -le 400 ]; do sum 1 2 3 4 5 >/dev/null; i=$((i+1)); done; [ "$out" -eq 15 ] && [ "$argc" -eq 5 ]' 2>&1)
+if [ "$?" -eq 0 ] && [ -z "$OUT" ]; then
+    pass_test "function benchmark computes 15 without leaking redirected output"
+else
+    fail_test "function benchmark argument/redirection regression"
+fi
+
 rm -rf "$FD_SCOPE_DIR"
 
 echo ""

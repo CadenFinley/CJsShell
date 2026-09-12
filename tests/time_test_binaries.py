@@ -43,7 +43,7 @@ SHELL_COMMANDS = {
     "posix": {
         "loop": "-c 'i=1; while [ $i -le 5000 ]; do echo $i; i=$((i+1)); done'",
         "loop_even": "-c 'i=1; while [ $i -le 5000 ]; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; i=$((i+1)); done'",
-        "prime_sieve": '-c \'MAX=100; primes=""; i=2; while [ $i -le $MAX ]; do is_prime=1; for p in $primes; do if [ $((p*p)) -gt $i ]; then break; fi; if [ $((i % p)) -eq 0 ]; then is_prime=0; break; fi; done; if [ $is_prime -eq 1 ]; then echo $i; primes="$primes $i"; fi; i=$((i+1)); done\'',
+        "prime_sieve": '-c \'MAX=1000; primes=""; i=2; while [ $i -le $MAX ]; do is_prime=1; for p in $primes; do if [ $((p*p)) -gt $i ]; then break; fi; if [ $((i % p)) -eq 0 ]; then is_prime=0; break; fi; done; if [ $is_prime -eq 1 ]; then echo $i; primes="$primes $i"; fi; i=$((i+1)); done\'',
         "branching": "-c 'count=0; i=1; while [ $i -le 2000 ]; do if [ $((i % 15)) -eq 0 ]; then count=$((count+1)); elif [ $((i % 3)) -eq 0 ]; then :; elif [ $((i % 5)) -eq 0 ]; then :; fi; i=$((i+1)); done; echo $count'",
         "function_calls": '-c \'sum(){ out=0; for n in "$@"; do out=$((out+n)); done; echo "$out"; }; i=1; while [ $i -le 400 ]; do sum 1 2 3 4 5 >/dev/null; i=$((i+1)); done\'',
         "subshell_traversal": '-c \'for dir in /bin /usr/bin /usr/sbin; do if [ -d "$dir" ]; then (cd "$dir" && ls >/dev/null); fi; done\'',
@@ -51,7 +51,7 @@ SHELL_COMMANDS = {
     "fish": {
         "loop": "-c 'for i in (seq 5000); echo $i; end'",
         "loop_even": "-c 'for i in (seq 5000); if test (math \"$i % 2\") -eq 0; echo $i; end; end'",
-        "prime_sieve": '-c \'set MAX 100; set primes; set i 2; while test $i -le $MAX; set is_prime 1; for p in $primes; if test (math "$p * $p") -gt $i; break; end; if test (math "$i % $p") -eq 0; set is_prime 0; break; end; end; if test $is_prime -eq 1; echo $i; set primes $primes $i; end; set i (math "$i + 1"); end\'',
+        "prime_sieve": '-c \'set MAX 1000; set primes; set i 2; while test $i -le $MAX; set is_prime 1; for p in $primes; if test (math "$p * $p") -gt $i; break; end; if test (math "$i % $p") -eq 0; set is_prime 0; break; end; end; if test $is_prime -eq 1; echo $i; set primes $primes $i; end; set i (math "$i + 1"); end\'',
         "branching": '-c \'set count 0; for i in (seq 1 2000); if test (math "$i % 15") -eq 0; set count (math "$count + 1"); else if test (math "$i % 3") -eq 0; math "$i + 0" >/dev/null; else if test (math "$i % 5") -eq 0; math "$i + 0" >/dev/null; end; end; echo $count\'',
         "function_calls": "-c 'function sum; set out 0; for n in $argv; set out (math \"$out + $n\"); end; echo $out; end; for i in (seq 1 400); sum 1 2 3 4 5 >/dev/null; end'",
         "subshell_traversal": "-c 'for dir in /bin /usr/bin /usr/sbin; if test -d $dir; pushd $dir >/dev/null; ls >/dev/null; popd >/dev/null; end; end'",
@@ -59,7 +59,7 @@ SHELL_COMMANDS = {
     "nu": {
         "loop": "-c '1..5000 | each { |i| echo $i }'",
         "loop_even": "-c '1..5000 | where { |i| $i mod 2 == 0 } | each { |i| echo $i }'",
-        "prime_sieve": "-c 'let MAX = 100; mut primes = []; mut i = 2; while $i <= $MAX { mut is_prime = true; for p in $primes { if ($p * $p) > $i { break }; if ($i mod $p) == 0 { $is_prime = false; break } }; if $is_prime { echo $i; $primes = ($primes | append $i) }; $i = $i + 1 }'",
+        "prime_sieve": "-c 'let MAX = 1000; mut primes = []; mut i = 2; while $i <= $MAX { mut is_prime = true; for p in $primes { if ($p * $p) > $i { break }; if ($i mod $p) == 0 { $is_prime = false; break } }; if $is_prime { echo $i; $primes = ($primes | append $i) }; $i = $i + 1 }'",
         "branching": "-c 'mut count = 0; for i in 1..2000 { if (($i mod 15) == 0) { $count += 1 } else if (($i mod 3) == 0) { } else if (($i mod 5) == 0) { } }; echo $count'",
         "function_calls": "-c 'def sum [values: list<int>] { mut out = 0; for v in $values { $out += $v }; $out }; for _ in 1..400 { sum [1 2 3 4 5] | ignore }'",
         "subshell_traversal": "-c 'for dir in [/bin /usr/bin /usr/sbin] { if ($dir | path exists) { cd $dir; ls | ignore } }'",
@@ -67,7 +67,7 @@ SHELL_COMMANDS = {
     "elvish": {
         "loop": "-c \"sh -c 'i=1; while [ $i -le 5000 ]; do echo $i; i=$((i+1)); done'\"",
         "loop_even": "-c \"sh -c 'i=1; while [ $i -le 5000 ]; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; i=$((i+1)); done'\"",
-        "prime_sieve": "-c \"sh -c 'MAX=100; i=2; while [ $i -le $MAX ]; do is_prime=1; j=2; while [ $((j*j)) -le $i ]; do if [ $((i % j)) -eq 0 ]; then is_prime=0; break; fi; j=$((j+1)); done; if [ $is_prime -eq 1 ]; then echo $i; fi; i=$((i+1)); done'\"",
+        "prime_sieve": "-c \"sh -c 'MAX=1000; i=2; while [ $i -le $MAX ]; do is_prime=1; j=2; while [ $((j*j)) -le $i ]; do if [ $((i % j)) -eq 0 ]; then is_prime=0; break; fi; j=$((j+1)); done; if [ $is_prime -eq 1 ]; then echo $i; fi; i=$((i+1)); done'\"",
         "branching": "-c \"sh -c 'count=0; i=1; while [ $i -le 2000 ]; do if [ $((i % 15)) -eq 0 ]; then count=$((count+1)); elif [ $((i % 3)) -eq 0 ]; then :; elif [ $((i % 5)) -eq 0 ]; then :; fi; i=$((i+1)); done; echo $count'\"",
         "function_calls": "-c \"sh -c 'sum(){ out=0; for n in $@; do out=$((out+n)); done; echo $out; }; i=1; while [ $i -le 400 ]; do sum 1 2 3 4 5 >/dev/null; i=$((i+1)); done'\"",
         "subshell_traversal": "-c \"sh -c 'for dir in /bin /usr/bin /usr/sbin; do if [ -d $dir ]; then (cd $dir && ls >/dev/null); fi; done'\"",
@@ -75,7 +75,7 @@ SHELL_COMMANDS = {
     "ion": {
         "loop": "-c \"sh -c 'i=1; while [ $i -le 5000 ]; do echo $i; i=$((i+1)); done'\"",
         "loop_even": "-c \"sh -c 'i=1; while [ $i -le 5000 ]; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; i=$((i+1)); done'\"",
-        "prime_sieve": "-c \"sh -c 'MAX=100; i=2; while [ $i -le $MAX ]; do is_prime=1; j=2; while [ $((j*j)) -le $i ]; do if [ $((i % j)) -eq 0 ]; then is_prime=0; break; fi; j=$((j+1)); done; if [ $is_prime -eq 1 ]; then echo $i; fi; i=$((i+1)); done'\"",
+        "prime_sieve": "-c \"sh -c 'MAX=1000; i=2; while [ $i -le $MAX ]; do is_prime=1; j=2; while [ $((j*j)) -le $i ]; do if [ $((i % j)) -eq 0 ]; then is_prime=0; break; fi; j=$((j+1)); done; if [ $is_prime -eq 1 ]; then echo $i; fi; i=$((i+1)); done'\"",
         "branching": "-c \"sh -c 'count=0; i=1; while [ $i -le 2000 ]; do if [ $((i % 15)) -eq 0 ]; then count=$((count+1)); elif [ $((i % 3)) -eq 0 ]; then :; elif [ $((i % 5)) -eq 0 ]; then :; fi; i=$((i+1)); done; echo $count'\"",
         "function_calls": "-c \"sh -c 'sum(){ out=0; for n in $@; do out=$((out+n)); done; echo $out; }; i=1; while [ $i -le 400 ]; do sum 1 2 3 4 5 >/dev/null; i=$((i+1)); done'\"",
         "subshell_traversal": "-c \"sh -c 'for dir in /bin /usr/bin /usr/sbin; do if [ -d $dir ]; then (cd $dir && ls >/dev/null); fi; done'\"",
@@ -87,7 +87,7 @@ COMMAND_PLAN = [
     {"key": "loop_even", "description": "Loop with conditional filtering"},
     {
         "key": "prime_sieve",
-        "description": "Generate primes up to 100 using incremental divisibility checks",
+        "description": "Generate primes up to 1000 using incremental divisibility checks",
     },
     {"key": "branching", "description": "Nested conditionals with arithmetic checks"},
     {"key": "function_calls", "description": "Define and repeatedly invoke a function"},
@@ -134,8 +134,9 @@ EXPECTED_OUTPUTS = {
     "hello": {"contains": "hello world", "exact": False},
     "loop": {"line_count": 5000, "tolerance": 0},
     "loop_even": {"line_count": 2500, "tolerance": 0},
-    "prime_sieve": {"line_count": 25, "tolerance": 0, "contains": "97", "exact": False},
+    "prime_sieve": {"line_count": 168, "tolerance": 0, "contains": "997", "exact": False},
     "branching": {"contains": "133", "exact": True},
+    "function_calls": {"stdout": ""},
     "exit": {"returncode": 0},
 }
 
@@ -168,6 +169,12 @@ def validate_command_output(
             False,
             f"Expected return code {expected_returncode}, got {result.returncode}: "
             f"{result.stderr.strip()[:200]}",
+        )
+
+    if "stdout" in expected and result.stdout != expected["stdout"]:
+        return (
+            False,
+            f"Expected stdout {expected['stdout']!r}, got: {result.stdout[:100]!r}",
         )
 
     if "contains" in expected:

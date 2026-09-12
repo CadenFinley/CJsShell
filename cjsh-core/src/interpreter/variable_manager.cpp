@@ -658,7 +658,8 @@ VariableManager::VariableLookup VariableManager::lookup_variable(const std::stri
                                                                  bool include_value) const {
     const std::string var_name = resolve_nameref_reference(name);
     ParsedArrayReference parsed;
-    const bool indexed = parse_array_reference(var_name, parsed) && parsed.has_index;
+    const bool indexed = var_name.find('[') != std::string::npos &&
+                         parse_array_reference(var_name, parsed) && parsed.has_index;
     const std::string& key = indexed ? parsed.name : var_name;
     const bool join = indexed && is_array_join_index(parsed.index);
 
@@ -1331,6 +1332,12 @@ std::string VariableManager::normalize_associative_key(const std::string& key) c
 
 std::string VariableManager::resolve_nameref_reference(const std::string& reference) const {
     std::string current = trim_whitespace(reference);
+    // Only the current local scope and the global table participate in nameref
+    // resolution. Ordinary scalar reads need no reference parsing when both are empty.
+    if (global_nameref_variables.empty() &&
+        (local_nameref_stack.empty() || local_nameref_stack.back().empty())) {
+        return current;
+    }
     std::unordered_set<std::string> visited;
 
     for (size_t depth = 0; depth < 64; ++depth) {

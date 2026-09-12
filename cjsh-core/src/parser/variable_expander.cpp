@@ -504,15 +504,21 @@ bool VariableExpander::try_append_arithmetic_expansion(
 
 void VariableExpander::expand_command_paths_with_home(Command& cmd, const std::string& home) {
     (void)home;
-    const std::string cwd = cjsh_filesystem::safe_current_directory();
-    const std::string previous_directory =
-        (shell != nullptr) ? shell->get_previous_directory() : std::string{};
+    std::string cwd;
+    std::string previous_directory;
+    bool directories_resolved = false;
 
     auto expand_path = [&](std::string& path) {
         if (path.empty() || path.front() != '~') {
             return;
         }
 
+        if (!directories_resolved) {
+            cwd = cjsh_filesystem::safe_current_directory();
+            previous_directory =
+                (shell != nullptr) ? shell->get_previous_directory() : std::string{};
+            directories_resolved = true;
+        }
         std::filesystem::path expanded =
             cjsh_filesystem::expand_shell_path_token(path, cwd, previous_directory);
         if (!expanded.empty()) {

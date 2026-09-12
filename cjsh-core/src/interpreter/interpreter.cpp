@@ -300,8 +300,23 @@ std::optional<StatementKeyword> parse_statement_keyword_prefix(std::string_view 
 }
 
 bool is_statement_keyword_prefix(std::string_view text, StatementKeyword keyword) {
-    auto parsed = parse_statement_keyword_prefix(text);
-    return parsed.has_value() && *parsed == keyword;
+    // Callers already know the keyword they need; do not classify the same
+    // command against every other statement keyword first.
+    switch (keyword) {
+        case StatementKeyword::If:
+            return parser_starts_with_keyword_token(text, "if");
+        case StatementKeyword::For:
+            return parser_starts_with_keyword_token(text, "for");
+        case StatementKeyword::Select:
+            return parser_starts_with_keyword_token(text, "select");
+        case StatementKeyword::While:
+            return parser_starts_with_keyword_token(text, "while");
+        case StatementKeyword::Until:
+            return parser_starts_with_keyword_token(text, "until");
+        case StatementKeyword::Case:
+            return parser_starts_with_keyword_token(text, "case");
+    }
+    return false;
 }
 
 bool is_loop_keyword(StatementKeyword keyword) {
@@ -973,8 +988,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 return *quick_result;
             }
 
-            auto raw_tokens = Tokenizer::tokenize_command(text);
-            auto merged_tokens = Tokenizer::merge_redirection_tokens(raw_tokens);
+            auto merged_tokens = Tokenizer::tokenize_command(text);
             if (!merged_tokens.empty()) {
                 auto requires_operand = [&](const std::string& token) -> bool {
                     if (auto redirect = parse_redirect_operator(token)) {

@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -178,6 +179,50 @@ bool character_class_matches(char character, const std::string& pattern) {
     return fnmatch(pattern.c_str(), candidate.c_str(), 0) == 0;
 }
 
+bool matches_simple_sequence(const std::vector<PatternNode>& sequence, const std::string& text) {
+    if (sequence.size() != text.size() &&
+        std::none_of(sequence.begin(), sequence.end(), [](const PatternNode& node) {
+            return node.kind == PatternNodeKind::AnyString;
+        })) {
+        return false;
+    }
+    size_t node_index = 0;
+    size_t text_index = 0;
+    size_t star_index = sequence.size();
+    size_t star_text_index = 0;
+
+    // Ordinary globs need only a full match, not every possible endpoint. On a
+    // mismatch, extend the most recent star by one byte and retry its suffix.
+    while (text_index < text.size()) {
+        if (node_index < sequence.size()) {
+            const auto& node = sequence[node_index];
+            if (node.kind == PatternNodeKind::AnyString) {
+                star_index = node_index++;
+                star_text_index = text_index;
+                continue;
+            }
+            if ((node.kind == PatternNodeKind::Literal && node.value == text[text_index]) ||
+                node.kind == PatternNodeKind::AnyCharacter ||
+                (node.kind == PatternNodeKind::CharacterClass &&
+                 character_class_matches(text[text_index], node.character_class))) {
+                ++node_index;
+                ++text_index;
+                continue;
+            }
+        }
+        if (star_index == sequence.size()) {
+            return false;
+        }
+        node_index = star_index + 1;
+        text_index = ++star_text_index;
+    }
+    while (node_index < sequence.size() &&
+           sequence[node_index].kind == PatternNodeKind::AnyString) {
+        ++node_index;
+    }
+    return node_index == sequence.size();
+}
+
 std::vector<size_t> match_sequence(const std::vector<PatternNode>& sequence, size_t node_index,
                                    const std::string& text, size_t text_index);
 
@@ -315,11 +360,34 @@ bool PatternMatcher::matches_pattern(const std::string& text, const std::string&
         return cleaned;
     };
 
-    std::string sanitized_pattern = sanitize_quotes(pattern);
-
-    GlobPatternParser parser(sanitized_pattern, top_level_alternatives);
-    auto alternatives = parser.parse();
-    for (const auto& alternative : alternatives) {
+    struct CompiledPattern {
+        std::string pattern;
+        bool extglob_enabled;
+        bool top_level_alternatives;
+        std::vector<std::vector<PatternNode>> alternatives;
+    };
+    // Parameter replacement tests many substrings against the same pattern.
+    // Keep one parsed pattern per thread, with every parsing option in the key.
+    // Character classes still use the current locale when they are matched.
+    thread_local std::optional<CompiledPattern> cached;
+    if (!cached || cached->pattern != pattern ||
+        cached->extglob_enabled != config::extglob_enabled ||
+        cached->top_level_alternatives != top_level_alternatives) {
+        const std::string sanitized_pattern = sanitize_quotes(pattern);
+        GlobPatternParser parser(sanitized_pattern, top_level_alternatives);
+        cached = CompiledPattern{pattern, config::extglob_enabled, top_level_alternatives,
+                                 parser.parse()};
+    }
+    for (const auto& alternative : cached->alternatives) {
+        const bool has_extended_group = std::any_of(
+            alternative.begin(), alternative.end(),
+            [](const PatternNode& node) { return node.kind == PatternNodeKind::ExtendedGroup; });
+        if (!has_extended_group) {
+            if (matches_simple_sequence(alternative, text)) {
+                return true;
+            }
+            continue;
+        }
         auto endpoints = match_sequence(alternative, 0, text, 0);
         if (std::find(endpoints.begin(), endpoints.end(), text.size()) != endpoints.end()) {
             return true;

@@ -27,6 +27,7 @@
 */
 
 #include <cstdio>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -35,10 +36,12 @@
 #include <vector>
 
 #include "builtin_help.h"
+#include "cjsh_filesystem.h"
 #include "interpreter_utils.h"
 #include "parser.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "variable_expander.h"
 
 std::unique_ptr<Shell> g_shell;
 
@@ -198,6 +201,96 @@ void test_execution() {
                g_shell->execute("true ignored --help") == 0 &&
                g_shell->execute("false ignored --help") == 1,
            "boolean and null builtins retain status with non-help operands");
+    expect(g_shell->execute("dispatch_value=\n"
+                            "if_value=plain\n"
+                            "for_value=plain\n"
+                            "select_value=plain\n"
+                            "while_value=plain\n"
+                            "until_value=plain\n"
+                            "case_value=plain\n"
+                            "for n in if for select while until case; do\n"
+                            "dispatch_value=\"$dispatch_value $n\"\n"
+                            "done\n"
+                            "if\ttrue; then :; fi\n"
+                            "while false; do dispatch_value=wrong; done\n"
+                            "until true; do dispatch_value=wrong; done\n") == 0 &&
+               cjsh_env::get_shell_variable_value("dispatch_value") ==
+                   " if for select while until case" &&
+               cjsh_env::get_shell_variable_value("case_value") == "plain",
+           "keyword dispatch preserves token boundaries, whitespace, and ordinary operands");
+}
+
+void test_redirection_argument_boundaries(Parser& parser) {
+    for (const std::string argument : {"5 ", "5\t", "'5'", "\"5\"", "\\5", "5''"}) {
+        const auto pipeline = parser.parse_pipeline("echo " + argument + ">output");
+        expect(pipeline.size() == 1 &&
+                   pipeline[0].args == std::vector<std::string>({"echo", "5"}) &&
+                   pipeline[0].output_file == "output" && pipeline[0].fd_redirections.empty(),
+               "spaced, quoted, and escaped numbers remain arguments before output redirection");
+    }
+    const auto attached = parser.parse_pipeline("echo 5>output");
+    expect(attached.size() == 1 && attached[0].args == std::vector<std::string>({"echo"}) &&
+               attached[0].output_file.empty() &&
+               attached[0].fd_redirections ==
+                   std::vector<std::pair<int, std::string>>({{5, "output:output"}}),
+           "an adjacent unquoted number still selects the output descriptor");
+
+    for (const std::string number : {"0", "2", "5", "10"}) {
+        const auto input = parser.parse_pipeline("echo " + number + " <input");
+        expect(input.size() == 1 && input[0].args == std::vector<std::string>({"echo", number}) &&
+                   input[0].input_file == "input" && input[0].fd_redirections.empty(),
+               "numeric arguments survive input redirection");
+        const auto append = parser.parse_pipeline("echo " + number + " >>output");
+        expect(append.size() == 1 && append[0].args == std::vector<std::string>({"echo", number}) &&
+                   append[0].append_file == "output" && append[0].stderr_file.empty(),
+               "numeric arguments survive append redirection");
+        expect(Tokenizer::tokenize_command("echo " + number + " >&1") ==
+                   std::vector<std::string>({"echo", number, ">&1"}),
+               "a separated number does not change the duplicated descriptor");
+    }
+    expect(Tokenizer::tokenize_command("echo 1 2 >output 2>&1") ==
+               std::vector<std::string>({"echo", "1", "2", ">", "output", "2>&1"}),
+           "numeric arguments and attached descriptors can occur in the same command");
+    expect(Tokenizer::tokenize_command("echo 10>&1 3<input 2>>error") ==
+               std::vector<std::string>({"echo", "10>&1", "3<", "input", "2>>", "error"}),
+           "attached duplication, input, and stderr append descriptors retain their meaning");
+}
+
+void test_redirection_path_expansion() {
+    namespace fs = std::filesystem;
+    const fs::path original_cwd = fs::current_path();
+    const fs::path user_home = cjsh_filesystem::g_user_home_path();
+    VariableExpander expander(g_shell.get(), cjsh_env::env_vars());
+    Command plain;
+    plain.output_file = "relative-output";
+    plain.stderr_file = "/dev/null";
+    expander.expand_command_paths_with_home(plain, "");
+    expect(plain.output_file == "relative-output" && plain.stderr_file == "/dev/null",
+           "ordinary redirection paths remain unchanged");
+
+    for (const auto& directory : {original_cwd, original_cwd.parent_path()}) {
+        fs::current_path(directory);
+        Command command;
+        command.input_file = "~/input";
+        command.output_file = "~+/output";
+        command.append_file = "~/append";
+        command.stderr_file = "~-/error";
+        command.both_output_file = "~/both";
+        command.fd_redirections.emplace_back(3, "~+/extra");
+        command.add_redirection(CommandRedirectionType::Output, "~+/ordered");
+        expander.expand_command_paths_with_home(command, "");
+        // The path helper expands ~/ and resolves other tilde forms relative
+        // to cwd. Preserve that behavior while making directory reads lazy.
+        expect(command.input_file == (user_home / "input").string() &&
+                   command.output_file == (directory / "~+/output").string() &&
+                   command.append_file == (user_home / "append").string() &&
+                   command.stderr_file == (directory / "~-/error").string() &&
+                   command.both_output_file == (user_home / "both").string() &&
+                   command.fd_redirections[0].second == (directory / "~+/extra").string() &&
+                   command.redirection_order[0].value == (directory / "~+/ordered").string(),
+               "tilde redirections use the current directory on each invocation");
+    }
+    fs::current_path(original_cwd);
 }
 }  // namespace
 
@@ -214,6 +307,8 @@ int main() {
     test_ampersand_commands();
     test_help();
     test_execution();
+    test_redirection_argument_boundaries(*g_shell->get_parser());
+    test_redirection_path_expansion();
     g_shell.reset();
     if (failures != 0) {
         (void)std::fprintf(stderr, "%zu/%zu parser dispatch tests failed\n", failures, checks);

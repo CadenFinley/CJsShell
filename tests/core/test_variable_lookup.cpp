@@ -89,6 +89,64 @@ bool test_environment_import() {
     return ok;
 }
 
+bool test_scalar_and_nameref_transitions() {
+    VariableManager variables;
+    bool ok = true;
+    auto check = [&](const std::string& name, const std::string& value, bool present) {
+        ok = expect(variables.get_variable_value(name) == value &&
+                        variables.variable_is_set(name) == present,
+                    ("scalar/nameref transition: " + name).c_str()) &&
+             ok;
+    };
+    variables.set_environment_variable("__transition_value", "first");
+    variables.set_environment_variable("__transition_empty", "");
+    check(" \t__transition_value\n", "first", true);
+    check("__transition_empty", "", true);
+    check("__transition_missing", "", false);
+    const std::string long_name = "__transition_" + std::string(512, 'x');
+    variables.set_environment_variable(long_name, "long");
+    check(long_name, "long", true);
+    ok = expect(variables.assign_global_array_literal("__transition_array", {"[2]=two"}),
+                "array reads work without namerefs") &&
+         ok;
+    check("__transition_array[2]", "two", true);
+    check("__transition_array", "", false);
+    check("__transition_array[]", "", false);
+
+    variables.push_scope();
+    ok = expect(variables.set_nameref("__transition_ref", "__transition_value"),
+                "create local nameref after scalar lookups") &&
+         ok;
+    check("__transition_ref", "first", true);
+    variables.set_environment_variable("__transition_value", "changed");
+    check("__transition_ref", "changed", true);
+    variables.push_scope();
+    check("__transition_ref", "", false);
+    check("__transition_value", "changed", true);
+    variables.pop_scope();
+    check("__transition_ref", "changed", true);
+    ok = expect(variables.set_nameref("__transition_ref", "__transition_array"),
+                "retarget local nameref to an array") &&
+         ok;
+    check("__transition_ref[2]", "two", true);
+    variables.pop_scope();
+    check("__transition_ref", "", false);
+    ok = expect(variables.set_nameref("__transition_ref", "__transition_empty", true),
+                "create global nameref after leaving local scope") &&
+         ok;
+    variables.push_scope();
+    check("__transition_ref", "", true);
+    variables.pop_scope();
+    ok = expect(variables.unset_nameref("__transition_ref"), "remove last global nameref") && ok;
+    check("__transition_ref", "", false);
+    check("__transition_value", "changed", true);
+    for (const auto& name :
+         {std::string("__transition_value"), std::string("__transition_empty"), long_name}) {
+        cjsh_env::unset_shell_variable_value(name);
+    }
+    return ok;
+}
+
 bool test_variable_presence_and_scope() {
     auto& variables = g_shell->get_shell_script_interpreter()->get_variable_manager();
     bool ok = true;
@@ -237,6 +295,9 @@ bool test_parameter_replacement() {
         {"abcabc", "v/#abc/X", "Xabc"},
         {"abcabc", "v/%abc/X", "abcX"},
         {"aaab", "v/a*/X", "X"},
+        {"abbcab", "v/a*b/X", "X"},
+        {"abbcab", "v//?/X", "XXXXXX"},
+        {"abbcab", "v//[!a]/X", "aXXXaX"},
         {"hello world", "v/[hw]/X", "Xello world"},
         {"a*b*a", "v/\\*/X", "aXb*a"},
         {"a*b*a", "v/'*'/X", "aXb*a"},
@@ -260,6 +321,75 @@ bool test_parameter_replacement() {
     ok = expect(evaluator.expand("v//@(foo|bar)/X") == "X X X",
                 "extended patterns retain global replacement semantics") &&
          ok;
+    config::extglob_enabled = previous_extglob;
+    return ok;
+}
+
+bool test_pattern_matching() {
+    PatternMatcher matcher;
+    bool ok = true;
+    // Compare ordinary glob combinations against an independent matcher. Include
+    // empty inputs, repeated stars, failed suffixes and character classes.
+    std::vector<std::string> patterns{""};
+    std::vector<std::string> texts{""};
+    for (int length = 0; length < 3; ++length) {
+        const auto previous_patterns = patterns;
+        const auto previous_texts = texts;
+        for (const auto& prefix : previous_patterns) {
+            for (const char* token : {"a", "b", "?", "*", "[ab]", "[!a]"}) {
+                patterns.push_back(prefix + token);
+            }
+        }
+        for (const auto& prefix : previous_texts) {
+            for (char character : {'a', 'b', '.'}) {
+                texts.push_back(prefix + character);
+            }
+        }
+    }
+    for (const auto& pattern : patterns) {
+        for (const auto& text : texts) {
+            if (matcher.matches_pattern(text, pattern) !=
+                (fnmatch(pattern.c_str(), text.c_str(), 0) == 0)) {
+                return expect(false, ("pattern " + pattern + " against " + text).c_str());
+            }
+        }
+    }
+    const struct {
+        const char* text;
+        const char* pattern;
+        bool expected;
+    } cases[] = {
+        {"*?", "'*?'", true},   {"abc", "'*'", false},      {"a*b", "a\\*b", true},
+        {"abc", "a**?c", true}, {"ababxc", "*ab?c", true},  {"ababxc", "*ab?d", false},
+        {"ab/cd", "a*d", true}, {"a\nb", "a?b", true},      {"é", "??", true},
+        {"é", "?", false},      {"7", "[[:digit:]]", true}, {"z", "[![:digit:]]", true},
+        {"[", "[", true},       {"]", "[]]", true},         {"|", "'|'", true},
+    };
+    for (const auto& entry : cases) {
+        ok = expect(matcher.matches_pattern(entry.text, entry.pattern) == entry.expected,
+                    entry.pattern) &&
+             ok;
+    }
+    const std::string long_value(4096, 'a');
+    ok = expect(matcher.matches_pattern(long_value, "*a*"), "long wildcard full match") && ok;
+    ok = expect(!matcher.matches_pattern(long_value, "*a*z"), "long wildcard suffix miss") && ok;
+
+    const bool previous_extglob = config::extglob_enabled;
+    for (bool enabled : {true, false, true}) {
+        config::extglob_enabled = enabled;
+        ok = expect(matcher.matches_pattern("foo", "@(foo|bar)") == enabled,
+                    "matching reflects changes to extglob") &&
+             ok;
+    }
+    config::extglob_enabled = true;
+    ok = expect(matcher.matches_pattern("abab", "+(a|b)"), "extended repetition") && ok;
+    ok = expect(matcher.matches_pattern("abc", "!(foo|bar)"), "extended negation") && ok;
+    ok = expect(!matcher.matches_pattern("foo", "!(foo|bar)"), "extended negation miss") && ok;
+    for (bool alternatives : {true, false, true}) {
+        ok = expect(matcher.matches_pattern("foo", "foo|bar", alternatives) == alternatives,
+                    "top-level alternatives remain per-call") &&
+             ok;
+    }
     config::extglob_enabled = previous_extglob;
     return ok;
 }
@@ -331,15 +461,18 @@ int main() {
     config::force_interactive = false;
     g_shell = std::make_unique<Shell>();
     g_shell->set_interactive_mode(false);
+    const bool transitions_ok = test_scalar_and_nameref_transitions();
     const bool lookup_ok = test_variable_presence_and_scope();
     const bool expansion_ok = test_parameter_expansion_work();
     const bool replacement_ok = test_parameter_replacement();
     const bool removal_ok = test_literal_pattern_removal();
     const bool import_ok = test_environment_import();
+    const bool pattern_ok = test_pattern_matching();
     g_shell.reset();
-    if (!lookup_ok || !expansion_ok || !replacement_ok || !removal_ok || !import_ok) {
+    if (!lookup_ok || !expansion_ok || !replacement_ok || !removal_ok || !import_ok ||
+        !pattern_ok || !transitions_ok) {
         return 1;
     }
-    std::puts("All 5 variable lookup and expansion tests passed");
+    std::puts("All 7 variable lookup and expansion tests passed");
     return 0;
 }
