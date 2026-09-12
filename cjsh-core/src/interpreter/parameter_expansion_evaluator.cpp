@@ -45,7 +45,8 @@ bool is_literal_pattern(const std::string& pattern) {
 ParameterExpansionEvaluator::ParameterExpansionEvaluator(
     VariableReader var_reader, VariableWriter var_writer, VariableChecker var_checker,
     PatternMatcher pattern_matcher, ArrayLengthReader array_length_reader,
-    ArrayKeysReader array_keys_reader, WordExpander word_expander, IndirectReader indirect_reader)
+    ArrayKeysReader array_keys_reader, WordExpander word_expander, IndirectReader indirect_reader,
+    PatternEndpoints pattern_endpoints)
     : read_variable(std::move(var_reader)),
       write_variable(std::move(var_writer)),
       is_variable_set(std::move(var_checker)),
@@ -53,7 +54,8 @@ ParameterExpansionEvaluator::ParameterExpansionEvaluator(
       read_array_length(std::move(array_length_reader)),
       read_array_keys(std::move(array_keys_reader)),
       expand_word(std::move(word_expander)),
-      read_indirect(std::move(indirect_reader)) {
+      read_indirect(std::move(indirect_reader)),
+      find_pattern_endpoints(std::move(pattern_endpoints)) {
 }
 
 std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
@@ -313,6 +315,16 @@ std::string ParameterExpansionEvaluator::pattern_match_prefix(const std::string&
                                                               : value;
     }
 
+    if (find_pattern_endpoints) {
+        if ((longest && matches_pattern(value, pattern)) ||
+            (!longest && matches_pattern({}, pattern))) {
+            return longest ? std::string{} : value;
+        }
+        if (auto endpoints = find_pattern_endpoints(value, pattern, longest)) {
+            return (*endpoints)[0] == std::string::npos ? value : value.substr((*endpoints)[0]);
+        }
+    }
+
     for (size_t step = 0; step <= value.length(); ++step) {
         const size_t i = longest ? value.length() - step : step;
         std::string prefix = value.substr(0, i);
@@ -337,6 +349,24 @@ std::string ParameterExpansionEvaluator::pattern_match_suffix(const std::string&
             return value.substr(0, value.size() - pattern.size());
         }
         return value;
+    }
+
+    if (find_pattern_endpoints) {
+        if ((longest && matches_pattern(value, pattern)) ||
+            (!longest && matches_pattern({}, pattern))) {
+            return longest ? std::string{} : value;
+        }
+        // A suffix must reach the end of the value, regardless of which matching
+        // suffix length the caller requests.
+        if (auto endpoints = find_pattern_endpoints(value, pattern, true)) {
+            for (size_t step = 0; step <= value.size(); ++step) {
+                const size_t begin = longest ? step : value.size() - step;
+                if ((*endpoints)[begin] == value.size()) {
+                    return value.substr(0, begin);
+                }
+            }
+            return value;
+        }
     }
 
     for (size_t step = 0; step <= value.length(); ++step) {
@@ -430,6 +460,15 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
     // Quoted, escaped and glob patterns still use the matcher. A plain literal
     // has only one possible match length, so there is no need to try substrings.
     const bool literal_pattern = is_literal_pattern(pattern);
+    std::optional<std::vector<size_t>> endpoints;
+    if (!literal_pattern && find_pattern_endpoints) {
+        // Preserve the cheap common case where the first candidate consumes the
+        // whole value. Otherwise reuse endpoints across every replacement.
+        if (matches_pattern(value, pattern)) {
+            return replacement;
+        }
+        endpoints = find_pattern_endpoints(value, pattern, true);
+    }
     auto find_leftmost_longest = [&](size_t search_begin) -> std::optional<MatchSpan> {
         if (literal_pattern) {
             const size_t begin = value.find(pattern, search_begin);
@@ -437,6 +476,14 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
                 return std::nullopt;
             }
             return MatchSpan{begin, begin + pattern.size()};
+        }
+        if (endpoints) {
+            for (size_t begin = search_begin; begin <= value.size(); ++begin) {
+                if ((*endpoints)[begin] != std::string::npos) {
+                    return MatchSpan{begin, (*endpoints)[begin]};
+                }
+            }
+            return std::nullopt;
         }
         for (size_t begin = search_begin; begin <= value.size(); ++begin) {
             for (size_t end = value.size(); end >= begin; --end) {

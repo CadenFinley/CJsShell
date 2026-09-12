@@ -321,10 +321,15 @@ std::vector<size_t> match_sequence(const std::vector<PatternNode>& sequence, siz
     return endpoints;
 }
 
-}  // namespace
+struct CompiledPattern {
+    std::string pattern;
+    bool extglob_enabled;
+    bool top_level_alternatives;
+    std::vector<std::vector<PatternNode>> alternatives;
+};
 
-bool PatternMatcher::matches_pattern(const std::string& text, const std::string& pattern,
-                                     bool top_level_alternatives) const {
+const CompiledPattern& compiled_pattern_for(const std::string& pattern,
+                                            bool top_level_alternatives) {
     auto sanitize_quotes = [](const std::string& raw_pattern) {
         std::string cleaned;
         cleaned.reserve(raw_pattern.size());
@@ -360,12 +365,6 @@ bool PatternMatcher::matches_pattern(const std::string& text, const std::string&
         return cleaned;
     };
 
-    struct CompiledPattern {
-        std::string pattern;
-        bool extglob_enabled;
-        bool top_level_alternatives;
-        std::vector<std::vector<PatternNode>> alternatives;
-    };
     // Parameter replacement tests many substrings against the same pattern.
     // Keep one parsed pattern per thread, with every parsing option in the key.
     // Character classes still use the current locale when they are matched.
@@ -378,7 +377,15 @@ bool PatternMatcher::matches_pattern(const std::string& text, const std::string&
         cached = CompiledPattern{pattern, config::extglob_enabled, top_level_alternatives,
                                  parser.parse()};
     }
-    for (const auto& alternative : cached->alternatives) {
+    return *cached;
+}
+
+}  // namespace
+
+bool PatternMatcher::matches_pattern(const std::string& text, const std::string& pattern,
+                                     bool top_level_alternatives) const {
+    const auto& compiled = compiled_pattern_for(pattern, top_level_alternatives);
+    for (const auto& alternative : compiled.alternatives) {
         const bool has_extended_group = std::any_of(
             alternative.begin(), alternative.end(),
             [](const PatternNode& node) { return node.kind == PatternNodeKind::ExtendedGroup; });
@@ -394,4 +401,60 @@ bool PatternMatcher::matches_pattern(const std::string& text, const std::string&
         }
     }
     return false;
+}
+
+std::optional<std::vector<size_t>> PatternMatcher::match_end_positions(const std::string& text,
+                                                                       const std::string& pattern,
+                                                                       bool longest) const {
+    const auto& compiled = compiled_pattern_for(pattern, false);
+    for (const auto& alternative : compiled.alternatives) {
+        if (std::any_of(alternative.begin(), alternative.end(), [](const PatternNode& node) {
+                return node.kind == PatternNodeKind::ExtendedGroup;
+            })) {
+            return std::nullopt;
+        }
+    }
+
+    const size_t no_match = std::string::npos;
+    const auto choose = [longest, no_match](size_t left, size_t right) {
+        if (left == no_match) {
+            return right;
+        }
+        if (right == no_match) {
+            return left;
+        }
+        return longest ? std::max(left, right) : std::min(left, right);
+    };
+    std::vector<size_t> endpoints(text.size() + 1, no_match);
+    std::vector<size_t> next(text.size() + 1);
+    std::vector<size_t> current(text.size() + 1);
+    for (const auto& alternative : compiled.alternatives) {
+        // An empty pattern ends at its starting byte. Work backwards through the
+        // pattern, sharing suffix results instead of matching every substring.
+        for (size_t pos = 0; pos <= text.size(); ++pos) {
+            next[pos] = pos;
+        }
+        for (auto node = alternative.rbegin(); node != alternative.rend(); ++node) {
+            current[text.size()] =
+                node->kind == PatternNodeKind::AnyString ? next[text.size()] : no_match;
+            for (size_t pos = text.size(); pos > 0;) {
+                --pos;
+                if (node->kind == PatternNodeKind::AnyString) {
+                    current[pos] = choose(next[pos], current[pos + 1]);
+                } else {
+                    const bool matches =
+                        node->kind == PatternNodeKind::AnyCharacter ||
+                        (node->kind == PatternNodeKind::Literal && node->value == text[pos]) ||
+                        (node->kind == PatternNodeKind::CharacterClass &&
+                         character_class_matches(text[pos], node->character_class));
+                    current[pos] = matches ? next[pos + 1] : no_match;
+                }
+            }
+            next.swap(current);
+        }
+        for (size_t pos = 0; pos <= text.size(); ++pos) {
+            endpoints[pos] = choose(endpoints[pos], next[pos]);
+        }
+    }
+    return endpoints;
 }

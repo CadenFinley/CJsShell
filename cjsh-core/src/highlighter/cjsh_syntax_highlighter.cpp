@@ -71,12 +71,21 @@ struct HighlightPathContext {
     std::optional<std::string> cwd;
     std::string previous_directory;
     std::optional<std::vector<std::string>> executables;
+    std::optional<std::unordered_set<std::string>> commands;
 
     void initialize() {
         if (!cwd.has_value()) {
             cwd = cjsh_filesystem::safe_current_directory();
             previous_directory = g_shell ? g_shell->get_previous_directory() : "";
         }
+    }
+
+    const std::unordered_set<std::string>& available_commands() {
+        if (!commands.has_value()) {
+            commands =
+                g_shell ? g_shell->get_available_commands() : std::unordered_set<std::string>{};
+        }
+        return *commands;
     }
 
     const std::vector<std::string>& executables_in_path() {
@@ -109,7 +118,6 @@ ExistingPathType classify_existing_path_argument(const std::string& token,
 
 bool has_nearby_split_merge_candidate(const std::string& first_token,
                                       const std::string& second_token,
-                                      const std::unordered_set<std::string>& available_commands,
                                       HighlightPathContext& paths) {
     if (first_token.length() < 2 || second_token.length() < 2) {
         return false;
@@ -133,7 +141,7 @@ bool has_nearby_split_merge_candidate(const std::string& first_token,
                                  second_token) == 0;
     };
 
-    for (const auto& candidate : available_commands) {
+    for (const auto& candidate : paths.available_commands()) {
         if (matches_candidate(candidate)) {
             return true;
         }
@@ -149,7 +157,6 @@ bool has_nearby_split_merge_candidate(const std::string& first_token,
 void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                              const std::string& analysis, size_t cmd_start, size_t cmd_end,
                              const std::unordered_set<std::string>& comparison_ops,
-                             const std::unordered_set<std::string>& available_commands,
                              HighlightPathContext& paths) {
     using namespace token_classifier;
     using namespace highlight_helpers;
@@ -173,8 +180,8 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
     size_t absolute_token_start = cmd_start + first_token_start;
     size_t first_token_length = first_token_end - first_token_start;
 
-    const auto classification = command_analysis::classify_command_token(
-        token, absolute_token_start, g_shell.get(), available_commands);
+    const auto classification =
+        command_analysis::classify_command_token(token, absolute_token_start, g_shell.get());
     const bool first_token_unknown = !classification.known;
 
     bool highlight_split_unknown_second_token = false;
@@ -196,11 +203,10 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                 if (command_lookup::token_allows_split_command_merge(second_token)) {
                     const size_t absolute_second_token_start = cmd_start + second_token_start;
                     const bool merged_token_known = command_analysis::is_known_command_token(
-                        token + second_token, absolute_token_start, g_shell.get(),
-                        available_commands);
+                        token + second_token, absolute_token_start, g_shell.get());
                     const bool merged_token_near_match =
-                        !merged_token_known && has_nearby_split_merge_candidate(
-                                                   token, second_token, available_commands, paths);
+                        !merged_token_known &&
+                        has_nearby_split_merge_candidate(token, second_token, paths);
 
                     if (merged_token_known || merged_token_near_match) {
                         highlight_split_unknown_second_token = true;
@@ -261,7 +267,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
         }
         if (nested_start < cmd_str.size()) {
             highlight_command_range(henv, input, analysis, cmd_start + nested_start, cmd_end,
-                                    comparison_ops, available_commands, paths);
+                                    comparison_ops, paths);
         }
         return;
     }
@@ -344,7 +350,8 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                         }
 
                         if (is_abbreviation ||
-                            available_commands.find(arg) != available_commands.end() ||
+                            (g_shell && g_shell->get_aliases().count(arg) != 0) ||
+                            command_lookup::has_shell_function(arg, g_shell.get()) ||
                             is_shell_builtin(arg)) {
                             ic_highlight(henv, static_cast<long>(absolute_arg_start),
                                          static_cast<long>(arg_length), "cjsh-builtin");
@@ -459,15 +466,13 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
     }
 
     const auto& comparison_ops = token_constants::comparison_operators();
-    const auto available_commands =
-        g_shell ? g_shell->get_available_commands() : std::unordered_set<std::string>{};
     HighlightPathContext paths;
 
     (void)command_analysis::visit_command_ranges(
         sanitized_input,
         [&](size_t command_start, size_t command_end) {
             highlight_command_range(henv, input, sanitized_input, command_start, command_end,
-                                    comparison_ops, available_commands, paths);
+                                    comparison_ops, paths);
             return true;
         },
         [&](size_t separator_start, const command_analysis::CommandSeparator& separator) {

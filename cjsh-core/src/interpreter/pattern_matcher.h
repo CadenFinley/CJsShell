@@ -29,7 +29,9 @@
 #ifndef CJSH_CORE_SRC_INTERPRETER_PATTERN_MATCHER_H
 #define CJSH_CORE_SRC_INTERPRETER_PATTERN_MATCHER_H
 
+#include <optional>
 #include <string>
+#include <vector>
 
 class PatternMatcher {
    public:
@@ -43,6 +45,12 @@ class PatternMatcher {
 
     bool matches_pattern(const std::string& text, const std::string& pattern,
                          bool top_level_alternatives = false) const;
+
+    // One endpoint per starting byte, or string::npos when no substring matches.
+    // Extended groups return nullopt so callers can use the general matcher.
+    std::optional<std::vector<size_t>> match_end_positions(const std::string& text,
+                                                           const std::string& pattern,
+                                                           bool longest) const;
 };
 
 #endif  // CJSH_CORE_SRC_INTERPRETER_PATTERN_MATCHER_H

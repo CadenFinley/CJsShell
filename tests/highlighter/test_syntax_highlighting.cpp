@@ -1674,6 +1674,36 @@ static bool test_agent_trigger_prefix_highlighting() {
     return ok;
 }
 
+static bool test_command_membership_changes_between_redraws() {
+    const char* test_name = "command_membership_changes_between_redraws";
+    const std::string name = "__cjsh_redraw_command";
+    auto check = [&](const std::string& input, size_t start, const char* style) {
+        attrbuf_t* attrs = highlight_input(input, test_name);
+        if (attrs == nullptr) {
+            return false;
+        }
+        const bool result =
+            expect_style_range(attrs, ic_get_env()->bbcode, start, name.size(), style, test_name,
+                               "command style must reflect current bindings");
+        attrbuf_free(attrs);
+        return result;
+    };
+    bool ok = check(name, 0, "cjsh-unknown-command");
+    // Direct map edits are supported by the shell; no cache invalidation hook is required.
+    g_shell->get_aliases()[name] = "echo alias";
+    ok = check(name, 0, "cjsh-builtin") && ok;
+    ok = check("sudo " + name, 5, "cjsh-builtin") && ok;
+    g_shell->get_aliases().erase(name);
+    ok = check(name, 0, "cjsh-unknown-command") && ok;
+    ok = (g_shell->execute(name + "() { :; }") == 0) && ok;
+    ok = check(name, 0, "cjsh-builtin") && ok;
+    ok = check("sudo " + name, 5, "cjsh-builtin") && ok;
+    g_shell->get_aliases()[name] = "echo alias over function";
+    g_shell->get_aliases().erase(name);
+    ok = check(name, 0, "cjsh-builtin") && ok;
+    return ok;
+}
+
 using test_fn_t = bool (*)();
 
 using test_case_t = struct test_case_s {
@@ -1682,6 +1712,7 @@ using test_case_t = struct test_case_s {
 };
 
 static const test_case_t kTests[] = {
+    {"command_membership_changes_between_redraws", test_command_membership_changes_between_redraws},
     {"variable_assignment_highlighting", test_variable_assignment_highlighting},
     {"comment_highlighting", test_comment_highlighting},
     {"command_substitution_and_variable", test_command_substitution_and_variable},

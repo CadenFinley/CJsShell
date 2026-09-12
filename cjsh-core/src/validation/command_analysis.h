@@ -78,10 +78,10 @@ struct CommandTokenClassification {
 
 CommandTokenClassification classify_command_token(
     const std::string& token, size_t absolute_cmd_start, Shell* shell,
-    const std::unordered_set<std::string>& available_commands);
+    const std::unordered_set<std::string>& available_commands = {});
 
 bool is_known_command_token(const std::string& token, size_t absolute_cmd_start, Shell* shell,
-                            const std::unordered_set<std::string>& available_commands);
+                            const std::unordered_set<std::string>& available_commands = {});
 
 std::string sanitize_input_for_analysis(const std::string& input,
                                         std::vector<CommentRange>* comment_ranges = nullptr);

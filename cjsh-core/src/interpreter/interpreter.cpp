@@ -2067,9 +2067,12 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         return variable_manager.get_indirect_value(name);
     };
 
-    ParameterExpansionEvaluator evaluator(var_reader, var_writer, var_checker, pattern_match_fn,
-                                          array_length_reader, array_keys_reader, word_expander,
-                                          indirect_reader);
+    ParameterExpansionEvaluator evaluator(
+        var_reader, var_writer, var_checker, pattern_match_fn, array_length_reader,
+        array_keys_reader, word_expander, indirect_reader,
+        [this](const std::string& text, const std::string& pattern, bool longest) {
+            return pattern_matcher.match_end_positions(text, pattern, longest);
+        });
     return evaluator.expand(param_expr);
 }
 

@@ -42,7 +42,6 @@
 #include <functional>
 #include <ios>
 #include <memory>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -568,41 +567,29 @@ void add_command_spell_corrections(ic_completion_env_t* cenv,
     completion_spell::collect_spell_correction_candidates(
         sources.builtin_cmds, [](const std::string& value) { return value; },
         [](const std::string& cmd) { return is_interactive_builtin(cmd); }, normalized_prefix,
-        spell_matches);
+        spell_matches, high_confidence_only);
 
     completion_spell::collect_spell_correction_candidates(
         sources.function_names, [](const std::string& value) { return value; },
-        std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+        std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches,
+        high_confidence_only);
 
     completion_spell::collect_spell_correction_candidates(
         sources.alias_names, [](const std::string& value) { return value; },
-        std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+        std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches,
+        high_confidence_only);
 
     completion_spell::collect_spell_correction_candidates(
         sources.abbreviation_names, [](const std::string& value) { return value; },
-        std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+        std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches,
+        high_confidence_only);
 
     completion_spell::collect_spell_correction_candidates(
         sources.executables_in_path, [](const std::string& value) { return value; },
         [&](const std::string& candidate) {
-            if (high_confidence_only &&
-                !completion_spell::is_adjacent_transposition(
-                    completion_utils::normalize_for_comparison(candidate), normalized_prefix)) {
-                return false;
-            }
             return !cjsh_filesystem::find_executable_in_path(candidate).empty();
         },
-        normalized_prefix, spell_matches);
-
-    if (high_confidence_only) {
-        for (auto it = spell_matches.begin(); it != spell_matches.end();) {
-            if (!it->second.is_transposition) {
-                it = spell_matches.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
+        normalized_prefix, spell_matches, high_confidence_only);
 
     if (!spell_matches.empty()) {
         completion_spell::add_spell_correction_matches(cenv, spell_matches, delete_before_length);
@@ -1335,46 +1322,43 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
         bool has_last_exit_code = false;
         long long last_timestamp = 0;
         long long last_frequency = 1;
-        if (!header_line.empty()) {
-            const char* cursor = header_line.c_str() + 1;
-            while (*cursor == ' ' || *cursor == '\t') {
-                ++cursor;
+        // Parse fields as views into the saved header. Ranked history can visit
+        // every record on each completion, so avoid a stream and strings per field.
+        const std::string_view header(header_line);
+        size_t token_start = header.find_first_not_of(" \t\r\n\v\f", 1);
+        while (token_start != std::string_view::npos) {
+            size_t token_end = header.find_first_of(" \t\r\n\v\f", token_start);
+            if (token_end == std::string_view::npos) {
+                token_end = header.size();
             }
-
-            if (*cursor != '\0') {
-                std::string header(cursor);
-                std::stringstream header_stream(header);
-                std::string token;
-                while (header_stream >> token) {
-                    const size_t equals_pos = token.find('=');
-                    if (equals_pos == std::string::npos || equals_pos == 0 ||
-                        equals_pos + 1 >= token.size()) {
-                        continue;
+            const std::string_view token = header.substr(token_start, token_end - token_start);
+            const size_t equals_pos = token.find('=');
+            if (equals_pos != std::string_view::npos && equals_pos != 0 &&
+                equals_pos + 1 < token.size()) {
+                const std::string_view key = token.substr(0, equals_pos);
+                const std::string_view value = token.substr(equals_pos + 1);
+                if (key == "code" || key == "exit_code") {
+                    char* endptr = nullptr;
+                    const long exit_ll = std::strtol(value.data(), &endptr, 10);
+                    if (endptr != value.data() && endptr == value.data() + value.size()) {
+                        last_exit_code = static_cast<int>(exit_ll);
+                        has_last_exit_code = true;
                     }
-                    const std::string key = token.substr(0, equals_pos);
-                    const std::string value = token.substr(equals_pos + 1);
-                    if (key == "code" || key == "exit_code") {
-                        char* endptr = nullptr;
-                        long exit_ll = std::strtol(value.c_str(), &endptr, 10);
-                        if (endptr != value.c_str() && endptr != nullptr && *endptr == '\0') {
-                            last_exit_code = static_cast<int>(exit_ll);
-                            has_last_exit_code = true;
-                        }
-                    } else if (rank_by_usage && (key == "timestamp" || key == "frequency")) {
-                        long long parsed = 0;
-                        const auto result =
-                            std::from_chars(value.data(), value.data() + value.size(), parsed);
-                        if (result.ec == std::errc{} && result.ptr == value.data() + value.size() &&
-                            parsed >= 0) {
-                            if (key == "timestamp") {
-                                last_timestamp = parsed;
-                            } else if (parsed > 0) {
-                                last_frequency = parsed;
-                            }
+                } else if (rank_by_usage && (key == "timestamp" || key == "frequency")) {
+                    long long parsed = 0;
+                    const auto result =
+                        std::from_chars(value.data(), value.data() + value.size(), parsed);
+                    if (result.ec == std::errc{} && result.ptr == value.data() + value.size() &&
+                        parsed >= 0) {
+                        if (key == "timestamp") {
+                            last_timestamp = parsed;
+                        } else if (parsed > 0) {
+                            last_frequency = parsed;
                         }
                     }
                 }
             }
+            token_start = header.find_first_not_of(" \t\r\n\v\f", token_end);
         }
         header_line.clear();
 

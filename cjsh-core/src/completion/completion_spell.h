@@ -56,7 +56,8 @@ template <typename Container, typename Extractor>
 void collect_spell_correction_candidates(
     const Container& container, Extractor extractor,
     const std::function<bool(const std::string&)>& filter, const std::string& normalized_prefix,
-    std::unordered_map<std::string, SpellCorrectionMatch>& matches) {
+    std::unordered_map<std::string, SpellCorrectionMatch>& matches,
+    bool transpositions_only = false) {
     for (const auto& item : container) {
         std::string candidate = extractor(item);
         std::string normalized_candidate = completion_utils::normalize_for_comparison(candidate);
@@ -69,8 +70,13 @@ void collect_spell_correction_candidates(
 
         bool is_transposition_match =
             is_adjacent_transposition(normalized_candidate, normalized_prefix);
-        int distance =
-            compute_edit_distance_with_limit(normalized_candidate, normalized_prefix, max_distance);
+        if (transpositions_only && !is_transposition_match) {
+            continue;
+        }
+        int distance = is_transposition_match
+                           ? 1
+                           : compute_edit_distance_with_limit(normalized_candidate,
+                                                              normalized_prefix, max_distance);
         if (!is_transposition_match && distance > max_distance) {
             continue;
         }

@@ -32,6 +32,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 
 class ParameterExpansionEvaluator {
    public:
@@ -43,13 +44,16 @@ class ParameterExpansionEvaluator {
     using ArrayKeysReader = std::function<std::string(const std::string&)>;
     using WordExpander = std::function<std::string(const std::string&)>;
     using IndirectReader = std::function<std::string(const std::string&)>;
+    using PatternEndpoints = std::function<std::optional<std::vector<size_t>>(
+        const std::string&, const std::string&, bool)>;
 
     ParameterExpansionEvaluator(VariableReader var_reader, VariableWriter var_writer,
                                 VariableChecker var_checker, PatternMatcher pattern_matcher,
                                 ArrayLengthReader array_length_reader = nullptr,
                                 ArrayKeysReader array_keys_reader = nullptr,
                                 WordExpander word_expander = nullptr,
-                                IndirectReader indirect_reader = nullptr);
+                                IndirectReader indirect_reader = nullptr,
+                                PatternEndpoints pattern_endpoints = nullptr);
     std::string expand(const std::string& param_expr);
 
    private:
@@ -61,6 +65,7 @@ class ParameterExpansionEvaluator {
     ArrayKeysReader read_array_keys;
     WordExpander expand_word;
     IndirectReader read_indirect;
+    PatternEndpoints find_pattern_endpoints;
 
     std::string pattern_match_prefix(const std::string& value, const std::string& pattern,
                                      bool longest);

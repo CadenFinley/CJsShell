@@ -755,6 +755,30 @@ static bool test_empty_prompt_legacy_history() {
     return true;
 }
 
+static bool test_history_metadata_field_boundaries() {
+    const char* test_name = "history_metadata_field_boundaries";
+    EXPECT_TRUE(write_completion_history(
+                    "#\tcode=127\vexit_code=+0\ftimestamp=20\tfrequency=2\necho newest\n"
+                    "#code=+127 timestamp=99\necho hidden\n"
+                    "# code=-1 timestamp=10 frequency=3\necho negative_status\n"
+                    "# code=127x timestamp=9x frequency=1x\necho invalid_fields\n"
+                    "# code=0 code=127 exit_code=oops timestamp=99\necho hidden_duplicate\n"
+                    "# =bad code= timestamp=+100 frequency=0\necho default_fields\n"
+                    "# timestamp=10 frequency=5 ignored=a=b\necho frequent\n"
+                    "#\necho bare_header\n"),
+                test_name, "history fixture should be written");
+    (void)run_completion_generation("", &cjsh_default_completer, 256);
+    const std::vector<std::string> expected{"echo newest",          "echo frequent",
+                                            "echo negative_status", "echo bare_header",
+                                            "echo default_fields",  "echo invalid_fields"};
+    const bool ok = generated_completion_replacements() == expected &&
+                    first_generated_completion_matches("echo newest", "history: 0");
+    clear_generated_completions();
+    EXPECT_TRUE(ok, test_name,
+                "metadata fields must retain signs, delimiters, duplicate precedence and defaults");
+    return true;
+}
+
 static bool test_empty_prompt_without_history() {
     const char* test_name = "empty_prompt_without_history";
     EXPECT_TRUE(write_completion_history("# timestamp=100 frequency=1 code=0\necho saved\n"),
@@ -1277,6 +1301,38 @@ static bool test_collect_spell_candidates_without_filter() {
 
     EXPECT_TRUE(matches.find("gti") != matches.end(), test_name,
                 "empty filter should behave as allow-all");
+    return true;
+}
+
+static bool test_collect_transpositions_only() {
+    const char* test_name = "collect_transpositions_only";
+    const bool original_setting = is_completion_case_sensitive();
+    set_completion_case_sensitive(false);
+    const std::vector<std::string> candidates{"Git", "gti", "got", "grit", "unrelated"};
+    std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> transpositions;
+    std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> all;
+    std::vector<std::string> inspected;
+    completion_spell::collect_spell_correction_candidates(
+        candidates, [](const std::string& value) { return value; },
+        [&](const std::string& candidate) {
+            inspected.push_back(candidate);
+            return true;
+        },
+        "gti", transpositions, true);
+    completion_spell::collect_spell_correction_candidates(
+        candidates, [](const std::string& value) { return value; }, {}, "gti", all);
+    set_completion_case_sensitive(original_setting);
+    EXPECT_TRUE(inspected == std::vector<std::string>{"Git"}, test_name,
+                "only adjacent transpositions should reach the candidate filter");
+    EXPECT_TRUE(transpositions.size() == 1 && transpositions.count("Git") == 1, test_name,
+                "exact matches and ordinary edits are excluded from the first pass");
+    const auto& match = transpositions.at("Git");
+    EXPECT_TRUE(match.is_transposition && match.distance == 1 && match.shared_prefix_len == 1,
+                test_name, "normalized transpositions retain their ranking");
+    for (const auto& [candidate, result] : all) {
+        EXPECT_TRUE((transpositions.count(candidate) != 0) == result.is_transposition, test_name,
+                    "the first pass agrees with filtering the full candidate set");
+    }
     return true;
 }
 
@@ -2279,6 +2335,7 @@ static const test_case_t kTests[] = {
     {"empty_prompt_history_limits", test_empty_prompt_history_limits},
     {"empty_prompt_legacy_history", test_empty_prompt_legacy_history},
     {"empty_prompt_without_history", test_empty_prompt_without_history},
+    {"history_metadata_field_boundaries", test_history_metadata_field_boundaries},
     {"quote_and_unquote_paths", test_quote_and_unquote_paths},
     {"quote_path_special_characters", test_quote_path_special_characters},
     {"quote_path_empty_and_dollar", test_quote_path_empty_and_dollar},
@@ -2333,6 +2390,7 @@ static const test_case_t kTests[] = {
     {"collect_spell_candidates_distance_thresholds",
      test_collect_spell_candidates_distance_thresholds},
     {"collect_spell_candidates_without_filter", test_collect_spell_candidates_without_filter},
+    {"collect_transpositions_only", test_collect_transpositions_only},
     {"completion_tracker_deduplication", test_completion_tracker_deduplication},
     {"completion_tracker_trims_trailing_spaces", test_completion_tracker_trims_trailing_spaces},
     {"completion_tracker_max_results", test_completion_tracker_max_results},

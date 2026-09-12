@@ -130,7 +130,9 @@ CommandTokenClassification classify_command_token(
         return {Kind::Directory, true};
     }
 
-    const bool available = available_commands.count(token) != 0;
+    const bool available = available_commands.count(token) != 0 ||
+                           (shell != nullptr && shell->get_aliases().count(token) != 0) ||
+                           command_lookup::has_shell_function(token, shell);
     const bool known = available || is_external_command(token);
     // Directories retain their path style even when an alias/function/executable takes
     // precedence over automatic cd during command execution.

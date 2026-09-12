@@ -453,6 +453,99 @@ bool test_literal_pattern_removal() {
     config::extglob_enabled = previous_extglob;
     return ok;
 }
+
+bool test_pattern_endpoints_and_expansion() {
+    PatternMatcher matcher;
+    bool ok = true;
+    const bool previous_extglob = config::extglob_enabled;
+    config::extglob_enabled = true;
+    std::vector<std::string> patterns{"",  "'a*'", "\\*",   "[[:digit:]]", "[!a]",  "[]a]",
+                                      "[", "a|b",  "**a**", "*a*b*",       "@(a|b)"};
+    const std::vector<std::string> atoms{"a", "b", "?", "*", "[ab]"};
+    for (const auto& first : atoms) {
+        patterns.push_back(first);
+        for (const auto& second : atoms) {
+            patterns.push_back(first + second);
+            for (const auto& third : atoms) {
+                patterns.push_back(first + second + third);
+            }
+        }
+    }
+    std::vector<std::string> values{"", "a*b", "a1b", "a|b", "aaaaab", "ababab"};
+    for (char first : {'a', 'b', '.'}) {
+        values.emplace_back(1, first);
+        for (char second : {'a', 'b', '.'}) {
+            values.push_back(std::string{first, second});
+            for (char third : {'a', 'b', '.'}) {
+                values.push_back(std::string{first, second, third});
+            }
+        }
+    }
+    std::string value;
+    auto reader = [&](const std::string&) { return value; };
+    auto writer = [](const std::string&, const std::string&) {};
+    auto checker = [](const std::string&) { return true; };
+    auto match = [&](const std::string& text, const std::string& pattern) {
+        return matcher.matches_pattern(text, pattern);
+    };
+    ParameterExpansionEvaluator reference(reader, writer, checker, match);
+    ParameterExpansionEvaluator optimized(
+        reader, writer, checker, match, nullptr, nullptr, nullptr, nullptr,
+        [&](const std::string& text, const std::string& pattern, bool longest) {
+            return matcher.match_end_positions(text, pattern, longest);
+        });
+    for (const auto& pattern : patterns) {
+        for (const auto& text : values) {
+            value = text;
+            for (bool longest : {false, true}) {
+                const auto ends = matcher.match_end_positions(text, pattern, longest);
+                if (pattern == "@(a|b)") {
+                    ok = expect(!ends, "extended groups request the general matcher") && ok;
+                    continue;
+                }
+                if (!expect(ends && ends->size() == text.size() + 1, "endpoint table size")) {
+                    config::extglob_enabled = previous_extglob;
+                    return false;
+                }
+                for (size_t begin = 0; begin <= text.size(); ++begin) {
+                    size_t expected = std::string::npos;
+                    for (size_t end = begin; end <= text.size(); ++end) {
+                        if (matcher.matches_pattern(text.substr(begin, end - begin), pattern)) {
+                            expected = end;
+                            if (!longest) {
+                                break;
+                            }
+                        }
+                    }
+                    ok = expect((*ends)[begin] == expected,
+                                ("endpoint semantics: " + pattern + " on " + text).c_str()) &&
+                         ok;
+                }
+            }
+            for (const char* op : {"#", "##", "%", "%%", "/", "//", "/#", "/%"}) {
+                const std::string expression =
+                    std::string("v") + op + pattern + (op[0] == '/' ? "/XY" : "");
+                ok = expect(optimized.expand(expression) == reference.expand(expression),
+                            ("expansion semantics: " + expression + " on " + text).c_str()) &&
+                     ok;
+            }
+        }
+    }
+    // Cache options must be honored by both APIs when the same text is reused.
+    config::extglob_enabled = false;
+    ok = expect(matcher.match_end_positions("@(a|b)", "@(a|b)", true).has_value(),
+                "disabled extglob is eligible for ordinary matching") &&
+         ok;
+    config::extglob_enabled = previous_extglob;
+    value = std::string(8192, 'a') + 'b';
+    ok = expect(optimized.expand("v//z*/X") == value, "long wildcard replacement miss") && ok;
+    ok = expect(optimized.expand("v//[a]/X") == std::string(8192, 'X') + 'b',
+                "many global character-class replacements") &&
+         ok;
+    ok = expect(optimized.expand("v%%*z") == value, "long wildcard suffix miss") && ok;
+    return ok;
+}
+
 }  // namespace
 
 int main() {
@@ -468,11 +561,12 @@ int main() {
     const bool removal_ok = test_literal_pattern_removal();
     const bool import_ok = test_environment_import();
     const bool pattern_ok = test_pattern_matching();
+    const bool endpoints_ok = test_pattern_endpoints_and_expansion();
     g_shell.reset();
     if (!lookup_ok || !expansion_ok || !replacement_ok || !removal_ok || !import_ok ||
-        !pattern_ok || !transitions_ok) {
+        !pattern_ok || !transitions_ok || !endpoints_ok) {
         return 1;
     }
-    std::puts("All 7 variable lookup and expansion tests passed");
+    std::puts("All 8 variable lookup and expansion tests passed");
     return 0;
 }
