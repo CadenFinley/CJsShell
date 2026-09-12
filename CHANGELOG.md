@@ -11,6 +11,23 @@ date where available and the tag date otherwise, in the tag's local time zone.
 
 ## [Unreleased]
 
+## [1.5.5] - 2026-09-12
+
+### Added
+
+- Added an `Alt+O` browser shortcut and command-palette action that opens URL input directly or runs a web search for non-URL buffer text using the configurable `BROWSER` launcher.
+
+### Changed
+
+- Moved prompt internals into the core module layout and refreshed related keybinding application paths.
+- Improved parser and interpreter hot paths with broader coverage for token dispatch, variable lookup, and redirection-focused regression scenarios.
+
+### Fixed
+
+- Fixed command-substitution evaluation in loop and `select` expressions so nested substitution results are handled consistently.
+- Fixed `Alt+O` handling on WSL terminals by recognizing the escape sequence emitted for the key chord.
+- Stabilized shell lifecycle and process-cleanup regressions by tightening synchronization in niche race-prone test flows.
+
 ## [1.5.4] - 2026-09-10
 
 ### Changed
@@ -945,7 +962,8 @@ date where available and the tag date otherwise, in the tag's local time zone.
 - Included JSON prompt themes, a shared-library plugin engine, and an optional built-in AI assistant.
 - Included CMake builds, installation helpers, and shell compatibility tests.
 
-[Unreleased]: https://github.com/CadenFinley/cjsh/compare/v1.5.4...HEAD
+[Unreleased]: https://github.com/CadenFinley/cjsh/compare/v1.5.5...HEAD
+[1.5.5]: https://github.com/CadenFinley/cjsh/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/CadenFinley/cjsh/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/CadenFinley/cjsh/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/CadenFinley/cjsh/compare/v1.5.1...v1.5.2
