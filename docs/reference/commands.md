@@ -768,6 +768,8 @@ Available subcommands:
 - `style_def` - Define or redefine syntax highlighting styles
 - `completion-case` - Configure completion case sensitivity
 - `history-search-case` - Configure fuzzy history case sensitivity
+- `history-directory` - Scope interactive history to the current directory
+- `history-directory-subdirs` - Include nested directories in history scope
 - `completion-spell` - Toggle spell correction suggestions in completions
 - `completion-spell-enter` - Toggle Enter-triggered spell autocorrection when exactly one spell match exists
 - `completion-learning` - Toggle automatic completion learning from man pages
@@ -896,6 +898,34 @@ cjshopt history-search-case status  # Show the current setting
 ```
 
 Add the command to `~/.cjshrc` to persist the preference.
+
+#### history-directory / history-directory-subdirs
+
+Scope arrow-key recall, fuzzy history search, and history completions to the current working
+directory. Both settings default to `off` and accept `on`, `off`, `status`, and the same synonyms
+as `history-search-case`.
+
+```bash
+cjshopt history-directory on             # Use commands run in the current directory
+cjshopt history-directory off            # Use history from all directories (default)
+cjshopt history-directory status         # Show the current setting
+cjshopt history-directory-subdirs on     # Also include commands from nested directories
+cjshopt history-directory-subdirs off    # Match only the current directory (default)
+cjshopt history-directory-subdirs status # Show the nested-directory setting
+```
+
+With both options enabled in `/work/project`, commands from `/work/project/src` are included.
+Commands from `/work/project-other` are excluded. In `/work/project/src`, commands recorded in
+`/work/project` are excluded. The nested-directory setting takes effect when directory scope is on.
+
+Inside the fuzzy history menu, `Alt+D` toggles directory scope and `Alt+N` toggles nested directories
+for that menu only. Its status line shows both settings. Add the `cjshopt` commands to `~/.cjshrc`
+to apply your preferences in future sessions.
+
+New history records always capture the physical working directory before command execution,
+including when filtering is off. Symlink paths to the same directory share a scope. Older records
+without directory metadata remain available in global history and are excluded from directory
+scope. `history`, `fc`, and `!` expansion continue to use the full history.
 
 #### completion-spell
 

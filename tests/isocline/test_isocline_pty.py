@@ -2331,7 +2331,9 @@ def main() -> int:
     mouse_wheel_down = b"\x1b[<65;1;1M"
     mouse_wheel_down_shift = b"\x1b[<69;1;1M"
     mouse_release = b"\x1b[<3;1;1m"
-    mouse_click_history_second = mouse_left_click(6, 4)
+    # Directory and nested-scope indicators wrap the history header to two rows.
+    mouse_click_history_second = mouse_left_click(6, 5)
+    mouse_click_custom_second = mouse_left_click(6, 4)
     mouse_click_completion_expanded_second = mouse_left_click(6, 4)
     # At 80 columns, the collapsed completion header wraps to two rows when it
     # includes the mouse status, so the second candidate starts on screen row 5.
@@ -2558,6 +2560,8 @@ def main() -> int:
     )
     if (
         "alt+s:sort" not in normalized_hist_footer_output
+        or "alt+d:directory" not in normalized_hist_footer_output
+        or "alt+n:nested" not in normalized_hist_footer_output
         or "esc:cancel)" not in normalized_hist_footer_output
     ):
         raise AssertionError(
@@ -2927,7 +2931,7 @@ def main() -> int:
         F3
         + mouse_left_press(1, 1)
         + FOCUS_IN
-        + mouse_click_history_second
+        + mouse_click_custom_second
         + b"\r",
         capture_output=True,
     )

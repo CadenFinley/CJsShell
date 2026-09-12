@@ -1293,6 +1293,7 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
     decoded_line.reserve(256);
 
     std::string header_line;
+    const bool directory_aware = ic_history_directory_is_enabled();
 
     while (std::getline(history_file, line) && (rank_by_usage || batch.matches.size() < 50)) {
         if (line.empty()) {
@@ -1322,6 +1323,7 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
         bool has_last_exit_code = false;
         long long last_timestamp = 0;
         long long last_frequency = 1;
+        std::string directory;
         // Parse fields as views into the saved header. Ranked history can visit
         // every record on each completion, so avoid a stream and strings per field.
         const std::string_view header(header_line);
@@ -1344,6 +1346,21 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
                         last_exit_code = static_cast<int>(exit_ll);
                         has_last_exit_code = true;
                     }
+                } else if (directory_aware && key == "cwd") {
+                    directory.clear();
+                    for (size_t i = 0; i < value.size(); ++i) {
+                        if (value[i] == '%' && i + 2 < value.size()) {
+                            unsigned int byte = 0;
+                            const auto result = std::from_chars(value.data() + i + 1,
+                                                                value.data() + i + 3, byte, 16);
+                            if (result.ec == std::errc{} && result.ptr == value.data() + i + 3) {
+                                directory.push_back(static_cast<char>(byte));
+                                i += 2;
+                                continue;
+                            }
+                        }
+                        directory.push_back(value[i]);
+                    }
                 } else if (rank_by_usage && (key == "timestamp" || key == "frequency")) {
                     long long parsed = 0;
                     const auto result =
@@ -1362,7 +1379,8 @@ bool collect_history_completion_matches(ic_completion_env_t* cenv, const char* p
         }
         header_line.clear();
 
-        if ((has_last_exit_code && last_exit_code == kHistoryCompletionHiddenExitCode) ||
+        if ((directory_aware && !ic_history_matches_directory(directory.c_str())) ||
+            (has_last_exit_code && last_exit_code == kHistoryCompletionHiddenExitCode) ||
             (!rank_by_usage && looks_like_file_path(entry_text)) ||
             string_utils::trim_ascii_whitespace_copy(entry_text).empty()) {
             continue;

@@ -358,6 +358,38 @@ int history_search_case_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int history_directory_command(const std::vector<std::string>& args) {
+    static const ToggleCommandConfig config{
+        "history-directory",
+        {"Usage: history-directory <on|off|status>",
+         "Scope interactive history recall to the current directory.",
+         "Default: off. Add cjshopt history-directory on to ~/.cjshrc to persist."},
+        [] { return ic_history_directory_is_enabled(); },
+        [](bool enable) { (void)ic_enable_history_directory(enable); },
+        "Directory-aware history",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+    return handle_toggle_command(config, args);
+}
+
+int history_directory_subdirs_command(const std::vector<std::string>& args) {
+    static const ToggleCommandConfig config{
+        "history-directory-subdirs",
+        {"Usage: history-directory-subdirs <on|off|status>",
+         "Include commands from nested directories when directory-aware history is enabled.",
+         "Default: off. Add cjshopt history-directory-subdirs on to ~/.cjshrc to persist."},
+        [] { return ic_history_directory_subdirs_is_enabled(); },
+        [](bool enable) { (void)ic_enable_history_directory_subdirs(enable); },
+        "History nested directories",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+    return handle_toggle_command(config, args);
+}
+
 int completion_spell_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: completion-spell <on|off|status>",

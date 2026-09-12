@@ -38,6 +38,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -111,6 +112,12 @@ struct CommandProcessResult {
     int exit_status;
 };
 
+std::string history_working_directory() {
+    std::error_code ec;
+    const auto directory = std::filesystem::current_path(ec);
+    return ec ? std::string() : directory.string();
+}
+
 CommandProcessResult process_command_line(const std::string& command) {
     // this condition theoretically should never be hit due to earlier checks, but just in case
     if (command.empty()) {
@@ -150,6 +157,7 @@ CommandProcessResult process_command_line(const std::string& command) {
     trap_manager_execute_debug_trap();
 
     // actually execute the command now
+    const std::string command_directory = history_working_directory();
     const auto command_start_time = std::chrono::steady_clock::now();
     int exit_code = g_shell->execute(expanded_command);
     g_shell->set_last_interactive_command(expanded_command);
@@ -175,8 +183,10 @@ CommandProcessResult process_command_line(const std::string& command) {
             {"frequency", "0"},
             {"code", exit_code_str.c_str()},
             {"ms", elapsed_ms_str.c_str()},
+            {"cwd", command_directory.c_str()},
         };
-        ic_history_add_with_metadata(expanded_command.c_str(), metadata, 4);
+        ic_history_add_with_metadata(expanded_command.c_str(), metadata,
+                                     sizeof(metadata) / sizeof(metadata[0]));
     }
     // Amortize allocator maintenance across commands instead of trimming after each builtin.
     static auto last_memory_cleanup = command_end_time;
@@ -283,6 +293,7 @@ std::optional<std::string> get_next_command() {
 
         refresh_command_palette_entries();
         cjsh_filesystem::reset_interactive_path_cache();
+        (void)ic_set_history_directory(history_working_directory().c_str());
         prompt::set_prompt_refresh_allowed(true);
         ic_readline_result_t readline_result =
             resuming_after_idle ? ic_readline_with_status_at_cursor(

@@ -1104,6 +1104,108 @@ static bool test_history_dedup_order_and_metadata(void) {
     return true;
 }
 
+static bool test_history_directory_scope(void) {
+    ic_env_t* env = ensure_env();
+    EXPECT_TRUE(env != NULL, "isocline environment should exist");
+    history_t* original = env->history;
+    history_t* history = history_new(test_allocator());
+    EXPECT_TRUE(history != NULL, "history should be allocated");
+    env->history = history;
+    const char* path = "./isocline_history_directory.log";
+    history_load_from(history, path, 32);
+    history_clear(history);
+
+    const ic_history_metadata_t parent[] = {{"cwd", "/project space/%work"}, {"frequency", "0"}};
+    const ic_history_metadata_t child[] = {{"cwd", "/project space/%work/src/deep"},
+                                           {"frequency", "0"}};
+    const ic_history_metadata_t sibling[] = {{"cwd", "/project space/%work-other"}};
+    const ic_history_metadata_t root[] = {{"cwd", "/"}};
+    EXPECT_TRUE(history_push(history, "legacy"), "legacy entry should persist");
+    EXPECT_TRUE(history_push_with_metadata(history, "shared", parent, 2), "parent should persist");
+    EXPECT_TRUE(history_push_with_metadata(history, "shared", child, 2), "child should persist");
+    EXPECT_TRUE(history_push_with_metadata(history, "shared", parent, 2), "parent should update");
+    EXPECT_TRUE(history_push_with_metadata(history, "sibling", sibling, 1),
+                "sibling should persist");
+    EXPECT_TRUE(history_push_with_metadata(history, "root", root, 1), "root should persist");
+    EXPECT_FALSE(ic_history_directory_is_enabled(), "directory scope should default off");
+    EXPECT_FALSE(ic_history_directory_subdirs_is_enabled(), "nested scope should default off");
+    EXPECT_TRUE(history_count(history) == 5, "same commands in distinct directories must survive");
+
+    EXPECT_TRUE(ic_set_history_directory("/project space/%work"), "directory should be set");
+    EXPECT_FALSE(ic_enable_history_directory(true), "enabling should return the previous state");
+    EXPECT_TRUE(history_count(history) == 1,
+                "exact scope should exclude child, sibling and legacy");
+    history_snapshot_t snap = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &snap, true), "scoped snapshot should load");
+    const history_entry_t* entry = history_snapshot_get(&snap, 0);
+    EXPECT_TRUE(entry != NULL, "parent command should remain");
+    EXPECT_STREQ(entry->command, "shared", "parent command should match");
+    EXPECT_STREQ(history_entry_get_metadata(entry, "frequency"), "2", "frequency is per directory");
+    EXPECT_STREQ(history_entry_get_metadata(entry, "cwd"), "/project space/%work",
+                 "spaces and percent signs should round trip");
+    EXPECT_TRUE(history_snapshot_is_current(history, &snap), "unchanged scope should be current");
+    (void)ic_enable_history_directory_subdirs(true);
+    EXPECT_FALSE(history_snapshot_is_current(history, &snap), "nested toggle invalidates snapshot");
+    EXPECT_TRUE(history_count(history) == 2,
+                "nested scope includes descendants, excludes siblings");
+    history_snapshot_free(history, &snap);
+
+    history_match_t matches[8];
+    ssize_t count = 0;
+    EXPECT_TRUE(history_fuzzy_search(history, "shared", matches, 8, &count, NULL),
+                "fuzzy search should use directory scope");
+    EXPECT_TRUE(count == 2, "both directories should match");
+    EXPECT_FALSE(history_fuzzy_search(history, "legacy", matches, 8, &count, NULL),
+                 "legacy entries should not leak into scoped search");
+    ssize_t idx = -1;
+    EXPECT_FALSE(history_search_prefix(history, 0, "sibling", true, &idx),
+                 "prefix recall should exclude sibling commands");
+    EXPECT_FALSE(history_search(history, 0, "root", true, &idx, NULL),
+                 "substring recall should exclude ancestors");
+
+    (void)ic_set_history_directory("/project space/%work/src/deep");
+    EXPECT_TRUE(history_count(history) == 1, "child scope must not include parent commands");
+    EXPECT_TRUE(history_snapshot_load(history, &snap, true), "child snapshot should load");
+    entry = history_snapshot_get(&snap, 0);
+    EXPECT_STREQ(history_entry_get_metadata(entry, "frequency"), "1",
+                 "child frequency is separate");
+    (void)ic_set_history_directory("/");
+    EXPECT_FALSE(history_snapshot_is_current(history, &snap),
+                 "directory changes invalidate snapshot");
+    history_snapshot_free(history, &snap);
+    EXPECT_TRUE(history_count(history) == 4,
+                "recursive root includes every known absolute directory");
+    (void)ic_enable_history_directory_subdirs(false);
+    EXPECT_TRUE(history_count(history) == 1, "exact root excludes descendants");
+    (void)ic_set_history_directory("/project space/%work/");
+    EXPECT_TRUE(history_count(history) == 1, "scope tolerates a trailing slash");
+    (void)ic_set_history_directory(NULL);
+    EXPECT_TRUE(history_count(history) == 0,
+                "unknown current directory must not reuse stale scope");
+    history_begin_edit(history);
+    EXPECT_TRUE(history_update(history, "unfinished input"), "scratch input should update");
+    EXPECT_TRUE(history_count(history) == 1, "scratch input remains available in empty scope");
+    (void)history_enable_auto_add(history, false);
+    history_end_edit(history, NULL);
+    EXPECT_TRUE(history_count(history) == 0, "scratch input must not persist");
+
+    EXPECT_TRUE(ic_enable_history_directory(false), "disabling returns previous state");
+    EXPECT_TRUE(history_count(history) == 5, "disabling restores global and legacy history");
+    history_free(history);
+    history = history_new(test_allocator());
+    env->history = history;
+    history_load_from(history, path, 32);
+    EXPECT_TRUE(history_count(history) == 5, "all directories should survive a new session");
+    (void)ic_set_history_directory("/project space/%work");
+    (void)ic_enable_history_directory(true);
+    EXPECT_TRUE(history_count(history) == 1, "scope should also work after reloading");
+    history_clear(history);
+    env->history = original;
+    history_free(history);
+    (void)remove(path);
+    return true;
+}
+
 static bool test_history_fuzzy_case_toggle(void) {
     ic_env_t* env = ensure_env();
     alloc_t* mem = test_allocator();
@@ -4718,6 +4820,7 @@ static const test_case_t kTests[] = {
     {"completion_generation_and_apply", test_completion_generation_and_apply},
     {"history_dedup_snapshot", test_history_dedup_snapshot},
     {"history_snapshot_search_consistency", test_history_snapshot_search_consistency},
+    {"history_directory_scope", test_history_directory_scope},
     {"history_fuzzy_case_toggle", test_history_fuzzy_case_toggle},
     {"history_fuzzy_case_toggle_via_api", test_history_fuzzy_case_toggle_via_api},
     {"history_search_sort_api", test_history_search_sort_api},

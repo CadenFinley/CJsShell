@@ -271,6 +271,36 @@ ic_public bool ic_history_fuzzy_search_is_case_sensitive(void) {
     return history_is_fuzzy_case_sensitive(env->history);
 }
 
+ic_public bool ic_enable_history_directory(bool enable) {
+    ic_env_t* env = ic_get_env();
+    return env != NULL && history_enable_directory(env->history, enable);
+}
+
+ic_public bool ic_history_directory_is_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    return env != NULL && history_directory_is_enabled(env->history);
+}
+
+ic_public bool ic_enable_history_directory_subdirs(bool enable) {
+    ic_env_t* env = ic_get_env();
+    return env != NULL && history_enable_directory_subdirs(env->history, enable);
+}
+
+ic_public bool ic_history_directory_subdirs_is_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    return env != NULL && history_directory_subdirs_is_enabled(env->history);
+}
+
+ic_public bool ic_set_history_directory(const char* directory) {
+    ic_env_t* env = ic_get_env();
+    return env != NULL && history_set_directory(env->history, directory);
+}
+
+ic_public bool ic_history_matches_directory(const char* directory) {
+    ic_env_t* env = ic_get_env();
+    return env != NULL && history_matches_directory(env->history, directory);
+}
+
 ic_public bool ic_set_history_search_sort(ic_history_search_sort_t sort, const char* metadata_key) {
     ic_env_t* env = ic_get_env();
     if (env == NULL) {

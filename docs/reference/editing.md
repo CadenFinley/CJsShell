@@ -499,10 +499,12 @@ cjshopt set-history-max status
 
 **History File:**
 History is stored at `~/.cache/cjsh/history.txt`. Each entry is prefixed by a metadata line in the
-form `# timestamp=<unix_timestamp> frequency=<count> code=<exit_status> ms=<elapsed_ms>`.
+form `# timestamp=<unix_timestamp> frequency=<count> code=<exit_status> ms=<elapsed_ms> cwd=<directory>`.
+Metadata values are percent-encoded. `cwd` records the physical working directory before execution.
 
 **Duplicate Handling:**
-By default, duplicate entries are not stored in history to keep it clean and relevant.
+Repeated commands in the same directory update their existing entry and frequency. The same
+command run in different directories keeps a separate entry for each directory.
 
 ### History Expansion
 
@@ -540,6 +542,15 @@ want history expansion to happen as part of command submission.
 - `Alt+>`: Jump to newest history entry
 
 Control whether the fuzzy history search menu matches case-sensitively with `cjshopt history-search-case <on|off|status>` or press `Alt+C` inside the menu to flip modes on the fly. Turning case sensitivity off lets uppercase queries (for example, `LS`) match lowercase history entries (`ls`) when filtering.
+
+Use `cjshopt history-directory on|off|status` to scope interactive history recall and suggestions
+to the current directory. Use `cjshopt history-directory-subdirs on|off|status` to also include
+commands run in its nested directories. Both default to `off`. A parent includes descendants when
+nested scope is on; a child does not include its parent's commands. Older entries without `cwd`
+remain available with directory scope off. Add these commands to `~/.cjshrc` to persist preferences.
+
+Inside the history menu, `Alt+D` toggles directory scope and `Alt+N` toggles nested directories for
+the open menu. Both settings appear in the status line, alongside case sensitivity.
 
 History search results are sorted newest-first by default. Press `Alt+S` inside the menu to cycle the current menu through available sort arrangements such as command text and metadata keys present in the matching history entries. This only changes the open menu; the default sort can be changed by callers through the isocline history search sort API.
 
@@ -694,6 +705,8 @@ action.
 - `Ctrl+R`: Open the fuzzy history search menu
 - `Ctrl+S`: Open the fuzzy history search menu
 - `Alt+C`: Toggle case sensitivity while the fuzzy history search menu is open
+- `Alt+D`: Toggle directory scope while the fuzzy history search menu is open
+- `Alt+N`: Toggle inclusion of nested directories while the fuzzy history search menu is open
 - `Alt+S`: Cycle sort arrangements while the fuzzy history search menu is open
 - `↑`: Previous history entry
 - `↓`: Next history entry

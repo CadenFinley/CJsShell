@@ -61,6 +61,7 @@ typedef struct history_snapshot_s {
     bool loaded;
     bool had_pending;
     bool allow_duplicates;
+    size_t directory_revision;
     ssize_t max_entries;
     history_entry_t* entries;
     ssize_t count;
@@ -73,6 +74,12 @@ ic_private void history_clear(history_t* h);
 ic_private bool history_enable_duplicates(history_t* h, bool enable);
 ic_private bool history_set_fuzzy_case_sensitive(history_t* h, bool enable);
 ic_private bool history_is_fuzzy_case_sensitive(const history_t* h);
+ic_private bool history_enable_directory(history_t* h, bool enable);
+ic_private bool history_directory_is_enabled(const history_t* h);
+ic_private bool history_enable_directory_subdirs(history_t* h, bool enable);
+ic_private bool history_directory_subdirs_is_enabled(const history_t* h);
+ic_private bool history_set_directory(history_t* h, const char* directory);
+ic_private bool history_matches_directory(const history_t* h, const char* directory);
 ic_private ssize_t history_count(const history_t* h);
 
 ic_private void history_load_from(history_t* h, const char* fname, long max_entries);

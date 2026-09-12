@@ -66,6 +66,10 @@ struct history_s {
     bool allow_duplicates;
     bool auto_add;
     bool fuzzy_case_sensitive;
+    bool directory_aware;
+    bool directory_subdirs;
+    char* directory;
+    size_t directory_revision;
     ssize_t max_entries;
     char* scratch;
     ssize_t scratch_cap;
@@ -384,16 +388,26 @@ static void history_list_prune_to_max(history_t* h, history_list_t* list) {
     }
 }
 
+static const char* history_entry_directory(const history_entry_t* entry) {
+    const char* directory = history_entry_get_metadata(entry, "cwd");
+    return directory == NULL ? "" : directory;
+}
+
+static int history_compare_entry_identity(const history_entry_t* lhs, const history_entry_t* rhs) {
+    const int order = strcmp(lhs->command, rhs->command);
+    return order != 0 ? order : strcmp(history_entry_directory(lhs), history_entry_directory(rhs));
+}
+
 static int compare_history_entries_by_command(const void* left, const void* right) {
     const history_entry_t* lhs = *(history_entry_t* const*)left;
     const history_entry_t* rhs = *(history_entry_t* const*)right;
-    const int order = strcmp(lhs->command, rhs->command);
+    const int order = history_compare_entry_identity(lhs, rhs);
     if (order != 0) {
         return order;
     }
 
     // The pointers refer to entries in the same array. Keep the newest entry
-    // first within each group of equal commands, including all of its metadata.
+    // first within each group of equal commands and directories, with all metadata.
     return (lhs > rhs) ? -1 : (lhs < rhs) ? 1 : 0;
 }
 
@@ -416,7 +430,7 @@ static bool history_list_remove_duplicates(history_t* h, history_list_t* list) {
 
     history_entry_t* newest = NULL;
     for (ssize_t i = 0; i < sorted_count; i++) {
-        if (newest != NULL && strcmp(newest->command, sorted[i]->command) == 0) {
+        if (newest != NULL && history_compare_entry_identity(newest, sorted[i]) == 0) {
             history_entry_clear(h, sorted[i]);
         } else {
             newest = sorted[i];
@@ -444,13 +458,15 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
 static bool history_write_all(const history_t* h, const history_list_t* list);
 static bool history_collect_disk_entries(history_t* h, history_list_t* list, bool dedup);
 
-static bool history_list_remove_value(history_t* h, history_list_t* list, const char* value) {
+static bool history_list_remove_value(history_t* h, history_list_t* list,
+                                      const history_entry_t* value) {
     if (list == NULL || value == NULL) {
         return false;
     }
     bool removed = false;
     for (ssize_t i = list->count - 1; i >= 0; i--) {
-        if (list->entries[i].command != NULL && strcmp(list->entries[i].command, value) == 0) {
+        if (list->entries[i].command != NULL &&
+            history_compare_entry_identity(&list->entries[i], value) == 0) {
             history_list_remove_at(h, list, i);
             removed = true;
         }
@@ -459,12 +475,13 @@ static bool history_list_remove_value(history_t* h, history_list_t* list, const 
 }
 
 static const history_entry_t* history_list_find_last_value(const history_list_t* list,
-                                                           const char* value) {
+                                                           const history_entry_t* value) {
     if (list == NULL || value == NULL) {
         return NULL;
     }
     for (ssize_t i = list->count - 1; i >= 0; --i) {
-        if (list->entries[i].command != NULL && strcmp(list->entries[i].command, value) == 0) {
+        if (list->entries[i].command != NULL &&
+            history_compare_entry_identity(&list->entries[i], value) == 0) {
             return &list->entries[i];
         }
     }
@@ -481,6 +498,7 @@ ic_private bool history_snapshot_load(history_t* h, history_snapshot_t* snap, bo
     history_snapshot_free(h, snap);
     snap->max_entries = h->max_entries;
     snap->allow_duplicates = h->allow_duplicates;
+    snap->directory_revision = h->directory_revision;
     snap->had_pending = !history_is_disabled(h) && h->pending != NULL;
     snap->has_file_status = h->fname != NULL && stat(h->fname, &snap->file_status) == 0;
     if (history_is_disabled(h)) {
@@ -507,7 +525,8 @@ ic_private bool history_snapshot_load(history_t* h, history_snapshot_t* snap, bo
 
 ic_private bool history_snapshot_is_current(const history_t* h, const history_snapshot_t* snap) {
     if (h == NULL || snap == NULL || !snap->loaded || snap->max_entries != h->max_entries ||
-        snap->allow_duplicates != h->allow_duplicates) {
+        snap->allow_duplicates != h->allow_duplicates ||
+        snap->directory_revision != h->directory_revision) {
         return false;
     }
     const bool has_pending = !history_is_disabled(h) && h->pending != NULL;
@@ -694,6 +713,7 @@ ic_private void history_free(history_t* h) {
         h->scratch_cap = 0;
     }
     mem_free(h->mem, h->pending);
+    mem_free(h->mem, h->directory);
     mem_free(h->mem, h->fname);
     h->fname = NULL;
     mem_free(h->mem, h);
@@ -728,6 +748,55 @@ ic_private bool history_is_fuzzy_case_sensitive(const history_t* h) {
         return true;
     }
     return h->fuzzy_case_sensitive;
+}
+
+ic_private bool history_enable_directory(history_t* h, bool enable) {
+    if (h == NULL) {
+        return false;
+    }
+    bool previous = h->directory_aware;
+    if (previous != enable) {
+        h->directory_aware = enable;
+        h->directory_revision++;
+    }
+    return previous;
+}
+
+ic_private bool history_directory_is_enabled(const history_t* h) {
+    return h != NULL && h->directory_aware;
+}
+
+ic_private bool history_enable_directory_subdirs(history_t* h, bool enable) {
+    if (h == NULL) {
+        return false;
+    }
+    bool previous = h->directory_subdirs;
+    if (previous != enable) {
+        h->directory_subdirs = enable;
+        h->directory_revision++;
+    }
+    return previous;
+}
+
+ic_private bool history_directory_subdirs_is_enabled(const history_t* h) {
+    return h != NULL && h->directory_subdirs;
+}
+
+ic_private bool history_set_directory(history_t* h, const char* directory) {
+    if (h == NULL) {
+        return false;
+    }
+    if (directory == NULL) {
+        directory = "";
+    }
+    if (h->directory != NULL && strcmp(h->directory, directory) == 0) {
+        return true;
+    }
+    char* copy = mem_strdup(h->mem, directory);
+    mem_free(h->mem, h->directory);
+    h->directory = copy;
+    h->directory_revision++;
+    return copy != NULL;
 }
 
 static const char* history_set_scratch(history_t* h, const char* entry) {
@@ -852,19 +921,6 @@ static bool history_push_with_metadata_unlocked(history_t* h, const char* entry,
         return false;
     }
 
-    long long next_frequency = 1;
-    if (!h->allow_duplicates) {
-        const history_entry_t* last_entry = history_list_find_last_value(&list, normalized);
-        if (last_entry != NULL) {
-            long long previous_frequency = history_entry_frequency(last_entry);
-            next_frequency = (previous_frequency >= LLONG_MAX ? LLONG_MAX : previous_frequency + 1);
-        }
-    }
-
-    if (!h->allow_duplicates) {
-        (void)history_list_remove_value(h, &list, normalized);
-    }
-
     history_entry_t new_entry = {
         .command = normalized,
         .metadata = NULL,
@@ -882,6 +938,15 @@ static bool history_push_with_metadata_unlocked(history_t* h, const char* entry,
             history_list_free(h, &list);
             return false;
         }
+    }
+    long long next_frequency = 1;
+    if (!h->allow_duplicates) {
+        const history_entry_t* last_entry = history_list_find_last_value(&list, &new_entry);
+        if (last_entry != NULL) {
+            long long previous_frequency = history_entry_frequency(last_entry);
+            next_frequency = (previous_frequency >= LLONG_MAX ? LLONG_MAX : previous_frequency + 1);
+        }
+        (void)history_list_remove_value(h, &list, &new_entry);
     }
     if (!history_entry_normalize_metadata(h, &new_entry, next_frequency)) {
         history_entry_clear(h, &new_entry);
@@ -1960,10 +2025,41 @@ static bool history_collect_disk_entries(history_t* h, history_list_t* list, boo
     return close_ok;
 }
 
+ic_private bool history_matches_directory(const history_t* h, const char* cwd) {
+    if (h == NULL || !h->directory_aware) {
+        return true;
+    }
+    if (h->directory == NULL || h->directory[0] != '/' || cwd == NULL || cwd[0] != '/') {
+        return false;
+    }
+    size_t len = strlen(h->directory);
+    while (len > 1 && h->directory[len - 1] == '/') {
+        len--;
+    }
+    if (strncmp(cwd, h->directory, len) != 0) {
+        return false;
+    }
+    return cwd[len] == '\0' || (h->directory_subdirs && (len == 1 || cwd[len] == '/'));
+}
+
 static bool history_collect_entries(history_t* h, history_list_t* list, bool dedup) {
     if (!history_collect_disk_entries(h, list, dedup)) {
         return false;
     }
+    // Filter only the read view. Persistence must retain entries from other directories.
+    ssize_t kept = 0;
+    for (ssize_t i = 0; i < list->count; i++) {
+        if (!history_matches_directory(h, history_entry_directory(&list->entries[i]))) {
+            history_entry_clear(h, &list->entries[i]);
+        } else {
+            if (kept != i) {
+                list->entries[kept] = list->entries[i];
+                list->entries[i] = (history_entry_t){0};
+            }
+            kept++;
+        }
+    }
+    list->count = kept;
     if (!history_is_disabled(h) && h->pending != NULL) {
         history_entry_t entry = {0};
         entry.command = mem_strdup(h->mem, h->pending);

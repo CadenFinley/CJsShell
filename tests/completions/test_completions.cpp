@@ -628,6 +628,40 @@ static bool test_history_completer_exit_code_ordering() {
     return true;
 }
 
+static bool test_history_directory_completions() {
+    const char* test_name = "history_directory_completions";
+    EXPECT_TRUE(
+        write_completion_history("# cwd=%2Fproject%20space%2F%25work code=0\necho parent\n"
+                                 "# cwd=%2Fproject%20space%2F%25work%2Fsrc code=0\necho child\n"
+                                 "# cwd=%2Fproject%20space%2F%25work-other code=0\necho sibling\n"
+                                 "# code=0\necho legacy\n"),
+        test_name, "history fixture should be written");
+    (void)ic_set_history_directory("/project space/%work");
+    const bool previous_scope = ic_enable_history_directory(true);
+    const bool previous_subdirs = ic_enable_history_directory_subdirs(false);
+    (void)run_completion_generation("echo", &cjsh_history_completer, 256);
+    const auto exact = generated_completion_replacements();
+    clear_generated_completions();
+    (void)ic_enable_history_directory_subdirs(true);
+    (void)run_completion_generation("", &cjsh_default_completer, 256);
+    const auto nested = generated_completion_replacements();
+    clear_generated_completions();
+    (void)ic_enable_history_directory(false);
+    const auto global_count = run_completion_generation("echo", &cjsh_history_completer, 256);
+    clear_generated_completions();
+    (void)ic_enable_history_directory(previous_scope);
+    (void)ic_enable_history_directory_subdirs(previous_subdirs);
+    (void)ic_set_history_directory(nullptr);
+    EXPECT_TRUE(exact == std::vector<std::string>{"echo parent"}, test_name,
+                "prefix completions must decode directory metadata and scope before matching");
+    const std::vector<std::string> expected_nested = {"echo child", "echo parent"};
+    EXPECT_TRUE(nested == expected_nested, test_name,
+                "empty-prompt suggestions include descendants but exclude siblings and legacy");
+    EXPECT_TRUE(global_count == 4, test_name,
+                "disabling scope restores every directory and legacy");
+    return true;
+}
+
 static bool test_history_prefix_metadata_isolation() {
     const char* test_name = "history_prefix_metadata_isolation";
     EXPECT_TRUE(write_completion_history("# code=127\nunmatched command\n"
@@ -2331,6 +2365,7 @@ using test_case_t = struct test_case_s {
 static const test_case_t kTests[] = {
     {"history_completer_exit_code_ordering", test_history_completer_exit_code_ordering},
     {"empty_prompt_history_ranking", test_empty_prompt_history_ranking},
+    {"history_directory_completions", test_history_directory_completions},
     {"history_prefix_metadata_isolation", test_history_prefix_metadata_isolation},
     {"empty_prompt_history_limits", test_empty_prompt_history_limits},
     {"empty_prompt_legacy_history", test_empty_prompt_legacy_history},

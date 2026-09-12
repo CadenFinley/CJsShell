@@ -815,6 +815,23 @@ bool ic_enable_history_fuzzy_case_sensitive(bool enable);
 /// Report whether the fuzzy history search menu currently matches case-sensitively.
 bool ic_history_fuzzy_search_is_case_sensitive(void);
 
+/// Scope interactive history recall to the directory supplied by the host (default: false).
+/// Entries without cwd metadata are excluded while scoped. Returns the previous setting.
+bool ic_enable_history_directory(bool enable);
+bool ic_history_directory_is_enabled(void);
+
+/// Include descendants of the current directory when scoped (default: false).
+/// Returns the previous setting.
+bool ic_enable_history_directory_subdirs(bool enable);
+bool ic_history_directory_subdirs_is_enabled(void);
+
+/// Set the physical absolute directory used for history recall. The string is copied.
+/// NULL or empty means unknown; scoped recall then returns no stored entries.
+bool ic_set_history_directory(const char* directory);
+
+/// Test decoded cwd metadata against the active scope (for host-provided history completions).
+bool ic_history_matches_directory(const char* directory);
+
 /// History search menu sort arrangements.
 typedef enum ic_history_search_sort_e {
     /// Sort matches by the most recent time the command was run.

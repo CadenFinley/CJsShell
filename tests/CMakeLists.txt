@@ -177,6 +177,9 @@ if(Python3_Interpreter_FOUND)
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_syntax_regressions.py"
                 $<TARGET_FILE:cjsh> $<TARGET_FILE:syntax_validation_probe>)
     if(UNIX)
+        cjsh_add_test(NAME directory_history_tests
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_directory_history.py"
+                    $<TARGET_FILE:cjsh>)
         cjsh_add_test(NAME history_concurrency_tests
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/isocline/test_history_concurrency.py"
                     $<TARGET_FILE:history_concurrency_driver>)
