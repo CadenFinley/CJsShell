@@ -117,6 +117,15 @@ void test_prepared_input_execution() {
                cjsh_env::get_shell_variable_value("PREPARED_RESULT") == "two",
            "prepared loop executes its final iteration");
 
+    const std::string substituted_loop =
+        "for item in $(printf 'three four'); do PREPARED_RESULT=$item; done";
+    expect(
+        !interpreter->needs_additional_input(parser->prepare_interactive_input(substituted_loop)),
+        "prepared loop with command substitution is complete");
+    expect(g_shell->execute(substituted_loop) == 0 &&
+               cjsh_env::get_shell_variable_value("PREPARED_RESULT") == "four",
+           "prepared loop expands command substitution before iterating");
+
     const std::string heredoc = "read PREPARED_RESULT <<EOF\noriginal\nEOF";
     expect(!interpreter->needs_additional_input(parser->prepare_interactive_input(heredoc)),
            "prepared heredoc is complete");
@@ -148,18 +157,13 @@ void test_runtime_guards_without_validation() {
     // Exercise the evaluators directly: nested/prevalidated execution must also
     // diagnose malformed headers without running either body or trailing commands.
     const std::vector<std::string> headers = {
-        "for i n one",
-        "for 1i in one",
-        "for \"i\" in one",
-        "for i \"in\" one",
-        "for",
-        "for ((i=0; i<2))",
-        "for ((i=0; i<2; i++)) extra",
-        "select i n one",
-        "select 1i in one",
-        "select $name in one",
-        "select",
-        "select i in",
+        "for i n one",      "for i n $(echo one)",
+        "for 1i in one",    "for \"i\" in one",
+        "for i \"in\" one", "for",
+        "for ((i=0; i<2))", "for ((i=0; i<2; i++)) extra",
+        "select i n one",   "select i n $(echo one)",
+        "select 1i in one", "select $name in one",
+        "select",           "select i in",
     };
     for (const auto& header : headers) {
         for (bool multiline : {false, true}) {

@@ -44,6 +44,7 @@
 #include <utility>
 #include <vector>
 
+#include "command_substitution_evaluator.h"
 #include "error_out.h"
 #include "exec.h"
 #include "flags.h"
@@ -96,6 +97,13 @@ int report_inline_loop_syntax_error(const std::string& segment, std::string_view
 int report_loop_header_error(const std::string& keyword, const std::string& message) {
     print_error({ErrorType::SYNTAX_ERROR, ErrorSeverity::ERROR, keyword, message, {}});
     return 2;
+}
+
+std::string expand_loop_substitutions(const std::string& words,
+                                      const std::function<int(const std::string&)>& executor) {
+    CommandSubstitutionEvaluator evaluator(
+        CommandSubstitutionEvaluator::create_command_executor(executor));
+    return evaluator.expand_substitutions(words).text;
 }
 
 const std::shared_ptr<std::vector<std::string>>& get_cached_inline_loop_body(
@@ -728,8 +736,11 @@ int handle_for_block(
         }
         var = parsed.variable;
         if (parsed.has_in) {
+            // Expand the list once, after validating syntax and before tokenization.
+            const std::string expanded_words =
+                expand_loop_substitutions(parsed.words, execute_simple_or_pipeline);
             // A fixed command prefix keeps list words out of alias/assignment-command handling.
-            auto toks = shell_parser->parse_command("for " + var + " in " + parsed.words);
+            auto toks = shell_parser->parse_command("for " + var + " in " + expanded_words);
             if (toks.size() < 3) {
                 report_loop_header_error("for", "could not parse iteration words after 'in'");
                 return false;
@@ -951,7 +962,9 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
 
         var = parsed.variable;
         if (parsed.has_in) {
-            auto toks = shell_parser->parse_command("select " + var + " in " + parsed.words);
+            const std::string expanded_words =
+                expand_loop_substitutions(parsed.words, execute_simple_or_pipeline);
+            auto toks = shell_parser->parse_command("select " + var + " in " + expanded_words);
             if (toks.size() < 3) {
                 report_loop_header_error("select", "could not parse selection words after 'in'");
                 return false;

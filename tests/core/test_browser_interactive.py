@@ -89,10 +89,10 @@ def main() -> int:
         session = Session(os.path.abspath(sys.argv[1]), str(home), cwd=str(root))
         checks = 0
 
-        def assert_snapshot(text: str, point: int) -> None:
+        def assert_snapshot(text: str, point: int, preceding_keys: bytes = b"") -> None:
             snapshot.unlink(missing_ok=True)
             start = len(session.output)
-            session.write(SNAPSHOT_KEY)
+            session.write(preceding_keys + SNAPSHOT_KEY)
             session.wait_for_file(str(snapshot))
             session.wait_for(b"\x1b[?2004h", start=start)
             actual = snapshot.read_text(encoding="utf-8")
@@ -148,11 +148,7 @@ def main() -> int:
                 capture.unlink(missing_ok=True)
                 if empty:
                     session.paste(empty.encode())
-                session.write(BROWSER_KEY)
-                # ESC o also starts a legacy terminal sequence; allow its timeout
-                # before sending another escape sequence after a no-op action.
-                session.pump(0.1)
-                assert_snapshot(empty, len(empty))
+                assert_snapshot(empty, len(empty), preceding_keys=BROWSER_KEY)
                 if capture.exists():
                     raise AssertionError("empty buffer launched a browser")
                 clear_input()
@@ -201,9 +197,9 @@ def main() -> int:
             session.run_command(b"cjshopt keybind ext reset")
             session.run_command(snapshot_binding.encode())
             capture.unlink(missing_ok=True)
-            session.enter_text(b"override", BROWSER_KEY)
-            session.pump(0.1)
-            assert_snapshot("override", 7)
+            session.paste(b"override")
+            # Queue both keys together: Alt+O must not consume F4's Escape byte.
+            assert_snapshot("override", 7, preceding_keys=BROWSER_KEY)
             if capture.exists():
                 raise AssertionError("browser replaced an explicit editing action")
             clear_input()

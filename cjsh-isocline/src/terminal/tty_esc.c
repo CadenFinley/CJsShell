@@ -649,6 +649,12 @@ ic_private code_t tty_read_esc(tty_t* tty, long esc_initial_timeout, long esc_ti
         if (!tty_readc_noblock(tty, &peek, esc_timeout)) {
             goto alt;
         }
+        if (peek == KEY_ESC) {
+            // A new escape starts the next key, not an SS3 continuation.
+            // Preserve it so queued Alt+O followed by e.g. F4 decodes as two keys.
+            tty_cpush_char(tty, peek);
+            return (key_unicode(c1) | KEY_MOD_ALT | mods);
+        }
         if (c1 == 'o') {
             // ETerm uses this for ctrl+<cursor>
             mods |= KEY_MOD_CTRL;

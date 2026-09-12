@@ -212,5 +212,100 @@ expect_output 'descending range stride is preserved' \
 expect_output 'malformed brace range remains a literal word' \
     'for i in {a..3}; do printf "<%s>" "$i"; done' '<{a..3}>'
 
+expect_output 'command substitution supplies the iteration list' \
+    'for i in $(seq 1 13); do printf "<%s>" "$i"; done' \
+    '<1><2><3><4><5><6><7><8><9><10><11><12><13>'
+expect_output 'command substitution splits newlines and removes trailing newlines' \
+    'for i in $(printf "one\ntwo\n\n"); do printf "<%s>" "$i"; done' '<one><two>'
+expect_output 'backtick substitution supplies the iteration list' \
+    'for i in `printf "one two"`; do printf "<%s>" "$i"; done' '<one><two>'
+expect_output 'quoted command substitution preserves whitespace' \
+    'for i in "$(printf "one  two\nthree\n\n")"; do printf "<%s>" "$i"; done' '<one  two
+three>'
+expect_output 'single-quoted substitution stays literal' \
+    "for i in '\$(echo one two)'; do printf '<%s>' \"\$i\"; done" '<$(echo one two)>'
+expect_output 'empty unquoted substitution produces no iterations' \
+    'for i in $(printf ""); do echo BODY; done' ''
+expect_output 'empty quoted substitution produces one empty item' \
+    'for i in "$(printf "")"; do printf "<%s>" "$i"; done' '<>'
+expect_output 'substitutions preserve surrounding list words and affixes' \
+    'for i in first pre$(printf "one two")post last; do printf "<%s>" "$i"; done' \
+    '<first><preone><twopost><last>'
+expect_output 'nested command substitution can access shell variables' \
+    'value="one two"; for i in $(printf "%s" "$(printf "%s" "$value")"); do printf "<%s>" "$i"; done' \
+    '<one><two>'
+expect_output 'list expansion happens once before the body' \
+    'value="one two"; values() { printf "%s" "$value"; }; for i in $(values); do value=changed; printf "<%s>" "$i"; done' \
+    '<one><two>'
+expect_output 'body substitutions use the current iteration value' \
+    'for i in $(printf "one two"); do printf "<%s>" "$(printf "%s" "$i")"; done' '<one><two>'
+expect_output 'function calls re-expand their loop lists' \
+    'f() { for i in $(printf "%s" "$1"); do printf "<%s>" "$i"; done; }; f "one two"; f three' \
+    '<one><two><three>'
+expect_output 'nested loops expand their lists in the outer iteration' \
+    'for outer in one two; do for i in $(printf "%s" "$outer"); do printf "<%s>" "$i"; done; done' \
+    '<one><two>'
+expect_output 'command substitution respects custom IFS' \
+    'IFS=:; for i in $(printf "one:two"); do printf "<%s>" "$i"; done' '<one><two>'
+expect_output 'list substitution status does not affect assignments in the body' \
+    'for i in $(printf one; false); do value=ok; printf "<%s>" "$?"; done' '<0>'
+expect_output 'parameter values are not expanded twice in loop lists' \
+    "value='\$other'; other=BAD; for i in \"\${value}\"; do printf '<%s>' \"\$i\"; done" '<$other>'
+expect_output 'POSIX mode expands command substitutions in loop lists' \
+    'for i in $(printf "one two"); do printf "<%s>" "$i"; done' '<one><two>' --posix
+expect_output 'noexec does not execute loop list substitutions' \
+    'for i in $(printf SIDE_EFFECT >&2; printf one); do echo BODY; done' '' --no-exec
+
+literal_output=$(cat <<'EOF'
+value=expanded
+for i in $(printf '%s\n' '$value' '$(echo BAD)' 'a;b' '"quoted"' '{1..3}'); do
+    printf '<%s>' "$i"
+done
+EOF
+)
+expect_output 'substitution output is not interpreted as shell syntax' \
+    "$literal_output" '<$value><$(echo><BAD)><a;b><"quoted"><{1..3}>'
+
+rainbow_loop=$(cat <<'EOF'
+for i in $(seq 1 13); do
+    printf '\033[38;5;%dm%s' $((196 + (i-1)%6*6)) \
+        "$(echo 'Hello, World!' | cut -c$i)"
+done
+printf '\033[0m\n'
+EOF
+)
+rainbow_expected=$(printf '\033[38;5;196mH\033[38;5;202me\033[38;5;208ml\033[38;5;214ml\033[38;5;220mo\033[38;5;226m,\033[38;5;196m \033[38;5;202mW\033[38;5;208mo\033[38;5;214mr\033[38;5;220ml\033[38;5;226md\033[38;5;196m!\033[0m')
+expect_output 'original multiline colored greeting' "$rainbow_loop" "$rainbow_expected"
+printf '%s\n' "$rainbow_loop" > "$TEST_DIR/script"
+for input_mode in file stdin; do
+    if [ "$input_mode" = file ]; then
+        "$CJSH_PATH" --secure "$TEST_DIR/script" > "$TEST_DIR/stdout" 2> "$TEST_DIR/stderr"
+    else
+        "$CJSH_PATH" --secure < "$TEST_DIR/script" > "$TEST_DIR/stdout" 2> "$TEST_DIR/stderr"
+    fi
+    result=$?
+    if [ "$result" -eq 0 ] && [ "$(cat "$TEST_DIR/stdout")" = "$rainbow_expected" ] &&
+       [ ! -s "$TEST_DIR/stderr" ]; then
+        pass "colored greeting from $input_mode"
+    else
+        fail "colored greeting from $input_mode"
+    fi
+done
+
+expect_output 'select accepts an empty expanded list' \
+    'select i in $(printf ""); do echo BODY; break; done' ''
+printf '2\n' | "$CJSH_PATH" --secure -c \
+    'PS3=""; select i in $(printf "one two") "$(printf "three four")"; do printf "<%s>" "$i"; break; done' \
+    > "$TEST_DIR/stdout" 2> "$TEST_DIR/stderr"
+result=$?
+if [ "$result" -eq 0 ] && [ "$(cat "$TEST_DIR/stdout")" = '<two>' ] &&
+   [ "$(cat "$TEST_DIR/stderr")" = '1) one
+2) two
+3) three four' ]; then
+    pass 'select expands both unquoted and quoted command substitutions'
+else
+    fail 'select expands both unquoted and quoted command substitutions'
+fi
+
 printf '\nLoop header regressions: %s passed, %s failed\n' "$PASSED" "$FAILED"
 [ "$FAILED" -eq 0 ]
